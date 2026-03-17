@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { NODE_TYPE_LABELS, NODE_TYPE_COLORS } from '../graph/NodeColors';
 import { linkSkill, unlinkSkill } from '../../api/orbs';
 import { useOrbStore } from '../../stores/orbStore';
@@ -193,6 +194,14 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       <form onSubmit={handleSubmit}>
         <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); setExpanded(false); }} />
 
+        <AnimatePresence mode="wait">
+        <motion.div
+          key={nodeType}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+        >
         <div className="flex gap-4">
           {/* LEFT: dates */}
           <div className="w-1/3 border-r border-white/5 pr-4 space-y-3">
@@ -282,6 +291,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
         {initialValues?.uid && (nodeType === 'work_experience' || nodeType === 'project') && (
           <SkillLinker nodeUid={initialValues.uid as string} />
         )}
+        </motion.div>
+        </AnimatePresence>
 
         {actionButtons}
       </form>
@@ -293,6 +304,14 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
     <form onSubmit={handleSubmit}>
       <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); }} />
 
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={nodeType}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+      >
       <div className="space-y-3">
         {(simple || []).map((field) => (
           <FieldInput
@@ -304,6 +323,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
           />
         ))}
       </div>
+      </motion.div>
+      </AnimatePresence>
 
       {actionButtons}
     </form>
