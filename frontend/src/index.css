@@ -10,3 +10,10 @@ html, body {
   min-height: 100svh;
   background-color: #000;
 }
+
+/* Override react-force-graph nav info text */
+.scene-nav-info {
+  font-size: 14px !important;
+  color: rgba(255, 255, 255, 0.25) !important;
+  font-family: 'Inter', -apple-system, sans-serif !important;
+}

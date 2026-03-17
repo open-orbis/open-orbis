@@ -6,6 +6,8 @@ import { useAuthStore } from '../stores/authStore';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import FloatingInput from '../components/editor/FloatingInput';
 import { NODE_TYPE_LABELS } from '../components/graph/NodeColors';
+import VoiceOnboarding from '../components/onboarding/VoiceOnboarding';
+import CVUploadOnboarding from '../components/onboarding/CVUploadOnboarding';
 
 const SUGGESTED_ORDER = [
   { type: 'work_experience', prompt: "Let's start with your work experience" },
@@ -17,13 +19,41 @@ const SUGGESTED_ORDER = [
   { type: 'publication', prompt: 'Any publications?' },
 ];
 
+// ── Path selector card ──
+
+function PathCard({ title, description, icon, onClick, color }: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  color: string;
+}) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 text-left hover:border-white/15 hover:bg-white/[0.06] transition-all group w-full"
+    >
+      <div
+        className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
+        style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
+      >
+        {icon}
+      </div>
+      <h3 className="text-white text-base font-semibold mb-1.5">{title}</h3>
+      <p className="text-white/35 text-sm leading-relaxed">{description}</p>
+    </motion.button>
+  );
+}
+
 export default function CreateOrbPage() {
   const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode } = useOrbStore();
   const { user } = useAuthStore();
+  const [selectedPath, setSelectedPath] = useState<'voice' | 'upload' | 'manual' | null>(null);
   const [showInput, setShowInput] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [introDone, setIntroDone] = useState(false);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
@@ -36,18 +66,17 @@ export default function CreateOrbPage() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // After intro animation, auto-open the first prompt
+  // After selecting manual, auto-open the first prompt
   useEffect(() => {
-    if (introDone && !showInput && currentStep < SUGGESTED_ORDER.length) {
+    if (selectedPath === 'manual' && !showInput && currentStep < SUGGESTED_ORDER.length) {
       const timer = setTimeout(() => setShowInput(true), 600);
       return () => clearTimeout(timer);
     }
-  }, [introDone, showInput, currentStep]);
+  }, [selectedPath, showInput, currentStep]);
 
   const handleSubmit = useCallback(async (nodeType: string, properties: Record<string, unknown>) => {
     await addNode(nodeType, properties);
     setShowInput(false);
-    // Brief pause to let user see the node appear, then prompt next
   }, [addNode]);
 
   const handleSkip = useCallback(() => {
@@ -71,38 +100,79 @@ export default function CreateOrbPage() {
   const currentSuggestion = currentStep < SUGGESTED_ORDER.length ? SUGGESTED_ORDER[currentStep] : null;
   const nodeCount = data?.nodes.length ?? 0;
 
-  // Intro: dark-to-black transition with text
-  if (!introDone) {
+  // ── Path selector (no path chosen yet) ──
+  if (!selectedPath) {
     return (
-      <AnimatePresence mode="wait">
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
         <motion.div
-          initial={{ backgroundColor: '#000' }}
-          animate={{ backgroundColor: '#000' }}
-          className="min-h-screen flex flex-col items-center justify-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-10"
         >
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
-            className="text-gray-400 text-lg mb-8 text-center max-w-md"
-          >
-            Build your orb entry by entry.
-            <br />
-            <span className="text-gray-500 text-sm">Each entry becomes a node in your knowledge graph.</span>
-          </motion.p>
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1, duration: 0.6 }}
-            onClick={() => setIntroDone(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-lg shadow-purple-600/25"
-          >
-            Let's go
-          </motion.button>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
+            How do you want to build your orb?
+          </h1>
+          <p className="text-white/35 text-base max-w-md mx-auto">
+            Choose how you'd like to add your professional information. You can always add more later.
+          </p>
         </motion.div>
-      </AnimatePresence>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.6 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-3xl"
+        >
+          <PathCard
+            title="Tell us about yourself"
+            description="We'll ask you a few questions. Answer by voice or typing — we'll build your graph as you go."
+            color="#8b5cf6"
+            onClick={() => setSelectedPath('voice')}
+            icon={
+              <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            }
+          />
+          <PathCard
+            title="Import from your CV"
+            description="Upload a PDF or DOCX file. We'll parse it and extract your experiences, skills, and education."
+            color="#3b82f6"
+            onClick={() => setSelectedPath('upload')}
+            icon={
+              <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            }
+          />
+          <PathCard
+            title="Build from scratch"
+            description="Add entries one by one through a guided flow. Full control over every detail of your graph."
+            color="#10b981"
+            onClick={() => setSelectedPath('manual')}
+            icon={
+              <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            }
+          />
+        </motion.div>
+      </div>
     );
   }
+
+  // ── Voice path ──
+  if (selectedPath === 'voice') {
+    return <VoiceOnboarding />;
+  }
+
+  // ── CV Upload path ──
+  if (selectedPath === 'upload') {
+    return <CVUploadOnboarding />;
+  }
+
+  // ── Manual path (existing flow) ──
 
   if (loading && !data) {
     return (

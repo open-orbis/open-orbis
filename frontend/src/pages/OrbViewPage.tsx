@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
@@ -386,6 +387,7 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 // ── Page ──
 
 export default function OrbViewPage() {
+  const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
   const { user, logout } = useAuthStore();
   const [showInput, setShowInput] = useState(false);
@@ -491,7 +493,7 @@ export default function OrbViewPage() {
               <IconInbox />
               <span className="hidden sm:inline">Inbox</span>
               {unreadCount > 0 && (
-                <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="bg-green-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                   {unreadCount}
                 </span>
               )}
@@ -505,15 +507,21 @@ export default function OrbViewPage() {
                 </span>
               )}
             </HeaderBtn>
-            <HeaderBtn onClick={() => {
-              if (orbId) window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/export/${orbId}?format=pdf`, '_blank');
-            }} variant="ghost">
+            <button
+              onClick={() => {
+                if (orbId) window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/export/${orbId}?format=pdf`, '_blank');
+              }}
+              className="flex items-center gap-1.5 text-sm font-medium py-1.5 px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+            >
               <IconDownload />
               <span className="hidden sm:inline">Export CV</span>
-            </HeaderBtn>
-            <HeaderBtn onClick={logout} variant="ghost">
-              <span className="text-white/30 text-xs">Logout</span>
-            </HeaderBtn>
+            </button>
+            <button
+              onClick={() => { logout(); navigate('/'); }}
+              className="text-white/30 text-xs font-medium py-1.5 px-3 rounded-lg hover:text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </div>

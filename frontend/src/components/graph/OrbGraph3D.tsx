@@ -34,6 +34,7 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   const highlightRingsRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const nodeObjectCacheRef = useRef<Map<string, THREE.Group>>(new Map());
   const prevHighlightKeyRef = useRef<string>('');
+  const isHoveringRef = useRef(false);
 
   // Use ref for highlights so nodeThreeObject callback stays stable
   const highlightRef = useRef<Set<string>>(new Set());
@@ -122,7 +123,7 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     }
   }, [data]);
 
-  // Slowly rotate background particles
+  // Slowly rotate background particles + auto-rotate graph
   useEffect(() => {
     let animId: number;
     const animate = () => {
@@ -133,6 +134,14 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
         if (particles) {
           particles.rotation.y += 0.00008;
           particles.rotation.x += 0.00003;
+        }
+
+        // Auto-rotate the graph slowly, pause on hover
+        if (!isHoveringRef.current) {
+          const scene = fg.scene();
+          if (scene) {
+            scene.rotation.y += 0.0012;
+          }
         }
       }
       animId = requestAnimationFrame(animate);
@@ -430,7 +439,12 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), []);
 
   return (
-    <div className="relative w-full h-full" onPointerMove={handlePointerMove}>
+    <div
+      className="relative w-full h-full"
+      onPointerMove={handlePointerMove}
+      onPointerEnter={() => { isHoveringRef.current = true; }}
+      onPointerLeave={() => { isHoveringRef.current = false; }}
+    >
       <ForceGraph3D
         ref={fgRef}
         graphData={graphData}
