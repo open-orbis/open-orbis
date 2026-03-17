@@ -1,0 +1,314 @@
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+export interface DraftNote {
+  id: string;
+  text: string;
+  createdAt: number;
+  fromVoice?: boolean;
+}
+
+interface DraftNotesProps {
+  open: boolean;
+  onClose: () => void;
+  notes: DraftNote[];
+  onNotesChange: (notes: DraftNote[]) => void;
+  onAddToGraph: (note: DraftNote) => void;
+}
+
+function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void }) {
+  const [recording, setRecording] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
+  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const hasSpeechApi = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+  const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
+  const supported = hasSpeechApi || hasMediaRecorder;
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
+  };
+
+  const startSpeechApi = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((r: any) => r[0].transcript)
+        .join(' ')
+        .trim();
+      if (transcript) onTranscript(transcript);
+    };
+
+    recognition.onerror = (e: any) => {
+      // If speech API fails (not Chrome), fall back to MediaRecorder
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        setUseFallback(true);
+        startMediaRecorder();
+        return;
+      }
+      setRecording(false);
+    };
+    recognition.onend = () => setRecording(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setRecording(true);
+  };
+
+  const startMediaRecorder = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        if (chunksRef.current.length === 0) return;
+
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        // Try to send to backend for transcription
+        try {
+          const formData = new FormData();
+          formData.append('audio', blob, 'recording.webm');
+          const resp = await fetch(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/transcribe`,
+            { method: 'POST', body: formData }
+          );
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.text) onTranscript(data.text);
+          } else {
+            onTranscript('[Voice note recorded — transcription unavailable]');
+          }
+        } catch {
+          onTranscript('[Voice note recorded — transcription unavailable]');
+        }
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      setRecording(false);
+    }
+  };
+
+  const toggle = () => {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+
+    if (hasSpeechApi && !useFallback) {
+      startSpeechApi();
+    } else if (hasMediaRecorder) {
+      startMediaRecorder();
+    }
+  };
+
+  useEffect(() => {
+    return () => stopRecording();
+  }, []);
+
+  if (!supported) return null;
+
+  return (
+    <button
+      onClick={toggle}
+      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+        recording
+          ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+          : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white/70'
+      }`}
+    >
+      {recording ? (
+        <>
+          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+          Stop recording
+        </>
+      ) : (
+        <>
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+          Voice note
+        </>
+      )}
+    </button>
+  );
+}
+
+export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph }: DraftNotesProps) {
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 100);
+  }, [open]);
+
+  const addNote = (text: string, fromVoice = false) => {
+    if (!text.trim()) return;
+    const note: DraftNote = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text: text.trim(),
+      createdAt: Date.now(),
+      fromVoice,
+    };
+    onNotesChange([note, ...notes]);
+    setInput('');
+  };
+
+  const deleteNote = (id: string) => {
+    onNotesChange(notes.filter((n) => n.id !== id));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    addNote(input);
+  };
+
+  const formatTime = (ts: number) => {
+    const d = new Date(ts);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' +
+      d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        className="relative w-full max-w-sm h-full bg-gray-950/95 backdrop-blur-lg border-l border-white/10 flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <div>
+            <h2 className="text-white text-base font-semibold">Draft Notes</h2>
+            <p className="text-white/40 text-xs mt-0.5">Quick notes to add to your orb later</p>
+          </div>
+          <button onClick={onClose} className="text-white/30 hover:text-white/60 transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Input area */}
+        <div className="px-4 py-3 border-b border-white/5">
+          <form onSubmit={handleSubmit}>
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
+              }}
+              placeholder="Jot down something to add later..."
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/25 resize-none focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/30"
+              rows={2}
+            />
+            <div className="flex items-center justify-between mt-2">
+              <VoiceRecorder onTranscript={(text) => addNote(text, true)} />
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="text-xs font-medium px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-30 text-white rounded-full transition-colors"
+              >
+                Add note
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Notes list */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {notes.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-white/15 text-4xl mb-3">
+                <svg className="w-10 h-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <p className="text-white/20 text-sm">No draft notes yet</p>
+              <p className="text-white/10 text-xs mt-1">Type or record a voice note</p>
+            </div>
+          ) : (
+            notes.map((note) => (
+              <div
+                key={note.id}
+                className="group bg-white/5 border border-white/5 rounded-xl px-3.5 py-3 hover:border-white/10 transition-colors"
+              >
+                <p className="text-white/80 text-sm leading-relaxed">{note.text}</p>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white/20 text-[10px]">{formatTime(note.createdAt)}</span>
+                    {note.fromVoice && (
+                      <span className="text-white/15 text-[10px] flex items-center gap-0.5">
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        voice
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => onAddToGraph(note)}
+                      className="text-[10px] font-medium text-purple-400 hover:text-purple-300 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors"
+                    >
+                      + Add to graph
+                    </button>
+                    <button
+                      onClick={() => deleteNote(note.id)}
+                      className="text-white/20 hover:text-red-400 transition-colors p-0.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </motion.div>
+    </div>
+      )}
+    </AnimatePresence>
+  );
+}

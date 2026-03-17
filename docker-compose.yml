@@ -1,0 +1,15 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    ports:
+      - "7474:7474"  # Browser
+      - "7687:7687"  # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/orbis_dev_password
+      NEO4J_PLUGINS: '[]'
+    volumes:
+      - neo4j_data:/data
+      - ./infra/neo4j:/import
+
+volumes:
+  neo4j_data:

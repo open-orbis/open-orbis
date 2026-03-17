@@ -1,0 +1,224 @@
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
+from neo4j import AsyncDriver
+
+from app.dependencies import get_current_user, get_db
+from app.graph.encryption import decrypt_properties, encrypt_properties
+from pydantic import BaseModel
+
+from app.graph.queries import (
+    ADD_NODE,
+    DELETE_NODE,
+    GET_FULL_ORB,
+    GET_FULL_ORB_PUBLIC,
+    GET_PERSON_BY_ORB_ID,
+    GET_SKILL_LINKS,
+    LINK_SKILL,
+    NODE_TYPE_LABELS,
+    NODE_TYPE_RELATIONSHIPS,
+    UNLINK_SKILL,
+    UPDATE_NODE,
+    UPDATE_ORB_ID,
+    UPDATE_PERSON,
+)
+from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
+
+
+class SkillLinkRequest(BaseModel):
+    node_uid: str
+    skill_uid: str
+
+router = APIRouter(prefix="/orbs", tags=["orbs"])
+
+
+def _serialize_orb(record) -> dict:
+    person = dict(record["p"])
+    person = decrypt_properties(person)
+    nodes = []
+    links = []
+
+    for conn in record["connections"]:
+        if conn["node"] is None:
+            continue
+        node_data = dict(conn["node"])
+        node_data = decrypt_properties(node_data)
+        # Remove embedding from response (too large)
+        node_data.pop("embedding", None)
+        node_data["_labels"] = list(conn["node"].labels)
+        nodes.append(node_data)
+        links.append(
+            {
+                "source": person.get("user_id") or person.get("orb_id"),
+                "target": node_data["uid"],
+                "type": conn["rel"],
+            }
+        )
+
+    # Add cross-node links (USED_SKILL etc.)
+    cross_links = record.get("cross_links") or []
+    seen = set()
+    for cl in cross_links:
+        src = cl.get("source")
+        tgt = cl.get("target")
+        if src and tgt:
+            key = (src, tgt, cl.get("rel", ""))
+            if key not in seen:
+                seen.add(key)
+                links.append({"source": src, "target": tgt, "type": cl.get("rel", "USED_SKILL")})
+
+    return {"person": person, "nodes": nodes, "links": links}
+
+
+@router.get("/me")
+async def get_my_orb(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    async with db.session() as session:
+        result = await session.run(GET_FULL_ORB, user_id=current_user["user_id"])
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Orb not found")
+        return _serialize_orb(record)
+
+
+@router.put("/me")
+async def update_my_profile(
+    data: PersonUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    props = {k: v for k, v in data.model_dump().items() if v is not None}
+    async with db.session() as session:
+        result = await session.run(
+            UPDATE_PERSON, user_id=current_user["user_id"], properties=props
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"status": "updated"}
+
+
+@router.put("/me/orb-id")
+async def claim_orb_id(
+    data: OrbIdUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    async with db.session() as session:
+        # Check if orb_id is taken
+        existing = await session.run(GET_PERSON_BY_ORB_ID, orb_id=data.orb_id)
+        record = await existing.single()
+        if record is not None:
+            existing_user_id = dict(record["p"]).get("user_id")
+            if existing_user_id != current_user["user_id"]:
+                raise HTTPException(status_code=409, detail="Orb ID already taken")
+
+        await session.run(
+            UPDATE_ORB_ID, user_id=current_user["user_id"], orb_id=data.orb_id
+        )
+        return {"orb_id": data.orb_id}
+
+
+@router.post("/me/nodes")
+async def add_node(
+    data: NodeCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    if data.node_type not in NODE_TYPE_LABELS:
+        raise HTTPException(status_code=400, detail=f"Invalid node type: {data.node_type}")
+
+    label = NODE_TYPE_LABELS[data.node_type]
+    rel_type = NODE_TYPE_RELATIONSHIPS[data.node_type]
+    uid = str(uuid.uuid4())
+    properties = encrypt_properties(data.properties)
+
+    query = ADD_NODE.replace("{label}", label).replace("{rel_type}", rel_type)
+
+    async with db.session() as session:
+        result = await session.run(
+            query, user_id=current_user["user_id"], properties=properties, uid=uid
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        node = dict(record["n"])
+        node = decrypt_properties(node)
+        node["_labels"] = [label]
+        return node
+
+
+@router.put("/me/nodes/{uid}")
+async def update_node(
+    uid: str,
+    data: NodeUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    properties = encrypt_properties(data.properties)
+    async with db.session() as session:
+        result = await session.run(UPDATE_NODE, uid=uid, properties=properties)
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Node not found")
+        node = dict(record["n"])
+        node = decrypt_properties(node)
+        return node
+
+
+@router.delete("/me/nodes/{uid}")
+async def delete_node(
+    uid: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    async with db.session() as session:
+        await session.run(DELETE_NODE, uid=uid)
+        return {"status": "deleted"}
+
+
+@router.post("/me/link-skill")
+async def link_skill(
+    data: SkillLinkRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    async with db.session() as session:
+        result = await session.run(
+            LINK_SKILL, node_uid=data.node_uid, skill_uid=data.skill_uid
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Node or skill not found")
+        return {"status": "linked"}
+
+
+@router.post("/me/unlink-skill")
+async def unlink_skill(
+    data: SkillLinkRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    async with db.session() as session:
+        result = await session.run(
+            UNLINK_SKILL, node_uid=data.node_uid, skill_uid=data.skill_uid
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Link not found")
+        return {"status": "unlinked"}
+
+
+@router.get("/{orb_id}")
+async def get_public_orb(
+    orb_id: str,
+    db: AsyncDriver = Depends(get_db),
+):
+    async with db.session() as session:
+        result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Orb not found")
+        return _serialize_orb(record)

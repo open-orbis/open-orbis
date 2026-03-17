@@ -1,0 +1,102 @@
+import client from './client';
+
+export interface OrbNode {
+  uid: string;
+  _labels: string[];
+  [key: string]: unknown;
+}
+
+export interface OrbLink {
+  source: string;
+  target: string;
+  type: string;
+}
+
+export interface OrbData {
+  person: Record<string, unknown>;
+  nodes: OrbNode[];
+  links: OrbLink[];
+}
+
+export async function getMyOrb(): Promise<OrbData> {
+  const { data } = await client.get('/orbs/me');
+  return data;
+}
+
+export async function getPublicOrb(orbId: string): Promise<OrbData> {
+  const { data } = await client.get(`/orbs/${orbId}`);
+  return data;
+}
+
+export async function addNode(nodeType: string, properties: Record<string, unknown>): Promise<OrbNode> {
+  const { data } = await client.post('/orbs/me/nodes', { node_type: nodeType, properties });
+  return data;
+}
+
+export async function updateNode(uid: string, properties: Record<string, unknown>): Promise<OrbNode> {
+  const { data } = await client.put(`/orbs/me/nodes/${uid}`, { properties });
+  return data;
+}
+
+export async function deleteNode(uid: string): Promise<void> {
+  await client.delete(`/orbs/me/nodes/${uid}`);
+}
+
+export async function updateProfile(properties: Record<string, unknown>): Promise<void> {
+  await client.put('/orbs/me', properties);
+}
+
+export async function claimOrbId(orbId: string): Promise<void> {
+  await client.put('/orbs/me/orb-id', { orb_id: orbId });
+}
+
+export async function textSearch(query: string): Promise<OrbNode[]> {
+  const { data } = await client.post('/search/text', { query });
+  return data;
+}
+
+export async function linkSkill(nodeUid: string, skillUid: string): Promise<void> {
+  await client.post('/orbs/me/link-skill', { node_uid: nodeUid, skill_uid: skillUid });
+}
+
+export async function unlinkSkill(nodeUid: string, skillUid: string): Promise<void> {
+  await client.post('/orbs/me/unlink-skill', { node_uid: nodeUid, skill_uid: skillUid });
+}
+
+// ── Messages / Inbox ──
+
+export interface MessageReply {
+  uid: string;
+  body: string;
+  created_at: string;
+  from_owner: boolean;
+}
+
+export interface Message {
+  uid: string;
+  sender_name: string;
+  sender_email: string;
+  subject: string;
+  body: string;
+  created_at: string;
+  read: boolean;
+  replies: MessageReply[];
+}
+
+export async function getMessages(): Promise<Message[]> {
+  const { data } = await client.get('/messages/me');
+  return data;
+}
+
+export async function replyToMessage(messageId: string, body: string): Promise<MessageReply> {
+  const { data } = await client.post(`/messages/me/${messageId}/reply`, { body });
+  return data;
+}
+
+export async function markMessageRead(messageId: string): Promise<void> {
+  await client.put(`/messages/me/${messageId}/read`);
+}
+
+export async function deleteMessage(messageId: string): Promise<void> {
+  await client.delete(`/messages/me/${messageId}`);
+}
