@@ -13,6 +13,8 @@ interface ChatBoxProps {
   onHighlight: (nodeIds: Set<string>) => void;
   messages: ChatMessage[];
   onMessagesChange: (msgs: ChatMessage[]) => void;
+  onAdd?: () => void;
+  onShare?: () => void;
 }
 
 export type { ChatMessage };
@@ -55,7 +57,7 @@ function getNodeSubtitle(node: OrbNode): string {
   return '';
 }
 
-export default function ChatBox({ onHighlight, messages, onMessagesChange }: ChatBoxProps) {
+export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -119,7 +121,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange }: Cha
 
   return (
     <div
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-2xl px-4 pb-10"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl px-4 pb-10"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -212,38 +214,69 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange }: Cha
         </div>
       )}
 
-      {/* Input bar — always visible, Claude-style */}
-      <form onSubmit={handleSubmit}>
-        <div
-          className="flex items-center gap-3 rounded-full px-5 py-3 backdrop-blur-md shadow-lg"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.12)',
-            border: '1px solid rgba(255,255,255,0.15)',
-          }}
-        >
-          <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Query your orb..."
-            className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
-          />
-          {input.trim() && (
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-white/20 hover:bg-white/30 disabled:opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center transition-colors flex-shrink-0"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </form>
+      {/* Bottom bar — chat input + action buttons */}
+      <div className="flex items-center gap-2">
+        {/* Chat input */}
+        <form onSubmit={handleSubmit} className="flex-1">
+          <div
+            className="flex items-center gap-3 rounded-full px-5 py-3 backdrop-blur-md shadow-lg"
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.15)',
+            }}
+          >
+            <svg className="w-4 h-4 text-white/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Query your orb..."
+              className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
+            />
+            {input.trim() && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-white/20 hover:bg-white/30 disabled:opacity-40 text-white rounded-full w-7 h-7 flex items-center justify-center transition-colors flex-shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </form>
+
+        {/* Action buttons */}
+        {(onAdd || onShare) && (
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {onShare && (
+              <button
+                onClick={onShare}
+                className="w-11 h-11 rounded-full flex items-center justify-center bg-green-600/80 hover:bg-green-500 border border-green-500/30 hover:border-green-400/50 text-white/90 hover:text-white transition-all shadow-lg shadow-green-600/20"
+                title="Share"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+            )}
+            {onAdd && (
+              <button
+                onClick={onAdd}
+                className="w-11 h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40"
+                title="Add Entry"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

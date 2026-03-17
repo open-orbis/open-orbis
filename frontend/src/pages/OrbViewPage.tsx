@@ -573,27 +573,6 @@ export default function OrbViewPage() {
         height={dimensions.height}
       />
 
-      {/* ── Floating Action Buttons ── */}
-      <div className="fixed bottom-28 right-6 z-30 flex flex-col gap-3 items-end">
-        {/* Share FAB */}
-        <button
-          onClick={() => setShowShare(true)}
-          className="group flex items-center gap-2 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/15 hover:border-white/25 text-white/70 hover:text-white font-medium py-2.5 px-4 rounded-full transition-all shadow-lg"
-        >
-          <IconShare />
-          <span className="text-sm">Share</span>
-        </button>
-
-        {/* Add FAB */}
-        <button
-          onClick={() => { setEditNode(null); setShowInput(true); }}
-          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 px-5 rounded-full transition-all shadow-xl shadow-purple-600/30 hover:shadow-purple-500/40 hover:scale-105"
-        >
-          <IconPlus />
-          <span className="text-sm">Add Entry</span>
-        </button>
-      </div>
-
       {/* ── Floating Input ── */}
       <FloatingInput
         open={showInput}
@@ -612,6 +591,8 @@ export default function OrbViewPage() {
         onHighlight={setHighlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
+        onAdd={() => { setEditNode(null); setShowInput(true); }}
+        onShare={() => setShowShare(true)}
       />
 
       {/* ── Inbox ── */}
