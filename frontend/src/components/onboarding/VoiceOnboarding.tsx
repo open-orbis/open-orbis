@@ -528,33 +528,30 @@ export default function VoiceOnboarding() {
               </div>
             </button>
 
-            <p className="text-white/30 text-sm">
-              {recording ? 'Speaking...' : 'Tap to start speaking'}
-            </p>
+            {!recording && (
+              <p className="text-white/20 text-xs">Tap the mic to start speaking</p>
+            )}
+            {recording && (
+              <p className="text-white/30 text-sm">Listening...</p>
+            )}
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-3">
-              {recording && (
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onClick={handleNextQuestion}
-                  className="bg-white/10 hover:bg-white/15 border border-white/10 text-white font-medium py-2.5 px-6 rounded-xl transition-all text-sm flex items-center gap-2"
-                >
-                  Next question
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </motion.button>
-              )}
-              {!recording && (
-                <button
-                  onClick={skipQuestion}
-                  className="text-white/20 hover:text-white/50 text-xs font-medium transition-colors"
-                >
-                  Skip this question →
-                </button>
-              )}
+            {/* Always show both action buttons */}
+            <div className="flex items-center gap-3 mt-1">
+              <button
+                onClick={skipQuestion}
+                className="bg-white/[0.06] hover:bg-white/10 border border-white/[0.08] text-white/40 hover:text-white/60 font-medium py-2.5 px-5 rounded-xl transition-all text-sm"
+              >
+                Skip this question
+              </button>
+              <button
+                onClick={handleNextQuestion}
+                className="bg-green-600 hover:bg-green-500 text-white font-medium py-2.5 px-5 rounded-xl transition-all text-sm flex items-center gap-2 shadow-lg shadow-green-600/20"
+              >
+                Next question
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </div>
         )}
