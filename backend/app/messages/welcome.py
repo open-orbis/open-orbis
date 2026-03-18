@@ -13,33 +13,39 @@ Hey there! 👋
 
 Welcome to Orbis — your professional identity, reimagined as a living knowledge graph.
 
-Your Orb is more than a CV. Here are some things you can do with it:
+Your Orb is more than a CV. Here's what you can do with it:
 
-🌐 Plug it into your personal website
-Use the MCP tools or the public API to pull your experience, skills, and projects directly into your portfolio site. No more copy-pasting between your CV and your website — they stay in sync automatically.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 Let AI agents answer questions about you
-Share your Orb ID with recruiters or collaborators. Their AI assistants can query your graph directly — "What frameworks does this person know?", "Have they worked in fintech?" — without you lifting a finger.
+🌐  PLUG IT INTO YOUR WEBSITE
+Use the MCP tools or the public API to pull your experience, skills, and projects directly into your portfolio site. Your website and your Orb stay in sync — automatically.
 
-📄 Generate a CV on demand
-Hit "Export CV" anytime to get a clean, structured PDF. Since your Orb is always up to date, your CV is too.
+🤖  LET AI AGENTS SPEAK FOR YOU
+Share your Orb ID and let recruiters' AI assistants query your graph: "What frameworks does this person know?", "Have they led a team?" — without you lifting a finger.
 
-🔗 Share a living link
-Your Orb has a permanent shareable link with an interactive 3D view. Send it instead of a static PDF — it's always current and way more memorable.
+📄  GENERATE A CV ON DEMAND
+Hit "Export CV" anytime for a clean PDF. Your Orb is always up to date, so your CV is too.
 
-🧩 Connect skills to experiences
-Link your skills to specific roles and projects. This gives recruiters (and AI agents) richer context — not just "knows Python" but "used Python at Company X to build Y."
+🔗  SHARE A LIVING LINK
+Send an interactive 3D link instead of a static PDF. It's always current and way more memorable.
 
-📱 QR code on your business card
-Your Orb's share panel includes a QR code. Print it on your business card so anyone can scan and explore your professional graph instantly.
+🧩  CONNECT SKILLS TO EXPERIENCES
+Link skills to specific roles and projects — not just "knows Python" but "used Python at Company X to build Y."
 
-🎙️ Update by voice
-Got a new certification? Just open your Orb, hit the mic, and describe it. Orbis will transcribe and add it to your draft notes for review.
+📱  QR CODE ON YOUR BUSINESS CARD
+Your share panel includes a QR code. Print it and let anyone scan to explore your graph instantly.
 
-🔒 You own your data
-Everything is encrypted end-to-end. You decide what's public and what stays private.
+🎙️  UPDATE BY VOICE
+New certification? Hit the mic, describe it, and Orbis transcribes it into a draft note for review.
 
-Ready to get started? Click "+ Add" to create your first entry, or upload your existing CV to populate your graph automatically.
+🔒  YOU OWN YOUR DATA
+End-to-end encryption. You decide what's public and what stays private.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ready to get started?
+  ➜  Click  ＋ Add  to create your first entry
+  ➜  Or upload your existing CV to populate your graph
 
 Happy orbiting! ✨
 — The Orbis Team"""

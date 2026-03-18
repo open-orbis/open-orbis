@@ -14,6 +14,29 @@ interface InboxProps {
   onUnreadCountChange?: (count: number) => void;
 }
 
+const DEMO_MESSAGES: Message[] = [
+  {
+    uid: 'demo-1',
+    sender_name: 'Sarah Chen',
+    sender_email: 'sarah.chen@talentscout.ai',
+    subject: 'Impressed by your graph — Senior Engineer role at Nexus',
+    body: "Hi there,\n\nI came across your Orbis profile through our AI sourcing pipeline. Your knowledge graph is really impressive — the way your skills connect to your projects tells a much richer story than a traditional CV.\n\nWe have a Senior Engineer position at Nexus that aligns well with your background, particularly your experience with graph databases and distributed systems.\n\nWould you be open to a quick chat this week?\n\nBest,\nSarah Chen\nTalent Partner @ Nexus",
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    read: false,
+    replies: [],
+  },
+  {
+    uid: 'demo-2',
+    sender_name: 'MCP Agent (RecruitBot)',
+    sender_email: 'agent@recruitbot.io',
+    subject: 'Skill match report: 94% fit for 3 open roles',
+    body: "Automated analysis of your orb via MCP tools:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n◉  Staff Engineer @ Dataflow Inc.\n    94% match — graph databases, Python, system design\n\n◉  Platform Lead @ CloudScale\n    89% match — distributed systems, API design\n\n◉  Senior Dev @ OpenMesh\n    87% match — Neo4j, FastAPI, React\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nThese matches are based on your skill nodes, work experience connections, and project relationships in your knowledge graph.\n\nReply to this message if you'd like introductions to any of these teams.",
+    created_at: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
+    read: false,
+    replies: [],
+  },
+];
+
 function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
@@ -35,14 +58,24 @@ export default function Inbox({ open, onClose, onUnreadCountChange }: InboxProps
   const [replying, setReplying] = useState(false);
   const replyRef = useRef<HTMLTextAreaElement>(null);
 
+  const mergeWithDemo = (real: Message[]) => {
+    // Combine real messages with demo messages, avoid duplicates by uid
+    const realIds = new Set(real.map((m) => m.uid));
+    const demos = DEMO_MESSAGES.filter((d) => !realIds.has(d.uid));
+    return [...real, ...demos].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  };
+
   const fetchMessages = async () => {
     try {
       const data = await getMessages();
-      setMessages(data);
-      onUnreadCountChange?.(data.filter((m) => !m.read).length);
+      const merged = mergeWithDemo(data);
+      setMessages(merged);
+      onUnreadCountChange?.(merged.filter((m) => !m.read).length);
     } catch {
-      setMessages([]);
-      onUnreadCountChange?.(0);
+      setMessages(DEMO_MESSAGES);
+      onUnreadCountChange?.(DEMO_MESSAGES.filter((m) => !m.read).length);
     } finally {
       setLoading(false);
     }
@@ -51,8 +84,11 @@ export default function Inbox({ open, onClose, onUnreadCountChange }: InboxProps
   // Fetch unread count on mount
   useEffect(() => {
     getMessages()
-      .then((data) => onUnreadCountChange?.(data.filter((m) => !m.read).length))
-      .catch(() => onUnreadCountChange?.(0));
+      .then((data) => {
+        const merged = mergeWithDemo(data);
+        onUnreadCountChange?.(merged.filter((m) => !m.read).length);
+      })
+      .catch(() => onUnreadCountChange?.(DEMO_MESSAGES.filter((m) => !m.read).length));
   }, []);
 
   useEffect(() => {
