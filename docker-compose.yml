@@ -19,6 +19,18 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: orbis-whisper
+    ports:
+      - "9000:9000"
+    environment:
+      ASR_MODEL: base
+      ASR_ENGINE: openai_whisper
+    volumes:
+      - whisper_data:/root/.cache/whisper
+
 volumes:
   neo4j_data:
   ollama_data:
+  whisper_data:

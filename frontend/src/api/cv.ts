@@ -26,3 +26,20 @@ export async function getProcessingCount(): Promise<number> {
   const { data } = await client.get('/cv/processing-count');
   return data.count;
 }
+
+export async function voiceTranscribe(audioBlob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'recording.webm');
+  const { data } = await client.post('/cv/voice-transcribe', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  });
+  return data.text;
+}
+
+export async function voiceClassify(text: string): Promise<ExtractedData> {
+  const { data } = await client.post('/cv/voice-classify', { text }, {
+    timeout: 180000,
+  });
+  return data;
+}
