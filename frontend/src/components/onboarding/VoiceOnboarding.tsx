@@ -38,6 +38,10 @@ export default function VoiceOnboarding() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const rafRef = useRef<number>(0);
+  const [audioLevel, setAudioLevel] = useState(0); // 0–1 normalized volume
 
   const currentQ = QUESTIONS[questionIndex];
   const isDone = questionIndex >= QUESTIONS.length;
@@ -45,8 +49,10 @@ export default function VoiceOnboarding() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      cancelAnimationFrame(rafRef.current);
       mediaRecorderRef.current?.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      audioCtxRef.current?.close();
     };
   }, []);
 
@@ -57,12 +63,44 @@ export default function VoiceOnboarding() {
       streamRef.current = stream;
       chunksRef.current = [];
 
+      // Set up audio analyser for volume visualization
+      const audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      source.connect(analyser);
+      audioCtxRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const sampleVolume = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        // Average the frequency data to get a volume level
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const avg = sum / dataArray.length;
+        // Normalize to 0–1, boost sensitivity
+        const normalized = Math.min(1, avg / 100);
+        setAudioLevel(normalized);
+        rafRef.current = requestAnimationFrame(sampleVolume);
+      };
+      rafRef.current = requestAnimationFrame(sampleVolume);
+
       const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
       recorder.onstop = async () => {
+        // Clean up audio analysis
+        cancelAnimationFrame(rafRef.current);
+        analyserRef.current = null;
+        audioCtxRef.current?.close();
+        audioCtxRef.current = null;
+        setAudioLevel(0);
+
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         if (blob.size < 100) {
@@ -350,22 +388,47 @@ export default function VoiceOnboarding() {
                   disabled={transcribing}
                   className="group relative"
                 >
-                  {/* Outer pulsing ring when recording */}
+                  {/* Voice-reactive outer rings when recording */}
                   {recording && (
-                    <motion.div
-                      className="absolute inset-0 rounded-full bg-red-500/20"
-                      animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                      style={{ margin: '-12px' }}
-                    />
+                    <>
+                      {/* Outer ring — reacts to voice */}
+                      <div
+                        className="absolute inset-0 rounded-full bg-red-500/15 transition-transform duration-75"
+                        style={{
+                          margin: '-16px',
+                          transform: `scale(${1 + audioLevel * 0.6})`,
+                          opacity: 0.3 + audioLevel * 0.5,
+                        }}
+                      />
+                      {/* Middle ring — reacts to voice (slightly delayed feel) */}
+                      <div
+                        className="absolute inset-0 rounded-full border-2 border-red-400/30 transition-transform duration-100"
+                        style={{
+                          margin: '-8px',
+                          transform: `scale(${1 + audioLevel * 0.3})`,
+                        }}
+                      />
+                    </>
                   )}
-                  <div className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
-                    recording
-                      ? 'bg-red-500 shadow-lg shadow-red-500/40'
-                      : 'bg-red-500/80 hover:bg-red-500 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:scale-105'
-                  }`}>
+                  <div
+                    className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-75 ${
+                      recording
+                        ? 'bg-red-500'
+                        : 'bg-red-500/80 hover:bg-red-500 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:scale-105'
+                    }`}
+                    style={recording ? {
+                      transform: `scale(${1 + audioLevel * 0.15})`,
+                      boxShadow: `0 0 ${20 + audioLevel * 40}px ${audioLevel * 12}px rgba(239, 68, 68, ${0.3 + audioLevel * 0.4})`,
+                    } : undefined}
+                  >
                     {recording ? (
-                      <div className="w-6 h-6 bg-white rounded-sm" />
+                      <div
+                        className="bg-white rounded-sm transition-all duration-75"
+                        style={{
+                          width: `${22 + audioLevel * 6}px`,
+                          height: `${22 + audioLevel * 6}px`,
+                        }}
+                      />
                     ) : (
                       <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
