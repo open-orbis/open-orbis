@@ -12,6 +12,7 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import type { DraftNote } from '../components/drafts/DraftNotes';
 import Inbox from '../components/inbox/Inbox';
+import ProcessingCounter from '../components/cv/ProcessingCounter';
 
 // ── Modals ──
 
@@ -489,6 +490,7 @@ export default function OrbViewPage() {
 
           {/* Right: secondary actions */}
           <div className="flex items-center gap-1">
+            <ProcessingCounter />
             <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
               <IconInbox />
               <span className="hidden sm:inline">Inbox</span>

@@ -12,11 +12,12 @@ export default function CVUploadOnboarding() {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
   const [extractedNodes, setExtractedNodes] = useState<ExtractedData['nodes'] | null>(null);
+  const [unmatchedCount, setUnmatchedCount] = useState(0);
 
   const handleFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'pdf' && ext !== 'docx') {
-      setError('Please upload a PDF or DOCX file.');
+    if (ext !== 'pdf') {
+      setError('Please upload a PDF file.');
       return;
     }
 
@@ -24,7 +25,21 @@ export default function CVUploadOnboarding() {
     setError('');
     try {
       const data = await uploadCV(file);
-      if (data.nodes.length === 0) {
+
+      // Save unmatched entries to draft notes
+      if (data.unmatched && data.unmatched.length > 0) {
+        const existing = JSON.parse(localStorage.getItem('orbis-draft-notes') || '[]');
+        const newNotes = data.unmatched.map((text: string) => ({
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+          text: `[From CV] ${text}`,
+          createdAt: Date.now(),
+          fromVoice: false,
+        }));
+        localStorage.setItem('orbis-draft-notes', JSON.stringify([...newNotes, ...existing]));
+        setUnmatchedCount(data.unmatched.length);
+      }
+
+      if (data.nodes.length === 0 && (!data.unmatched || data.unmatched.length === 0)) {
         setError('No entries could be extracted from this file. Try a different CV or use manual entry.');
       } else {
         setExtractedNodes(data.nodes);
@@ -88,6 +103,11 @@ export default function CVUploadOnboarding() {
               Found {extractedNodes.length} entries
             </h2>
             <p className="text-white/30 text-sm mt-1">Review and remove any you don't want, then add them all to your orb.</p>
+            {unmatchedCount > 0 && (
+              <p className="text-amber-400/80 text-xs mt-2">
+                {unmatchedCount} entr{unmatchedCount === 1 ? 'y' : 'ies'} couldn't be classified and {unmatchedCount === 1 ? 'was' : 'were'} added to your Draft Notes for manual review.
+              </p>
+            )}
           </div>
 
           <div className="space-y-6 mb-8">
@@ -167,7 +187,7 @@ export default function CVUploadOnboarding() {
             </svg>
           </div>
           <h2 className="text-white text-xl font-semibold">Import from your CV</h2>
-          <p className="text-white/30 text-sm mt-1">Upload a PDF or DOCX and we'll extract your entries automatically.</p>
+          <p className="text-white/30 text-sm mt-1">Upload a PDF and we'll extract your entries automatically.</p>
         </div>
 
         {/* Dropzone */}
@@ -194,9 +214,9 @@ export default function CVUploadOnboarding() {
               <p className="text-white/50 text-sm mb-1">
                 <span className="text-purple-400 font-medium">Click to browse</span> or drag & drop
               </p>
-              <p className="text-white/20 text-xs">PDF or DOCX, up to 10MB</p>
+              <p className="text-white/20 text-xs">PDF only, up to 10MB</p>
               <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-center gap-2">
-                <svg className="w-4 h-4 text-[#0A66C2]" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-8 h-8 text-[#0A66C2] flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                 </svg>
                 <span className="text-white/30 text-[11px] leading-snug">
@@ -207,7 +227,7 @@ export default function CVUploadOnboarding() {
           )}
           <input
             type="file"
-            accept=".pdf,.docx"
+            accept=".pdf"
             onChange={handleFileInput}
             className="hidden"
             disabled={uploading}

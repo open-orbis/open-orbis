@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     # Claude API
     anthropic_api_key: str = ""
 
+    # LLM Whisperer
+    llmwhisperer_api_url: str = "https://llmwhisperer-api.eu-west.unstract.com/api/v2"
+    llmwhisperer_api_key: str = ""
+
+    # Ollama (local LLM)
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2:3b"
+
     # URLs
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"

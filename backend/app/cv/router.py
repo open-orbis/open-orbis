@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-import os
-import tempfile
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from neo4j import AsyncDriver
 
+from app.cv import counter
+from app.cv.llmwhisperer import extract_text as whisperer_extract
 from app.cv.models import ConfirmRequest, ExtractedData, ExtractedNode
-from app.cv.parser import extract_text, rule_based_extract, rule_based_to_nodes
-from app.cv.refiner import refine_with_llm
+from app.cv.ollama_classifier import classify_entries
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties
 from app.graph.queries import ADD_NODE, NODE_TYPE_LABELS, NODE_TYPE_RELATIONSHIPS
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cv", tags=["cv"])
 
@@ -22,49 +24,61 @@ async def upload_cv(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ):
+    """Upload a PDF CV: extract text via LLM Whisperer, classify via Ollama."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    ext = os.path.splitext(file.filename)[1].lower()
-    if ext not in (".pdf", ".docx"):
-        raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported")
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    # Save to temp file
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
+    pdf_bytes = await file.read()
+    if len(pdf_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
+    counter.increment()
     try:
-        # Step 1: Extract text
-        raw_text = extract_text(tmp_path)
+        # Step 1: Extract text via LLM Whisperer
+        logger.info("Starting PDF extraction for user %s", current_user.get("user_id"))
+        raw_text = await whisperer_extract(pdf_bytes)
 
         if not raw_text.strip():
-            raise HTTPException(status_code=400, detail="Could not extract text from file")
+            raise HTTPException(
+                status_code=400, detail="Could not extract text from PDF"
+            )
 
-        # Step 2: Rule-based extraction
-        partial = rule_based_extract(raw_text)
+        # Step 2: Classify entries via local Ollama LLM
+        logger.info("Classifying entries with Ollama (%d chars)", len(raw_text))
+        nodes, unmatched = await classify_entries(raw_text)
 
-        # Step 3: LLM refinement (or fallback to rule-based nodes)
-        refined_nodes = await refine_with_llm(raw_text, partial)
+        if not nodes and not unmatched:
+            raise HTTPException(
+                status_code=400,
+                detail="No entries could be extracted. Try a different CV.",
+            )
 
-        if not refined_nodes:
-            # Fallback: convert rule-based extraction to nodes directly
-            refined_nodes = rule_based_to_nodes(partial)
+        return ExtractedData(nodes=nodes, unmatched=unmatched)
 
-        # Convert to response model
-        nodes = []
-        for node in refined_nodes:
-            node_type = node.get("node_type", "")
-            if node_type in NODE_TYPE_LABELS:
-                nodes.append(ExtractedNode(
-                    node_type=node_type,
-                    properties=node.get("properties", {}),
-                ))
-
-        return ExtractedData(nodes=nodes)
+    except HTTPException:
+        raise
+    except TimeoutError as e:
+        logger.error("LLM Whisperer timeout: %s", e)
+        raise HTTPException(
+            status_code=504, detail="PDF processing timed out. Please try again."
+        )
+    except Exception as e:
+        logger.error("CV upload pipeline error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to process CV: {str(e)}",
+        )
     finally:
-        os.unlink(tmp_path)
+        counter.decrement()
+
+
+@router.get("/processing-count")
+async def get_processing_count():
+    """Return the number of PDFs currently being processed."""
+    return {"count": counter.get_count()}
 
 
 @router.post("/confirm")

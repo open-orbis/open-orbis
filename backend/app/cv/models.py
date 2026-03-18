@@ -10,6 +10,7 @@ class ExtractedNode(BaseModel):
 
 class ExtractedData(BaseModel):
     nodes: list[ExtractedNode]
+    unmatched: list[str] = []
 
 
 class ConfirmRequest(BaseModel):
