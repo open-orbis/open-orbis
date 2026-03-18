@@ -161,7 +161,7 @@ export default function Inbox({ open, onClose, onUnreadCountChange }: InboxProps
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="relative w-full max-w-md h-full bg-gray-950/95 backdrop-blur-lg border-l border-white/10 flex flex-col"
+            className="relative w-full sm:max-w-md h-full bg-gray-950/95 backdrop-blur-lg border-l border-white/10 flex flex-col"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">

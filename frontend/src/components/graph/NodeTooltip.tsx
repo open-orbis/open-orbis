@@ -114,7 +114,7 @@ export default function NodeTooltip({ node, position }: NodeTooltipProps) {
       style={{ left: position.x + 16, top: position.y + 16 }}
     >
       <div
-        className="bg-gray-900/95 backdrop-blur-sm text-white rounded-xl shadow-2xl overflow-hidden max-w-xs"
+        className="bg-gray-900/95 backdrop-blur-sm text-white rounded-xl shadow-2xl overflow-hidden max-w-[80vw] sm:max-w-xs"
         style={{ borderTop: `3px solid ${typeColor}` }}
       >
         {/* Header */}

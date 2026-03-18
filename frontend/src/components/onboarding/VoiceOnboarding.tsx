@@ -184,8 +184,8 @@ export default function VoiceOnboarding() {
   const currentQ = QUESTIONS[questionIndex];
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-2xl flex flex-col h-[80vh]">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-3 sm:px-4">
+      <div className="w-full max-w-[95vw] sm:max-w-2xl flex flex-col h-[85vh] sm:h-[80vh]">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center">
@@ -208,7 +208,7 @@ export default function VoiceOnboarding() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-3 px-2 mb-4">
+        <div className="flex-1 overflow-y-auto space-y-2 sm:space-y-3 px-1 sm:px-2 mb-3 sm:mb-4">
           <AnimatePresence>
             {messages.map((msg, i) => (
               <motion.div
@@ -277,7 +277,7 @@ export default function VoiceOnboarding() {
                   )}
                 </button>
               )}
-              <div className="flex-1 flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-4 py-2.5">
+              <div className="flex-1 flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-3 sm:px-4 py-2 sm:py-2.5">
                 <input
                   ref={inputRef}
                   value={input}

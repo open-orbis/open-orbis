@@ -38,7 +38,7 @@ function StepCard({ number, title, description, icon }: { number: string; title:
 // ── Feature card ──
 function FeatureCard({ title, description, icon, color }: { title: string; description: string; icon: React.ReactNode; color: string }) {
   return (
-    <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6 hover:border-white/10 hover:bg-white/[0.05] transition-all group h-full flex flex-col">
+    <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 sm:p-6 hover:border-white/10 hover:bg-white/[0.05] transition-all group h-full flex flex-col">
       <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: `${color}15`, border: `1px solid ${color}25` }}>
         {icon}
       </div>
@@ -206,7 +206,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── What makes Orbis different ── */}
-      <section id="orbis-difference" className="py-28 px-6">
+      <section id="orbis-difference" className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <FadeIn className="text-center mb-16">
             <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">The Orbis difference</p>
@@ -272,7 +272,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── How it Works ── */}
-      <section className="py-28 px-6">
+      <section className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <FadeIn className="text-center mb-16">
             <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">How it works</p>
@@ -326,7 +326,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Built for everyone ── */}
-      <section className="py-28 px-6">
+      <section className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <FadeIn className="text-center mb-16">
             <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">Why Orbis</p>
@@ -376,7 +376,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="py-28 px-6">
+      <section className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-3xl mx-auto text-center">
           <FadeIn>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">

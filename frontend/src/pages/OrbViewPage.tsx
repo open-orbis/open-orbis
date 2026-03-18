@@ -41,7 +41,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl"
       >
         <h2 className="text-white text-lg font-semibold mb-1">Share Your Orb</h2>
         <p className="text-gray-400 text-sm mb-5">Share your orb link or use the MCP identifier to let AI agents access your professional graph.</p>
@@ -115,7 +115,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl"
       >
         <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
         <p className="text-gray-400 text-sm mb-5">Customize your orb identity.</p>
@@ -198,7 +198,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-950 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl backdrop-blur-xl">
+        className="relative bg-gray-950 border border-white/10 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl backdrop-blur-xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-5">
           <div className="w-14 h-14 rounded-full bg-purple-600/30 border-2 border-purple-500/50 flex items-center justify-center flex-shrink-0">
@@ -375,7 +375,7 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
   children: React.ReactNode;
   variant?: 'ghost' | 'outline' | 'primary';
 }) {
-  const base = 'flex items-center gap-1.5 text-sm font-medium py-1.5 px-3 rounded-lg transition-all';
+  const base = 'flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all';
   const styles = {
     ghost: `${base} text-white/40 hover:text-white/70 hover:bg-white/5`,
     outline: `${base} text-white/70 hover:text-white border border-white/10 hover:border-white/20 hover:bg-white/5`,
@@ -465,10 +465,10 @@ export default function OrbViewPage() {
   return (
     <div className="min-h-screen bg-black relative">
       {/* ── Header ── */}
-      <div className="absolute top-0 left-0 right-0 z-30 px-5 py-3">
+      <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3">
         <div className="flex items-center justify-between">
           {/* Left: identity — click avatar to open settings */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setShowSettings(true)}
               className="relative w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center hover:bg-purple-600/50 hover:border-purple-400/60 transition-all group"
@@ -482,13 +482,13 @@ export default function OrbViewPage() {
               </span>
             </button>
             <div>
-              <span className="text-white text-sm font-semibold">{user?.name || 'My Orb'}</span>
-              <span className="text-white/20 text-xs ml-2">{data.nodes.length} nodes</span>
+              <span className="text-white text-xs sm:text-sm font-semibold">{user?.name || 'My Orb'}</span>
+              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes</span>
             </div>
           </div>
 
           {/* Right: secondary actions */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
               <IconInbox />
               <span className="hidden sm:inline">Inbox</span>
@@ -511,14 +511,14 @@ export default function OrbViewPage() {
               onClick={() => {
                 if (orbId) window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/export/${orbId}?format=pdf`, '_blank');
               }}
-              className="flex items-center gap-1.5 text-sm font-medium py-1.5 px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
             >
               <IconDownload />
               <span className="hidden sm:inline">Export CV</span>
             </button>
             <button
               onClick={() => { logout(); navigate('/'); }}
-              className="text-white/30 text-xs font-medium py-1.5 px-3 rounded-lg hover:text-red-400 hover:bg-red-500/10 transition-all"
+              className="text-white/30 text-xs font-medium py-1.5 px-2 sm:px-3 rounded-lg hover:text-red-400 hover:bg-red-500/10 transition-all"
             >
               Logout
             </button>

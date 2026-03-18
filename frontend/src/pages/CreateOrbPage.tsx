@@ -33,7 +33,7 @@ function PathCard({ title, description, icon, onClick, color }: {
       whileHover={{ scale: 1.03 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 text-left hover:border-white/15 hover:bg-white/[0.06] transition-all group w-full"
+      className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 sm:p-6 text-left hover:border-white/15 hover:bg-white/[0.06] transition-all group w-full"
     >
       <div
         className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
@@ -194,10 +194,10 @@ export default function CreateOrbPage() {
       )}
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4">
+      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4">
         <div className="text-white">
-          <span className="text-lg font-semibold">{user?.name || 'My Orb'}</span>
-          <span className="text-gray-500 text-sm ml-3">{nodeCount} nodes</span>
+          <span className="text-base sm:text-lg font-semibold">{user?.name || 'My Orb'}</span>
+          <span className="text-gray-500 text-xs sm:text-sm ml-2 sm:ml-3">{nodeCount} nodes</span>
         </div>
         <div className="flex gap-3">
           {nodeCount > 0 && (
@@ -220,7 +220,7 @@ export default function CreateOrbPage() {
             exit={{ opacity: 0, y: 30 }}
             className="absolute bottom-8 left-0 right-0 z-30 flex flex-col items-center gap-3"
           >
-            <p className="text-white text-lg font-medium">{currentSuggestion.prompt}</p>
+            <p className="text-white text-base sm:text-lg font-medium text-center px-4">{currentSuggestion.prompt}</p>
             <div className="flex gap-3">
               <button
                 onClick={handleAddAnother}

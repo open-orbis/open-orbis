@@ -76,8 +76,8 @@ export default function CVUploadOnboarding() {
     }, {});
 
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center px-4 py-16">
-        <div className="w-full max-w-2xl">
+      <div className="min-h-screen bg-black flex flex-col items-center px-3 sm:px-4 py-10 sm:py-16">
+        <div className="w-full max-w-[95vw] sm:max-w-2xl">
           <div className="text-center mb-8">
             <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
               <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,7 +109,7 @@ export default function CVUploadOnboarding() {
                         <motion.div
                           key={index}
                           layout
-                          className="flex items-center gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl px-4 py-3 group"
+                          className="flex items-center gap-2 sm:gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 group"
                         >
                           <div className="flex-1 min-w-0">
                             <div className="text-white/80 text-sm font-medium truncate">{title}</div>
@@ -158,8 +158,8 @@ export default function CVUploadOnboarding() {
 
   // ── Upload mode ──
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
-      <div className="w-full max-w-lg">
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-3 sm:px-4">
+      <div className="w-full max-w-[95vw] sm:max-w-lg">
         <div className="text-center mb-8">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-500/15 border border-blue-500/25 flex items-center justify-center">
             <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -175,7 +175,7 @@ export default function CVUploadOnboarding() {
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          className={`block border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
+          className={`block border-2 border-dashed rounded-2xl p-6 sm:p-12 text-center cursor-pointer transition-all ${
             dragOver
               ? 'border-purple-500/60 bg-purple-500/10'
               : 'border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04]'

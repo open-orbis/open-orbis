@@ -202,9 +202,9 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.2, ease: 'easeInOut' }}
         >
-        <div className="flex gap-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           {/* LEFT: dates */}
-          <div className="w-1/3 border-r border-white/5 pr-4 space-y-3">
+          <div className="w-full sm:w-1/3 border-b sm:border-b-0 sm:border-r border-white/5 pb-3 sm:pb-0 sm:pr-4 space-y-3">
             {layout.left.map((field) => {
               if (isCurrent && field === toggleField) return null;
               return (
@@ -231,7 +231,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
           </div>
 
           {/* RIGHT 2/3: main fields */}
-          <div className="w-2/3 space-y-3">
+          <div className="w-full sm:w-2/3 space-y-3">
             {layout.main.map((field) => (
               <FieldInput
                 key={field}
@@ -392,7 +392,7 @@ function SkillLinker({ nodeUid }: { nodeUid: string }) {
 function TypeSelector({ nodeType, color, onChange }: { nodeType: string; color: string; onChange: (t: string) => void }) {
   return (
     <div className="mb-4">
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1 sm:gap-1.5">
         {Object.entries(NODE_TYPE_LABELS).map(([key, label]) => {
           const isSelected = key === nodeType;
           const btnColor = NODE_TYPE_COLORS[key] || '#8b5cf6';
@@ -401,7 +401,7 @@ function TypeSelector({ nodeType, color, onChange }: { nodeType: string; color: 
               key={key}
               type="button"
               onClick={() => onChange(key)}
-              className={`text-xs px-3 py-1.5 rounded-full border transition-all font-medium ${
+              className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border transition-all font-medium ${
                 isSelected
                   ? 'text-white border-transparent'
                   : 'text-white/30 border-white/10 hover:border-white/20 hover:text-white/50 bg-transparent'

@@ -121,7 +121,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
 
   return (
     <div
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl px-4 pb-10"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-[90vw] sm:max-w-xl px-2 sm:px-4 pb-6 sm:pb-10"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -132,7 +132,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
           className="mb-2 rounded-2xl overflow-hidden backdrop-blur-md"
           style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
         >
-          <div className="max-h-[280px] overflow-y-auto px-4 py-3 space-y-3">
+          <div className="max-h-[200px] sm:max-h-[280px] overflow-y-auto px-3 sm:px-4 py-2 sm:py-3 space-y-2 sm:space-y-3">
             {messages.map((msg, i) => (
               <div key={i}>
                 {msg.role === 'user' ? (
@@ -219,7 +219,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
         {/* Chat input */}
         <form onSubmit={handleSubmit} className="flex-1">
           <div
-            className="flex items-center gap-3 rounded-full px-5 py-3 backdrop-blur-md shadow-lg"
+            className="flex items-center gap-2 sm:gap-3 rounded-full px-3 sm:px-5 py-2.5 sm:py-3 backdrop-blur-md shadow-lg"
             style={{
               backgroundColor: 'rgba(255,255,255,0.12)',
               border: '1px solid rgba(255,255,255,0.15)',
@@ -255,7 +255,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
             {onShare && (
               <button
                 onClick={onShare}
-                className="w-11 h-11 rounded-full flex items-center justify-center bg-green-600/80 hover:bg-green-500 border border-green-500/30 hover:border-green-400/50 text-white/90 hover:text-white transition-all shadow-lg shadow-green-600/20"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-green-600/80 hover:bg-green-500 border border-green-500/30 hover:border-green-400/50 text-white/90 hover:text-white transition-all shadow-lg shadow-green-600/20"
                 title="Share"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -266,7 +266,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
             {onAdd && (
               <button
                 onClick={onAdd}
-                className="w-11 h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40"
                 title="Add Entry"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

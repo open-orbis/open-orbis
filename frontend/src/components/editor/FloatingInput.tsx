@@ -38,14 +38,14 @@ export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDe
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-xl overflow-hidden"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-[95vw] sm:max-w-xl overflow-hidden"
           >
             {/* Colored top accent bar */}
             <div className="h-1 w-full transition-colors duration-300" style={{ backgroundColor: color }} />
 
             <div className="bg-gray-950 border border-white/10 border-t-0 rounded-b-2xl shadow-2xl">
               {/* Header */}
-              <div className="flex items-center justify-between px-6 pt-5 pb-3">
+              <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-5 pb-2 sm:pb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="w-2.5 h-2.5 rounded-full transition-all duration-300" style={{ backgroundColor: color, boxShadow: `0 0 8px ${color}60` }} />
                   <span className="text-white/90 text-sm font-semibold">
@@ -63,7 +63,7 @@ export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDe
               </div>
 
               {/* Form */}
-              <div className="px-6 pb-6">
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6">
                 <NodeForm
                   initialType={editNode?.type}
                   initialValues={editNode?.values && Object.keys(editNode.values).length > 0 ? editNode.values : undefined}
