@@ -16,24 +16,27 @@ const QUESTIONS = [
   { question: "Anything else you'd like to add? Projects, hobbies, achievements?", emoji: '✨' },
 ];
 
-type Phase = 'recording' | 'reviewing' | 'confirming';
-
-interface Transcript {
-  questionIndex: number;
-  text: string;
-}
+type Phase = 'recording' | 'transcribing' | 'editing' | 'classifying' | 'reviewing';
 
 export default function VoiceOnboarding() {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<Phase>('recording');
   const [questionIndex, setQuestionIndex] = useState(0);
-  const [transcripts, setTranscripts] = useState<Transcript[]>([]);
   const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  const [classifying, setClassifying] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const [error, setError] = useState('');
+
+  // Audio blobs collected per question
+  const [audioBlobs, setAudioBlobs] = useState<Blob[]>([]);
+  const [questionsRecorded, setQuestionsRecorded] = useState<Set<number>>(new Set());
+
+  // Transcription & editing
+  const [fullTranscript, setFullTranscript] = useState('');
+  const [transcribeProgress, setTranscribeProgress] = useState(0);
+
+  // Classification & review
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -41,7 +44,6 @@ export default function VoiceOnboarding() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number>(0);
-  const [audioLevel, setAudioLevel] = useState(0); // 0–1 normalized volume
 
   const currentQ = QUESTIONS[questionIndex];
   const isDone = questionIndex >= QUESTIONS.length;
@@ -63,7 +65,7 @@ export default function VoiceOnboarding() {
       streamRef.current = stream;
       chunksRef.current = [];
 
-      // Set up audio analyser for volume visualization
+      // Audio analyser for voice visualization
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
@@ -77,12 +79,9 @@ export default function VoiceOnboarding() {
       const sampleVolume = () => {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
-        // Average the frequency data to get a volume level
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-        const avg = sum / dataArray.length;
-        // Normalize to 0–1, boost sensitivity
-        const normalized = Math.min(1, avg / 100);
+        const normalized = Math.min(1, (sum / dataArray.length) / 100);
         setAudioLevel(normalized);
         rafRef.current = requestAnimationFrame(sampleVolume);
       };
@@ -92,81 +91,124 @@ export default function VoiceOnboarding() {
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
-
-      recorder.onstop = async () => {
-        // Clean up audio analysis
-        cancelAnimationFrame(rafRef.current);
-        analyserRef.current = null;
-        audioCtxRef.current?.close();
-        audioCtxRef.current = null;
-        setAudioLevel(0);
-
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        if (blob.size < 100) {
-          setError('Recording was too short. Try again.');
-          return;
-        }
-        await handleTranscribe(blob);
-      };
-
       mediaRecorderRef.current = recorder;
       recorder.start();
       setRecording(true);
     } catch {
       setError('Microphone access denied. Please allow microphone permissions.');
     }
-  }, [questionIndex]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-      setRecording(false);
-    }
   }, []);
 
-  const handleTranscribe = async (blob: Blob) => {
-    setTranscribing(true);
-    try {
-      const text = await voiceTranscribe(blob);
-      if (!text || !text.trim()) {
-        setError("Couldn't hear anything. Try speaking louder or closer to the mic.");
-        setTranscribing(false);
+  const stopAndSaveBlob = useCallback(() => {
+    return new Promise<Blob | null>((resolve) => {
+      const recorder = mediaRecorderRef.current;
+      if (!recorder || recorder.state !== 'recording') {
+        resolve(null);
         return;
       }
-      // Save transcript
-      setTranscripts((prev) => [...prev, { questionIndex, text }]);
-      // Move to next question
-      const next = questionIndex + 1;
-      setQuestionIndex(next);
-    } catch {
-      setError('Transcription failed. Please try again.');
-    } finally {
-      setTranscribing(false);
-    }
-  };
+      recorder.onstop = () => {
+        cancelAnimationFrame(rafRef.current);
+        analyserRef.current = null;
+        audioCtxRef.current?.close();
+        audioCtxRef.current = null;
+        setAudioLevel(0);
+        streamRef.current?.getTracks().forEach((t) => t.stop());
 
-  const skipQuestion = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        resolve(blob.size > 100 ? blob : null);
+      };
+      recorder.stop();
+      setRecording(false);
+    });
+  }, []);
+
+  const handleNextQuestion = useCallback(async () => {
+    if (recording) {
+      const blob = await stopAndSaveBlob();
+      if (blob) {
+        setAudioBlobs((prev) => [...prev, blob]);
+        setQuestionsRecorded((prev) => new Set(prev).add(questionIndex));
+      }
+    }
     setQuestionIndex((prev) => prev + 1);
     setError('');
-  };
+  }, [recording, stopAndSaveBlob, questionIndex]);
 
-  // When all questions are done, classify
-  const handleClassify = async () => {
-    const fullText = transcripts.map((t) => {
-      const q = QUESTIONS[t.questionIndex];
-      return `Question: ${q.question}\nAnswer: ${t.text}`;
-    }).join('\n\n');
+  const skipQuestion = useCallback(() => {
+    if (recording) {
+      // Stop without saving
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+      cancelAnimationFrame(rafRef.current);
+      analyserRef.current = null;
+      audioCtxRef.current?.close();
+      audioCtxRef.current = null;
+      setAudioLevel(0);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    }
+    setQuestionIndex((prev) => prev + 1);
+    setError('');
+  }, [recording]);
 
-    if (!fullText.trim()) {
+  // When all questions done, transcribe all audio
+  const handleFinish = useCallback(async () => {
+    // If still recording on last question, save it
+    if (recording) {
+      const blob = await stopAndSaveBlob();
+      if (blob) {
+        setAudioBlobs((prev) => {
+          const updated = [...prev, blob];
+          // Start transcription with updated blobs
+          transcribeAll(updated);
+          return updated;
+        });
+        setQuestionsRecorded((prev) => new Set(prev).add(questionIndex));
+        return;
+      }
+    }
+    transcribeAll(audioBlobs);
+  }, [recording, stopAndSaveBlob, questionIndex, audioBlobs]);
+
+  const transcribeAll = async (blobs: Blob[]) => {
+    if (blobs.length === 0) {
       navigate('/orb');
       return;
     }
 
-    setClassifying(true);
-    setPhase('reviewing');
+    setPhase('transcribing');
+    setTranscribeProgress(0);
+    const parts: string[] = [];
+
+    for (let i = 0; i < blobs.length; i++) {
+      try {
+        const text = await voiceTranscribe(blobs[i]);
+        if (text?.trim()) parts.push(text.trim());
+      } catch {
+        // Skip failed transcriptions
+      }
+      setTranscribeProgress(((i + 1) / blobs.length) * 100);
+    }
+
+    if (parts.length === 0) {
+      setError("Couldn't transcribe any audio. Please try again.");
+      setPhase('recording');
+      setQuestionIndex(0);
+      return;
+    }
+
+    setFullTranscript(parts.join('\n\n'));
+    setPhase('editing');
+  };
+
+  const handleClassify = async () => {
+    if (!fullTranscript.trim()) {
+      navigate('/orb');
+      return;
+    }
+
+    setPhase('classifying');
     try {
-      const data = await voiceClassify(fullText);
+      const data = await voiceClassify(fullTranscript);
 
       // Save unmatched to draft notes
       if (data.unmatched && data.unmatched.length > 0) {
@@ -186,11 +228,10 @@ export default function VoiceOnboarding() {
       }
 
       setExtractedData(data);
+      setPhase('reviewing');
     } catch {
       setError('Failed to analyze your answers. Please try again.');
-      setPhase('recording');
-    } finally {
-      setClassifying(false);
+      setPhase('editing');
     }
   };
 
@@ -215,7 +256,7 @@ export default function VoiceOnboarding() {
     });
   };
 
-  // ── Review phase ──
+  // ━━━ PHASE: Reviewing classified entries ━━━
   if (phase === 'reviewing' && extractedData) {
     const grouped = extractedData.nodes.reduce<Record<string, Array<{ index: number; props: Record<string, unknown> }>>>((acc, node, i) => {
       if (!acc[node.node_type]) acc[node.node_type] = [];
@@ -303,8 +344,8 @@ export default function VoiceOnboarding() {
     );
   }
 
-  // ── Classifying phase ──
-  if (classifying) {
+  // ━━━ PHASE: Classifying ━━━
+  if (phase === 'classifying') {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center">
         <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-6" />
@@ -314,7 +355,78 @@ export default function VoiceOnboarding() {
     );
   }
 
-  // ── Recording phase ──
+  // ━━━ PHASE: Editing transcript ━━━
+  if (phase === 'editing') {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center px-4 py-12">
+        <div className="w-full max-w-[95vw] sm:max-w-2xl">
+          <div className="text-center mb-6">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-blue-500/15 border border-blue-500/25 flex items-center justify-center">
+              <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <h2 className="text-white text-xl font-semibold mb-1">Review your transcript</h2>
+            <p className="text-white/30 text-sm">
+              Fix any transcription errors before we analyze it. The more accurate, the better the results.
+            </p>
+          </div>
+
+          <textarea
+            value={fullTranscript}
+            onChange={(e) => setFullTranscript(e.target.value)}
+            className="w-full h-64 sm:h-80 bg-white/[0.04] border border-white/[0.1] rounded-2xl px-5 py-4 text-white/80 text-sm leading-relaxed focus:outline-none focus:border-purple-500/40 resize-none font-[inherit] placeholder:text-white/20"
+            placeholder="Your transcribed text will appear here..."
+          />
+
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-white/20 text-xs">
+              {fullTranscript.split(/\s+/).filter(Boolean).length} words
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setPhase('recording'); setQuestionIndex(0); setAudioBlobs([]); setQuestionsRecorded(new Set()); }}
+                className="border border-white/10 text-white/40 hover:text-white/70 font-medium py-2.5 px-5 rounded-xl transition-colors text-sm"
+              >
+                Start over
+              </button>
+              <button
+                onClick={handleClassify}
+                disabled={!fullTranscript.trim()}
+                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-2.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20"
+              >
+                Build My Graph
+              </button>
+            </div>
+          </div>
+
+          {error && <p className="text-red-400 text-sm text-center mt-3">{error}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // ━━━ PHASE: Transcribing all audio ━━━
+  if (phase === 'transcribing') {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-6" />
+        <p className="text-white/60 text-lg">Transcribing your voice...</p>
+        <p className="text-white/30 text-sm mt-2">
+          Processing {audioBlobs.length} recording{audioBlobs.length > 1 ? 's' : ''}
+        </p>
+        <div className="w-48 h-1.5 bg-white/10 rounded-full mt-4 overflow-hidden">
+          <motion.div
+            className="h-full bg-blue-500 rounded-full"
+            animate={{ width: `${transcribeProgress}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ━━━ PHASE: Recording ━━━
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-lg flex flex-col items-center">
@@ -326,7 +438,7 @@ export default function VoiceOnboarding() {
               {isDone ? 'All done!' : `Question ${questionIndex + 1} of ${QUESTIONS.length}`}
             </span>
             <span className="text-white/20 text-xs">
-              {transcripts.length} answered
+              {questionsRecorded.size} recorded
             </span>
           </div>
           <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -357,104 +469,97 @@ export default function VoiceOnboarding() {
           </AnimatePresence>
         )}
 
-        {/* Last transcript preview */}
-        {transcripts.length > 0 && !isDone && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mb-6 max-w-md w-full"
-          >
-            <div className="bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3">
-              <p className="text-white/20 text-[10px] uppercase tracking-widest mb-1">Your last answer</p>
-              <p className="text-white/50 text-sm leading-relaxed line-clamp-2">
-                "{transcripts[transcripts.length - 1].text}"
-              </p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Mic button */}
+        {/* Mic button + controls */}
         {!isDone && (
-          <div className="flex flex-col items-center gap-4">
-            {transcribing ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-20 h-20 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-white/50 text-sm">Transcribing...</p>
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={recording ? stopRecording : startRecording}
-                  disabled={transcribing}
-                  className="group relative"
-                >
-                  {/* Voice-reactive outer rings when recording */}
-                  {recording && (
-                    <>
-                      {/* Outer ring — reacts to voice */}
-                      <div
-                        className="absolute inset-0 rounded-full bg-red-500/15 transition-transform duration-75"
-                        style={{
-                          margin: '-16px',
-                          transform: `scale(${1 + audioLevel * 0.6})`,
-                          opacity: 0.3 + audioLevel * 0.5,
-                        }}
-                      />
-                      {/* Middle ring — reacts to voice (slightly delayed feel) */}
-                      <div
-                        className="absolute inset-0 rounded-full border-2 border-red-400/30 transition-transform duration-100"
-                        style={{
-                          margin: '-8px',
-                          transform: `scale(${1 + audioLevel * 0.3})`,
-                        }}
-                      />
-                    </>
-                  )}
+          <div className="flex flex-col items-center gap-5">
+            {/* Mic button */}
+            <button
+              onClick={recording ? () => {} : startRecording}
+              className="group relative"
+            >
+              {/* Voice-reactive outer rings */}
+              {recording && (
+                <>
                   <div
-                    className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-75 ${
-                      recording
-                        ? 'bg-red-500'
-                        : 'bg-red-500/80 hover:bg-red-500 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:scale-105'
-                    }`}
-                    style={recording ? {
-                      transform: `scale(${1 + audioLevel * 0.15})`,
-                      boxShadow: `0 0 ${20 + audioLevel * 40}px ${audioLevel * 12}px rgba(239, 68, 68, ${0.3 + audioLevel * 0.4})`,
-                    } : undefined}
-                  >
-                    {recording ? (
+                    className="absolute inset-0 rounded-full bg-red-500/15 transition-transform duration-75"
+                    style={{
+                      margin: '-16px',
+                      transform: `scale(${1 + audioLevel * 0.6})`,
+                      opacity: 0.3 + audioLevel * 0.5,
+                    }}
+                  />
+                  <div
+                    className="absolute inset-0 rounded-full border-2 border-red-400/30 transition-transform duration-100"
+                    style={{
+                      margin: '-8px',
+                      transform: `scale(${1 + audioLevel * 0.3})`,
+                    }}
+                  />
+                </>
+              )}
+              <div
+                className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all duration-75 ${
+                  recording
+                    ? 'bg-red-500'
+                    : 'bg-red-500/80 hover:bg-red-500 shadow-lg shadow-red-500/20 hover:shadow-red-500/40 hover:scale-105'
+                }`}
+                style={recording ? {
+                  transform: `scale(${1 + audioLevel * 0.15})`,
+                  boxShadow: `0 0 ${20 + audioLevel * 40}px ${audioLevel * 12}px rgba(239, 68, 68, ${0.3 + audioLevel * 0.4})`,
+                } : undefined}
+              >
+                {recording ? (
+                  <div className="flex items-center gap-1">
+                    {[0, 1, 2, 3, 4].map((i) => (
                       <div
-                        className="bg-white rounded-sm transition-all duration-75"
+                        key={i}
+                        className="w-1 bg-white rounded-full transition-all duration-75"
                         style={{
-                          width: `${22 + audioLevel * 6}px`,
-                          height: `${22 + audioLevel * 6}px`,
+                          height: `${8 + audioLevel * 20 * (Math.sin(Date.now() / 150 + i * 1.2) * 0.5 + 0.5)}px`,
                         }}
                       />
-                    ) : (
-                      <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
-                    )}
+                    ))}
                   </div>
-                </button>
-                <p className="text-white/30 text-sm">
-                  {recording ? 'Tap to stop' : 'Tap to speak'}
-                </p>
-              </>
-            )}
+                ) : (
+                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                )}
+              </div>
+            </button>
 
-            {/* Skip button */}
-            {!recording && !transcribing && (
-              <button
-                onClick={skipQuestion}
-                className="text-white/20 hover:text-white/50 text-xs font-medium transition-colors mt-2"
-              >
-                Skip this question →
-              </button>
-            )}
+            <p className="text-white/30 text-sm">
+              {recording ? 'Speaking...' : 'Tap to start speaking'}
+            </p>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-3">
+              {recording && (
+                <motion.button
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={handleNextQuestion}
+                  className="bg-white/10 hover:bg-white/15 border border-white/10 text-white font-medium py-2.5 px-6 rounded-xl transition-all text-sm flex items-center gap-2"
+                >
+                  Next question
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </motion.button>
+              )}
+              {!recording && (
+                <button
+                  onClick={skipQuestion}
+                  className="text-white/20 hover:text-white/50 text-xs font-medium transition-colors"
+                >
+                  Skip this question →
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Done — classify */}
+        {/* All done — proceed to transcription */}
         {isDone && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -464,16 +569,16 @@ export default function VoiceOnboarding() {
             <span className="text-5xl mb-6 block">🎉</span>
             <h2 className="text-white text-2xl font-semibold mb-2">Great job!</h2>
             <p className="text-white/40 text-sm mb-8">
-              You answered {transcripts.length} of {QUESTIONS.length} questions.
-              {transcripts.length === 0
-                ? " Let's skip to your orb."
-                : " Let's analyze your answers and build your graph."}
+              You recorded {questionsRecorded.size} of {QUESTIONS.length} questions.
+              {questionsRecorded.size === 0
+                ? " You didn't record anything. Let's skip to your orb."
+                : " Now let's transcribe and review your answers."}
             </p>
             <button
-              onClick={handleClassify}
+              onClick={handleFinish}
               className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 text-lg"
             >
-              {transcripts.length === 0 ? 'Go to My Orb' : 'Build My Graph'}
+              {questionsRecorded.size === 0 ? 'Go to My Orb' : 'Transcribe & Review'}
             </button>
           </motion.div>
         )}
