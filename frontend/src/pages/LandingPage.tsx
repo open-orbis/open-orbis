@@ -1,5 +1,5 @@
 import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import HeroOrb from '../components/landing/HeroOrb';
@@ -52,8 +52,13 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { user, loginDev, loading } = useAuthStore();
 
+  const [signingIn, setSigningIn] = useState(false);
+
   const handleGetStarted = async () => {
+    setSigningIn(true);
     await loginDev();
+    // Navigate only after login completes — the signingIn flag prevents
+    // the landing page from flashing the logged-in state during transition
     navigate('/create');
   };
 
@@ -73,7 +78,7 @@ export default function LandingPage() {
             </div>
             <span className="text-white font-bold text-lg tracking-tight">Orbis</span>
           </div>
-          {user ? (
+          {user && !signingIn ? (
             <button
               onClick={() => navigate('/orb')}
               className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
@@ -151,7 +156,7 @@ export default function LandingPage() {
           transition={{ delay: 0.9, duration: 0.8 }}
           className="flex flex-col sm:flex-row gap-3 z-10"
         >
-          {user ? (
+          {user && !signingIn ? (
             <>
               <button
                 onClick={() => navigate('/orb')}
@@ -168,10 +173,10 @@ export default function LandingPage() {
             <>
               <button
                 onClick={handleGetStarted}
-                disabled={loading}
+                disabled={loading || signingIn}
                 className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base flex items-center gap-2"
               >
-                {loading ? 'Signing in...' : 'Create Your Orb'}
+                {loading || signingIn ? 'Signing in...' : 'Create Your Orb'}
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -385,7 +390,7 @@ export default function LandingPage() {
             <p className="text-white/30 text-base mb-8 max-w-md mx-auto">
               It takes less than five minutes. No templates, no formatting, no PDFs — just you and your graph.
             </p>
-            {user ? (
+            {user && !signingIn ? (
               <button
                 onClick={() => navigate('/orb')}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
@@ -395,10 +400,10 @@ export default function LandingPage() {
             ) : (
               <button
                 onClick={handleGetStarted}
-                disabled={loading}
+                disabled={loading || signingIn}
                 className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
-                {loading ? 'Signing in...' : 'Get Started — Free'}
+                {loading || signingIn ? 'Signing in...' : 'Get Started — Free'}
               </button>
             )}
           </FadeIn>
