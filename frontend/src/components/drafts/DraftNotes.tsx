@@ -136,7 +136,7 @@ function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void 
       className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
         recording
           ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-          : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white/70'
+          : 'bg-red-500/10 text-red-400/70 border border-red-500/20 hover:bg-red-500/20 hover:text-red-400'
       }`}
     >
       {recording ? (
