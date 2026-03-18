@@ -403,7 +403,17 @@ export default function OrbViewPage() {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>(() => {
-    try { return JSON.parse(localStorage.getItem('orbis_drafts') || '[]'); } catch { return []; }
+    try {
+      const stored = JSON.parse(localStorage.getItem('orbis_drafts') || '[]');
+      if (stored.length > 0) return stored;
+    } catch { /* ignore */ }
+    // Seed a sample note for first-time users
+    return [{
+      id: 'sample-1',
+      text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orb later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
+      createdAt: Date.now(),
+      fromVoice: false,
+    }];
   });
 
   // Persist drafts to localStorage
