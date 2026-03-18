@@ -10,6 +10,7 @@ from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_value
 from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
+from app.messages.welcome import send_welcome_message
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -59,6 +60,7 @@ async def google_callback(
                 name=name,
                 orb_id=orb_id,
             )
+            await send_welcome_message(db, user_id)
 
     token = create_jwt(user_id, email)
 
@@ -89,6 +91,7 @@ async def dev_login(
                 name=name,
                 orb_id="alessandro-berti",
             )
+            await send_welcome_message(db, user_id)
 
     token = create_jwt(user_id, email)
     return {"access_token": token, "token_type": "bearer", "user": {"user_id": user_id, "email": email, "name": name}}

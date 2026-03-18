@@ -14,29 +14,6 @@ interface InboxProps {
   onUnreadCountChange?: (count: number) => void;
 }
 
-const MOCK_MESSAGES: Message[] = [
-  {
-    uid: 'mock-1',
-    sender_name: 'Sarah Chen',
-    sender_email: 'sarah.chen@talentscout.ai',
-    subject: 'Impressed by your graph — Senior Engineer role at Nexus',
-    body: "Hi Alessandro,\n\nI came across your Orbis profile through our AI sourcing pipeline. Your knowledge graph is really impressive — the way your skills connect to your projects tells a much richer story than a traditional CV.\n\nWe have a Senior Engineer position at Nexus that aligns well with your background, particularly your experience with graph databases and distributed systems.\n\nWould you be open to a quick chat this week?\n\nBest,\nSarah Chen\nTalent Partner @ Nexus",
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    read: false,
-    replies: [],
-  },
-  {
-    uid: 'mock-2',
-    sender_name: 'MCP Agent (RecruitBot)',
-    sender_email: 'agent@recruitbot.io',
-    subject: 'Skill match report: 94% fit for 3 open roles',
-    body: "Automated analysis of your orb via MCP tools:\n\n• Staff Engineer @ Dataflow Inc. — 94% match (graph databases, Python, system design)\n• Platform Lead @ CloudScale — 89% match (distributed systems, API design)\n• Senior Dev @ OpenMesh — 87% match (Neo4j, FastAPI, React)\n\nThese matches are based on your skill nodes, work experience connections, and project relationships in your knowledge graph.\n\nReply to this message if you'd like introductions to any of these teams.",
-    created_at: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
-    read: false,
-    replies: [],
-  },
-];
-
 function formatTime(iso: string) {
   const d = new Date(iso);
   const now = new Date();
@@ -61,26 +38,21 @@ export default function Inbox({ open, onClose, onUnreadCountChange }: InboxProps
   const fetchMessages = async () => {
     try {
       const data = await getMessages();
-      if (data.length > 0) {
-        setMessages(data);
-        onUnreadCountChange?.(data.filter((m) => !m.read).length);
-      } else {
-        // Show mock messages in dev/demo mode
-        setMessages(MOCK_MESSAGES);
-        onUnreadCountChange?.(MOCK_MESSAGES.filter((m) => !m.read).length);
-      }
+      setMessages(data);
+      onUnreadCountChange?.(data.filter((m) => !m.read).length);
     } catch {
-      // API not available — show mock messages
-      setMessages(MOCK_MESSAGES);
-      onUnreadCountChange?.(MOCK_MESSAGES.filter((m) => !m.read).length);
+      setMessages([]);
+      onUnreadCountChange?.(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // Set initial unread count on mount
+  // Fetch unread count on mount
   useEffect(() => {
-    onUnreadCountChange?.(MOCK_MESSAGES.filter((m) => !m.read).length);
+    getMessages()
+      .then((data) => onUnreadCountChange?.(data.filter((m) => !m.read).length))
+      .catch(() => onUnreadCountChange?.(0));
   }, []);
 
   useEffect(() => {
