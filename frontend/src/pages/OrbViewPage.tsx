@@ -538,35 +538,26 @@ export default function OrbViewPage() {
         </div>
       </div>
 
-      {/* ── Onboarding overlay for empty graphs ── */}
+      {/* ── Empty graph hint — point to the + Add button ── */}
       {data.nodes.length === 0 && !showInput && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto text-center max-w-md px-6">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center">
-              <svg className="w-8 h-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <h2 className="text-white text-xl font-semibold mb-2">Your orb is empty</h2>
-            <p className="text-white/40 text-sm mb-6 leading-relaxed">
-              Start building your professional knowledge graph by adding entries.
-              Each entry becomes a node — work experiences, skills, education, and more.
+        <div className="absolute inset-0 z-20 flex items-end justify-center pointer-events-none pb-28 sm:pb-32">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="text-center"
+          >
+            <p className="text-white/50 text-sm mb-3">
+              Tap the <span className="text-purple-400 font-semibold">＋</span> button to start populating your Orb
             </p>
-            <div className="flex flex-col gap-2 items-center">
-              <button
-                onClick={() => { setEditNode({ type: 'work_experience', values: {} }); setShowInput(true); }}
-                className="bg-purple-600 hover:bg-purple-500 text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm"
-              >
-                + Add Work Experience
-              </button>
-              <button
-                onClick={() => { setEditNode({ type: 'skill', values: {} }); setShowInput(true); }}
-                className="text-white/40 hover:text-white/70 font-medium py-2 px-6 rounded-lg transition-colors text-sm"
-              >
-                or add a Skill
-              </button>
-            </div>
-          </div>
+            <motion.div
+              animate={{ y: [0, 6, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="text-purple-400 text-2xl"
+            >
+              ↓
+            </motion.div>
+          </motion.div>
         </div>
       )}
 
@@ -605,6 +596,7 @@ export default function OrbViewPage() {
         onMessagesChange={setChatMessages}
         onAdd={() => { setEditNode(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
+        highlightAdd={data.nodes.length === 0 && !showInput}
       />
 
       {/* ── Inbox ── */}

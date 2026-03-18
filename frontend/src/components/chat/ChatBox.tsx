@@ -15,6 +15,7 @@ interface ChatBoxProps {
   onMessagesChange: (msgs: ChatMessage[]) => void;
   onAdd?: () => void;
   onShare?: () => void;
+  highlightAdd?: boolean;
 }
 
 export type { ChatMessage };
@@ -57,7 +58,7 @@ function getNodeSubtitle(node: OrbNode): string {
   return '';
 }
 
-export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare }: ChatBoxProps) {
+export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -266,7 +267,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
             {onAdd && (
               <button
                 onClick={onAdd}
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40"
+                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40 ${highlightAdd ? 'animate-pulse ring-2 ring-purple-400 ring-offset-2 ring-offset-black' : ''}`}
                 title="Add Entry"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
