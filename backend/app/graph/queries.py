@@ -49,8 +49,10 @@ MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
-WITH p, connections, collect({source: src.uid, target: tgt.uid, rel: type(cr)}) AS cross_links
-RETURN p, connections, cross_links
+WITH p, connections,
+     collect({source: src.uid, target: tgt.uid, rel: type(cr)}) AS cross_links,
+     collect(DISTINCT tgt) AS cross_skill_nodes
+RETURN p, connections, cross_links, cross_skill_nodes
 """
 
 GET_FULL_ORB_PUBLIC = """
@@ -58,8 +60,10 @@ MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
-WITH p, connections, collect({source: src.uid, target: tgt.uid, rel: type(cr)}) AS cross_links
-RETURN p, connections, cross_links
+WITH p, connections,
+     collect({source: src.uid, target: tgt.uid, rel: type(cr)}) AS cross_links,
+     collect(DISTINCT tgt) AS cross_skill_nodes
+RETURN p, connections, cross_links, cross_skill_nodes
 """
 
 # ── Node type to label mapping ──

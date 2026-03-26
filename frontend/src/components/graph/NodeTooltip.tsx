@@ -67,15 +67,16 @@ const LABEL_TO_TYPE: Record<string, string> = {
 
 // Fields to show in the detail section (ordered)
 const DETAIL_FIELDS: Record<string, string[]> = {
-  WorkExperience: ['location', 'start_date', 'end_date'],
-  Education: ['field_of_study', 'location', 'start_date', 'end_date'],
-  Certification: ['issue_date', 'expiry_date'],
-  Publication: ['date'],
+  WorkExperience: ['company', 'location', 'start_date', 'end_date'],
+  Education: ['degree', 'field_of_study', 'location', 'start_date', 'end_date'],
+  Certification: ['issuing_organization', 'date', 'issue_date', 'expiry_date'],
+  Publication: ['venue', 'date'],
   Project: ['start_date', 'end_date'],
-  Skill: ['proficiency'],
-  Person: ['headline', 'email', 'orb_id'],
+  Skill: ['proficiency', 'category'],
+  Person: ['headline', 'location', 'email', 'orb_id'],
   Collaborator: ['email'],
   Patent: ['patent_number', 'filing_date', 'grant_date', 'inventors'],
+  Language: ['proficiency'],
 };
 
 function formatDate(val: unknown): string {
@@ -102,19 +103,24 @@ export default function NodeTooltip({ node, position }: NodeTooltipProps) {
   const subtitle = subtitleField ? (node[subtitleField] as string) : undefined;
 
   const detailKeys = DETAIL_FIELDS[label] || [];
+  const shownFields = new Set([titleField, subtitleField].filter(Boolean));
   const details = detailKeys
-    .filter((k) => node[k] != null && node[k] !== '')
+    .filter((k) => node[k] != null && node[k] !== '' && !shownFields.has(k))
     .map((k) => ({ key: k, value: formatDate(node[k]) || String(node[k]) }));
 
   const description = node.description as string | undefined;
 
+  // Clamp tooltip position so it doesn't overflow the viewport
+  const tooltipX = Math.min(position.x + 16, window.innerWidth - 420);
+  const tooltipY = Math.min(position.y + 16, window.innerHeight - 300);
+
   return (
     <div
       className="fixed z-50 pointer-events-none"
-      style={{ left: position.x + 16, top: position.y + 16 }}
+      style={{ left: tooltipX, top: tooltipY }}
     >
       <div
-        className="bg-gray-900/95 backdrop-blur-sm text-white rounded-xl shadow-2xl overflow-hidden max-w-[80vw] sm:max-w-xs"
+        className="bg-gray-900/95 backdrop-blur-sm text-white rounded-xl shadow-2xl overflow-hidden max-w-[85vw] sm:max-w-sm"
         style={{ borderTop: `3px solid ${typeColor}` }}
       >
         {/* Header */}
@@ -142,10 +148,10 @@ export default function NodeTooltip({ node, position }: NodeTooltipProps) {
           </div>
         )}
 
-        {/* Description preview */}
+        {/* Full description */}
         {description && (
           <div className="px-4 pb-3 border-t border-gray-700/50 pt-2">
-            <p className="text-[11px] text-gray-400 line-clamp-2 leading-relaxed">{description}</p>
+            <p className="text-[11px] text-gray-300 leading-relaxed whitespace-pre-line">{description}</p>
           </div>
         )}
       </div>

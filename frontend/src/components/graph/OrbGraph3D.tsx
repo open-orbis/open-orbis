@@ -27,6 +27,19 @@ function getTypeLabel(node: any): string {
   return NODE_TYPE_LABELS[snakeCase] || label || '';
 }
 
+// ── Shared geometry pool (created once, reused for all nodes) ──
+const SHARED_GEO = {
+  personCore: new THREE.SphereGeometry(6, 24, 24),
+  personInnerGlow: new THREE.SphereGeometry(2.4, 12, 12),
+  personMidGlow: new THREE.SphereGeometry(8.4, 12, 12),
+  personRing1: new THREE.TorusGeometry(9.6, 0.15, 8, 48),
+  personRing2: new THREE.TorusGeometry(11.4, 0.1, 8, 48),
+  nodeCore: new THREE.SphereGeometry(1.05, 12, 12),
+  nodeMain: new THREE.SphereGeometry(3, 16, 16),
+  nodeGlow: new THREE.SphereGeometry(4.5, 10, 10),
+  highlightRing: new THREE.RingGeometry(5.1, 6.0, 24),
+};
+
 export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, width, height }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
@@ -35,8 +48,10 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   const nodeObjectCacheRef = useRef<Map<string, THREE.Group>>(new Map());
   const prevHighlightKeyRef = useRef<string>('');
   const isHoveringRef = useRef(false);
+  // Direct refs to orbital rings — avoids scene.traverse() every frame
+  const orbitRing1Ref = useRef<THREE.Mesh | null>(null);
+  const orbitRing2Ref = useRef<THREE.Mesh | null>(null);
 
-  // Use ref for highlights so nodeThreeObject callback stays stable
   const highlightRef = useRef<Set<string>>(new Set());
   highlightRef.current = highlightedNodeIds ?? new Set();
   const hasHighlightsRef = useRef(false);
@@ -45,23 +60,34 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   // Clear cache when data changes
   useEffect(() => {
     nodeObjectCacheRef.current.clear();
+    orbitRing1Ref.current = null;
+    orbitRing2Ref.current = null;
   }, [data]);
 
-  const graphData = useMemo(() => ({
-    nodes: [
-      {
-        id: (data.person.user_id || data.person.orb_id) as string,
-        ...data.person,
-        _labels: ['Person'],
-      },
-      ...data.nodes.map((n) => ({ id: n.uid, ...n })),
-    ],
-    links: data.links.map((l) => ({
-      source: l.source,
-      target: l.target,
-      label: l.type,
-    })),
-  }), [data]);
+  const graphData = useMemo(() => {
+    const personId = (data.person.user_id || data.person.orb_id) as string;
+
+    const seenIds = new Set<string>([personId]);
+    const deduped = data.nodes.filter((n) => {
+      if (seenIds.has(n.uid)) return false;
+      seenIds.add(n.uid);
+      return true;
+    });
+
+    const nodeIds = new Set(seenIds);
+
+    const validLinks = data.links
+      .filter((l) => nodeIds.has(l.source) && nodeIds.has(l.target))
+      .map((l) => ({ source: l.source, target: l.target, label: l.type }));
+
+    return {
+      nodes: [
+        { id: personId, ...data.person, _labels: ['Person'] },
+        ...deduped.map((n) => ({ id: n.uid, ...n })),
+      ],
+      links: validLinks,
+    };
+  }, [data]);
 
   // Add ambient light + particle background
   useEffect(() => {
@@ -70,16 +96,14 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     const scene = fg.scene();
     if (!scene) return;
 
-    // Ambient light
     if (!scene.getObjectByName('__orb_ambient')) {
-      const ambient = new THREE.AmbientLight(0x222222, 0.5);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.4);
       ambient.name = '__orb_ambient';
       scene.add(ambient);
     }
 
-    // Particle background
     if (!scene.getObjectByName('__bg_particles')) {
-      const count = 600;
+      const count = 400;
       const positions = new Float32Array(count * 3);
       const colors = new Float32Array(count * 3);
       const palette = [
@@ -91,7 +115,6 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
       ];
 
       for (let i = 0; i < count; i++) {
-        // Distribute in a large sphere
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         const r = 150 + Math.random() * 350;
@@ -123,25 +146,39 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     }
   }, [data]);
 
-  // Slowly rotate background particles + auto-rotate graph
+  // Single unified animation loop
   useEffect(() => {
     let animId: number;
     const animate = () => {
       const fg = fgRef.current;
       if (fg) {
         const scene = fg.scene();
+
+        // Rotate background particles
         const particles = scene?.getObjectByName('__bg_particles');
         if (particles) {
           particles.rotation.y += 0.00008;
           particles.rotation.x += 0.00003;
         }
 
-        // Auto-rotate the graph slowly, pause on hover
-        if (!isHoveringRef.current) {
-          const scene = fg.scene();
-          if (scene) {
-            scene.rotation.y += 0.0012;
-          }
+        // Auto-rotate graph when not hovering
+        if (!isHoveringRef.current && scene) {
+          scene.rotation.y += 0.0012;
+        }
+
+        // Animate orbital rings via direct refs (no scene.traverse)
+        const t = Date.now() * 0.003;
+        if (orbitRing1Ref.current) orbitRing1Ref.current.rotation.z = t * 0.15;
+        if (orbitRing2Ref.current) orbitRing2Ref.current.rotation.y = t * 0.1;
+
+        // Animate highlight rings
+        if (hasHighlightsRef.current) {
+          const opacity = 0.4 + 0.4 * Math.sin(t);
+          highlightRingsRef.current.forEach((ring) => {
+            (ring.material as THREE.MeshBasicMaterial).opacity = opacity;
+            ring.rotation.x = t * 0.5;
+            ring.rotation.y = t * 0.3;
+          });
         }
       }
       animId = requestAnimationFrame(animate);
@@ -155,8 +192,10 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     const newKey = highlightedNodeIds ? Array.from(highlightedNodeIds).sort().join(',') : '';
     if (newKey !== prevHighlightKeyRef.current) {
       prevHighlightKeyRef.current = newKey;
-      nodeObjectCacheRef.current.clear(); // Force rebuild with new highlight states
+      nodeObjectCacheRef.current.clear();
       highlightRingsRef.current.clear();
+      orbitRing1Ref.current = null;
+      orbitRing2Ref.current = null;
       const fg = fgRef.current;
       if (fg) fg.refresh();
     }
@@ -183,11 +222,9 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     if (onBackgroundClick) onBackgroundClick();
   }, [onBackgroundClick]);
 
-  // Stable callback — reads highlight state from refs, uses cache
   const nodeThreeObject = useCallback((node: any) => {
     const nodeId = node.id || node.uid;
 
-    // Return cached object if available
     const cached = nodeObjectCacheRef.current.get(nodeId);
     if (cached) return cached;
 
@@ -203,140 +240,89 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     const col = new THREE.Color(color);
 
     if (isPerson) {
-      // ── Distinct Person node: orbital ring design (large) ──
-      const pr = 6; // person radius — bigger than regular nodes
-
-      // Central bright core
-      const coreGeo = new THREE.SphereGeometry(pr, 48, 48);
-      const coreMat = new THREE.MeshStandardMaterial({
+      // ── Person node: emissive core + orbital rings (no PointLight) ──
+      const coreMat = new THREE.MeshBasicMaterial({
         color: col,
-        emissive: col,
-        emissiveIntensity: isDimmed ? 0.1 : isHighlighted ? 0.9 : 0.6,
         transparent: true,
         opacity: isDimmed ? 0.2 : 0.9,
-        roughness: 0.15,
-        metalness: 0.3,
       });
-      group.add(new THREE.Mesh(coreGeo, coreMat));
+      group.add(new THREE.Mesh(SHARED_GEO.personCore, coreMat));
 
       // Inner white glow
-      const innerGlowGeo = new THREE.SphereGeometry(pr * 0.4, 24, 24);
       const innerGlowMat = new THREE.MeshBasicMaterial({
         color: '#ffffff',
         transparent: true,
         opacity: isDimmed ? 0.05 : 0.55,
       });
-      group.add(new THREE.Mesh(innerGlowGeo, innerGlowMat));
+      group.add(new THREE.Mesh(SHARED_GEO.personInnerGlow, innerGlowMat));
 
-      // Orbital ring 1 (horizontal)
-      const ring1Geo = new THREE.TorusGeometry(pr * 1.6, 0.15, 16, 100);
+      // Orbital ring 1
       const ring1Mat = new THREE.MeshBasicMaterial({
         color: col,
         transparent: true,
         opacity: isDimmed ? 0.05 : 0.5,
       });
-      const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
+      const ring1 = new THREE.Mesh(SHARED_GEO.personRing1, ring1Mat);
       ring1.rotation.x = Math.PI / 2;
-      ring1.name = '__orbit_ring_1';
+      orbitRing1Ref.current = ring1;
       group.add(ring1);
 
-      // Orbital ring 2 (tilted)
-      const ring2Geo = new THREE.TorusGeometry(pr * 1.9, 0.1, 16, 100);
+      // Orbital ring 2
       const ring2Mat = new THREE.MeshBasicMaterial({
         color: new THREE.Color('#a78bfa'),
         transparent: true,
         opacity: isDimmed ? 0.03 : 0.3,
       });
-      const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+      const ring2 = new THREE.Mesh(SHARED_GEO.personRing2, ring2Mat);
       ring2.rotation.x = Math.PI / 3;
       ring2.rotation.z = Math.PI / 6;
-      ring2.name = '__orbit_ring_2';
+      orbitRing2Ref.current = ring2;
       group.add(ring2);
 
       // Mid glow
-      const midGeo = new THREE.SphereGeometry(pr * 1.4, 24, 24);
       const midMat = new THREE.MeshBasicMaterial({
         color: col,
         transparent: true,
         opacity: isDimmed ? 0.01 : 0.06,
       });
-      group.add(new THREE.Mesh(midGeo, midMat));
+      group.add(new THREE.Mesh(SHARED_GEO.personMidGlow, midMat));
 
-      // Outer glow
-      const outerGeo = new THREE.SphereGeometry(pr * 2.5, 16, 16);
-      const outerMat = new THREE.MeshBasicMaterial({
-        color: col,
-        transparent: true,
-        opacity: isDimmed ? 0.005 : 0.025,
-      });
-      group.add(new THREE.Mesh(outerGeo, outerMat));
-
-      // Point light
-      if (!isDimmed) {
-        const light = new THREE.PointLight(col, 35, 100);
-        light.decay = 2;
-        group.add(light);
-      }
     } else {
-      // ── Regular nodes ──
+      // ── Regular nodes: 2 meshes (core + main), no PointLight ──
 
-      // Inner bright core
-      const coreGeo = new THREE.SphereGeometry(radius * 0.35, 24, 24);
+      // White core
       const coreMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#ffffff'),
+        color: 0xffffff,
         transparent: true,
         opacity: isDimmed ? 0.05 : isHighlighted ? 0.95 : 0.7,
       });
-      group.add(new THREE.Mesh(coreGeo, coreMat));
+      group.add(new THREE.Mesh(SHARED_GEO.nodeCore, coreMat));
 
-      // Main sphere
-      const mainGeo = new THREE.SphereGeometry(radius, 32, 32);
-      const mainMat = new THREE.MeshStandardMaterial({
+      // Main sphere — emissive color via MeshBasicMaterial (no light needed)
+      const mainMat = new THREE.MeshBasicMaterial({
         color: col,
-        emissive: col,
-        emissiveIntensity: isDimmed ? 0.1 : isHighlighted ? 0.9 : 0.55,
         transparent: true,
         opacity: isDimmed ? 0.2 : 0.85,
-        roughness: 0.2,
-        metalness: 0.15,
       });
-      group.add(new THREE.Mesh(mainGeo, mainMat));
+      group.add(new THREE.Mesh(SHARED_GEO.nodeMain, mainMat));
 
-      // Mid glow
-      const midGeo = new THREE.SphereGeometry(radius * 1.5, 24, 24);
-      const midMat = new THREE.MeshBasicMaterial({
+      // Single glow layer (removed outer glow)
+      const glowMat = new THREE.MeshBasicMaterial({
         color: col,
         transparent: true,
-        opacity: isDimmed ? 0.01 : isHighlighted ? 0.18 : 0.07,
+        opacity: isDimmed ? 0.01 : isHighlighted ? 0.15 : 0.05,
       });
-      group.add(new THREE.Mesh(midGeo, midMat));
-
-      // Outer glow
-      const outerGeo = new THREE.SphereGeometry(radius * 2.2, 16, 16);
-      const outerMat = new THREE.MeshBasicMaterial({
-        color: col,
-        transparent: true,
-        opacity: isDimmed ? 0.005 : isHighlighted ? 0.08 : 0.03,
-      });
-      group.add(new THREE.Mesh(outerGeo, outerMat));
-
-      // Point light
-      if (!isDimmed) {
-        const light = new THREE.PointLight(col, 10, 45);
-        light.decay = 2;
-        group.add(light);
-      }
+      group.add(new THREE.Mesh(SHARED_GEO.nodeGlow, glowMat));
 
       // Highlight ring
       if (isHighlighted) {
-        const ringGeo = new THREE.RingGeometry(radius * 1.7, radius * 2.0, 48);
         const ringMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color('#ffffff'),
+          color: 0xffffff,
           transparent: true,
           opacity: 0.8,
           side: THREE.DoubleSide,
         });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
+        const ring = new THREE.Mesh(SHARED_GEO.highlightRing, ringMat);
         highlightRingsRef.current.set(nodeId, ring);
         group.add(ring);
       }
@@ -347,25 +333,23 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     if (name) {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d')!;
-      const dpr = 2;
-      canvas.width = 512 * dpr;
-      canvas.height = 80 * dpr;
-      ctx.scale(dpr, dpr);
+      canvas.width = 512;
+      canvas.height = 64;
 
-      ctx.clearRect(0, 0, 512, 80);
+      ctx.clearRect(0, 0, 512, 64);
 
-      ctx.font = `600 ${isPerson ? 20 : 15}px Inter, -apple-system, sans-serif`;
+      ctx.font = `600 ${isPerson ? 18 : 13}px Inter, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
       const displayName = name.length > 28 ? name.slice(0, 26) + '\u2026' : name;
-      ctx.fillText(displayName, 256, isPerson ? 32 : 28);
+      ctx.fillText(displayName, 256, isPerson ? 24 : 20);
 
       if (!isPerson) {
         const typeLabel = getTypeLabel(node);
         if (typeLabel) {
-          ctx.font = '500 11px Inter, -apple-system, sans-serif';
+          ctx.font = '500 10px Inter, -apple-system, sans-serif';
           ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.06)' : color;
-          ctx.fillText(typeLabel, 256, 46);
+          ctx.fillText(typeLabel, 256, 38);
         }
       }
 
@@ -377,52 +361,16 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
         depthWrite: false,
       });
       const sprite = new THREE.Sprite(spriteMat);
-      sprite.scale.set(24, 3.8, 1);
+      sprite.scale.set(22, 2.8, 1);
       sprite.position.y = -(isPerson ? 10 : radius + 5);
       group.add(sprite);
     }
 
     nodeObjectCacheRef.current.set(nodeId, group);
     return group;
-  }, []); // Stable — no dependencies, reads from refs
+  }, []);
 
-  // Animate highlight rings + person orbital rings
-  useEffect(() => {
-    let animId: number;
-    const animate = () => {
-      const t = Date.now() * 0.003;
-
-      // Animate highlight rings
-      if (hasHighlightsRef.current) {
-        highlightRingsRef.current.forEach((ring) => {
-          (ring.material as THREE.MeshBasicMaterial).opacity = 0.4 + 0.4 * Math.sin(t);
-          ring.rotation.x = t * 0.5;
-          ring.rotation.y = t * 0.3;
-        });
-      }
-
-      // Animate person orbital rings
-      const fg = fgRef.current;
-      if (fg) {
-        const scene = fg.scene();
-        if (scene) {
-          scene.traverse((child: THREE.Object3D) => {
-            if (child.name === '__orbit_ring_1') {
-              child.rotation.z = t * 0.15;
-            } else if (child.name === '__orbit_ring_2') {
-              child.rotation.y = t * 0.1;
-            }
-          });
-        }
-      }
-
-      animId = requestAnimationFrame(animate);
-    };
-    animId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animId);
-  }, [highlightedNodeIds]);
-
-  // Link color — reads from ref
+  // Link color
   const linkColorRef = useRef<(link: any) => string>(() => 'rgba(255,255,255,0.2)');
   linkColorRef.current = (link: any) => {
     if (hasHighlightsRef.current) return 'rgba(255,255,255,0.04)';
@@ -455,9 +403,9 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
         nodeThreeObjectExtend={false}
         nodeLabel={() => ''}
         linkColor={stableLinkColor}
-        linkWidth={1.5}
-        linkOpacity={0.6}
-        linkCurvature={0.2}
+        linkWidth={1}
+        linkOpacity={0.5}
+        linkCurvature={0.15}
         linkCurveRotation={0.5}
         onNodeHover={handleNodeHover}
         onNodeClick={handleNodeClick}

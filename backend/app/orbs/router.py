@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
+from neo4j.time import DateTime as Neo4jDateTime, Date as Neo4jDate, Time as Neo4jTime
 
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import decrypt_properties, encrypt_properties
@@ -32,16 +33,36 @@ class SkillLinkRequest(BaseModel):
 router = APIRouter(prefix="/orbs", tags=["orbs"])
 
 
+def _sanitize_neo4j_types(d: dict) -> dict:
+    """Convert Neo4j temporal types to JSON-safe strings."""
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, Neo4jDateTime):
+            result[k] = v.iso_format()
+        elif isinstance(v, (Neo4jDate, Neo4jTime)):
+            result[k] = v.iso_format()
+        else:
+            result[k] = v
+    return result
+
+
 def _serialize_orb(record) -> dict:
-    person = dict(record["p"])
+    person = _sanitize_neo4j_types(dict(record["p"]))
     person = decrypt_properties(person)
     nodes = []
     links = []
+    seen_node_uids: set[str] = set()
 
     for conn in record["connections"]:
         if conn["node"] is None:
             continue
-        node_data = dict(conn["node"])
+        node_data = _sanitize_neo4j_types(dict(conn["node"]))
+        uid = node_data.get("uid")
+        # Deduplicate nodes
+        if uid and uid in seen_node_uids:
+            continue
+        if uid:
+            seen_node_uids.add(uid)
         node_data = decrypt_properties(node_data)
         # Remove embedding from response (too large)
         node_data.pop("embedding", None)
@@ -55,16 +76,40 @@ def _serialize_orb(record) -> dict:
             }
         )
 
+    # Include Skill nodes referenced by USED_SKILL but not directly connected to Person
+    cross_skill_nodes = record.get("cross_skill_nodes") or []
+    for skill_node in cross_skill_nodes:
+        if skill_node is None:
+            continue
+        skill_data = _sanitize_neo4j_types(dict(skill_node))
+        uid = skill_data.get("uid")
+        if uid and uid in seen_node_uids:
+            continue
+        if uid:
+            seen_node_uids.add(uid)
+        skill_data = decrypt_properties(skill_data)
+        skill_data.pop("embedding", None)
+        skill_data["_labels"] = list(skill_node.labels)
+        nodes.append(skill_data)
+        # These orphan skills need a link from Person to appear in the graph
+        links.append(
+            {
+                "source": person.get("user_id") or person.get("orb_id"),
+                "target": uid,
+                "type": "HAS_SKILL",
+            }
+        )
+
     # Add cross-node links (USED_SKILL etc.)
     cross_links = record.get("cross_links") or []
-    seen = set()
+    seen_links: set[tuple] = set()
     for cl in cross_links:
         src = cl.get("source")
         tgt = cl.get("target")
-        if src and tgt:
+        if src and tgt and src in seen_node_uids and tgt in seen_node_uids:
             key = (src, tgt, cl.get("rel", ""))
-            if key not in seen:
-                seen.add(key)
+            if key not in seen_links:
+                seen_links.add(key)
                 links.append({"source": src, "target": tgt, "type": cl.get("rel", "USED_SKILL")})
 
     return {"person": person, "nodes": nodes, "links": links}
