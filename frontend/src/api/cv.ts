@@ -1,11 +1,25 @@
 import client from './client';
 
+export interface ExtractedRelationship {
+  from_index: number;
+  to_index: number;
+  type: string;
+}
+
+export interface SkippedNode {
+  original: Record<string, unknown>;
+  reason: string;
+}
+
 export interface ExtractedData {
   nodes: Array<{
     node_type: string;
     properties: Record<string, unknown>;
   }>;
   unmatched: string[];
+  skipped_nodes?: SkippedNode[];
+  relationships?: ExtractedRelationship[];
+  truncated?: boolean;
 }
 
 export async function uploadCV(file: File): Promise<ExtractedData> {
@@ -18,8 +32,11 @@ export async function uploadCV(file: File): Promise<ExtractedData> {
   return data;
 }
 
-export async function confirmCV(nodes: ExtractedData['nodes']): Promise<void> {
-  await client.post('/cv/confirm', { nodes });
+export async function confirmCV(
+  nodes: ExtractedData['nodes'],
+  relationships?: ExtractedRelationship[],
+): Promise<void> {
+  await client.post('/cv/confirm', { nodes, relationships: relationships || [] });
 }
 
 export async function getProcessingCount(): Promise<number> {

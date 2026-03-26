@@ -5,11 +5,13 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import dataclass, field
+from datetime import datetime
 
 import httpx
 
 from app.config import settings
-from app.cv.models import ExtractedNode
+from app.cv.models import ExtractedNode, ExtractedRelationship, SkippedNode
 from app.graph.queries import NODE_TYPE_LABELS
 
 logger = logging.getLogger(__name__)
@@ -63,11 +65,19 @@ Rules:
 - For skills, extract individual skills (not groups)
 - If something does not clearly fit any node_type, put the raw text in the "unmatched" array
 
+For each skill that is mentioned in the context of a work_experience, project, or education entry,
+include a relationship entry linking the experience node (by its index in the nodes array)
+to the skill node (by its index in the nodes array). Use type "USED_SKILL".
+
 You MUST return valid JSON in exactly this format:
 {
   "nodes": [
     {"node_type": "work_experience", "properties": {"company": "...", "title": "...", ...}},
     {"node_type": "skill", "properties": {"name": "Python", "category": "Programming"}},
+    ...
+  ],
+  "relationships": [
+    {"from_index": 0, "to_index": 1, "type": "USED_SKILL"},
     ...
   ],
   "unmatched": [
@@ -79,22 +89,96 @@ You MUST return valid JSON in exactly this format:
 Return ONLY valid JSON. No markdown, no explanation, no code blocks."""
 
 
+# ── Required fields per node type ──
+
+REQUIRED_FIELDS: dict[str, list[str]] = {
+    "skill": ["name"],
+    "language": ["name"],
+    "work_experience": ["company", "title"],
+    "education": ["institution"],
+    "certification": ["name"],
+    "publication": ["title"],
+    "project": ["name"],
+    "patent": ["title"],
+    "collaborator": ["name"],
+}
+
+# ── Date fields that should be normalized ──
+
+DATE_FIELDS = {
+    "start_date", "end_date", "date",
+    "issue_date", "expiry_date",
+    "filing_date", "grant_date",
+}
+
+# ── Date normalization ──
+
+_DATE_FORMATS = [
+    "%Y-%m-%d",
+    "%Y-%m",
+    "%Y",
+    "%B %Y",
+    "%b %Y",
+    "%m/%Y",
+    "%Y/%m/%d",
+    "%Y/%m",
+    "%m/%d/%Y",
+    "%d/%m/%Y",
+    "%d %B %Y",
+    "%d %b %Y",
+    "%B %d, %Y",
+    "%b %d, %Y",
+]
+
+_MONTH_ONLY_FORMATS = {"%B %Y", "%b %Y", "%m/%Y", "%Y/%m"}
+
+
+def _normalize_date(value: str) -> str:
+    """Attempt to parse a date string and normalize it to ISO format."""
+    if not value or not isinstance(value, str):
+        return value
+    value = value.strip()
+    # Already ISO
+    if re.match(r"^\d{4}(-\d{2}(-\d{2})?)?$", value):
+        return value
+    for fmt in _DATE_FORMATS:
+        try:
+            dt = datetime.strptime(value, fmt)
+            if fmt in _MONTH_ONLY_FORMATS:
+                return dt.strftime("%Y-%m")
+            if fmt == "%Y":
+                return dt.strftime("%Y")
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return value
+
+
+# ── Classification result ──
+
+@dataclass
+class ClassificationResult:
+    nodes: list[ExtractedNode] = field(default_factory=list)
+    unmatched: list[str] = field(default_factory=list)
+    skipped: list[SkippedNode] = field(default_factory=list)
+    relationships: list[ExtractedRelationship] = field(default_factory=list)
+    truncated: bool = False
+
+
 MAX_RETRIES = 2
+TEXT_LIMIT = 12000
 
 
-async def classify_entries(
-    raw_text: str,
-) -> tuple[list[ExtractedNode], list[str]]:
+async def classify_entries(raw_text: str) -> ClassificationResult:
     """Send extracted CV text to Ollama for classification.
 
-    Returns:
-        (classified_nodes, unmatched_texts)
+    Returns a ClassificationResult with nodes, unmatched, skipped, relationships, and truncated flag.
     """
     if not raw_text.strip():
-        return [], []
+        return ClassificationResult()
 
-    # Truncate very long texts to stay within model context
-    text_for_llm = raw_text[:12000]
+    truncated = len(raw_text) > TEXT_LIMIT
+    text_for_llm = raw_text[:TEXT_LIMIT]
 
     user_message = f"""Here is the text extracted from a CV/resume document:
 
@@ -102,7 +186,7 @@ async def classify_entries(
 {text_for_llm}
 ---
 
-Parse every entry in this CV into structured nodes. Return JSON with "nodes" and "unmatched" arrays."""
+Parse every entry in this CV into structured nodes. Return JSON with "nodes", "relationships", and "unmatched" arrays."""
 
     provider = settings.llm_provider
 
@@ -119,9 +203,10 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes" and
             else:
                 result = await _call_ollama(user_message)
 
-            nodes, unmatched = _parse_result(result)
-            if nodes or unmatched:
-                return nodes, unmatched
+            cr = _parse_result(result)
+            if cr.nodes or cr.unmatched:
+                cr.truncated = truncated
+                return cr
             logger.warning(
                 "%s returned empty result, attempt %d", provider, attempt + 1
             )
@@ -133,6 +218,45 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes" and
                 e,
             )
 
+    # Intermediate fallback: rule-based extraction
+    logger.warning("Ollama failed — trying rule-based extraction")
+    try:
+        from app.cv.parser import rule_based_extract, rule_based_to_nodes
+
+        extraction = rule_based_extract(raw_text)
+        raw_nodes = rule_based_to_nodes(extraction)
+        if raw_nodes:
+            nodes: list[ExtractedNode] = []
+            skipped: list[SkippedNode] = []
+            for item in raw_nodes:
+                node_type = item.get("node_type", "")
+                properties = item.get("properties", {})
+                if node_type not in NODE_TYPE_LABELS:
+                    skipped.append(SkippedNode(
+                        original=item,
+                        reason=f"Unknown node type: '{node_type}'",
+                    ))
+                    continue
+                required = REQUIRED_FIELDS.get(node_type, [])
+                missing = [f for f in required if not properties.get(f)]
+                if missing:
+                    skipped.append(SkippedNode(
+                        original=item,
+                        reason=f"Missing required fields: {', '.join(missing)}",
+                    ))
+                    continue
+                for key in DATE_FIELDS:
+                    if key in properties and properties[key]:
+                        properties[key] = _normalize_date(str(properties[key]))
+                nodes.append(ExtractedNode(node_type=node_type, properties=properties))
+            if nodes:
+                logger.info("Rule-based fallback produced %d nodes", len(nodes))
+                return ClassificationResult(
+                    nodes=nodes, skipped=skipped, truncated=truncated,
+                )
+    except Exception as e:
+        logger.warning("Rule-based fallback also failed: %s", e)
+
     # Final fallback: return everything as unmatched
     logger.error(
         "All %s classification attempts failed — returning as unmatched", provider
@@ -142,7 +266,9 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes" and
         for line in raw_text.split("\n")
         if line.strip() and len(line.strip()) > 5
     ]
-    return [], fallback_lines[:50]
+    return ClassificationResult(
+        unmatched=fallback_lines[:50], truncated=truncated,
+    )
 
 
 async def _call_ollama(user_message: str) -> str:
@@ -166,14 +292,14 @@ async def _call_ollama(user_message: str) -> str:
         return data.get("message", {}).get("content", "")
 
 
-def _parse_result(raw_response: str) -> tuple[list[ExtractedNode], list[str]]:
-    """Parse Ollama JSON response into ExtractedNode list + unmatched strings."""
+def _parse_result(raw_response: str) -> ClassificationResult:
+    """Parse Ollama JSON response into ClassificationResult."""
     text = raw_response.strip()
 
     # Strip markdown code fences if present
     if text.startswith("```"):
         lines = text.split("\n")
-        json_lines = []
+        json_lines: list[str] = []
         in_block = False
         for line in lines:
             if line.startswith("```") and not in_block:
@@ -185,38 +311,97 @@ def _parse_result(raw_response: str) -> tuple[list[ExtractedNode], list[str]]:
                 json_lines.append(line)
         text = "\n".join(json_lines)
 
-    # Try to find JSON object in the response
-    match = re.search(r"\{[\s\S]*\}", text)
-    if match:
-        text = match.group(0)
+    # Use raw_decode to find the first valid JSON object
+    decoder = json.JSONDecoder()
+    parsed = None
+    # Try to find a JSON object starting with {
+    for i, ch in enumerate(text):
+        if ch == "{":
+            try:
+                parsed, _ = decoder.raw_decode(text, i)
+                break
+            except json.JSONDecodeError:
+                continue
 
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
+    if parsed is None or not isinstance(parsed, dict):
         logger.warning("Failed to parse Ollama response as JSON")
-        return [], []
-
-    if not isinstance(parsed, dict):
-        return [], []
+        return ClassificationResult()
 
     raw_nodes = parsed.get("nodes", [])
     unmatched = parsed.get("unmatched", [])
+    raw_rels = parsed.get("relationships", [])
 
-    # Validate nodes
+    # Validate nodes — track original-to-filtered index mapping for relationships
     nodes: list[ExtractedNode] = []
-    for item in raw_nodes:
+    skipped: list[SkippedNode] = []
+    original_to_filtered: dict[int, int] = {}
+    filtered_idx = 0
+
+    for orig_idx, item in enumerate(raw_nodes):
         if not isinstance(item, dict):
             continue
         node_type = item.get("node_type", "")
         properties = item.get("properties", {})
-        if node_type in NODE_TYPE_LABELS and isinstance(properties, dict):
-            nodes.append(ExtractedNode(node_type=node_type, properties=properties))
-        else:
-            # Invalid type — add to unmatched
-            desc = json.dumps(item, default=str)
-            unmatched.append(desc)
+
+        if not isinstance(properties, dict):
+            skipped.append(SkippedNode(
+                original=item,
+                reason="Invalid properties format",
+            ))
+            continue
+
+        if node_type not in NODE_TYPE_LABELS:
+            skipped.append(SkippedNode(
+                original=item,
+                reason=f"Unknown node type: '{node_type}'. Valid types: {', '.join(NODE_TYPE_LABELS.keys())}",
+            ))
+            continue
+
+        # Required fields validation
+        required = REQUIRED_FIELDS.get(node_type, [])
+        missing = [f for f in required if not properties.get(f)]
+        if missing:
+            skipped.append(SkippedNode(
+                original=item,
+                reason=f"Missing required fields: {', '.join(missing)}",
+            ))
+            continue
+
+        # Normalize date fields
+        for key in DATE_FIELDS:
+            if key in properties and properties[key]:
+                properties[key] = _normalize_date(str(properties[key]))
+
+        nodes.append(ExtractedNode(node_type=node_type, properties=properties))
+        original_to_filtered[orig_idx] = filtered_idx
+        filtered_idx += 1
+
+    # Parse relationships with index remapping
+    relationships: list[ExtractedRelationship] = []
+    for rel in raw_rels:
+        if not isinstance(rel, dict):
+            continue
+        from_idx = rel.get("from_index")
+        to_idx = rel.get("to_index")
+        rel_type = rel.get("type", "USED_SKILL")
+        if (
+            isinstance(from_idx, int)
+            and isinstance(to_idx, int)
+            and from_idx in original_to_filtered
+            and to_idx in original_to_filtered
+        ):
+            relationships.append(ExtractedRelationship(
+                from_index=original_to_filtered[from_idx],
+                to_index=original_to_filtered[to_idx],
+                type=rel_type,
+            ))
 
     # Ensure unmatched items are strings
     unmatched_str = [str(u) for u in unmatched if u]
 
-    return nodes, unmatched_str
+    return ClassificationResult(
+        nodes=nodes,
+        unmatched=unmatched_str,
+        skipped=skipped,
+        relationships=relationships,
+    )

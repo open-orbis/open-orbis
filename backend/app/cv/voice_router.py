@@ -65,8 +65,14 @@ async def voice_classify(
 
     counter.increment()
     try:
-        nodes, unmatched = await classify_entries(payload.text)
-        return ExtractedData(nodes=nodes, unmatched=unmatched)
+        result = await classify_entries(payload.text)
+        return ExtractedData(
+            nodes=result.nodes,
+            unmatched=result.unmatched,
+            skipped_nodes=result.skipped,
+            relationships=result.relationships,
+            truncated=result.truncated,
+        )
     except Exception as e:
         logger.error("Voice classification failed: %s", e, exc_info=True)
         raise HTTPException(
