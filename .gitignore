@@ -37,3 +37,4 @@ neo4j_data/
 .coverage
 htmlcov/
 .pytest_cache/
+create_issues.sh
