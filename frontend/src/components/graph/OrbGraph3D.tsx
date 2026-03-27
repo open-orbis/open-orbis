@@ -10,6 +10,8 @@ interface OrbGraph3DProps {
   onNodeClick?: (node: Record<string, unknown>) => void;
   onBackgroundClick?: () => void;
   highlightedNodeIds?: Set<string>;
+  /** Node IDs that match the active visibility filter — rendered as transparent */
+  filteredNodeIds?: Set<string>;
   width?: number;
   height?: number;
 }
@@ -40,7 +42,7 @@ const SHARED_GEO = {
   highlightRing: new THREE.RingGeometry(5.1, 6.0, 24),
 };
 
-export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, width, height }: OrbGraph3DProps) {
+export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, width, height }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -56,6 +58,10 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   highlightRef.current = highlightedNodeIds ?? new Set();
   const hasHighlightsRef = useRef(false);
   hasHighlightsRef.current = (highlightedNodeIds?.size ?? 0) > 0;
+
+  // Use ref for filtered nodes (visibility filter)
+  const filteredRef = useRef<Set<string>>(new Set());
+  filteredRef.current = filteredNodeIds ?? new Set();
 
   // Clear cache when data changes
   useEffect(() => {
@@ -201,6 +207,18 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     }
   }, [highlightedNodeIds]);
 
+  // When filtered nodes change, invalidate cache and refresh
+  const prevFilterKeyRef = useRef<string>('');
+  useEffect(() => {
+    const newKey = filteredNodeIds ? Array.from(filteredNodeIds).sort().join(',') : '';
+    if (newKey !== prevFilterKeyRef.current) {
+      prevFilterKeyRef.current = newKey;
+      nodeObjectCacheRef.current.clear();
+      const fg = fgRef.current;
+      if (fg) fg.refresh();
+    }
+  }, [filteredNodeIds]);
+
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node || null);
     const el = document.querySelector('canvas');
@@ -235,6 +253,10 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     const hasHighlights = hasHighlightsRef.current;
     const isHighlighted = hasHighlights && highlightRef.current.has(nodeId);
     const isDimmed = hasHighlights && !isHighlighted;
+    const isFiltered = filteredRef.current.has(nodeId);
+
+    const fo = isFiltered ? 0.15 : 1; // filter opacity multiplier
+    const nodeCol = isFiltered ? new THREE.Color('#ffffff') : new THREE.Color(color);
 
     const group = new THREE.Group();
     const col = new THREE.Color(color);
@@ -242,9 +264,9 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     if (isPerson) {
       // ── Person node: emissive core + orbital rings (no PointLight) ──
       const coreMat = new THREE.MeshBasicMaterial({
-        color: col,
+        color: nodeCol,
         transparent: true,
-        opacity: isDimmed ? 0.2 : 0.9,
+        opacity: (isDimmed ? 0.2 : 0.9) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.personCore, coreMat));
 
@@ -252,15 +274,15 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
       const innerGlowMat = new THREE.MeshBasicMaterial({
         color: '#ffffff',
         transparent: true,
-        opacity: isDimmed ? 0.05 : 0.55,
+        opacity: (isDimmed ? 0.05 : 0.55) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.personInnerGlow, innerGlowMat));
 
       // Orbital ring 1
       const ring1Mat = new THREE.MeshBasicMaterial({
-        color: col,
+        color: nodeCol,
         transparent: true,
-        opacity: isDimmed ? 0.05 : 0.5,
+        opacity: (isDimmed ? 0.05 : 0.5) * fo,
       });
       const ring1 = new THREE.Mesh(SHARED_GEO.personRing1, ring1Mat);
       ring1.rotation.x = Math.PI / 2;
@@ -269,9 +291,9 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
       // Orbital ring 2
       const ring2Mat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color('#a78bfa'),
+        color: isFiltered ? new THREE.Color('#ffffff') : new THREE.Color('#a78bfa'),
         transparent: true,
-        opacity: isDimmed ? 0.03 : 0.3,
+        opacity: (isDimmed ? 0.03 : 0.3) * fo,
       });
       const ring2 = new THREE.Mesh(SHARED_GEO.personRing2, ring2Mat);
       ring2.rotation.x = Math.PI / 3;
@@ -281,11 +303,25 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
       // Mid glow
       const midMat = new THREE.MeshBasicMaterial({
-        color: col,
+        color: nodeCol,
         transparent: true,
-        opacity: isDimmed ? 0.01 : 0.06,
+        opacity: (isDimmed ? 0.01 : 0.06) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.personMidGlow, midMat));
+
+      // White wireframe sphere border for filtered person node
+      if (isFiltered) {
+        const borderGeo = new THREE.SphereGeometry(6 * 1.5, 16, 12);
+        const borderMat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#ffffff'),
+          transparent: true,
+          opacity: 0.5,
+          wireframe: true,
+        });
+        const border = new THREE.Mesh(borderGeo, borderMat);
+        border.name = '__filter_border';
+        group.add(border);
+      }
 
     } else {
       // ── Regular nodes: 2 meshes (core + main), no PointLight ──
@@ -294,28 +330,42 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
       const coreMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         transparent: true,
-        opacity: isDimmed ? 0.05 : isHighlighted ? 0.95 : 0.7,
+        opacity: (isDimmed ? 0.05 : isHighlighted ? 0.95 : 0.7) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.nodeCore, coreMat));
 
       // Main sphere — emissive color via MeshBasicMaterial (no light needed)
       const mainMat = new THREE.MeshBasicMaterial({
-        color: col,
+        color: nodeCol,
         transparent: true,
-        opacity: isDimmed ? 0.2 : 0.85,
+        opacity: (isDimmed ? 0.2 : 0.85) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.nodeMain, mainMat));
 
-      // Single glow layer (removed outer glow)
+      // Single glow layer
       const glowMat = new THREE.MeshBasicMaterial({
-        color: col,
+        color: nodeCol,
         transparent: true,
-        opacity: isDimmed ? 0.01 : isHighlighted ? 0.15 : 0.05,
+        opacity: (isDimmed ? 0.01 : isHighlighted ? 0.15 : 0.05) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.nodeGlow, glowMat));
 
+      // White wireframe sphere border for filtered node
+      if (isFiltered) {
+        const borderGeo = new THREE.SphereGeometry(radius * 1.4, 16, 12);
+        const borderMat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#ffffff'),
+          transparent: true,
+          opacity: 0.5,
+          wireframe: true,
+        });
+        const border = new THREE.Mesh(borderGeo, borderMat);
+        border.name = '__filter_border';
+        group.add(border);
+      }
+
       // Highlight ring
-      if (isHighlighted) {
+      if (isHighlighted && !isFiltered) {
         const ringMat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
@@ -340,7 +390,8 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
       ctx.font = `600 ${isPerson ? 18 : 13}px Inter, -apple-system, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.9)';
+      const textAlpha = isFiltered ? 0.06 : isDimmed ? 0.12 : 0.9;
+      ctx.fillStyle = `rgba(255,255,255,${textAlpha})`;
       const displayName = name.length > 28 ? name.slice(0, 26) + '\u2026' : name;
       ctx.fillText(displayName, 256, isPerson ? 24 : 20);
 
@@ -348,7 +399,7 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
         const typeLabel = getTypeLabel(node);
         if (typeLabel) {
           ctx.font = '500 10px Inter, -apple-system, sans-serif';
-          ctx.fillStyle = isDimmed ? 'rgba(255,255,255,0.06)' : color;
+          ctx.fillStyle = isFiltered ? 'rgba(255,255,255,0.03)' : isDimmed ? 'rgba(255,255,255,0.06)' : color;
           ctx.fillText(typeLabel, 256, 38);
         }
       }
@@ -373,6 +424,12 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   // Link color
   const linkColorRef = useRef<(link: any) => string>(() => 'rgba(255,255,255,0.2)');
   linkColorRef.current = (link: any) => {
+    // Check if either end of the link is filtered
+    const sourceId = typeof link.source === 'object' ? (link.source.id || link.source.uid) : link.source;
+    const targetId = typeof link.target === 'object' ? (link.target.id || link.target.uid) : link.target;
+    const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
+    if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
+
     if (hasHighlightsRef.current) return 'rgba(255,255,255,0.04)';
     const source = link.source;
     if (source && source._labels) {

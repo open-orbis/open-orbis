@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
-import { claimOrbId, updateProfile } from '../api/orbs';
+import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
+import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import FloatingInput from '../components/editor/FloatingInput';
@@ -18,13 +19,37 @@ import ProcessingCounter from '../components/cv/ProcessingCounter';
 
 function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const [copiedFiltered, setCopiedFiltered] = useState(false);
+  const [filterToken, setFilterToken] = useState<string | null>(null);
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const { activeKeywords } = useFilterStore();
+  const hasActiveFilters = activeKeywords.length > 0;
   const shareUrl = `${window.location.origin}/${orbId}`;
+  const filteredShareUrl = filterToken ? `${window.location.origin}/${orbId}?filter_token=${filterToken}` : '';
   const mcpUri = `orb://${orbId}`;
 
-  const copy = (text: string) => {
+  // Generate a filter token when the panel opens if filters are active
+  useEffect(() => {
+    if (hasActiveFilters && orbId) {
+      setGeneratingToken(true);
+      createFilterToken(activeKeywords)
+        .then(({ token }) => setFilterToken(token))
+        .catch(() => setFilterToken(null))
+        .finally(() => setGeneratingToken(false));
+    } else {
+      setFilterToken(null);
+    }
+  }, [activeKeywords, hasActiveFilters, orbId]);
+
+  const copy = (text: string, filtered = false) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (filtered) {
+      setCopiedFiltered(true);
+      setTimeout(() => setCopiedFiltered(false), 2000);
+    } else {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -42,7 +67,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <h2 className="text-white text-lg font-semibold mb-1">Share Your Orb</h2>
         <p className="text-gray-400 text-sm mb-5">Share your orb link or use the MCP identifier to let AI agents access your professional graph.</p>
@@ -50,7 +75,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         {/* QR Code */}
         <div className="flex justify-center mb-5">
           <div className="bg-white p-3 rounded-xl">
-            <QRCodeSVG value={shareUrl} size={140} level="M" />
+            <QRCodeSVG value={filteredShareUrl || shareUrl} size={140} level="M" />
           </div>
         </div>
 
@@ -63,6 +88,32 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
             </button>
           </div>
         </div>
+
+        {/* Filtered share link — only shown when filters are active */}
+        {hasActiveFilters && (
+          <div className="mb-4">
+            <label className="text-xs text-amber-400/80 uppercase tracking-wide font-medium">Filtered Link</label>
+            <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
+              This link hides nodes matching {activeKeywords.map((kw, i) => (
+                <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
+              ))} from the viewer.
+            </p>
+            <div className="flex items-center gap-2">
+              {generatingToken ? (
+                <div className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-500 text-sm">Generating...</div>
+              ) : (
+                <input readOnly value={filteredShareUrl} className="flex-1 bg-gray-800 border border-amber-600/30 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+              )}
+              <button
+                onClick={() => copy(filteredShareUrl, true)}
+                disabled={!filterToken}
+                className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
+              >
+                {copiedFiltered ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mb-5">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orb ID</label>
@@ -84,6 +135,8 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [newKeyword, setNewKeyword] = useState('');
+  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
 
   const handleSave = async () => {
     const trimmed = customId.trim().toLowerCase();
@@ -101,6 +154,13 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
     } finally { setSaving(false); }
   };
 
+  const handleAddKeyword = () => {
+    const trimmed = newKeyword.trim();
+    if (!trimmed) return;
+    addKeyword(trimmed);
+    setNewKeyword('');
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <motion.div
@@ -116,10 +176,12 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
-        <p className="text-gray-400 text-sm mb-5">Customize your orb identity.</p>
+        <p className="text-gray-400 text-sm mb-5">Customize your orb identity and visibility.</p>
+
+        {/* Orb ID section */}
         <div className="mb-5">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
           <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
@@ -130,6 +192,84 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
           {success && <p className="text-green-400 text-xs mt-2">Orb ID updated!</p>}
         </div>
+
+        {/* ── Visibility Filters section ── */}
+        <div className="mb-5 border-t border-gray-700 pt-4">
+          <label className="text-xs text-amber-400/80 uppercase tracking-wide font-medium">Visibility Filters</label>
+          <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
+            Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
+          </p>
+
+          {/* Add new keyword */}
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              value={newKeyword}
+              onChange={(e) => setNewKeyword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
+              placeholder="e.g. confidential, private, salary..."
+              className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
+            />
+            <button
+              onClick={handleAddKeyword}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
+            >
+              Add
+            </button>
+          </div>
+
+          {/* Keyword list */}
+          {keywords.length === 0 ? (
+            <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {keywords.map((kw) => {
+                const isActive = activeKeywords.includes(kw);
+                return (
+                  <div
+                    key={kw}
+                    className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
+                      isActive
+                        ? 'bg-amber-600/15 border-amber-500/40'
+                        : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
+                    }`}
+                  >
+                    <span className="text-white text-sm font-mono truncate">{kw}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button
+                        onClick={() => toggleKeyword(kw)}
+                        className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
+                          isActive
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
+                        }`}
+                      >
+                        {isActive ? 'Active' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => removeKeyword(kw)}
+                        className="text-gray-500 hover:text-red-400 transition-colors"
+                        title="Remove"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {activeKeywords.length > 0 && (
+            <p className="text-amber-400/70 text-[11px] mt-2">
+              {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
+                <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
+              ))} active. Matching nodes are transparent.
+            </p>
+          )}
+        </div>
+
         <div className="flex gap-3">
           <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving…' : 'Save'}</button>
           <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
@@ -464,6 +604,13 @@ export default function OrbViewPage() {
   };
 
   const orbId = (data?.person?.orb_id as string) || '';
+  const { activeKeywords } = useFilterStore();
+
+  // Compute which nodes match any active visibility filter
+  const filteredNodeIds = useMemo(
+    () => computeFilteredNodeIds(data?.nodes ?? [], activeKeywords),
+    [data?.nodes, activeKeywords]
+  );
 
   if (loading || !data) {
     return (
@@ -495,6 +642,14 @@ export default function OrbViewPage() {
             <div>
               <span className="text-white text-xs sm:text-sm font-semibold">{user?.name || 'My Orb'}</span>
               <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes</span>
+              {activeKeywords.length > 0 && (
+                <span className="text-amber-400/70 text-[10px] ml-2 hidden sm:inline-flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                  </svg>
+                  {activeKeywords.join(', ')}
+                </span>
+              )}
             </div>
           </div>
 
@@ -521,7 +676,11 @@ export default function OrbViewPage() {
             </HeaderBtn>
             <button
               onClick={() => {
-                if (orbId) window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/export/${orbId}?format=pdf`, '_blank');
+                if (orbId) {
+                  const params = new URLSearchParams({ format: 'pdf' });
+                  if (activeKeywords.length > 0) params.set('filter_keyword', activeKeywords.join(','));
+                  window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/export/${orbId}?${params}`, '_blank');
+                }
               }}
               className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
             >
@@ -572,6 +731,7 @@ export default function OrbViewPage() {
           }
         }}
         highlightedNodeIds={highlightedNodeIds}
+        filteredNodeIds={filteredNodeIds}
         width={dimensions.width}
         height={dimensions.height}
       />

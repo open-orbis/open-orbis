@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from neo4j import AsyncDriver
 from neo4j.time import DateTime as Neo4jDateTime, Date as Neo4jDate, Time as Neo4jTime
 
@@ -24,11 +24,20 @@ from app.graph.queries import (
     UPDATE_PERSON,
 )
 from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
+from app.orbs.filter_token import (
+    create_filter_token,
+    decode_filter_token,
+    node_matches_filters,
+)
 
 
 class SkillLinkRequest(BaseModel):
     node_uid: str
     skill_uid: str
+
+
+class FilterTokenRequest(BaseModel):
+    keywords: list[str]
 
 router = APIRouter(prefix="/orbs", tags=["orbs"])
 
@@ -256,9 +265,31 @@ async def unlink_skill(
         return {"status": "unlinked"}
 
 
+@router.post("/me/filter-token")
+async def generate_filter_token(
+    data: FilterTokenRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Generate a shareable token that encodes a visibility filter for this user's orb."""
+    async with db.session() as session:
+        result = await session.run(GET_FULL_ORB, user_id=current_user["user_id"])
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Orb not found")
+        person = dict(record["p"])
+        orb_id = person.get("orb_id", "")
+        if not orb_id:
+            raise HTTPException(status_code=400, detail="Set an orb ID first")
+
+    token = create_filter_token(orb_id, data.keywords)
+    return {"token": token, "keywords": [kw.strip().lower() for kw in data.keywords]}
+
+
 @router.get("/{orb_id}")
 async def get_public_orb(
     orb_id: str,
+    filter_token: str | None = Query(None),
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:
@@ -266,4 +297,28 @@ async def get_public_orb(
         record = await result.single()
         if record is None:
             raise HTTPException(status_code=404, detail="Orb not found")
-        return _serialize_orb(record)
+
+    orb_data = _serialize_orb(record)
+
+    # Apply filter if a valid filter token is provided
+    if filter_token:
+        decoded = decode_filter_token(filter_token)
+        if decoded and decoded["orb_id"] == orb_id:
+            keywords = decoded["filters"]
+            # Remove nodes that match any filter keyword
+            filtered_nodes = []
+            filtered_uids = set()
+            for node in orb_data["nodes"]:
+                if node_matches_filters(node, keywords):
+                    filtered_uids.add(node.get("uid"))
+                else:
+                    filtered_nodes.append(node)
+            # Remove links connected to filtered nodes
+            filtered_links = [
+                link for link in orb_data["links"]
+                if link["target"] not in filtered_uids and link["source"] not in filtered_uids
+            ]
+            orb_data["nodes"] = filtered_nodes
+            orb_data["links"] = filtered_links
+
+    return orb_data
