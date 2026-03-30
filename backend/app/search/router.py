@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.dependencies import get_current_user, get_db
 from app.graph.embeddings import build_embedding_text, generate_embedding
+from app.orbs.filter_token import decode_filter_token, node_matches_filters
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -166,6 +167,90 @@ async def text_search(
                         if uid in seen_uids:
                             continue
                         # Check fuzzy match against all searchable fields
+                        matched = False
+                        for f in fields:
+                            val = node.get(f)
+                            if val and _fuzzy_match(str(val), terms):
+                                matched = True
+                                break
+                        if matched:
+                            node.pop("embedding", None)
+                            node["_labels"] = record["node_labels"]
+                            seen_uids.add(uid)
+                            results.append(node)
+                except Exception:
+                    continue
+
+    return results
+
+
+class PublicTextSearchRequest(BaseModel):
+    query: str
+    orb_id: str
+    filter_token: str | None = None
+
+
+@router.post("/text/public")
+async def public_text_search(
+    data: PublicTextSearchRequest,
+    db: AsyncDriver = Depends(get_db),
+):
+    """Fuzzy text search across a public orb's nodes (no auth required)."""
+    # Decode filter token to get privacy keywords (if any)
+    filter_keywords: list[str] = []
+    if data.filter_token:
+        decoded = decode_filter_token(data.filter_token)
+        if decoded and decoded["orb_id"] == data.orb_id:
+            filter_keywords = decoded["filters"]
+
+    raw_term = data.query.strip().lower()
+    terms = [t for t in raw_term.split() if len(t) >= 2]
+    if not terms:
+        terms = [raw_term]
+
+    results = []
+    seen_uids: set[str] = set()
+
+    async with db.session() as session:
+        for label, fields in _SEARCH_FIELDS.items():
+            where_clauses = " OR ".join(
+                f"toLower(toString(n.{f})) CONTAINS $term" for f in fields
+            )
+            cypher = (
+                f"MATCH (p:Person {{orb_id: $orb_id}})-[r]->(n:{label}) "
+                f"WHERE {where_clauses} "
+                f"RETURN n, labels(n) AS node_labels"
+            )
+            try:
+                result = await session.run(cypher, orb_id=data.orb_id, term=raw_term)
+                async for record in result:
+                    node = dict(record["n"])
+                    node.pop("embedding", None)
+                    node["_labels"] = record["node_labels"]
+                    if node.get("uid") not in seen_uids:
+                        if filter_keywords and node_matches_filters(node, filter_keywords):
+                            continue
+                        seen_uids.add(node.get("uid", ""))
+                        results.append(node)
+            except Exception:
+                continue
+
+    if len(results) < 3:
+        async with db.session() as session:
+            for label, fields in _SEARCH_FIELDS.items():
+                cypher = (
+                    f"MATCH (p:Person {{orb_id: $orb_id}})-[r]->(n:{label}) "
+                    f"RETURN n, labels(n) AS node_labels"
+                )
+                try:
+                    result = await session.run(cypher, orb_id=data.orb_id)
+                    async for record in result:
+                        node = dict(record["n"])
+                        uid = node.get("uid", "")
+                        if uid in seen_uids:
+                            continue
+                        if filter_keywords and node_matches_filters(node, filter_keywords):
+                            continue
                         matched = False
                         for f in fields:
                             val = node.get(f)
