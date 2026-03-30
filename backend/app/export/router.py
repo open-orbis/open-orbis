@@ -10,6 +10,7 @@ from neo4j import AsyncDriver
 from app.dependencies import get_db
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
+from app.orbs.filter_token import decode_filter_token, node_matches_filters
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -167,6 +168,8 @@ def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:
 async def export_orb(
     orb_id: str,
     format: str = Query("json", pattern="^(json|jsonld|pdf)$"),
+    filter_token: str | None = Query(None),
+    filter_keyword: str | None = Query(None),
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:
@@ -176,6 +179,18 @@ async def export_orb(
             raise HTTPException(status_code=404, detail="Orb not found")
 
     person, nodes = _gather_orb(record)
+
+    # Apply filter: either via signed token or direct keywords (for owner exports)
+    active_filters: list[str] = []
+    if filter_token:
+        decoded = decode_filter_token(filter_token)
+        if decoded and decoded["orb_id"] == orb_id:
+            active_filters = decoded["filters"]
+    elif filter_keyword:
+        active_filters = [kw.strip().lower() for kw in filter_keyword.split(",") if kw.strip()]
+
+    if active_filters:
+        nodes = [n for n in nodes if not node_matches_filters(n, active_filters)]
 
     if format == "pdf":
         pdf_bytes = _generate_pdf(person, nodes, orb_id)

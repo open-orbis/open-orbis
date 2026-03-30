@@ -23,8 +23,14 @@ export async function getMyOrb(): Promise<OrbData> {
   return data;
 }
 
-export async function getPublicOrb(orbId: string): Promise<OrbData> {
-  const { data } = await client.get(`/orbs/${orbId}`);
+export async function getPublicOrb(orbId: string, filterToken?: string): Promise<OrbData> {
+  const params = filterToken ? { filter_token: filterToken } : {};
+  const { data } = await client.get(`/orbs/${orbId}`, { params });
+  return data;
+}
+
+export async function createFilterToken(keywords: string[]): Promise<{ token: string; keywords: string[] }> {
+  const { data } = await client.post('/orbs/me/filter-token', { keywords });
   return data;
 }
 

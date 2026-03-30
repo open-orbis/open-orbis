@@ -8,7 +8,7 @@ interface OrbState {
   loading: boolean;
   error: string | null;
   fetchOrb: () => Promise<void>;
-  fetchPublicOrb: (orbId: string) => Promise<void>;
+  fetchPublicOrb: (orbId: string, filterToken?: string) => Promise<void>;
   addNode: (nodeType: string, properties: Record<string, unknown>) => Promise<OrbNode>;
   updateNode: (uid: string, properties: Record<string, unknown>) => Promise<void>;
   deleteNode: (uid: string) => Promise<void>;
@@ -29,10 +29,10 @@ export const useOrbStore = create<OrbState>((set, get) => ({
     }
   },
 
-  fetchPublicOrb: async (orbId: string) => {
+  fetchPublicOrb: async (orbId: string, filterToken?: string) => {
     set({ loading: true, error: null });
     try {
-      const data = await orbsApi.getPublicOrb(orbId);
+      const data = await orbsApi.getPublicOrb(orbId, filterToken);
       set({ data, loading: false });
     } catch (e) {
       set({ error: (e as Error).message, loading: false });
