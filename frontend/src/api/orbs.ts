@@ -61,6 +61,11 @@ export async function textSearch(query: string): Promise<OrbNode[]> {
   return data;
 }
 
+export async function publicTextSearch(query: string, orbId: string, filterToken?: string): Promise<OrbNode[]> {
+  const { data } = await client.post('/search/text/public', { query, orb_id: orbId, filter_token: filterToken });
+  return data;
+}
+
 export async function linkSkill(nodeUid: string, skillUid: string): Promise<void> {
   await client.post('/orbs/me/link-skill', { node_uid: nodeUid, skill_uid: skillUid });
 }

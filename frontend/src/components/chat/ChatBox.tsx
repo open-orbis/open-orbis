@@ -16,6 +16,8 @@ interface ChatBoxProps {
   onAdd?: () => void;
   onShare?: () => void;
   highlightAdd?: boolean;
+  placeholder?: string;
+  searchFn?: (query: string) => Promise<OrbNode[]>;
 }
 
 export type { ChatMessage };
@@ -58,7 +60,7 @@ function getNodeSubtitle(node: OrbNode): string {
   return '';
 }
 
-export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd }: ChatBoxProps) {
+export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd, placeholder = 'Query your orb...', searchFn = textSearch }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -86,7 +88,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
     setLoading(true);
 
     try {
-      const results = await textSearch(query);
+      const results = await searchFn(query);
 
       if (results.length === 0) {
         setMessages((prev) => [
@@ -233,7 +235,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Query your orb..."
+              placeholder={placeholder}
               className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
             />
             {input.trim() && (
