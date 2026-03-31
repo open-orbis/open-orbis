@@ -1,0 +1,53 @@
+"""Classify CV entries using Claude Code CLI (subscription-based, no API key needed)."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+async def call_claude(
+    system_prompt: str,
+    user_message: str,
+    model: str | None = None,
+) -> str:
+    """Call Claude Code CLI in print mode and return the response text.
+
+    Uses the ``claude -p`` non-interactive mode which leverages the user's
+    Claude subscription (no API key required).
+    """
+    cmd = ["claude", "-p", "--output-format", "json"]
+
+    if model:
+        cmd.extend(["--model", model])
+
+    cmd.extend(["--system-prompt", system_prompt])
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    stdout, stderr = await process.communicate(input=user_message.encode("utf-8"))
+
+    if process.returncode != 0:
+        error_msg = stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(
+            f"Claude CLI exited with code {process.returncode}: {error_msg}"
+        )
+
+    output = stdout.decode("utf-8").strip()
+
+    # --output-format json wraps the result in a JSON envelope
+    # with fields like: result, cost_usd, duration_ms, etc.
+    try:
+        envelope = json.loads(output)
+        return envelope.get("result", "")
+    except json.JSONDecodeError:
+        # If not a JSON envelope, return raw output
+        return output

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     llmwhisperer_api_url: str = "https://llmwhisperer-api.eu-west.unstract.com/api/v2"
     llmwhisperer_api_key: str = ""
 
+    # LLM provider: "ollama" (local) or "claude" (Claude Code CLI subscription)
+    llm_provider: str = "ollama"
+    claude_model: str = "claude-opus-4-6"
+
     # Ollama (local LLM)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
@@ -37,7 +41,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ["../.env", ".env"], "env_file_encoding": "utf-8"}
 
 
 settings = Settings()

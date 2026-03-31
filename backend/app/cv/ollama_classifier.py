@@ -104,20 +104,39 @@ async def classify_entries(
 
 Parse every entry in this CV into structured nodes. Return JSON with "nodes" and "unmatched" arrays."""
 
+    provider = settings.llm_provider
+
     for attempt in range(MAX_RETRIES):
         try:
-            result = await _call_ollama(user_message)
+            if provider == "claude":
+                from app.cv.claude_classifier import call_claude
+
+                result = await call_claude(
+                    system_prompt=SYSTEM_PROMPT,
+                    user_message=user_message,
+                    model=settings.claude_model or None,
+                )
+            else:
+                result = await _call_ollama(user_message)
+
             nodes, unmatched = _parse_result(result)
             if nodes or unmatched:
                 return nodes, unmatched
-            logger.warning("Ollama returned empty result, attempt %d", attempt + 1)
+            logger.warning(
+                "%s returned empty result, attempt %d", provider, attempt + 1
+            )
         except Exception as e:
             logger.warning(
-                "Ollama classification attempt %d failed: %s", attempt + 1, e
+                "%s classification attempt %d failed: %s",
+                provider,
+                attempt + 1,
+                e,
             )
 
     # Final fallback: return everything as unmatched
-    logger.error("All Ollama classification attempts failed — returning as unmatched")
+    logger.error(
+        "All %s classification attempts failed — returning as unmatched", provider
+    )
     fallback_lines = [
         line.strip()
         for line in raw_text.split("\n")
