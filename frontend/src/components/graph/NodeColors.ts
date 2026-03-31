@@ -1,14 +1,16 @@
+// ── Colorblind-safe palette (Wong + IBM Design) ──
+// Tested against Deuteranopia, Protanopia, and Tritanopia.
 export const NODE_COLORS: Record<string, string> = {
-  Person: '#8b5cf6',
-  Education: '#3b82f6',
-  WorkExperience: '#10b981',
-  Certification: '#f59e0b',
-  Language: '#ec4899',
-  Publication: '#6366f1',
-  Project: '#14b8a6',
-  Skill: '#f97316',
-  Collaborator: '#a855f7',
-  Patent: '#06b6d4',
+  Person: '#CC79A7',       // Reddish Purple (Wong)
+  Education: '#0072B2',    // Blue (Wong)
+  WorkExperience: '#009E73', // Bluish Green (Wong)
+  Certification: '#E69F00', // Orange (Wong)
+  Language: '#F0E442',     // Yellow (Wong)
+  Publication: '#56B4E9',  // Sky Blue (Wong)
+  Project: '#D55E00',      // Vermillion (Wong)
+  Skill: '#648FFF',        // Periwinkle (IBM)
+  Collaborator: '#785EF0', // Purple (IBM)
+  Patent: '#DC267F',       // Magenta (IBM)
 };
 
 export function getNodeColor(labels: string[]): string {
@@ -19,15 +21,15 @@ export function getNodeColor(labels: string[]): string {
 }
 
 export const NODE_TYPE_COLORS: Record<string, string> = {
-  education: '#3b82f6',
-  work_experience: '#10b981',
-  certification: '#f59e0b',
-  language: '#ec4899',
-  publication: '#6366f1',
-  project: '#14b8a6',
-  skill: '#f97316',
-  collaborator: '#a855f7',
-  patent: '#06b6d4',
+  education: '#0072B2',
+  work_experience: '#009E73',
+  certification: '#E69F00',
+  language: '#F0E442',
+  publication: '#56B4E9',
+  project: '#D55E00',
+  skill: '#648FFF',
+  collaborator: '#785EF0',
+  patent: '#DC267F',
 };
 
 export const NODE_TYPE_LABELS: Record<string, string> = {
@@ -40,4 +42,30 @@ export const NODE_TYPE_LABELS: Record<string, string> = {
   skill: 'Skill',
   collaborator: 'Collaborator',
   patent: 'Patent',
+};
+
+// Secondary visual cues — shape markers so color is never the sole differentiator.
+export const NODE_SHAPE_MARKERS: Record<string, string> = {
+  Person: '\u25CF',        // ● filled circle
+  Education: '\u25C6',     // ◆ diamond
+  WorkExperience: '\u25A0', // ■ square
+  Certification: '\u2605', // ★ star
+  Language: '\u25B2',      // ▲ triangle
+  Publication: '\u25C7',   // ◇ open diamond
+  Project: '\u2B22',       // ⬢ hexagon
+  Skill: '\u25C9',         // ◉ bullseye
+  Collaborator: '\u25CE',  // ◎ double circle
+  Patent: '\u2B1F',        // ⬟ pentagon
+};
+
+export const NODE_TYPE_SHAPE_MARKERS: Record<string, string> = {
+  education: '\u25C6',
+  work_experience: '\u25A0',
+  certification: '\u2605',
+  language: '\u25B2',
+  publication: '\u25C7',
+  project: '\u2B22',
+  skill: '\u25C9',
+  collaborator: '\u25CE',
+  patent: '\u2B1F',
 };
