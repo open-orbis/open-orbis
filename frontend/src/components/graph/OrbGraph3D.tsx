@@ -422,25 +422,36 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     return group;
   }, []);
 
+  // Pre-compute node ID → color map so link coloring works even before
+  // the force graph resolves source/target strings into objects.
+  const nodeColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of graphData.nodes) {
+      map.set(n.id as string, getNodeColor((n as any)._labels || []));
+    }
+    return map;
+  }, [graphData]);
+
   // Link color
+  const nodeColorMapRef = useRef(nodeColorMap);
+  nodeColorMapRef.current = nodeColorMap;
+
   const linkColorRef = useRef<(link: any) => string>(() => 'rgba(255,255,255,0.2)');
   linkColorRef.current = (link: any) => {
-    // Check if either end of the link is filtered
     const sourceId = typeof link.source === 'object' ? (link.source.id || link.source.uid) : link.source;
     const targetId = typeof link.target === 'object' ? (link.target.id || link.target.uid) : link.target;
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
-    if (hasHighlightsRef.current) return 'rgba(255,255,255,0.04)';
-    const source = link.source;
-    if (source && source._labels) {
-      const c = getNodeColor(source._labels || []);
-      const r = parseInt(c.slice(1, 3), 16);
-      const g = parseInt(c.slice(3, 5), 16);
-      const b = parseInt(c.slice(5, 7), 16);
-      return `rgba(${r},${g},${b},0.35)`;
+    const hex = nodeColorMapRef.current.get(sourceId);
+    if (hex) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const alpha = hasHighlightsRef.current ? 0.08 : 0.45;
+      return `rgba(${r},${g},${b},${alpha})`;
     }
-    return 'rgba(255,255,255,0.2)';
+    return hasHighlightsRef.current ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
   };
   const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), []);
 
