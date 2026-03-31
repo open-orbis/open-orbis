@@ -7,6 +7,7 @@ import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
+import NodeLegend from '../components/graph/NodeLegend';
 import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
@@ -641,7 +642,7 @@ export default function OrbViewPage() {
             </button>
             <div>
               <span className="text-white text-xs sm:text-sm font-semibold">{user?.name || 'My Orb'}</span>
-              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes</span>
+              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
               {activeKeywords.length > 0 && (
                 <span className="text-amber-400/70 text-[10px] ml-2 hidden sm:inline-flex items-center gap-1">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -735,6 +736,9 @@ export default function OrbViewPage() {
         width={dimensions.width}
         height={dimensions.height}
       />
+
+      {/* ── Node Legend ── */}
+      <NodeLegend />
 
       {/* ── Floating Input ── */}
       <FloatingInput

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, useMemo, useEffect } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import type { OrbData } from '../../api/orbs';
-import { getNodeColor, NODE_TYPE_LABELS } from './NodeColors';
+import { getNodeColor, NODE_TYPE_LABELS, NODE_SHAPE_MARKERS } from './NodeColors';
 import NodeTooltip from './NodeTooltip';
 
 interface OrbGraph3DProps {
@@ -397,10 +397,11 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
       if (!isPerson) {
         const typeLabel = getTypeLabel(node);
+        const marker = NODE_SHAPE_MARKERS[node._labels?.[0] || ''] || '';
         if (typeLabel) {
           ctx.font = '500 10px Inter, -apple-system, sans-serif';
           ctx.fillStyle = isFiltered ? 'rgba(255,255,255,0.03)' : isDimmed ? 'rgba(255,255,255,0.06)' : color;
-          ctx.fillText(typeLabel, 256, 38);
+          ctx.fillText(`${marker} ${typeLabel}`, 256, 38);
         }
       }
 

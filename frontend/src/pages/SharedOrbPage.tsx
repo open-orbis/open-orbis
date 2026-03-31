@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { useOrbStore } from '../stores/orbStore';
 import { publicTextSearch } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
+import NodeLegend from '../components/graph/NodeLegend';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 
@@ -65,7 +66,7 @@ export default function SharedOrbPage() {
             </div>
             <div>
               <span className="text-white text-xs sm:text-sm font-semibold">{personName}</span>
-              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes</span>
+              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
             </div>
           </div>
 
@@ -91,6 +92,9 @@ export default function SharedOrbPage() {
         width={dimensions.width}
         height={dimensions.height}
       />
+
+      {/* ── Node Legend ── */}
+      <NodeLegend />
 
       {/* ── Chat Box (no Add / Share buttons) ── */}
       <ChatBox
