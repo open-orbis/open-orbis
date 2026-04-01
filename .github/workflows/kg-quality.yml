@@ -1,0 +1,69 @@
+name: KG Quality Gate
+
+on:
+  pull_request:
+    paths:
+      - "backend/app/cv/**"
+      - "backend/app/graph/queries.py"
+      - "backend/tests/**"
+
+concurrency:
+  group: kg-quality-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  kg-quality:
+    # Self-hosted runner: uses the local Claude CLI already authenticated
+    # with your Claude Pro subscription. Zero API costs.
+    runs-on: self-hosted
+    timeout-minutes: 10
+
+    # Security: only run for PRs from the same repo (not forks)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      VENV_PATH: ${{ github.workspace }}/backend/.venv
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Claude CLI is available
+        run: claude --version
+        working-directory: .
+
+      - name: Setup Python venv and install dependencies
+        run: |
+          python3 -m venv "$VENV_PATH"
+          "$VENV_PATH/bin/pip" install --upgrade pip --quiet
+          "$VENV_PATH/bin/pip" install -e ".[dev]" --quiet
+
+      - name: Run KG quality integration test
+        env:
+          KG_TEST_MODEL: ${{ vars.KG_TEST_MODEL || 'claude-opus-4-6' }}
+        run: |
+          "$VENV_PATH/bin/python" -m pytest tests/integration/test_kg_quality.py \
+            -v -s -m integration --tb=long 2>&1 | tee test_output.txt
+
+      - name: Post results as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let output = '';
+            try {
+              output = fs.readFileSync('backend/test_output.txt', 'utf8');
+            } catch {
+              output = 'No test output captured.';
+            }
+            const truncated = output.slice(-3000);
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## KG Quality Gate Results\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Runner: self-hosted | Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
+            });
