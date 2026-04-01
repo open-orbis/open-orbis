@@ -118,7 +118,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
 
         <div className="mb-5">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orb ID</label>
-          <p className="text-[11px] text-gray-500 mt-0.5 mb-1">Use this ID with the Orbis MCP server to let AI agents query your graph.</p>
+          <p className="text-[11px] text-gray-500 mt-0.5 mb-1">Use this ID with the OpenOrbis MCP server to let AI agents query your graph.</p>
           <div className="flex items-center gap-2">
             <input readOnly value={mcpUri} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
             <button onClick={() => copy(mcpUri)} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap">Copy</button>
@@ -676,13 +676,7 @@ export default function OrbViewPage() {
               )}
             </HeaderBtn>
             <button
-              onClick={() => {
-                if (orbId) {
-                  const params = new URLSearchParams({ format: 'pdf' });
-                  if (activeKeywords.length > 0) params.set('filter_keyword', activeKeywords.join(','));
-                  window.open(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/export/${orbId}?${params}`, '_blank');
-                }
-              }}
+              onClick={() => window.open('/cv-export', '_blank')}
               className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
             >
               <IconDownload />

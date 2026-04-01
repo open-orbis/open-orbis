@@ -76,7 +76,7 @@ export default function LandingPage() {
             <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
               <div className="w-3 h-3 rounded-full bg-purple-400" />
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">Orbis</span>
+            <span className="text-white font-bold text-lg tracking-tight">OpenOrbis</span>
           </div>
           {user && !signingIn ? (
             <button
@@ -210,11 +210,11 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* ── What makes Orbis different ── */}
+      {/* ── What makes OpenOrbis different ── */}
       <section id="orbis-difference" className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <FadeIn className="text-center mb-16">
-            <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">The Orbis difference</p>
+            <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">The OpenOrbis difference</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white">Your career, one single source of truth</h2>
           </FadeIn>
 
@@ -334,9 +334,9 @@ export default function LandingPage() {
       <section className="py-16 sm:py-28 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <FadeIn className="text-center mb-16">
-            <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">Why Orbis</p>
+            <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">Why OpenOrbis</p>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Built for everyone in the loop</h2>
-            <p className="text-white/30 text-base max-w-lg mx-auto">Whether you're a professional, a recruiter, or an AI agent — Orbis speaks your language.</p>
+            <p className="text-white/30 text-base max-w-lg mx-auto">Whether you're a professional, a recruiter, or an AI agent — OpenOrbis speaks your language.</p>
           </FadeIn>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -417,7 +417,7 @@ export default function LandingPage() {
             <div className="w-5 h-5 rounded-full bg-purple-600/30 border border-purple-500/30 flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-purple-400" />
             </div>
-            <span className="text-white/30 text-sm font-medium">Orbis</span>
+            <span className="text-white/30 text-sm font-medium">OpenOrbis</span>
           </div>
           <p className="text-white/15 text-xs">Your career as a knowledge graph.</p>
         </div>

@@ -20,7 +20,7 @@ const DEMO_MESSAGES: Message[] = [
     sender_name: 'Sarah Chen',
     sender_email: 'sarah.chen@talentscout.ai',
     subject: 'Impressed by your graph — Senior Engineer role at Nexus',
-    body: "Hi there,\n\nI came across your Orbis profile through our AI sourcing pipeline. Your knowledge graph is really impressive — the way your skills connect to your projects tells a much richer story than a traditional CV.\n\nWe have a Senior Engineer position at Nexus that aligns well with your background, particularly your experience with graph databases and distributed systems.\n\nWould you be open to a quick chat this week?\n\nBest,\nSarah Chen\nTalent Partner @ Nexus",
+    body: "Hi there,\n\nI came across your OpenOrbis profile through our AI sourcing pipeline. Your knowledge graph is really impressive — the way your skills connect to your projects tells a much richer story than a traditional CV.\n\nWe have a Senior Engineer position at Nexus that aligns well with your background, particularly your experience with graph databases and distributed systems.\n\nWould you be open to a quick chat this week?\n\nBest,\nSarah Chen\nTalent Partner @ Nexus",
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
     read: false,
     replies: [],

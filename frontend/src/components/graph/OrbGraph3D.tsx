@@ -63,11 +63,15 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   const filteredRef = useRef<Set<string>>(new Set());
   filteredRef.current = filteredNodeIds ?? new Set();
 
-  // Clear cache when data changes
+  // Clear cache when data changes & zoom to fit
   useEffect(() => {
     nodeObjectCacheRef.current.clear();
     orbitRing1Ref.current = null;
     orbitRing2Ref.current = null;
+    // Start camera closer to the graph
+    if (fgRef.current) {
+      fgRef.current.cameraPosition({ x: 0, y: 0, z: 400 });
+    }
   }, [data]);
 
   const graphData = useMemo(() => {
