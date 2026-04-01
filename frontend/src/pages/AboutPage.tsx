@@ -20,7 +20,7 @@ const FEATURES = [
   },
   {
     title: 'Connected network',
-    description: 'When collaborators join Orbis, your orbs link together — forming a professional knowledge graph that recruiters can explore.',
+    description: 'When collaborators join OpenOrbis, your orbs link together — forming a professional knowledge graph that recruiters can explore.',
   },
 ];
 

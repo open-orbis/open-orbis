@@ -30,7 +30,7 @@ export default function NodeLegend() {
   }, [open]);
 
   return (
-    <div ref={ref} className="absolute bottom-20 left-3 z-30 select-none">
+    <div ref={ref} className="absolute bottom-20 right-3 z-30 select-none">
       {open ? (
         <div className="bg-gray-900/90 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl p-3 w-48 animate-in fade-in slide-in-from-bottom-2 duration-200">
           <div className="flex items-center justify-between mb-2">
