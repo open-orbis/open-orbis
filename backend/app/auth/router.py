@@ -75,7 +75,7 @@ async def dev_login(
     db: AsyncDriver = Depends(get_db),
 ):
     """Dev-only login that creates a test user without Google OAuth."""
-    user_id = "dev-user-001"
+    user_id = "seed-alessandro-berti"
     email = "dev@orbis.local"
     name = "Alessandro Berti"
 
@@ -89,7 +89,7 @@ async def dev_login(
                 user_id=user_id,
                 email=encrypt_value(email),
                 name=name,
-                orb_id="alessandro-berti",
+                orb_id="alessandro",
             )
             await send_welcome_message(db, user_id)
 
