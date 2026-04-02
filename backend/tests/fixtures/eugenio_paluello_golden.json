@@ -1,0 +1,119 @@
+{
+  "nodes": [
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "University of Pisa",
+        "degree": "Master's Degree in Computer Science",
+        "description": "Thesis: Fully Distributed IoT Layer utilizing Ethereum Blockchain and IPFS, featuring Solidity Smart Contracts integrated with IPFS, enabling secure device interaction, data notarization, and firmware certification, substantiated by a Case Study and Formal Analysis.",
+        "start_date": "2017-09",
+        "end_date": "2020-06"
+      }
+    },
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "University of Perugia",
+        "degree": "Bachelor's Degree in Computer Science",
+        "description": "Thesis: Developed Blockchain analysis tools to detect user behavioral patterns in Bitcoin, enabling identification of addresses associated with malicious activities through pattern-focused analysis. Obtained Microsoft Azure research grant and AWS research grant.",
+        "start_date": "2012-10",
+        "end_date": "2017-07"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Kakarot Labs",
+        "title": "Senior Blockchain Engineer",
+        "description": "Primarily focused on the development of the kakarot RPC. Gas fee rebalancing, enhanced Kakarot Indexer by optimizing transaction indexing and mapping of Ethereum transactions to Starknet transactions.",
+        "start_date": "2024-05",
+        "end_date": null,
+        "location": "Paris, France"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Polygon",
+        "title": "Senior Blockchain Engineer",
+        "description": "Developed Polygon Nightfall core. Built Regulator service with 3-way Diffie-Hellman encryption, integrated atomic transactions, developed transformTransfer operation for L2 token transformation.",
+        "start_date": "2023-03",
+        "end_date": "2023-11"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Polygon",
+        "title": "Blockchain Engineer",
+        "description": "Developed Polygon Nightfall core. Enhanced wallet block communication scalability by transitioning from WebSocket to hybrid system. Developed Nightfall's POS mechanism with multiple-proposer system.",
+        "start_date": "2022-06",
+        "end_date": "2023-03"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "EthereansOS",
+        "title": "Smart Contract Engineer",
+        "description": "Developed a protocol that allows arbitrage between various DEX on the Ethereum blockchain, involving complex swaps to achieve profitable arbitrage.",
+        "start_date": "2021-03",
+        "end_date": "2022-03"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Tocket S.r.l.",
+        "title": "Co-founder & CTO",
+        "description": "Blockchain-based startup combating ticket scalping on live events, reached 65K users and organized 1K events. Managed technical team, developed ERC721/ERC1155/ERC20 tokens, smart contracts, serverless APIs, and web interface.",
+        "start_date": "2019-03",
+        "end_date": "2022-03",
+        "location": "Pisa, Italy"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Superhero Valley",
+        "title": "Co-Founder",
+        "description": "Non-profit community of 2K members preparing individuals for FAANG interviews through talks, mock interviews, coding challenges, and mentorship program.",
+        "start_date": "2020-10",
+        "end_date": null
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "PointerPodcast",
+        "title": "Co-Host",
+        "description": "Explores emerging technologies and innovation through interviews and discussions, spotlighting Blockchain, Quantum Computing, and AI. Recorded more than 170 episodes.",
+        "start_date": "2019-02",
+        "end_date": null
+      }
+    },
+    {"node_type": "skill", "properties": {"name": "Rust"}},
+    {"node_type": "skill", "properties": {"name": "Typescript"}},
+    {"node_type": "skill", "properties": {"name": "Python"}},
+    {"node_type": "skill", "properties": {"name": "Javascript"}},
+    {"node_type": "skill", "properties": {"name": "Solidity"}},
+    {"node_type": "skill", "properties": {"name": "Circom"}},
+    {"node_type": "skill", "properties": {"name": "React"}},
+    {"node_type": "skill", "properties": {"name": "AWS"}},
+    {"node_type": "skill", "properties": {"name": "Docker"}},
+    {"node_type": "skill", "properties": {"name": "MongoDB"}},
+    {"node_type": "skill", "properties": {"name": "PostgreSQL"}},
+    {"node_type": "skill", "properties": {"name": "Blockchain"}},
+    {"node_type": "skill", "properties": {"name": "Ethereum"}},
+    {"node_type": "skill", "properties": {"name": "Smart Contracts"}},
+    {"node_type": "skill", "properties": {"name": "Zero Knowledge"}},
+    {"node_type": "skill", "properties": {"name": "IPFS"}},
+    {"node_type": "skill", "properties": {"name": "Firebase"}},
+    {"node_type": "skill", "properties": {"name": "DynamoDB"}},
+    {"node_type": "skill", "properties": {"name": "Starknet"}},
+    {"node_type": "skill", "properties": {"name": "Bitcoin"}},
+    {"node_type": "skill", "properties": {"name": "Hardhat"}},
+    {"node_type": "skill", "properties": {"name": "Truffle"}}
+  ],
+  "unmatched": []
+}

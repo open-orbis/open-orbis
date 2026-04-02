@@ -1,8 +1,11 @@
-"""Integration test: verify KG extraction quality against golden reference.
+"""Integration test: verify KG extraction quality against a baseline.
 
-Calls Claude CLI via the production ``call_claude`` function, parses the
-result with ``_parse_result``, and compares against a golden node set
-using fuzzy matching.
+In CI the baseline is generated from the **main** branch extraction
+(via ``generate_baseline.py``), so the test acts as a regression gate.
+Locally it falls back to the static golden reference files.
+
+The test is parametrized over every ``*_cv.txt`` fixture, so adding a
+new CV only requires dropping a text + golden JSON into ``fixtures/``.
 
 Requires:
     - ``claude`` CLI installed, accessible on PATH, and authenticated
@@ -58,10 +61,11 @@ def _build_user_message(cv_text: str) -> str:
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_kg_extraction_quality(
-    cv_text: str,
-    golden_nodes: list[dict],
+    cv_fixture: tuple[str, list[dict], str],
 ) -> None:
-    """Classify a test CV with Claude CLI and assert quality thresholds."""
+    """Classify a test CV with Claude CLI and assert quality against baseline."""
+    cv_text, baseline_nodes, cv_name = cv_fixture
+
     if not shutil.which("claude"):
         pytest.skip("claude CLI not found on PATH — skipping integration test")
 
@@ -77,17 +81,17 @@ async def test_kg_extraction_quality(
 
     # Parse with production parser
     nodes, unmatched = _parse_result(raw_response)
-    assert nodes, "Claude returned zero classified nodes"
+    assert nodes, f"Claude returned zero classified nodes for {cv_name}"
 
     # Convert ExtractedNode to dicts for the comparator
     predicted = [{"node_type": n.node_type, "properties": n.properties} for n in nodes]
 
-    # Compare
-    result: ComparisonResult = compare_graphs(predicted, golden_nodes)
+    # Compare against baseline (main branch output or static golden reference)
+    result: ComparisonResult = compare_graphs(predicted, baseline_nodes)
 
     # Print report (captured by pytest -s and by CI tee)
     report = format_report(result)
-    print(f"\n{report}")
+    print(f"\n[{cv_name}]\n{report}")
 
     if result.composite_score >= COMPOSITE_MIN:
         print(f"\nRESULT: PASS (composite={result.composite_score:.2f} >= {COMPOSITE_MIN})")
@@ -97,21 +101,21 @@ async def test_kg_extraction_quality(
     # ── assertions ───────────────────────────────────────────────────
 
     assert result.overall_f1 >= OVERALL_F1_MIN, (
-        f"Overall F1 {result.overall_f1:.2f} < {OVERALL_F1_MIN}"
+        f"[{cv_name}] Overall F1 {result.overall_f1:.2f} < {OVERALL_F1_MIN}"
     )
     assert result.overall_recall >= OVERALL_RECALL_MIN, (
-        f"Overall Recall {result.overall_recall:.2f} < {OVERALL_RECALL_MIN}"
+        f"[{cv_name}] Overall Recall {result.overall_recall:.2f} < {OVERALL_RECALL_MIN}"
     )
     assert result.composite_score >= COMPOSITE_MIN, (
-        f"Composite score {result.composite_score:.2f} < {COMPOSITE_MIN}"
+        f"[{cv_name}] Composite score {result.composite_score:.2f} < {COMPOSITE_MIN}"
     )
 
-    # Per-type recall checks
+    # Per-type recall checks (only for types present in baseline)
     for node_type, min_recall in PER_TYPE_RECALL_MIN.items():
         type_result = result.per_type.get(node_type)
         if type_result is None:
-            pytest.fail(f"Node type '{node_type}' not found in results")
+            continue  # type not in this CV's baseline, skip
         assert type_result.recall >= min_recall, (
-            f"{node_type} recall {type_result.recall:.2f} < {min_recall} "
+            f"[{cv_name}] {node_type} recall {type_result.recall:.2f} < {min_recall} "
             f"(found {type_result.matched_count}/{type_result.golden_count})"
         )
