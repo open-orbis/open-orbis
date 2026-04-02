@@ -1,0 +1,110 @@
+name: CV Extraction Quality
+
+on:
+  pull_request:
+    paths:
+      - "backend/app/cv/**"
+      - "backend/app/graph/queries.py"
+      - "backend/tests/**"
+
+concurrency:
+  group: kg-quality-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  kg-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Security: only run for PRs from the same repo (not forks)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      KG_TEST_MODEL: ${{ vars.KG_TEST_MODEL || 'claude-opus-4-6' }}
+
+    steps:
+      # ── common setup ────────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Restore Claude CLI credentials
+        run: |
+          mkdir -p ~/.claude
+          echo '${{ secrets.CLAUDE_CREDENTIALS }}' > ~/.claude/.credentials.json
+          chmod 600 ~/.claude/.credentials.json
+
+      - name: Verify Claude CLI auth
+        run: claude auth status
+
+      # ── phase 1: generate baseline from main ───────────────────────
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Generate baselines from main branch
+        id: baseline
+        working-directory: backend
+        run: |
+          if [ ! -f tests/integration/generate_baseline.py ]; then
+            echo "generate_baseline.py not found on main (bootstrapping)"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          pip install -e ".[dev]" --quiet
+          python -m tests.integration.generate_baseline /tmp/kg_baselines
+
+      # ── phase 2: test PR branch against baselines ──────────────────
+      - uses: actions/checkout@v4
+
+      - name: Install backend dependencies (PR)
+        working-directory: backend
+        run: pip install -e ".[dev]" --quiet
+
+      - name: Run KG quality integration test
+        working-directory: backend
+        run: |
+          set -o pipefail
+          if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
+            export KG_BASELINE_DIR=/tmp/kg_baselines
+            echo "Baseline: main branch extraction"
+          else
+            echo "Baseline: static golden references (first run — main lacks generate_baseline.py)"
+          fi
+          python -m pytest tests/integration/test_kg_quality.py \
+            -v -s -m integration --tb=long 2>&1 | tee test_output.txt
+
+      - name: Post results as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let output = '';
+            try {
+              output = fs.readFileSync('backend/test_output.txt', 'utf8');
+            } catch {
+              output = 'No test output captured.';
+            }
+            const baseline = '${{ steps.baseline.outputs.available }}' === 'true'
+              ? '**main** branch extraction'
+              : 'static golden references (bootstrapping)';
+            const truncated = output.slice(-3000);
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## KG Quality Gate Results\n\nBaseline: ${baseline}\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
+            });

@@ -1,0 +1,69 @@
+Eugenio Paluello
+Senior Blockchain Engineer
+(+39) 392-5518747 | eugenio.paluello@gmail.com | eugypalu | eugpaluello
+
+Work Experience
+
+kakarot labs — Paris, France
+Senior Blockchain Engineer @ Kakarot Labs
+May 2024 - Current
+Primarily focused on the development of the kakarot RPC.
+- Gas fee rebalancing: Investigated and proposed solutions to balance relayer operational costs with user EVM fees in Kakarot Core
+- Enhanced Kakarot Indexer: Improved the Kakarot Indexer by optimizing transaction indexing, ensuring efficient mapping of Ethereum transactions to Starknet transactions. Contributed to improve performance and maintainability of the indexer module
+- Worked with: Rust, Typescript, Python, AWS, Docker
+
+Polygon
+Senior Blockchain Engineer @ Polygon Nightfall
+Mar. 2023 - Nov. 2023
+Primarily focused on the development of the Polygon Nightfall core.
+- Developed a Regulator service employing modified 3-way Diffie-Hellman encryption for secure transaction secret sharing with third parties
+- Integrated the ability to perform atomic transactions within each Nightfall transaction type.
+- Developed the transformTransfer operation that allow the token transformation on the L2 and enable the transfer in a single step
+- Worked with: Typescript, Javascript, Solidity, Circom for the development of Zero Knowledge circuit, AWS, Docker, MongoDB
+
+Blockchain Engineer @ Polygon Nightfall
+Jun. 2022 - Mar. 2023
+Primarily focused on the development of the Polygon Nightfall core.
+- Enhanced wallet block communication scalability by transitioning from WebSocket to an hybrid system with message broker and an AWS Lambda, drastically improving synchronization speed from minutes to just a few tens of seconds
+- Developed Nightfall's POS mechanism, with transition from a single-proposer system to a multiple-proposer system.
+- Worked with: Typescript, Javascript, Solidity, Circom for the development of Zero Knowledge circuit, AWS, Docker, MongoDB
+
+EthereansOS
+Smart Contract Engineer
+Mar. 2021 - Mar. 2022
+- Developed a protocol that allows arbitrage between various DEX on the Ethereum blockchain. Smart Contracts allows the execution of even complex swaps, involving many swaps to achieve profitable arbitrage
+- Worked with: Typescript, Javascript, Solidity
+
+Tocket S.r.l. — Pisa, Italy
+Co-founder & CTO
+Mar. 2019 - Mar. 2022
+Tocket, was a blockchain-based startup combating ticket scalping on live events, has reached 65K users and organized 1K events.
+- Management: Developed the business model and managed technical team of 5 people.
+- Blockchain: Created ERC721, ERC1155 and ERC20 tokens, secondary market Smart Contracts, used meta-transactions to simplify the use of the marketplace, smart contract testing with Truffle and Hardhat.
+- Backend: Managed user authentication with Firebase, implemented serverless APIs with AWS Lambda, handled databases with dynamoDb and RDS, integrated live streaming via Amazon IVS, managed cluster of EC2 to run a video call service integrated with the platform.
+- Frontend: Developed the web interface using React.
+- Worked with: Typescript, Javascript, Solidity, ERC1155/721/20, React, AWS, Python, PostgreSQL, MongoDB, Docker
+
+Side Project
+
+Superhero Valley — Italy
+Co-Founder
+Oct. 2020 - Current
+SuperheroValley, a non-profit community of 2K members, prepares individuals for FAANG interviews through talks, mock interviews, coding challenges, and a mentorship program, resulting in numerous successful placements at FAANG and other major tech companies.
+
+PointerPodcast — Italy
+Co-Host
+Feb. 2019 - Current
+Explores emerging technologies and innovation through insightful interviews and discussions, spotlighting Blockchain, Quantum Computing, and AI. Recorded more than 170 episodes with guests from both industry and academia.
+
+Education
+
+University of Pisa — Pisa, Italy
+Master's Degree in Computer Science
+Sep. 2017 - Jun. 2020
+Thesis: Fully Distributed IoT Layer utilizing Ethereum Blockchain and IPFS, featuring Solidity Smart Contracts integrated with IPFS, enabling secure device interaction, data notarization, and firmware certification, substantiated by a Case Study and Formal Analysis.
+
+University of Perugia — Perugia, Italy
+Bachelor's Degree in Computer Science
+Oct. 2012 - Jul. 2017
+Thesis: Developed Blockchain analysis tools to detect user behavioral patterns in Bitcoin, enabling identification of addresses associated with malicious activities through pattern-focused analysis. With this thesis, obtained Microsoft Azure research grant and AWS research grant.

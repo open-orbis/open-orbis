@@ -1,0 +1,371 @@
+{
+  "nodes": [
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "Universita di Pisa",
+        "degree": "Dottorato di Ricerca in Informatica (PhD)",
+        "description": "Thesis: Effectiveness of Quantum Algorithms: From Compilation to Measurement. Supervisors: Anna Bernasconi, Gianna Maria Del Corso, Riccardo Guidotti. Grade: Ottimo.",
+        "start_date": "2020-11",
+        "end_date": "2024-05"
+      }
+    },
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "Universita di Pisa",
+        "degree": "Laurea Magistrale in Informatica (LM-18)",
+        "description": "Thesis: A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis. Grade: 110/110 e lode.",
+        "start_date": "2017-09",
+        "end_date": "2020-06"
+      }
+    },
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "Universita di Pisa",
+        "degree": "Laurea Triennale in Informatica (L-31)",
+        "description": "Thesis: Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin. Grade: 100/110.",
+        "start_date": "2013-09",
+        "end_date": "2017-12"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Universita di Pisa - Dipartimento di Fisica",
+        "title": "Assegnista di Ricerca (Postdoc Researcher)",
+        "description": "Quantum algorithms for Machine Learning. Research on quantum subroutines for matrix/activation functions in quantum ML.",
+        "start_date": "2024-04",
+        "end_date": null
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Universita di Pisa - Dipartimento di Informatica",
+        "title": "Cultore della Materia in Computazione Quantistica",
+        "description": "Teaching support and examination role in Quantum Computing courses.",
+        "start_date": "2024-09",
+        "end_date": null
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "SQMS Center - Fermilab",
+        "title": "Visiting PhD Student",
+        "description": "Design and implementation of a quantum reservoir computing model for learning noise-resilient quantum gates on superconductor architectures.",
+        "start_date": "2022-08",
+        "end_date": "2023-01"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Universita di Pisa - Dipartimento di Informatica",
+        "title": "Dottorando (PhD Student)",
+        "description": "Research on quantum algorithms effectiveness, from compilation to measurement. Published 24+ papers.",
+        "start_date": "2020-11",
+        "end_date": "2024-05"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Cinello",
+        "title": "Consulente Tecnico (Technical Consultant)",
+        "description": "Blockchain training sessions for R&D team. Supervised development of an Ethereum ERC-721 smart contract for digital art tokenization.",
+        "start_date": "2020-10",
+        "end_date": "2020-10"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "IBM Quantum",
+        "title": "Qiskit Advocate",
+        "description": "Recognized by IBM Quantum for deep knowledge of quantum algorithms and circuits, contributing to the Qiskit Global Community.",
+        "start_date": "2023-10",
+        "end_date": null
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Superhero Valley",
+        "title": "Fondatore & Head of Mentorship",
+        "description": "Founded an Italian community connecting university students with Big Tech. 2300+ members from 8+ universities. Manages mentorship program and corporate relations.",
+        "start_date": "2020-11",
+        "end_date": "2025-09"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Tocket",
+        "title": "Chief Technology Officer",
+        "description": "Startup to eliminate ticket scalping at live events. Built payment system with Stripe API, Ethereum smart contracts, Flutter mobile app for Android and iOS.",
+        "start_date": "2019-09",
+        "end_date": "2020-09"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "PointerPodcast",
+        "title": "Co-Host",
+        "description": "Weekly podcast on research and tech innovation. 230+ episodes. Interviewed experts from NASA, IBM, INFN, Fermilab/SQMS.",
+        "start_date": "2019-05",
+        "end_date": null
+      }
+    },
+    {"node_type": "skill", "properties": {"name": "Quantum Computing"}},
+    {"node_type": "skill", "properties": {"name": "Quantum Algorithms"}},
+    {"node_type": "skill", "properties": {"name": "Quantum Machine Learning"}},
+    {"node_type": "skill", "properties": {"name": "Quantum State Preparation"}},
+    {"node_type": "skill", "properties": {"name": "Variational Quantum Algorithms"}},
+    {"node_type": "skill", "properties": {"name": "Qiskit"}},
+    {"node_type": "skill", "properties": {"name": "Pennylane"}},
+    {"node_type": "skill", "properties": {"name": "Python"}},
+    {"node_type": "skill", "properties": {"name": "Java"}},
+    {"node_type": "skill", "properties": {"name": "C"}},
+    {"node_type": "skill", "properties": {"name": "C++"}},
+    {"node_type": "skill", "properties": {"name": "Blockchain"}},
+    {"node_type": "skill", "properties": {"name": "Ethereum"}},
+    {"node_type": "skill", "properties": {"name": "Smart Contracts"}},
+    {"node_type": "skill", "properties": {"name": "Flutter"}},
+    {"node_type": "skill", "properties": {"name": "Dart"}},
+    {"node_type": "skill", "properties": {"name": "Machine Learning"}},
+    {"node_type": "skill", "properties": {"name": "Data Science"}},
+    {"node_type": "skill", "properties": {"name": "Neo4j"}},
+    {"node_type": "skill", "properties": {"name": "Graph Algorithms"}},
+    {"node_type": "skill", "properties": {"name": "Scientific Writing"}},
+    {"node_type": "skill", "properties": {"name": "Jupyter"}},
+    {"node_type": "skill", "properties": {"name": "Claude Code"}},
+    {"node_type": "skill", "properties": {"name": "Roo Code"}},
+    {"node_type": "skill", "properties": {"name": "Adobe Premiere"}},
+    {"node_type": "skill", "properties": {"name": "Adobe After Effects"}},
+    {"node_type": "skill", "properties": {"name": "3D Modeling"}},
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "Qiskit Fall Fest Mentor",
+        "issuing_organization": "IBM",
+        "issue_date": "2024-12"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "Qiskit Advocate Certification",
+        "issuing_organization": "IBM",
+        "issue_date": "2023-10"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "IBM Certified Associate Developer - Quantum Computation using Qiskit v0.2X",
+        "issuing_organization": "IBM Professional Certification",
+        "issue_date": "2023-07"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "IBM Blockchain Foundation Developer",
+        "issuing_organization": "IBM",
+        "issue_date": "2019-12"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "Data Science for Business",
+        "issuing_organization": "IBM",
+        "issue_date": "2019-12"
+      }
+    },
+    {
+      "node_type": "language",
+      "properties": {
+        "name": "Italiano",
+        "proficiency": "Madrelingua (Native)"
+      }
+    },
+    {
+      "node_type": "language",
+      "properties": {
+        "name": "English",
+        "proficiency": "Avanzato (C1)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum subroutine for variance estimation: algorithmic design and applications",
+        "venue": "Quantum Machine Intelligence 6.2 (2024)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum Subroutine for Efficient Matrix Multiplication",
+        "venue": "IEEE Access (2024)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "The role of encodings and distance metrics for the quantum nearest neighbor",
+        "venue": "Quantum Machine Intelligence 6.2 (2024)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum clustering with k-Means: A hybrid approach",
+        "venue": "Theoretical Computer Science 992 (2024)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "XOR-AND-XOR Logic Forms for Autosymmetric Functions and Applications to Quantum Computing",
+        "venue": "IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems 42.6 (2023)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Logarithmic Quantum Forking",
+        "venue": "Proceedings of ESANN (2023)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
+        "venue": "PAKDD 2022, Springer"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Variational Compression of Circuits for State Preparation",
+        "venue": "IEEE QCE 2024"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum Reservoir Computing Approach to Error-Mitigated Compilation",
+        "venue": "QTML Workshop (2023)"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Outlier Detection and other applications of Quantum Matrix Multiplication",
+        "venue": "IEEE IPDPSW 2025"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Variational Decision Trees with Structured Ansatzes",
+        "venue": "IEEE QCE 2025"
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Efficient quantum state preparation with Bucket Brigade QRAM",
+        "venue": "Under Revision"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "GNCS Research Project - Quantum Subroutines (PI)",
+        "description": "Coordinator of research project on quantum subroutines for matrix/activation functions in quantum ML. Istituto Nazionale di Alta Matematica (2025-2026)."
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "PNRR CN1 - HPC, Big Data and Quantum Computing",
+        "description": "National research project at Politecnico di Milano. Study of quantum ML techniques for state preparation and quantum AI subroutines (2024-ongoing)."
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "SoBigData++ (H2020)",
+        "description": "European project for Social Mining & Big Data Ecosystem. Produced PyPI package for quantum k-Nearest Neighbors (2020-2024)."
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "PRA-Quantum Computing",
+        "description": "University of Pisa research project on quantum computing technologies and applications (2020-2022)."
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Quantum Festival & Pisa Quantum Festival",
+        "description": "Co-organized quantum computing festivals in Pisa with 400+ participants, featuring speakers from academia and industry (2024-2025)."
+      }
+    },
+    {
+      "node_type": "patent",
+      "properties": {
+        "title": "Circuito quantistico per forking di uno stato quantistico",
+        "patent_number": "IT202200024873A1",
+        "filing_date": "2022-12",
+        "grant_date": "2024-11",
+        "description": "Quantum circuit for forking a quantum state. Applicant: Universita di Pisa."
+      }
+    },
+    {
+      "node_type": "collaborator",
+      "properties": {
+        "name": "Davide Venturelli"
+      }
+    },
+    {
+      "node_type": "collaborator",
+      "properties": {
+        "name": "Nishchay Suri"
+      }
+    },
+    {
+      "node_type": "collaborator",
+      "properties": {
+        "name": "Silvia Zorzetti"
+      }
+    },
+    {
+      "node_type": "collaborator",
+      "properties": {
+        "name": "Anna Bernasconi"
+      }
+    },
+    {
+      "node_type": "collaborator",
+      "properties": {
+        "name": "Gianna Maria Del Corso"
+      }
+    },
+    {
+      "node_type": "collaborator",
+      "properties": {
+        "name": "Riccardo Guidotti"
+      }
+    }
+  ],
+  "unmatched": []
+}

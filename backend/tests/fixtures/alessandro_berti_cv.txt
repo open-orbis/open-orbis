@@ -1,0 +1,144 @@
+Alessandro Berti
+alessandro.berti1994@gmail.com
+Pisa, Italy
+https://orcid.org/0000-0001-9144-9572
+https://scholar.google.com/citations?user=o6wy2g0AAAAJ&hl=en
+
+Postdoc Researcher in Quantum Computing @ University of Pisa
+
+
+EDUCATION
+
+Universita di Pisa
+Dottorato di Ricerca in Informatica (PhD)
+11/2020 - 05/2024
+Thesis: Effectiveness of Quantum Algorithms: From Compilation to Measurement.
+Supervisors: Anna Bernasconi, Gianna Maria Del Corso, Riccardo Guidotti. Grade: Ottimo.
+
+Universita di Pisa
+Laurea Magistrale in Informatica (LM-18)
+09/2017 - 06/2020
+Thesis: A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis. Grade: 110/110 e lode.
+
+Universita di Pisa
+Laurea Triennale in Informatica (L-31)
+09/2013 - 12/2017
+Thesis: Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin. Grade: 100/110.
+
+
+WORK EXPERIENCE
+
+Universita di Pisa - Dipartimento di Fisica
+Assegnista di Ricerca (Postdoc Researcher)
+04/2024 - Present
+Quantum algorithms for Machine Learning. Research on quantum subroutines for matrix/activation functions in quantum ML.
+
+Universita di Pisa - Dipartimento di Informatica
+Cultore della Materia in Computazione Quantistica
+09/2024 - Present
+Teaching support and examination role in Quantum Computing courses.
+
+SQMS Center - Fermilab
+Visiting PhD Student
+08/2022 - 01/2023
+Design and implementation of a quantum reservoir computing model for learning noise-resilient quantum gates on superconductor architectures.
+
+Universita di Pisa - Dipartimento di Informatica
+Dottorando (PhD Student)
+11/2020 - 05/2024
+Research on quantum algorithms effectiveness, from compilation to measurement. Published 24+ papers.
+
+Cinello
+Consulente Tecnico (Technical Consultant)
+10/2020 - 10/2020
+Blockchain training sessions for R&D team. Supervised development of an Ethereum ERC-721 smart contract for digital art tokenization.
+
+IBM Quantum
+Qiskit Advocate
+10/2023 - Present
+Recognized by IBM Quantum for deep knowledge of quantum algorithms and circuits, contributing to the Qiskit Global Community.
+
+Superhero Valley
+Fondatore & Head of Mentorship
+11/2020 - 09/2025
+Founded an Italian community connecting university students with Big Tech. 2300+ members from 8+ universities. Manages mentorship program and corporate relations.
+
+Tocket
+Chief Technology Officer
+09/2019 - 09/2020
+Startup to eliminate ticket scalping at live events. Built payment system with Stripe API, Ethereum smart contracts, Flutter mobile app for Android and iOS.
+
+PointerPodcast
+Co-Host
+05/2019 - Present
+Weekly podcast on research and tech innovation. 230+ episodes. Interviewed experts from NASA, IBM, INFN, Fermilab/SQMS.
+
+
+SKILLS
+
+Quantum Computing, Quantum Algorithms, Quantum Machine Learning, Quantum State Preparation, Variational Quantum Algorithms, Qiskit, Pennylane, Python, Java, C, C++, Blockchain, Ethereum, Smart Contracts, Flutter, Dart, Machine Learning, Data Science, Neo4j, Graph Algorithms, Scientific Writing, Jupyter, Claude Code, Roo Code, Adobe Premiere, Adobe After Effects, 3D Modeling
+
+
+CERTIFICATIONS
+
+Qiskit Fall Fest Mentor - IBM (12/2024)
+Qiskit Advocate Certification - IBM (10/2023)
+IBM Certified Associate Developer - Quantum Computation using Qiskit v0.2X - IBM Professional Certification (07/2023)
+IBM Blockchain Foundation Developer - IBM (12/2019)
+Data Science for Business - IBM (12/2019)
+
+
+LANGUAGES
+
+Italiano - Madrelingua (Native)
+English - Avanzato (C1)
+
+
+PUBLICATIONS
+
+- Quantum subroutine for variance estimation: algorithmic design and applications. Quantum Machine Intelligence 6.2 (2024).
+- Quantum Subroutine for Efficient Matrix Multiplication. IEEE Access (2024).
+- The role of encodings and distance metrics for the quantum nearest neighbor. Quantum Machine Intelligence 6.2 (2024).
+- Quantum clustering with k-Means: A hybrid approach. Theoretical Computer Science 992 (2024).
+- XOR-AND-XOR Logic Forms for Autosymmetric Functions and Applications to Quantum Computing. IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems 42.6 (2023).
+- Logarithmic Quantum Forking. Proceedings of ESANN (2023).
+- Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers. PAKDD 2022, Springer.
+- Variational Compression of Circuits for State Preparation. IEEE QCE 2024.
+- Quantum Reservoir Computing Approach to Error-Mitigated Compilation. QTML Workshop (2023).
+- Outlier Detection and other applications of Quantum Matrix Multiplication. IEEE IPDPSW 2025.
+- Variational Decision Trees with Structured Ansatzes. IEEE QCE 2025.
+- Efficient quantum state preparation with Bucket Brigade QRAM. Under Revision.
+
+
+PROJECTS
+
+GNCS Research Project - Quantum Subroutines (PI)
+Coordinator of research project on quantum subroutines for matrix/activation functions in quantum ML. Istituto Nazionale di Alta Matematica (2025-2026).
+
+PNRR CN1 - HPC, Big Data and Quantum Computing
+National research project at Politecnico di Milano. Study of quantum ML techniques for state preparation and quantum AI subroutines (2024-ongoing).
+
+SoBigData++ (H2020)
+European project for Social Mining & Big Data Ecosystem. Produced PyPI package for quantum k-Nearest Neighbors (2020-2024).
+
+PRA-Quantum Computing
+University of Pisa research project on quantum computing technologies and applications (2020-2022).
+
+Quantum Festival & Pisa Quantum Festival
+Co-organized quantum computing festivals in Pisa with 400+ participants, featuring speakers from academia and industry (2024-2025).
+
+
+PATENTS
+
+Circuito quantistico per forking di uno stato quantistico
+Patent ID: IT202200024873A1. Filed 12/2022, granted 11/2024. Applicant: Universita di Pisa.
+
+
+COLLABORATORS
+
+Davide Venturelli - USRA Research Institute, Quantum AI Laboratory at NASA ARC
+Nishchay Suri - Associate Scientist, NASA and USRA Quantum AI Lab
+Silvia Zorzetti - Principal Engineer and Department Head, Fermilab/SQMS
+Anna Bernasconi - Professor, Universita di Pisa - PhD Supervisor
+Gianna Maria Del Corso - Professor, Universita di Pisa - PhD Supervisor
+Riccardo Guidotti - Professor, Universita di Pisa - PhD Supervisor

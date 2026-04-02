@@ -26,6 +26,15 @@ dev = [
     "pytest-asyncio>=0.24.0",
 ]
 
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that call external LLM APIs (deselect with '-m \"not integration\"')",
+]
+asyncio_mode = "auto"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
