@@ -22,6 +22,7 @@ from app.cv.claude_classifier import call_claude
 from app.cv.ollama_classifier import SYSTEM_PROMPT, _parse_result
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
+MAX_RETRIES = 2
 
 
 def _build_user_message(cv_text: str) -> str:
@@ -38,22 +39,37 @@ async def generate_one(cv_path: Path, output_path: Path, model: str) -> None:
     cv_text = cv_path.read_text(encoding="utf-8")
     user_message = _build_user_message(cv_text)
 
-    raw_response = await call_claude(
-        system_prompt=SYSTEM_PROMPT,
-        user_message=user_message,
-        model=model,
-    )
+    nodes = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        raw_response = await call_claude(
+            system_prompt=SYSTEM_PROMPT,
+            user_message=user_message,
+            model=model,
+        )
 
-    result = _parse_result(raw_response)
-    if not result.nodes:
-        print(f"ERROR: extraction produced zero nodes for {cv_path.name}", file=sys.stderr)
+        result = _parse_result(raw_response)
+        if result.nodes:
+            nodes = result.nodes
+            unmatched = result.unmatched or []
+            break
+
+        print(
+            f"  WARNING: attempt {attempt}/{MAX_RETRIES} returned 0 nodes "
+            f"for {cv_path.name}. Raw response (first 500 chars):",
+            file=sys.stderr,
+        )
+        print(f"  {raw_response[:500]}", file=sys.stderr)
+
+    if not nodes:
+        print(f"ERROR: extraction produced zero nodes for {cv_path.name} "
+              f"after {MAX_RETRIES} attempts", file=sys.stderr)
         sys.exit(1)
 
     data = {
         "nodes": [
-            {"node_type": n.node_type, "properties": n.properties} for n in result.nodes
+            {"node_type": n.node_type, "properties": n.properties} for n in nodes
         ],
-        "unmatched": result.unmatched or [],
+        "unmatched": unmatched,
     }
 
     output_path.write_text(

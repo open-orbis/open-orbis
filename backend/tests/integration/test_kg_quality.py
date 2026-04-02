@@ -27,7 +27,9 @@ from app.cv.claude_classifier import call_claude
 from app.cv.ollama_classifier import SYSTEM_PROMPT, _parse_result
 from tests.lib.graph_comparator import ComparisonResult, compare_graphs, format_report
 
-# ── thresholds ───────────────────────────────────────────────────────
+# ── config ───────────────────────────────────────────────────────────
+
+MAX_RETRIES = 2
 
 OVERALL_F1_MIN = 0.70
 OVERALL_RECALL_MIN = 0.60
@@ -71,20 +73,35 @@ async def test_kg_extraction_quality(
 
     model = os.environ.get("KG_TEST_MODEL", "claude-opus-4-6")
 
-    # Call Claude CLI (same code path as production)
+    # Call Claude CLI with retry (LLM responses are non-deterministic)
     user_message = _build_user_message(cv_text)
-    raw_response = await call_claude(
-        system_prompt=SYSTEM_PROMPT,
-        user_message=user_message,
-        model=model,
+    nodes = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        raw_response = await call_claude(
+            system_prompt=SYSTEM_PROMPT,
+            user_message=user_message,
+            model=model,
+        )
+
+        result = _parse_result(raw_response)
+        if result.nodes:
+            nodes = result.nodes
+            break
+
+        print(
+            f"\n[{cv_name}] attempt {attempt}/{MAX_RETRIES}: "
+            f"parser returned 0 nodes. Raw response (first 500 chars):\n"
+            f"{raw_response[:500]}"
+        )
+
+    assert nodes, (
+        f"Claude returned zero classified nodes for {cv_name} "
+        f"after {MAX_RETRIES} attempts"
     )
 
-    # Parse with production parser
-    result = _parse_result(raw_response)
-    assert result.nodes, f"Claude returned zero classified nodes for {cv_name}"
-
     # Convert ExtractedNode to dicts for the comparator
-    predicted = [{"node_type": n.node_type, "properties": n.properties} for n in result.nodes]
+    predicted = [{"node_type": n.node_type, "properties": n.properties} for n in nodes]
 
     # Compare against baseline (main branch output or static golden reference)
     result: ComparisonResult = compare_graphs(predicted, baseline_nodes)
