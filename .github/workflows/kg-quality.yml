@@ -13,9 +13,7 @@ concurrency:
 
 jobs:
   kg-quality:
-    # Self-hosted runner: uses the local Claude CLI already authenticated
-    # with your Claude Pro subscription. Zero API costs.
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     # Security: only run for PRs from the same repo (not forks)
@@ -25,27 +23,40 @@ jobs:
       run:
         working-directory: backend
 
-    env:
-      VENV_PATH: ${{ github.workspace }}/backend/.venv
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify Claude CLI is available
-        run: claude --version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Restore Claude CLI credentials
+        run: |
+          mkdir -p ~/.claude
+          echo '${{ secrets.CLAUDE_CREDENTIALS }}' > ~/.claude/.credentials.json
+          chmod 600 ~/.claude/.credentials.json
+
+      - name: Verify Claude CLI auth
+        run: claude auth status
         working-directory: .
 
-      - name: Setup Python venv and install dependencies
-        run: |
-          python3 -m venv "$VENV_PATH"
-          "$VENV_PATH/bin/pip" install --upgrade pip --quiet
-          "$VENV_PATH/bin/pip" install -e ".[dev]" --quiet
+      - name: Install backend dependencies
+        run: pip install -e ".[dev]" --quiet
 
       - name: Run KG quality integration test
         env:
           KG_TEST_MODEL: ${{ vars.KG_TEST_MODEL || 'claude-opus-4-6' }}
         run: |
-          "$VENV_PATH/bin/python" -m pytest tests/integration/test_kg_quality.py \
+          python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
 
       - name: Post results as PR comment
@@ -65,5 +76,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## KG Quality Gate Results\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Runner: self-hosted | Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
+              body: `## KG Quality Gate Results\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
             });
