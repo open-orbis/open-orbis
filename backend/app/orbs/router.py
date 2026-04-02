@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from neo4j import AsyncDriver
+
+logger = logging.getLogger(__name__)
 from neo4j.time import DateTime as Neo4jDateTime, Date as Neo4jDate, Time as Neo4jTime
 
 from app.dependencies import get_current_user, get_db

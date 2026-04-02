@@ -117,6 +117,20 @@ MATCH (p:Person {user_id: $user_id})-[r:{rel_type}]->(n:{label})
 RETURN n
 """
 
+# ── Merge keys for dedup during CV import ──
+
+NODE_TYPE_MERGE_KEYS: dict[str, list[str]] = {
+    "skill": ["name"],
+    "language": ["name"],
+    "work_experience": ["company", "title"],
+    "education": ["institution", "degree"],
+    "certification": ["name", "issuing_organization"],
+    "publication": ["title"],
+    "project": ["name"],
+    "patent": ["title"],
+    "collaborator": ["name"],
+}
+
 # ── Cross-node relationships ──
 
 LINK_SKILL = """

@@ -12,7 +12,13 @@ from app.cv.models import ConfirmRequest, ExtractedData, ExtractedNode
 from app.cv.ollama_classifier import classify_entries
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties
-from app.graph.queries import ADD_NODE, NODE_TYPE_LABELS, NODE_TYPE_RELATIONSHIPS
+from app.graph.queries import (
+    ADD_NODE,
+    LINK_SKILL,
+    NODE_TYPE_LABELS,
+    NODE_TYPE_MERGE_KEYS,
+    NODE_TYPE_RELATIONSHIPS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,15 +54,21 @@ async def upload_cv(
 
         # Step 2: Classify entries via local Ollama LLM
         logger.info("Classifying entries with Ollama (%d chars)", len(raw_text))
-        nodes, unmatched = await classify_entries(raw_text)
+        result = await classify_entries(raw_text)
 
-        if not nodes and not unmatched:
+        if not result.nodes and not result.unmatched:
             raise HTTPException(
                 status_code=400,
                 detail="No entries could be extracted. Try a different CV.",
             )
 
-        return ExtractedData(nodes=nodes, unmatched=unmatched)
+        return ExtractedData(
+            nodes=result.nodes,
+            unmatched=result.unmatched,
+            skipped_nodes=result.skipped,
+            relationships=result.relationships,
+            truncated=result.truncated,
+        )
 
     except HTTPException:
         raise
@@ -87,12 +99,13 @@ async def confirm_cv(
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Persist confirmed CV nodes to Neo4j."""
-    created = []
+    """Persist confirmed CV nodes to Neo4j with dedup and cross-entity linking."""
+    created: list[str | None] = []
 
     async with db.session() as session:
         for node in data.nodes:
             if node.node_type not in NODE_TYPE_LABELS:
+                created.append(None)
                 continue
 
             label = NODE_TYPE_LABELS[node.node_type]
@@ -100,15 +113,72 @@ async def confirm_cv(
             uid = str(uuid.uuid4())
             properties = encrypt_properties(node.properties)
 
-            query = ADD_NODE.replace("{label}", label).replace("{rel_type}", rel_type)
-            result = await session.run(
-                query,
-                user_id=current_user["user_id"],
-                properties=properties,
-                uid=uid,
-            )
+            # Try MERGE with key properties for dedup, fall back to CREATE
+            merge_keys = NODE_TYPE_MERGE_KEYS.get(node.node_type, [])
+            merge_key_values = {
+                k: properties.get(k) for k in merge_keys if properties.get(k)
+            }
+
+            if merge_key_values and len(merge_key_values) == len(merge_keys):
+                key_clause = ", ".join(
+                    f"{k}: $merge_{k}" for k in merge_key_values
+                )
+                query = (
+                    f"MATCH (p:Person {{user_id: $user_id}}) "
+                    f"MERGE (p)-[:{rel_type}]->(n:{label} {{{key_clause}}}) "
+                    f"ON CREATE SET n += $properties, n.uid = $uid "
+                    f"ON MATCH SET n += $properties "
+                    f"RETURN n"
+                )
+                params: dict = {
+                    "user_id": current_user["user_id"],
+                    "properties": properties,
+                    "uid": uid,
+                }
+                for k, v in merge_key_values.items():
+                    params[f"merge_{k}"] = v
+
+                result = await session.run(query, **params)
+            else:
+                query = ADD_NODE.replace("{label}", label).replace(
+                    "{rel_type}", rel_type
+                )
+                result = await session.run(
+                    query,
+                    user_id=current_user["user_id"],
+                    properties=properties,
+                    uid=uid,
+                )
+
             record = await result.single()
             if record:
-                created.append(uid)
+                actual_uid = dict(record["n"]).get("uid", uid)
+                created.append(actual_uid)
+            else:
+                created.append(None)
 
-    return {"created": len(created), "node_ids": created}
+        # Create cross-entity links (USED_SKILL)
+        for rel in data.relationships:
+            if rel.type != "USED_SKILL":
+                continue
+            if (
+                0 <= rel.from_index < len(created)
+                and 0 <= rel.to_index < len(created)
+            ):
+                from_uid = created[rel.from_index]
+                to_uid = created[rel.to_index]
+                if from_uid and to_uid:
+                    try:
+                        await session.run(
+                            LINK_SKILL,
+                            node_uid=from_uid,
+                            skill_uid=to_uid,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to create USED_SKILL link %s -> %s: %s",
+                            from_uid, to_uid, e,
+                        )
+
+    valid_ids = [uid for uid in created if uid is not None]
+    return {"created": len(valid_ids), "node_ids": valid_ids}

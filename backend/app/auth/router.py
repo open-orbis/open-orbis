@@ -1,8 +1,11 @@
+import logging
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from neo4j import AsyncDriver
+
+logger = logging.getLogger(__name__)
 
 from app.auth.models import TokenResponse, UserInfo
 from app.auth.service import create_jwt, exchange_google_code
@@ -39,7 +42,8 @@ async def google_callback(
 ):
     try:
         userinfo = await exchange_google_code(code)
-    except Exception:
+    except Exception as e:
+        logger.error("Google OAuth exchange failed: %s", e, exc_info=True)
         raise HTTPException(status_code=400, detail="Failed to authenticate with Google")
 
     user_id = userinfo["sub"]

@@ -8,10 +8,25 @@ class ExtractedNode(BaseModel):
     properties: dict
 
 
+class SkippedNode(BaseModel):
+    original: dict
+    reason: str
+
+
+class ExtractedRelationship(BaseModel):
+    from_index: int
+    to_index: int
+    type: str = "USED_SKILL"
+
+
 class ExtractedData(BaseModel):
     nodes: list[ExtractedNode]
     unmatched: list[str] = []
+    skipped_nodes: list[SkippedNode] = []
+    relationships: list[ExtractedRelationship] = []
+    truncated: bool = False
 
 
 class ConfirmRequest(BaseModel):
     nodes: list[ExtractedNode]
+    relationships: list[ExtractedRelationship] = []

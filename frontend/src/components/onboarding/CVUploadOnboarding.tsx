@@ -2,8 +2,9 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { uploadCV, confirmCV } from '../../api/cv';
-import type { ExtractedData } from '../../api/cv';
+import type { ExtractedData, ExtractedRelationship } from '../../api/cv';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
+import NodeForm from '../editor/NodeForm';
 
 export default function CVUploadOnboarding() {
   const navigate = useNavigate();
@@ -13,6 +14,10 @@ export default function CVUploadOnboarding() {
   const [error, setError] = useState('');
   const [extractedNodes, setExtractedNodes] = useState<ExtractedData['nodes'] | null>(null);
   const [unmatchedCount, setUnmatchedCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
+  const [truncated, setTruncated] = useState(false);
+  const [relationships, setRelationships] = useState<ExtractedRelationship[]>([]);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase();
@@ -38,6 +43,10 @@ export default function CVUploadOnboarding() {
         localStorage.setItem('orbis-draft-notes', JSON.stringify([...newNotes, ...existing]));
         setUnmatchedCount(data.unmatched.length);
       }
+
+      setSkippedCount(data.skipped_nodes?.length || 0);
+      setTruncated(data.truncated || false);
+      setRelationships(data.relationships || []);
 
       if (data.nodes.length === 0 && (!data.unmatched || data.unmatched.length === 0)) {
         setError('No entries could be extracted from this file. Try a different CV or use manual entry.');
@@ -66,13 +75,24 @@ export default function CVUploadOnboarding() {
   const removeNode = (index: number) => {
     if (!extractedNodes) return;
     setExtractedNodes(extractedNodes.filter((_, i) => i !== index));
+    setRelationships(prev =>
+      prev
+        .filter(r => r.from_index !== index && r.to_index !== index)
+        .map(r => ({
+          ...r,
+          from_index: r.from_index > index ? r.from_index - 1 : r.from_index,
+          to_index: r.to_index > index ? r.to_index - 1 : r.to_index,
+        }))
+    );
+    if (editingIndex === index) setEditingIndex(null);
+    else if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
   };
 
   const handleConfirm = async () => {
     if (!extractedNodes || extractedNodes.length === 0) return;
     setConfirming(true);
     try {
-      await confirmCV(extractedNodes);
+      await confirmCV(extractedNodes, relationships);
       navigate('/orb');
     } catch {
       setError('Failed to save entries. Please try again.');
@@ -102,10 +122,20 @@ export default function CVUploadOnboarding() {
             <h2 className="text-white text-xl font-semibold">
               Found {extractedNodes.length} entries
             </h2>
-            <p className="text-white/30 text-sm mt-1">Review and remove any you don't want, then add them all to your orb.</p>
+            <p className="text-white/30 text-sm mt-1">Review, edit, or remove entries, then add them all to your orb.</p>
+            {truncated && (
+              <p className="text-amber-400/80 text-xs mt-2">
+                Your CV was too long and was partially truncated. Some entries at the end may have been missed.
+              </p>
+            )}
             {unmatchedCount > 0 && (
               <p className="text-amber-400/80 text-xs mt-2">
                 {unmatchedCount} entr{unmatchedCount === 1 ? 'y' : 'ies'} couldn't be classified and {unmatchedCount === 1 ? 'was' : 'were'} added to your Draft Notes for manual review.
+              </p>
+            )}
+            {skippedCount > 0 && (
+              <p className="text-amber-400/60 text-xs mt-1">
+                {skippedCount} entr{skippedCount === 1 ? 'y was' : 'ies were'} skipped due to missing required fields or unknown types.
               </p>
             )}
           </div>
@@ -123,6 +153,30 @@ export default function CVUploadOnboarding() {
                   </div>
                   <div className="space-y-2">
                     {items.map(({ index, props }) => {
+                      if (editingIndex === index) {
+                        return (
+                          <motion.div
+                            key={index}
+                            layout
+                            className="bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 sm:px-4 py-3 sm:py-4"
+                          >
+                            <NodeForm
+                              initialType={type}
+                              initialValues={props as Record<string, unknown>}
+                              onSubmit={(nodeType, newProps) => {
+                                setExtractedNodes(prev => {
+                                  if (!prev) return prev;
+                                  const updated = [...prev];
+                                  updated[index] = { node_type: nodeType, properties: newProps };
+                                  return updated;
+                                });
+                                setEditingIndex(null);
+                              }}
+                              onCancel={() => setEditingIndex(null)}
+                            />
+                          </motion.div>
+                        );
+                      }
                       const title = (props.name || props.title || props.company || props.institution || 'Untitled') as string;
                       const subtitle = (props.company || props.degree || props.issuing_organization || props.category || '') as string;
                       return (
@@ -138,8 +192,18 @@ export default function CVUploadOnboarding() {
                             )}
                           </div>
                           <button
+                            onClick={() => setEditingIndex(index)}
+                            className="text-white/15 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Edit"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
                             onClick={() => removeNode(index)}
                             className="text-white/15 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Remove"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
