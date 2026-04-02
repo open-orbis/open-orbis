@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from neo4j import AsyncDriver
+
+logger = logging.getLogger(__name__)
 
 from app.dependencies import get_current_user, get_db
 from app.messages.models import (

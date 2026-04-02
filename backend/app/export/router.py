@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import io
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from neo4j import AsyncDriver
+
+logger = logging.getLogger(__name__)
 
 from app.dependencies import get_db
 from app.graph.encryption import decrypt_properties
@@ -173,12 +176,20 @@ async def export_orb(
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:
-        result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
-        record = await result.single()
+        try:
+            result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
+            record = await result.single()
+        except Exception as e:
+            logger.error("Export DB query failed for orb %s: %s", orb_id, e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to load orb data")
         if record is None:
             raise HTTPException(status_code=404, detail="Orb not found")
 
-    person, nodes = _gather_orb(record)
+    try:
+        person, nodes = _gather_orb(record)
+    except Exception as e:
+        logger.error("Export orb data extraction failed for %s: %s", orb_id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to process orb data")
 
     # Apply filter: either via signed token or direct keywords (for owner exports)
     active_filters: list[str] = []
@@ -193,7 +204,11 @@ async def export_orb(
         nodes = [n for n in nodes if not node_matches_filters(n, active_filters)]
 
     if format == "pdf":
-        pdf_bytes = _generate_pdf(person, nodes, orb_id)
+        try:
+            pdf_bytes = _generate_pdf(person, nodes, orb_id)
+        except Exception as e:
+            logger.error("PDF generation failed for orb %s: %s", orb_id, e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to generate PDF")
         filename = f"{person.get('name', orb_id).replace(' ', '_')}_CV.pdf"
         return StreamingResponse(
             io.BytesIO(pdf_bytes),

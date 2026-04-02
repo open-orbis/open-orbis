@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 import httpx
 from jose import jwt
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -33,6 +36,8 @@ async def exchange_google_code(code: str) -> dict:
                 "grant_type": "authorization_code",
             },
         )
+        if token_resp.status_code != 200:
+            logger.error("Google token exchange failed: HTTP %d — %s", token_resp.status_code, token_resp.text[:500])
         token_resp.raise_for_status()
         tokens = token_resp.json()
 
@@ -40,5 +45,7 @@ async def exchange_google_code(code: str) -> dict:
             GOOGLE_USERINFO_URL,
             headers={"Authorization": f"Bearer {tokens['access_token']}"},
         )
+        if userinfo_resp.status_code != 200:
+            logger.error("Google userinfo failed: HTTP %d — %s", userinfo_resp.status_code, userinfo_resp.text[:500])
         userinfo_resp.raise_for_status()
         return userinfo_resp.json()

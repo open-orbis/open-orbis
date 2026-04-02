@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import logging
+
 from cryptography.fernet import Fernet
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 _fernet: Fernet | None = None
 
@@ -14,7 +18,7 @@ def _get_fernet() -> Fernet:
         try:
             _fernet = Fernet(key.encode() if isinstance(key, str) else key)
         except (ValueError, Exception):
-            # Invalid or missing key — generate one for dev
+            logger.warning("Invalid or missing ENCRYPTION_KEY — using auto-generated key (dev only)")
             _fernet = Fernet(Fernet.generate_key())
     return _fernet
 
@@ -44,6 +48,6 @@ def decrypt_properties(properties: dict) -> dict:
         if field in result and result[field]:
             try:
                 result[field] = decrypt_value(result[field])
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to decrypt field '%s': %s", field, e)
     return result

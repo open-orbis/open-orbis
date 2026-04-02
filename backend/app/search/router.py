@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
 from pydantic import BaseModel
@@ -7,6 +9,8 @@ from pydantic import BaseModel
 from app.dependencies import get_current_user, get_db
 from app.graph.embeddings import build_embedding_text, generate_embedding
 from app.orbs.filter_token import decode_filter_token, node_matches_filters
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -64,8 +68,8 @@ async def semantic_search(
                     node["_labels"] = record["node_labels"]
                     node["_score"] = record["score"]
                     results.append(node)
-            except Exception:
-                # Index might not exist yet or no data
+            except Exception as e:
+                logger.debug("Vector index '%s' query skipped: %s", index_name, e)
                 continue
 
     # Sort by score and take top_k
@@ -148,7 +152,8 @@ async def text_search(
                     if node.get("uid") not in seen_uids:
                         seen_uids.add(node.get("uid", ""))
                         results.append(node)
-            except Exception:
+            except Exception as e:
+                logger.warning("Text search query failed for label %s: %s", label, e)
                 continue
 
     # Second: if few results, do fuzzy matching on all nodes
@@ -178,7 +183,8 @@ async def text_search(
                             node["_labels"] = record["node_labels"]
                             seen_uids.add(uid)
                             results.append(node)
-                except Exception:
+                except Exception as e:
+                    logger.warning("Fuzzy search query failed for label %s: %s", label, e)
                     continue
 
     return results
@@ -232,7 +238,8 @@ async def public_text_search(
                             continue
                         seen_uids.add(node.get("uid", ""))
                         results.append(node)
-            except Exception:
+            except Exception as e:
+                logger.warning("Public text search failed for label %s on orb %s: %s", label, data.orb_id, e)
                 continue
 
     if len(results) < 3:
@@ -262,7 +269,8 @@ async def public_text_search(
                             node["_labels"] = record["node_labels"]
                             seen_uids.add(uid)
                             results.append(node)
-                except Exception:
+                except Exception as e:
+                    logger.warning("Public fuzzy search failed for label %s on orb %s: %s", label, data.orb_id, e)
                     continue
 
     return results

@@ -38,6 +38,12 @@ async def extract_text(pdf_bytes: bytes) -> str:
             headers={**headers, "Content-Type": "application/octet-stream"},
             content=pdf_bytes,
         )
+        if submit_resp.status_code != 202:
+            logger.error(
+                "LLM Whisperer submit failed: HTTP %d — %s",
+                submit_resp.status_code,
+                submit_resp.text[:500],
+            )
         submit_resp.raise_for_status()
         whisper_hash = submit_resp.json().get("whisper_hash")
 
@@ -72,6 +78,7 @@ async def extract_text(pdf_bytes: bytes) -> str:
                 elapsed += POLL_INTERVAL
 
         if elapsed >= WHISPER_TIMEOUT:
+            logger.error("LLM Whisperer timed out after %ds (hash: %s)", WHISPER_TIMEOUT, whisper_hash)
             raise TimeoutError(
                 f"LLM Whisperer did not finish within {WHISPER_TIMEOUT}s"
             )
@@ -82,6 +89,12 @@ async def extract_text(pdf_bytes: bytes) -> str:
             params={"whisper_hash": whisper_hash},
             headers=headers,
         )
+        if retrieve_resp.status_code != 200:
+            logger.error(
+                "LLM Whisperer retrieve failed: HTTP %d — %s",
+                retrieve_resp.status_code,
+                retrieve_resp.text[:500],
+            )
         retrieve_resp.raise_for_status()
         result = retrieve_resp.json()
 

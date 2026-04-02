@@ -37,11 +37,13 @@ async def call_claude(
 
     if process.returncode != 0:
         error_msg = stderr.decode("utf-8", errors="replace").strip()
+        logger.error("Claude CLI failed (code %d): %s", process.returncode, error_msg[:500])
         raise RuntimeError(
             f"Claude CLI exited with code {process.returncode}: {error_msg}"
         )
 
     output = stdout.decode("utf-8").strip()
+    logger.info("Claude CLI response received (%d chars)", len(output))
 
     # --output-format json wraps the result in a JSON envelope
     # with fields like: result, cost_usd, duration_ms, etc.
@@ -49,5 +51,5 @@ async def call_claude(
         envelope = json.loads(output)
         return envelope.get("result", "")
     except json.JSONDecodeError:
-        # If not a JSON envelope, return raw output
+        logger.warning("Claude CLI output is not JSON, returning raw (%d chars)", len(output))
         return output
