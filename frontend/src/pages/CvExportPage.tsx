@@ -164,6 +164,33 @@ export default function CvExportPage() {
     setUndoStack((prev) => [...prev, key]);
   };
 
+  /* Floating format toolbar */
+  const formatToolbarRef = useRef<HTMLDivElement>(null);
+  const [fmtToolbar, setFmtToolbar] = useState<{
+    visible: boolean;
+    top: number;
+    left: number;
+    bold: boolean;
+    italic: boolean;
+  }>({ visible: false, top: 0, left: 0, bold: false, italic: false });
+
+  const isInRichText = useCallback((node: Node | null): boolean => {
+    while (node) {
+      if (node instanceof HTMLElement && node.classList.contains('rich-text')) return true;
+      node = node.parentNode;
+    }
+    return false;
+  }, []);
+
+  const applyFormat = useCallback((cmd: string) => {
+    document.execCommand(cmd, false);
+    setFmtToolbar((prev) => ({
+      ...prev,
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+    }));
+  }, []);
+
   const undo = useCallback(() => {
     setUndoStack((prev) => {
       if (prev.length === 0) return prev;
@@ -239,6 +266,45 @@ export default function CvExportPage() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [undo]);
+
+  /* Show / hide floating format toolbar on text selection inside .rich-text */
+  useEffect(() => {
+    const updateToolbar = () => {
+      requestAnimationFrame(() => {
+        const sel = window.getSelection();
+        if (!sel || !sel.rangeCount) {
+          setFmtToolbar((prev) => prev.visible ? { ...prev, visible: false } : prev);
+          return;
+        }
+        if (!isInRichText(sel.anchorNode)) {
+          setFmtToolbar((prev) => prev.visible ? { ...prev, visible: false } : prev);
+          return;
+        }
+        const range = sel.getRangeAt(0);
+        let rect = range.getBoundingClientRect();
+        // Collapsed range may return a zero-height rect; fall back to caret parent
+        if (!rect.height) {
+          const node = sel.anchorNode;
+          const el = node instanceof HTMLElement ? node : node?.parentElement;
+          if (!el) { setFmtToolbar((prev) => prev.visible ? { ...prev, visible: false } : prev); return; }
+          rect = el.getBoundingClientRect();
+        }
+        setFmtToolbar({
+          visible: true,
+          top: rect.top + window.scrollY - 48,
+          left: rect.left + window.scrollX + rect.width / 2,
+          bold: document.queryCommandState('bold'),
+          italic: document.queryCommandState('italic'),
+        });
+      });
+    };
+    document.addEventListener('mouseup', updateToolbar);
+    document.addEventListener('keyup', updateToolbar);
+    return () => {
+      document.removeEventListener('mouseup', updateToolbar);
+      document.removeEventListener('keyup', updateToolbar);
+    };
+  }, [isInRichText]);
 
   /* Fetch orb data */
   useEffect(() => {
@@ -417,9 +483,9 @@ export default function CvExportPage() {
                   {str(n.company)}{n.location ? ` — ${str(n.location)}` : ''}
                 </p>
                 {n.description && (
-                  <ul contentEditable suppressContentEditableWarning>
-                    <li>{str(n.description)}</li>
-                  </ul>
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
                 )}
               </div>
             ))}
@@ -445,9 +511,9 @@ export default function CvExportPage() {
                   {str(n.institution)}{n.location ? ` — ${str(n.location)}` : ''}
                 </p>
                 {n.description && (
-                  <ul contentEditable suppressContentEditableWarning>
-                    <li>{str(n.description)}</li>
-                  </ul>
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
                 )}
               </div>
             ))}
@@ -470,9 +536,9 @@ export default function CvExportPage() {
                   <p className="item-subtitle" contentEditable suppressContentEditableWarning>{str(n.role)}</p>
                 )}
                 {n.description && (
-                  <ul contentEditable suppressContentEditableWarning>
-                    <li>{str(n.description)}</li>
-                  </ul>
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
                 )}
               </div>
             ))}
@@ -493,9 +559,9 @@ export default function CvExportPage() {
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>{str(n.venue)}</p>
                 {n.description && (
-                  <ul contentEditable suppressContentEditableWarning>
-                    <li>{str(n.description)}</li>
-                  </ul>
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
                 )}
               </div>
             ))}
@@ -520,9 +586,9 @@ export default function CvExportPage() {
                   </p>
                 )}
                 {n.description && (
-                  <ul contentEditable suppressContentEditableWarning>
-                    <li>{str(n.description)}</li>
-                  </ul>
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
                 )}
               </div>
             ))}
@@ -594,9 +660,41 @@ export default function CvExportPage() {
     <>
       <style>{CV_CSS}</style>
 
+      {/* ── Floating format toolbar ── */}
+      {fmtToolbar.visible && (
+        <div
+          ref={formatToolbarRef}
+          className="fmt-toolbar no-print"
+          style={{ top: fmtToolbar.top, left: fmtToolbar.left }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button
+            className={'fmt-btn' + (fmtToolbar.bold ? ' active' : '')}
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('bold'); }}
+            title="Bold (Ctrl+B)"
+          >
+            <i className="fas fa-bold" />
+          </button>
+          <button
+            className={'fmt-btn' + (fmtToolbar.italic ? ' active' : '')}
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('italic'); }}
+            title="Italic (Ctrl+I)"
+          >
+            <i className="fas fa-italic" />
+          </button>
+          <button
+            className="fmt-btn"
+            onMouseDown={(e) => { e.preventDefault(); applyFormat('insertUnorderedList'); }}
+            title="Bullet List"
+          >
+            <i className="fas fa-list-ul" />
+          </button>
+        </div>
+      )}
+
       {/* ── Toolbar (hidden when printing) ── */}
       <div className="cv-toolbar no-print">
-        <span className="cv-toolbar-hint">Click any text to edit · Drag sections to reorder · Save as PDF &amp; uncheck &quot;Headers and footers&quot;</span>
+        <span className="cv-toolbar-hint">Click text to edit and format · Drag sections to reorder · Save as PDF &amp; uncheck &quot;Headers and footers&quot;</span>
 
         {/* Accent color picker */}
         <label className="cv-color-picker">
@@ -1196,6 +1294,64 @@ const CV_CSS = `
     border-radius: 4px;
     letter-spacing: 0.3px;
   }
+
+  /* ── Floating format toolbar ── */
+  .fmt-toolbar {
+    position: absolute;
+    z-index: 200;
+    display: flex;
+    gap: 2px;
+    padding: 4px 6px;
+    background: var(--md-on-surface);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    transform: translateX(-50%);
+    font-family: 'Roboto', sans-serif;
+  }
+  .fmt-toolbar::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 6px solid var(--md-on-surface);
+  }
+  .fmt-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--md-surface);
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+  }
+  .fmt-btn:hover {
+    background: rgba(255,255,255,0.15);
+  }
+  .fmt-btn.active {
+    background: rgba(255,255,255,0.25);
+    color: var(--md-primary-container);
+  }
+
+  /* ── Rich-text formatting ── */
+  .rich-text b, .rich-text strong { font-weight: 700; }
+  .rich-text i, .rich-text em { font-style: italic; }
+  .rich-text ul {
+    list-style-type: disc;
+    padding-left: 20px;
+    margin: 0;
+  }
+  .rich-text li {
+    display: list-item;
+  }
+  .rich-text li::marker { color: var(--md-on-surface); }
 
   /* ── Responsive ── */
   @media (max-width: 900px) {
