@@ -11,6 +11,9 @@ concurrency:
   group: kg-quality-${{ github.head_ref }}
   cancel-in-progress: true
 
+permissions:
+  pull-requests: write
+
 jobs:
   kg-quality:
     runs-on: ubuntu-latest
