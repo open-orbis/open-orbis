@@ -80,11 +80,11 @@ async def test_kg_extraction_quality(
     )
 
     # Parse with production parser
-    nodes, unmatched = _parse_result(raw_response)
-    assert nodes, f"Claude returned zero classified nodes for {cv_name}"
+    result = _parse_result(raw_response)
+    assert result.nodes, f"Claude returned zero classified nodes for {cv_name}"
 
     # Convert ExtractedNode to dicts for the comparator
-    predicted = [{"node_type": n.node_type, "properties": n.properties} for n in nodes]
+    predicted = [{"node_type": n.node_type, "properties": n.properties} for n in result.nodes]
 
     # Compare against baseline (main branch output or static golden reference)
     result: ComparisonResult = compare_graphs(predicted, baseline_nodes)

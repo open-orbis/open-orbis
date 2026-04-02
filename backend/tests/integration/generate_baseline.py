@@ -44,16 +44,16 @@ async def generate_one(cv_path: Path, output_path: Path, model: str) -> None:
         model=model,
     )
 
-    nodes, unmatched = _parse_result(raw_response)
-    if not nodes:
+    result = _parse_result(raw_response)
+    if not result.nodes:
         print(f"ERROR: extraction produced zero nodes for {cv_path.name}", file=sys.stderr)
         sys.exit(1)
 
     data = {
         "nodes": [
-            {"node_type": n.node_type, "properties": n.properties} for n in nodes
+            {"node_type": n.node_type, "properties": n.properties} for n in result.nodes
         ],
-        "unmatched": unmatched or [],
+        "unmatched": result.unmatched or [],
     }
 
     output_path.write_text(

@@ -48,10 +48,7 @@ jobs:
       - name: Verify Claude CLI auth
         run: claude auth status
 
-      # ── phase 1: generate baseline from main (best-effort) ─────────
-      # On the first PR or if main lacks generate_baseline.py / the
-      # pyproject fix, this phase fails gracefully and the test falls
-      # back to the static golden reference files.
+      # ── phase 1: generate baseline from main ───────────────────────
       - uses: actions/checkout@v4
         with:
           ref: main
@@ -59,17 +56,18 @@ jobs:
       - name: Generate baselines from main branch
         id: baseline
         working-directory: backend
-        continue-on-error: true
         run: |
-          pip install -e ".[dev]" --quiet 2>/dev/null || \
-            pip install pytest pytest-asyncio httpx anthropic --quiet
-          export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}."
+          if [ ! -f tests/integration/generate_baseline.py ]; then
+            echo "generate_baseline.py not found on main (bootstrapping)"
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          pip install -e ".[dev]" --quiet
           python -m tests.integration.generate_baseline /tmp/kg_baselines
 
       # ── phase 2: test PR branch against baselines ──────────────────
       - uses: actions/checkout@v4
-        with:
-          clean: false
 
       - name: Install backend dependencies (PR)
         working-directory: backend
@@ -78,11 +76,11 @@ jobs:
       - name: Run KG quality integration test
         working-directory: backend
         run: |
-          if [ "${{ steps.baseline.outcome }}" = "success" ]; then
+          if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
             export KG_BASELINE_DIR=/tmp/kg_baselines
             echo "Baseline: main branch extraction"
           else
-            echo "Baseline: static golden references (main baseline unavailable)"
+            echo "Baseline: static golden references (first run — main lacks generate_baseline.py)"
           fi
           python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
@@ -99,9 +97,9 @@ jobs:
             } catch {
               output = 'No test output captured.';
             }
-            const baseline = '${{ steps.baseline.outcome }}' === 'success'
+            const baseline = '${{ steps.baseline.outputs.available }}' === 'true'
               ? '**main** branch extraction'
-              : 'static golden references (main baseline unavailable)';
+              : 'static golden references (bootstrapping)';
             const truncated = output.slice(-3000);
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
