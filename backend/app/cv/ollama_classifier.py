@@ -71,6 +71,7 @@ to the skill node (by its index in the nodes array). Use type "USED_SKILL".
 
 You MUST return valid JSON in exactly this format:
 {
+  "cv_owner_name": "Full Name of the person whose CV this is",
   "nodes": [
     {"node_type": "work_experience", "properties": {"company": "...", "title": "...", ...}},
     {"node_type": "skill", "properties": {"name": "Python", "category": "Programming"}},
@@ -163,6 +164,7 @@ class ClassificationResult:
     skipped: list[SkippedNode] = field(default_factory=list)
     relationships: list[ExtractedRelationship] = field(default_factory=list)
     truncated: bool = False
+    cv_owner_name: str | None = None
 
 
 MAX_RETRIES = 2
@@ -251,8 +253,10 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
                 nodes.append(ExtractedNode(node_type=node_type, properties=properties))
             if nodes:
                 logger.info("Rule-based fallback produced %d nodes", len(nodes))
+                fallback_name = extraction.get("contact", {}).get("name")
                 return ClassificationResult(
                     nodes=nodes, skipped=skipped, truncated=truncated,
+                    cv_owner_name=fallback_name,
                 )
     except Exception as e:
         logger.warning("Rule-based fallback also failed: %s", e)
@@ -327,6 +331,7 @@ def _parse_result(raw_response: str) -> ClassificationResult:
         logger.warning("Failed to parse Ollama response as JSON")
         return ClassificationResult()
 
+    cv_owner_name = parsed.get("cv_owner_name") or None
     raw_nodes = parsed.get("nodes", [])
     unmatched = parsed.get("unmatched", [])
     raw_rels = parsed.get("relationships", [])
@@ -404,4 +409,5 @@ def _parse_result(raw_response: str) -> ClassificationResult:
         unmatched=unmatched_str,
         skipped=skipped,
         relationships=relationships,
+        cv_owner_name=cv_owner_name,
     )

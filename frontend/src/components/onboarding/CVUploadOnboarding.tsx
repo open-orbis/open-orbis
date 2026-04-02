@@ -17,6 +17,7 @@ export default function CVUploadOnboarding() {
   const [skippedCount, setSkippedCount] = useState(0);
   const [truncated, setTruncated] = useState(false);
   const [relationships, setRelationships] = useState<ExtractedRelationship[]>([]);
+  const [cvOwnerName, setCvOwnerName] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
@@ -47,6 +48,7 @@ export default function CVUploadOnboarding() {
       setSkippedCount(data.skipped_nodes?.length || 0);
       setTruncated(data.truncated || false);
       setRelationships(data.relationships || []);
+      setCvOwnerName(data.cv_owner_name || null);
 
       if (data.nodes.length === 0 && (!data.unmatched || data.unmatched.length === 0)) {
         setError('No entries could be extracted from this file. Try a different CV or use manual entry.');
@@ -92,7 +94,7 @@ export default function CVUploadOnboarding() {
     if (!extractedNodes || extractedNodes.length === 0) return;
     setConfirming(true);
     try {
-      await confirmCV(extractedNodes, relationships);
+      await confirmCV(extractedNodes, relationships, cvOwnerName);
       navigate('/orb');
     } catch {
       setError('Failed to save entries. Please try again.');
