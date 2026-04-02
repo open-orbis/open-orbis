@@ -48,18 +48,23 @@ jobs:
       - name: Verify Claude CLI auth
         run: claude auth status
 
-      # ── phase 1: generate baseline from main ───────────────────────
+      # ── phase 1: generate baseline from main (best-effort) ─────────
+      # On the first PR or if main lacks generate_baseline.py / the
+      # pyproject fix, this phase fails gracefully and the test falls
+      # back to the static golden reference files.
       - uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Install backend dependencies (main)
-        working-directory: backend
-        run: pip install -e ".[dev]" --quiet
-
       - name: Generate baselines from main branch
+        id: baseline
         working-directory: backend
-        run: python -m tests.integration.generate_baseline /tmp/kg_baselines
+        continue-on-error: true
+        run: |
+          pip install -e ".[dev]" --quiet 2>/dev/null || \
+            pip install pytest pytest-asyncio httpx anthropic --quiet
+          export PYTHONPATH="${PYTHONPATH:+$PYTHONPATH:}."
+          python -m tests.integration.generate_baseline /tmp/kg_baselines
 
       # ── phase 2: test PR branch against baselines ──────────────────
       - uses: actions/checkout@v4
@@ -72,9 +77,13 @@ jobs:
 
       - name: Run KG quality integration test
         working-directory: backend
-        env:
-          KG_BASELINE_DIR: /tmp/kg_baselines
         run: |
+          if [ "${{ steps.baseline.outcome }}" = "success" ]; then
+            export KG_BASELINE_DIR=/tmp/kg_baselines
+            echo "Baseline: main branch extraction"
+          else
+            echo "Baseline: static golden references (main baseline unavailable)"
+          fi
           python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
 
@@ -90,10 +99,13 @@ jobs:
             } catch {
               output = 'No test output captured.';
             }
+            const baseline = '${{ steps.baseline.outcome }}' === 'success'
+              ? '**main** branch extraction'
+              : 'static golden references (main baseline unavailable)';
             const truncated = output.slice(-3000);
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## KG Quality Gate Results\n\nBaseline: **main** branch extraction\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
+              body: `## KG Quality Gate Results\n\nBaseline: ${baseline}\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
             });
