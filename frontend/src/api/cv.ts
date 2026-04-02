@@ -20,6 +20,7 @@ export interface ExtractedData {
   skipped_nodes?: SkippedNode[];
   relationships?: ExtractedRelationship[];
   truncated?: boolean;
+  cv_owner_name?: string | null;
 }
 
 export async function uploadCV(file: File): Promise<ExtractedData> {
@@ -35,8 +36,9 @@ export async function uploadCV(file: File): Promise<ExtractedData> {
 export async function confirmCV(
   nodes: ExtractedData['nodes'],
   relationships?: ExtractedRelationship[],
+  cv_owner_name?: string | null,
 ): Promise<void> {
-  await client.post('/cv/confirm', { nodes, relationships: relationships || [] });
+  await client.post('/cv/confirm', { nodes, relationships: relationships || [], cv_owner_name: cv_owner_name || null });
 }
 
 export async function getProcessingCount(): Promise<number> {

@@ -18,7 +18,7 @@ export default function ReviewPage() {
   const handleConfirm = async () => {
     setConfirming(true);
     try {
-      await confirmCV(nodes);
+      await confirmCV(nodes, undefined, extracted?.cv_owner_name);
       navigate('/orb');
     } catch {
       setConfirming(false);

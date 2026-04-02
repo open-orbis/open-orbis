@@ -18,6 +18,7 @@ from app.graph.queries import (
     NODE_TYPE_LABELS,
     NODE_TYPE_MERGE_KEYS,
     NODE_TYPE_RELATIONSHIPS,
+    UPDATE_PERSON,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ async def upload_cv(
             skipped_nodes=result.skipped,
             relationships=result.relationships,
             truncated=result.truncated,
+            cv_owner_name=result.cv_owner_name,
         )
 
     except HTTPException:
@@ -103,6 +105,13 @@ async def confirm_cv(
     created: list[str | None] = []
 
     async with db.session() as session:
+        # Update Person node name from CV owner if provided
+        if data.cv_owner_name:
+            await session.run(
+                UPDATE_PERSON,
+                user_id=current_user["user_id"],
+                properties={"name": data.cv_owner_name},
+            )
         for node in data.nodes:
             if node.node_type not in NODE_TYPE_LABELS:
                 created.append(None)

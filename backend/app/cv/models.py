@@ -25,8 +25,10 @@ class ExtractedData(BaseModel):
     skipped_nodes: list[SkippedNode] = []
     relationships: list[ExtractedRelationship] = []
     truncated: bool = False
+    cv_owner_name: str | None = None
 
 
 class ConfirmRequest(BaseModel):
     nodes: list[ExtractedNode]
     relationships: list[ExtractedRelationship] = []
+    cv_owner_name: str | None = None
