@@ -1,4 +1,4 @@
-name: KG Quality Gate
+name: CV Extraction Quality
 
 on:
   pull_request:
@@ -76,6 +76,7 @@ jobs:
       - name: Run KG quality integration test
         working-directory: backend
         run: |
+          set -o pipefail
           if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
             export KG_BASELINE_DIR=/tmp/kg_baselines
             echo "Baseline: main branch extraction"
