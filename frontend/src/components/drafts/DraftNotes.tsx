@@ -49,12 +49,37 @@ export function saveDraftNotes(userId: string, notes: DraftNote[]) {
   localStorage.setItem(userDraftsKey(userId), JSON.stringify(notes));
 }
 
+const TARGET_LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'it', label: 'Italiano' },
+  { code: 'fr', label: 'Francais' },
+  { code: 'es', label: 'Espanol' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'pt', label: 'Portugues' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'nl', label: 'Dutch' },
+];
+
+function loadTargetLang(): string {
+  return localStorage.getItem('orbis_note_target_lang') || 'en';
+}
+
+function saveTargetLang(lang: string) {
+  localStorage.setItem('orbis_note_target_lang', lang);
+}
+
 interface DraftNotesProps {
   open: boolean;
   onClose: () => void;
   notes: DraftNote[];
   onNotesChange: (notes: DraftNote[]) => void;
   onAddToGraph: (note: DraftNote) => void;
+  onEnhance?: (note: DraftNote, targetLang: string) => Promise<void>;
 }
 
 function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void }) {
@@ -197,13 +222,32 @@ function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void 
   );
 }
 
-export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph }: DraftNotesProps) {
+export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph, onEnhance }: DraftNotesProps) {
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [targetLang, setTargetLang] = useState(loadTargetLang);
+  const [enhancingNoteId, setEnhancingNoteId] = useState<string | null>(null);
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleLangChange = (code: string) => {
+    setTargetLang(code);
+    saveTargetLang(code);
+    setShowLangDropdown(false);
+  };
+
+  const handleEnhance = async (note: DraftNote) => {
+    if (!onEnhance || enhancingNoteId) return;
+    setEnhancingNoteId(note.id);
+    try {
+      await onEnhance(note, targetLang);
+    } finally {
+      setEnhancingNoteId(null);
+    }
+  };
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
@@ -287,11 +331,49 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
             <h2 className="text-white text-base font-semibold">Draft Notes</h2>
             <p className="text-white/40 text-xs mt-0.5">Quick notes to add to your orb later</p>
           </div>
-          <button onClick={onClose} className="text-white/30 hover:text-white/60 transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Language selector */}
+            {onEnhance && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowLangDropdown(!showLangDropdown)}
+                  className="flex items-center gap-1 text-[10px] font-medium text-white/40 hover:text-white/60 px-2 py-1 rounded-md border border-white/10 hover:border-white/20 transition-colors uppercase"
+                  title="Target language for AI enhancement"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                  {targetLang}
+                </button>
+                {showLangDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowLangDropdown(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-gray-900 border border-white/10 rounded-lg shadow-xl py-1 max-h-48 overflow-y-auto min-w-[140px]">
+                      {TARGET_LANGUAGES.map(({ code, label }) => (
+                        <button
+                          key={code}
+                          onClick={() => handleLangChange(code)}
+                          className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                            code === targetLang
+                              ? 'text-purple-400 bg-purple-500/10'
+                              : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                          }`}
+                        >
+                          <span className="uppercase font-medium mr-2">{code}</span>
+                          <span className="text-white/30">{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button onClick={onClose} className="text-white/30 hover:text-white/60 transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Input area */}
@@ -390,6 +472,37 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                         >
                           + Add to graph
                         </button>
+                        {onEnhance && (
+                          <button
+                            onClick={() => handleEnhance(note)}
+                            disabled={enhancingNoteId !== null}
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
+                              enhancingNoteId === note.id
+                                ? 'text-amber-400/80 bg-amber-500/10'
+                                : enhancingNoteId
+                                  ? 'text-white/15 cursor-not-allowed'
+                                  : 'text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/10'
+                            }`}
+                            title="Enhance with AI: translate, improve, and extract fields"
+                          >
+                            {enhancingNoteId === note.id ? (
+                              <>
+                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Enhancing...
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                </svg>
+                                Enhance
+                              </>
+                            )}
+                          </button>
+                        )}
                         <button
                           onClick={() => startEdit(note)}
                           className="text-white/20 hover:text-white/60 transition-colors p-0.5"

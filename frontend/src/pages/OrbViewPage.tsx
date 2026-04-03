@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
-import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
+import { claimOrbId, updateProfile, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeLegend from '../components/graph/NodeLegend';
@@ -547,6 +547,7 @@ export default function OrbViewPage() {
   const userId = user?.user_id ?? '';
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
 
   // Load drafts when userId becomes available (async auth)
   useEffect(() => {
@@ -600,8 +601,18 @@ export default function OrbViewPage() {
     if (editNode?.values?.uid) {
       await updateNode(editNode.values.uid as string, properties);
     } else {
-      await addNode(nodeType, properties);
+      const createdNode = await addNode(nodeType, properties);
+      // Auto-link suggested skills from AI enhancement
+      if (pendingSkillLinks.length > 0 && createdNode?.uid) {
+        for (const skillUid of pendingSkillLinks) {
+          try {
+            await linkSkill(createdNode.uid, skillUid);
+          } catch { /* skip failed links */ }
+        }
+        await fetchOrb();
+      }
     }
+    setPendingSkillLinks([]);
     setShowInput(false);
     setEditNode(null);
   };
@@ -623,6 +634,19 @@ export default function OrbViewPage() {
       if (regex.test(text)) { type = nodeType; break; }
     }
     setEditNode({ type, values: { description: note.text } });
+    setShowInput(true);
+    setShowDrafts(false);
+  };
+
+  const handleDraftEnhance = async (note: DraftNote, targetLang: string) => {
+    const existingSkills = (data?.nodes || [])
+      .filter((n) => n._labels?.[0] === 'Skill' && n.name)
+      .map((n) => ({ uid: n.uid, name: n.name as string }));
+
+    const result = await enhanceNote(note.text, targetLang, existingSkills);
+
+    setPendingSkillLinks(result.suggested_skill_uids);
+    setEditNode({ type: result.node_type, values: result.properties });
     setShowInput(true);
     setShowDrafts(false);
   };
@@ -794,6 +818,7 @@ export default function OrbViewPage() {
         notes={draftNotes}
         onNotesChange={setDraftNotes}
         onAddToGraph={handleDraftToGraph}
+        onEnhance={handleDraftEnhance}
       />
 
       {/* ── Animated Panels ── */}
