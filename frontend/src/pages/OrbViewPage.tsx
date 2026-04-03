@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
+import { useDraftStore } from '../stores/draftStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,8 +13,7 @@ import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
-import type { DraftNote } from '../components/drafts/DraftNotes';
-import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
+import type { DraftNote } from '../api/drafts';
 import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 
@@ -310,7 +310,6 @@ function ProfilePanel({ person, onClose, onSaved }: {
   const [editing, setEditing] = useState(false);
 
   const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
-  const emptyAccounts = SOCIAL_ACCOUNTS.filter((a) => !values[a.key]?.trim());
 
   const handleSave = async () => {
     setSaving(true);
@@ -462,14 +461,6 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
 // ── Icon components ──
 
-function IconShare() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-    </svg>
-  );
-}
-
 function IconSettings() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -483,14 +474,6 @@ function IconNotes() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  );
-}
-
-function IconPlus() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   );
 }
@@ -533,6 +516,7 @@ export default function OrbViewPage() {
   const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
   const { user, logout } = useAuthStore();
+  const { notes: draftNotes, fetchDrafts } = useDraftStore();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -545,34 +529,11 @@ export default function OrbViewPage() {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const userId = user?.user_id ?? '';
-  const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
-  const [draftsLoaded, setDraftsLoaded] = useState(false);
 
-  // Load drafts when userId becomes available (async auth)
   useEffect(() => {
-    if (!userId) return;
-    const stored = loadDraftNotes(userId);
-    if (stored.length > 0) {
-      setDraftNotes(stored);
-    } else {
-      // Seed a sample note for first-time users
-      setDraftNotes([{
-        id: 'sample-1',
-        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orb later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
-        createdAt: Date.now(),
-        fromVoice: false,
-      }]);
-    }
-    setDraftsLoaded(true);
-  }, [userId]);
-
-  // Persist drafts to localStorage (user-scoped) — only after initial load
-  useEffect(() => {
-    if (userId && draftsLoaded) saveDraftNotes(userId, draftNotes);
-  }, [draftNotes, userId, draftsLoaded]);
-
-  useEffect(() => { fetchOrb(); }, [fetchOrb]);
-
+    fetchOrb();
+    fetchDrafts();
+  }, [fetchOrb, fetchDrafts]);
 
   useEffect(() => {
     const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -791,9 +752,8 @@ export default function OrbViewPage() {
       <DraftNotes
         open={showDrafts}
         onClose={() => setShowDrafts(false)}
-        notes={draftNotes}
-        onNotesChange={setDraftNotes}
         onAddToGraph={handleDraftToGraph}
+        userId={userId}
       />
 
       {/* ── Animated Panels ── */}

@@ -1,12 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-export interface DraftNote {
-  id: string;
-  text: string;
-  createdAt: number;
-  fromVoice?: boolean;
-}
+import { useDraftStore } from '../../stores/draftStore';
+import type { DraftNote } from '../../api/drafts';
 
 // ── Shared localStorage helpers (user-scoped, with migration) ──
 
@@ -16,10 +11,10 @@ function userDraftsKey(userId: string) {
   return `orbis_drafts_${userId}`;
 }
 
-/** Load drafts for a user, migrating any legacy (non-scoped) entries once. */
-export function loadDraftNotes(userId: string): DraftNote[] {
+/** Load drafts for a user from localStorage. */
+export function loadDraftNotes(userId: string): { id: string, text: string, createdAt: number, fromVoice?: boolean }[] {
   const key = userDraftsKey(userId);
-  let notes: DraftNote[] = [];
+  let notes: any[] = [];
   try { notes = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* ignore */ }
 
   // One-time migration: merge legacy keys into the user-scoped key
@@ -28,7 +23,7 @@ export function loadDraftNotes(userId: string): DraftNote[] {
     try {
       const raw = localStorage.getItem(legacyKey);
       if (raw) {
-        const old: DraftNote[] = JSON.parse(raw);
+        const old: any[] = JSON.parse(raw);
         if (old.length > 0) {
           const existingIds = new Set(notes.map((n) => n.id));
           notes = [...notes, ...old.filter((n) => !existingIds.has(n.id))];
@@ -44,17 +39,19 @@ export function loadDraftNotes(userId: string): DraftNote[] {
   return notes;
 }
 
-/** Persist drafts for a user. */
-export function saveDraftNotes(userId: string, notes: DraftNote[]) {
-  localStorage.setItem(userDraftsKey(userId), JSON.stringify(notes));
+/** Clear drafts for a user from localStorage. */
+export function clearDraftNotes(userId: string) {
+  localStorage.removeItem(userDraftsKey(userId));
+  for (const legacyKey of LEGACY_KEYS) {
+    localStorage.removeItem(legacyKey);
+  }
 }
 
 interface DraftNotesProps {
   open: boolean;
   onClose: () => void;
-  notes: DraftNote[];
-  onNotesChange: (notes: DraftNote[]) => void;
   onAddToGraph: (note: DraftNote) => void;
+  userId?: string;
 }
 
 function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void }) {
@@ -197,7 +194,7 @@ function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void 
   );
 }
 
-export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph }: DraftNotesProps) {
+export default function DraftNotes({ open, onClose, onAddToGraph, userId }: DraftNotesProps) {
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -205,39 +202,55 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const editRef = useRef<HTMLTextAreaElement>(null);
 
+  const { notes, fetchDrafts, addDraft, updateDraft, deleteDraft, loading } = useDraftStore();
+
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [open]);
+    if (open) {
+      fetchDrafts();
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open, fetchDrafts]);
+
+  // Migration from localStorage
+  useEffect(() => {
+    const migrate = async () => {
+      if (userId) {
+        const stored = loadDraftNotes(userId);
+        if (stored.length > 0) {
+          for (const note of stored) {
+            await addDraft(note.text, note.fromVoice);
+          }
+          clearDraftNotes(userId);
+          fetchDrafts();
+        }
+      }
+    };
+    migrate();
+  }, [userId, addDraft, fetchDrafts]);
 
   useEffect(() => {
     if (editingId) setTimeout(() => editRef.current?.focus(), 50);
   }, [editingId]);
 
-  const addNote = (text: string, fromVoice = false) => {
+  const handleAddNote = async (text: string, fromVoice = false) => {
     if (!text.trim()) return;
-    const note: DraftNote = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      text: text.trim(),
-      createdAt: Date.now(),
-      fromVoice,
-    };
-    onNotesChange([note, ...notes]);
+    await addDraft(text.trim(), fromVoice);
     setInput('');
   };
 
-  const deleteNote = (id: string) => {
-    onNotesChange(notes.filter((n) => n.id !== id));
+  const handleDeleteNote = async (uid: string) => {
+    await deleteDraft(uid);
     setConfirmDeleteId(null);
   };
 
   const startEdit = (note: DraftNote) => {
-    setEditingId(note.id);
+    setEditingId(note.uid);
     setEditText(note.text);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId || !editText.trim()) return;
-    onNotesChange(notes.map((n) => n.id === editingId ? { ...n, text: editText.trim() } : n));
+    await updateDraft(editingId, editText.trim());
     setEditingId(null);
     setEditText('');
   };
@@ -249,11 +262,11 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    addNote(input);
+    handleAddNote(input);
   };
 
-  const formatTime = (ts: number) => {
-    const d = new Date(ts);
+  const formatTime = (isoString: string) => {
+    const d = new Date(isoString);
     const now = new Date();
     if (d.toDateString() === now.toDateString()) {
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -309,7 +322,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
               rows={2}
             />
             <div className="flex items-center justify-between mt-2">
-              <VoiceRecorder onTranscript={(text) => addNote(text, true)} />
+              <VoiceRecorder onTranscript={(text) => handleAddNote(text, true)} />
               <button
                 type="submit"
                 disabled={!input.trim()}
@@ -323,7 +336,11 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
 
         {/* Notes list */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-          {notes.length === 0 ? (
+          {loading && notes.length === 0 ? (
+            <div className="text-center py-12">
+               <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : notes.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-white/15 text-4xl mb-3">
                 <svg className="w-10 h-10 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -336,10 +353,10 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
           ) : (
             notes.map((note) => (
               <div
-                key={note.id}
+                key={note.uid}
                 className="group bg-white/5 border border-white/5 rounded-xl px-3.5 py-3 hover:border-white/10 transition-colors"
               >
-                {editingId === note.id ? (
+                {editingId === note.uid ? (
                   /* ── Inline edit mode ── */
                   <div>
                     <textarea
@@ -358,13 +375,13 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                       <button onClick={saveEdit} disabled={!editText.trim()} className="text-[10px] font-medium text-purple-400 hover:text-purple-300 disabled:opacity-30 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors">Save</button>
                     </div>
                   </div>
-                ) : confirmDeleteId === note.id ? (
+                ) : confirmDeleteId === note.uid ? (
                   /* ── Delete confirmation ── */
                   <div className="flex items-center justify-between">
                     <span className="text-red-400/80 text-xs">Delete this note?</span>
                     <div className="flex items-center gap-1.5">
                       <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] text-white/40 hover:text-white/60 px-2 py-0.5 rounded-md transition-colors">Cancel</button>
-                      <button onClick={() => deleteNote(note.id)} className="text-[10px] font-medium text-red-400 hover:text-red-300 px-2 py-0.5 rounded-md hover:bg-red-500/10 transition-colors">Delete</button>
+                      <button onClick={() => handleDeleteNote(note.uid)} className="text-[10px] font-medium text-red-400 hover:text-red-300 px-2 py-0.5 rounded-md hover:bg-red-500/10 transition-colors">Delete</button>
                     </div>
                   </div>
                 ) : (
@@ -373,8 +390,8 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                     <p className="text-white/80 text-sm leading-relaxed">{note.text}</p>
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-white/20 text-[10px]">{formatTime(note.createdAt)}</span>
-                        {note.fromVoice && (
+                        <span className="text-white/20 text-[10px]">{formatTime(note.created_at)}</span>
+                        {note.from_voice && (
                           <span className="text-white/15 text-[10px] flex items-center gap-0.5">
                             <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -400,7 +417,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                           </svg>
                         </button>
                         <button
-                          onClick={() => setConfirmDeleteId(note.id)}
+                          onClick={() => setConfirmDeleteId(note.uid)}
                           className="text-white/20 hover:text-red-400 transition-colors p-0.5"
                           title="Delete note"
                         >

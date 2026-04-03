@@ -6,11 +6,12 @@ import type { ExtractedData, ExtractedRelationship } from '../../api/cv';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import NodeForm from '../editor/NodeForm';
 import { useAuthStore } from '../../stores/authStore';
-import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
+import { useDraftStore } from '../../stores/draftStore';
 
 export default function CVUploadOnboarding() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { addDraft } = useDraftStore();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -37,14 +38,9 @@ export default function CVUploadOnboarding() {
 
       // Save unmatched entries to draft notes (user-scoped)
       if (data.unmatched && data.unmatched.length > 0 && user?.user_id) {
-        const existing = loadDraftNotes(user.user_id);
-        const newNotes = data.unmatched.map((text: string) => ({
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          text: `[From CV] ${text}`,
-          createdAt: Date.now(),
-          fromVoice: false,
-        }));
-        saveDraftNotes(user.user_id, [...newNotes, ...existing]);
+        for (const text of data.unmatched) {
+          await addDraft(`[From CV] ${text}`, false);
+        }
         setUnmatchedCount(data.unmatched.length);
       }
 

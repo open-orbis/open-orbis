@@ -5,7 +5,7 @@ import { voiceTranscribe, voiceClassify, confirmCV } from '../../api/cv';
 import type { ExtractedData } from '../../api/cv';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import { useAuthStore } from '../../stores/authStore';
-import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
+import { useDraftStore } from '../../stores/draftStore';
 
 const QUESTIONS = [
   { question: "Tell me about yourself — what's your name and what do you do?", emoji: '👤' },
@@ -206,6 +206,8 @@ export default function VoiceOnboarding() {
     }
   }, [stopAndGetBlob, navigate]);
 
+  const { addDraft } = useDraftStore();
+
   const handleClassify = async () => {
     if (!fullTranscript.trim()) {
       navigate('/orb');
@@ -218,14 +220,9 @@ export default function VoiceOnboarding() {
 
       // Save unmatched to draft notes (user-scoped)
       if (data.unmatched && data.unmatched.length > 0 && user?.user_id) {
-        const existing = loadDraftNotes(user.user_id);
-        const newNotes = data.unmatched.map((text: string) => ({
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          text: `[From voice] ${text}`,
-          createdAt: Date.now(),
-          fromVoice: true,
-        }));
-        saveDraftNotes(user.user_id, [...newNotes, ...existing]);
+        for (const text of data.unmatched) {
+          await addDraft(`[From voice] ${text}`, true);
+        }
       }
 
       if (data.nodes.length === 0) {

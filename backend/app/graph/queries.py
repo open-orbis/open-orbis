@@ -157,3 +157,34 @@ WITH n, collect(s.uid) AS skill_uids
 WHERE size(skill_uids) > 0
 RETURN n.uid AS node_uid, skill_uids
 """
+
+# ── Draft Notes ──
+
+GET_DRAFTS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_DRAFT]->(d:DraftNote)
+RETURN d
+ORDER BY d.updated_at DESC
+"""
+
+CREATE_DRAFT = """
+MATCH (p:Person {user_id: $user_id})
+CREATE (p)-[:HAS_DRAFT]->(d:DraftNote {
+    uid: $uid,
+    text: $text,
+    from_voice: $from_voice,
+    created_at: datetime(),
+    updated_at: datetime()
+})
+RETURN d
+"""
+
+UPDATE_DRAFT = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_DRAFT]->(d:DraftNote {uid: $uid})
+SET d.text = $text, d.updated_at = datetime()
+RETURN d
+"""
+
+DELETE_DRAFT = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_DRAFT]->(d:DraftNote {uid: $uid})
+DETACH DELETE d
+"""
