@@ -8,6 +8,47 @@ export interface DraftNote {
   fromVoice?: boolean;
 }
 
+// ── Shared localStorage helpers (user-scoped, with migration) ──
+
+const LEGACY_KEYS = ['orbis_drafts', 'orbis-draft-notes'];
+
+function userDraftsKey(userId: string) {
+  return `orbis_drafts_${userId}`;
+}
+
+/** Load drafts for a user, migrating any legacy (non-scoped) entries once. */
+export function loadDraftNotes(userId: string): DraftNote[] {
+  const key = userDraftsKey(userId);
+  let notes: DraftNote[] = [];
+  try { notes = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* ignore */ }
+
+  // One-time migration: merge legacy keys into the user-scoped key
+  let migrated = false;
+  for (const legacyKey of LEGACY_KEYS) {
+    try {
+      const raw = localStorage.getItem(legacyKey);
+      if (raw) {
+        const old: DraftNote[] = JSON.parse(raw);
+        if (old.length > 0) {
+          const existingIds = new Set(notes.map((n) => n.id));
+          notes = [...notes, ...old.filter((n) => !existingIds.has(n.id))];
+          migrated = true;
+        }
+        localStorage.removeItem(legacyKey);
+      }
+    } catch {
+      localStorage.removeItem(legacyKey);
+    }
+  }
+  if (migrated) localStorage.setItem(key, JSON.stringify(notes));
+  return notes;
+}
+
+/** Persist drafts for a user. */
+export function saveDraftNotes(userId: string, notes: DraftNote[]) {
+  localStorage.setItem(userDraftsKey(userId), JSON.stringify(notes));
+}
+
 interface DraftNotesProps {
   open: boolean;
   onClose: () => void;
@@ -158,11 +199,19 @@ function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void 
 
 export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph }: DraftNotesProps) {
   const [input, setInput] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const editRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
+
+  useEffect(() => {
+    if (editingId) setTimeout(() => editRef.current?.focus(), 50);
+  }, [editingId]);
 
   const addNote = (text: string, fromVoice = false) => {
     if (!text.trim()) return;
@@ -178,6 +227,24 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
 
   const deleteNote = (id: string) => {
     onNotesChange(notes.filter((n) => n.id !== id));
+    setConfirmDeleteId(null);
+  };
+
+  const startEdit = (note: DraftNote) => {
+    setEditingId(note.id);
+    setEditText(note.text);
+  };
+
+  const saveEdit = () => {
+    if (!editingId || !editText.trim()) return;
+    onNotesChange(notes.map((n) => n.id === editingId ? { ...n, text: editText.trim() } : n));
+    setEditingId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -272,36 +339,79 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                 key={note.id}
                 className="group bg-white/5 border border-white/5 rounded-xl px-3.5 py-3 hover:border-white/10 transition-colors"
               >
-                <p className="text-white/80 text-sm leading-relaxed">{note.text}</p>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white/20 text-[10px]">{formatTime(note.createdAt)}</span>
-                    {note.fromVoice && (
-                      <span className="text-white/15 text-[10px] flex items-center gap-0.5">
-                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                        voice
-                      </span>
-                    )}
+                {editingId === note.id ? (
+                  /* ── Inline edit mode ── */
+                  <div>
+                    <textarea
+                      ref={editRef}
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+                        if (e.key === 'Escape') cancelEdit();
+                      }}
+                      className="w-full bg-white/10 border border-purple-500/30 rounded-lg px-2.5 py-2 text-white text-sm resize-none focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                      rows={3}
+                    />
+                    <div className="flex justify-end gap-1.5 mt-1.5">
+                      <button onClick={cancelEdit} className="text-[10px] text-white/40 hover:text-white/60 px-2 py-0.5 rounded-md transition-colors">Cancel</button>
+                      <button onClick={saveEdit} disabled={!editText.trim()} className="text-[10px] font-medium text-purple-400 hover:text-purple-300 disabled:opacity-30 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors">Save</button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => onAddToGraph(note)}
-                      className="text-[10px] font-medium text-purple-400 hover:text-purple-300 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors"
-                    >
-                      + Add to graph
-                    </button>
-                    <button
-                      onClick={() => deleteNote(note.id)}
-                      className="text-white/20 hover:text-red-400 transition-colors p-0.5"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+                ) : confirmDeleteId === note.id ? (
+                  /* ── Delete confirmation ── */
+                  <div className="flex items-center justify-between">
+                    <span className="text-red-400/80 text-xs">Delete this note?</span>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] text-white/40 hover:text-white/60 px-2 py-0.5 rounded-md transition-colors">Cancel</button>
+                      <button onClick={() => deleteNote(note.id)} className="text-[10px] font-medium text-red-400 hover:text-red-300 px-2 py-0.5 rounded-md hover:bg-red-500/10 transition-colors">Delete</button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* ── Normal display ── */
+                  <>
+                    <p className="text-white/80 text-sm leading-relaxed">{note.text}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white/20 text-[10px]">{formatTime(note.createdAt)}</span>
+                        {note.fromVoice && (
+                          <span className="text-white/15 text-[10px] flex items-center gap-0.5">
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                            voice
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => onAddToGraph(note)}
+                          className="text-[10px] font-medium text-purple-400 hover:text-purple-300 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors"
+                        >
+                          + Add to graph
+                        </button>
+                        <button
+                          onClick={() => startEdit(note)}
+                          className="text-white/20 hover:text-white/60 transition-colors p-0.5"
+                          title="Edit note"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(note.id)}
+                          className="text-white/20 hover:text-red-400 transition-colors p-0.5"
+                          title="Delete note"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))
           )}

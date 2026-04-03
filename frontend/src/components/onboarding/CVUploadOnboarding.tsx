@@ -5,9 +5,12 @@ import { uploadCV, confirmCV } from '../../api/cv';
 import type { ExtractedData, ExtractedRelationship } from '../../api/cv';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import NodeForm from '../editor/NodeForm';
+import { useAuthStore } from '../../stores/authStore';
+import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
 
 export default function CVUploadOnboarding() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -32,16 +35,16 @@ export default function CVUploadOnboarding() {
     try {
       const data = await uploadCV(file);
 
-      // Save unmatched entries to draft notes
-      if (data.unmatched && data.unmatched.length > 0) {
-        const existing = JSON.parse(localStorage.getItem('orbis-draft-notes') || '[]');
+      // Save unmatched entries to draft notes (user-scoped)
+      if (data.unmatched && data.unmatched.length > 0 && user?.user_id) {
+        const existing = loadDraftNotes(user.user_id);
         const newNotes = data.unmatched.map((text: string) => ({
           id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
           text: `[From CV] ${text}`,
           createdAt: Date.now(),
           fromVoice: false,
         }));
-        localStorage.setItem('orbis-draft-notes', JSON.stringify([...newNotes, ...existing]));
+        saveDraftNotes(user.user_id, [...newNotes, ...existing]);
         setUnmatchedCount(data.unmatched.length);
       }
 
