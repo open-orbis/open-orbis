@@ -548,6 +548,7 @@ export default function OrbViewPage() {
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
+  const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
 
   // Load drafts when userId becomes available (async auth)
   useEffect(() => {
@@ -612,6 +613,10 @@ export default function OrbViewPage() {
         await fetchOrb();
       }
     }
+    if (pendingDraftNoteId) {
+      setDraftNotes((prev) => prev.filter((n) => n.id !== pendingDraftNoteId));
+      setPendingDraftNoteId(null);
+    }
     setPendingSkillLinks([]);
     setShowInput(false);
     setEditNode(null);
@@ -633,6 +638,7 @@ export default function OrbViewPage() {
     for (const [regex, nodeType] of detect) {
       if (regex.test(text)) { type = nodeType; break; }
     }
+    setPendingDraftNoteId(note.id);
     setEditNode({ type, values: { description: note.text } });
     setShowInput(true);
     setShowDrafts(false);
@@ -645,6 +651,7 @@ export default function OrbViewPage() {
 
     const result = await enhanceNote(note.text, targetLang, existingSkills);
 
+    setPendingDraftNoteId(note.id);
     setPendingSkillLinks(result.suggested_skill_uids);
     setEditNode({ type: result.node_type, values: result.properties });
     setShowInput(true);
