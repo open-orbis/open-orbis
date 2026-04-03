@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 import httpx
+import litellm
 
 from app.config import settings
 from app.cv.models import ExtractedNode, ExtractedRelationship, SkippedNode
@@ -172,7 +173,7 @@ TEXT_LIMIT = 12000
 
 
 async def classify_entries(raw_text: str) -> ClassificationResult:
-    """Send extracted CV text to Ollama for classification.
+    """Send extracted CV text to an LLM for classification via LiteLLM.
 
     Returns a ClassificationResult with nodes, unmatched, skipped, relationships, and truncated flag.
     """
@@ -191,19 +192,20 @@ async def classify_entries(raw_text: str) -> ClassificationResult:
 Parse every entry in this CV into structured nodes. Return JSON with "nodes", "relationships", and "unmatched" arrays."""
 
     provider = settings.llm_provider
+    model = settings.ollama_model if provider == "ollama" else settings.claude_model
 
     for attempt in range(MAX_RETRIES):
         try:
-            if provider == "claude":
+            if provider == "claude" and not settings.anthropic_api_key:
+                # Fallback to CLI if no API key is provided, for backward compatibility
                 from app.cv.claude_classifier import call_claude
-
                 result = await call_claude(
                     system_prompt=SYSTEM_PROMPT,
                     user_message=user_message,
-                    model=settings.claude_model or None,
+                    model=model or None,
                 )
             else:
-                result = await _call_ollama(user_message)
+                result = await _call_llm(user_message, provider, model)
 
             cr = _parse_result(result)
             if cr.nodes or cr.unmatched:
@@ -221,7 +223,7 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
             )
 
     # Intermediate fallback: rule-based extraction
-    logger.warning("Ollama failed — trying rule-based extraction")
+    logger.warning("%s failed — trying rule-based extraction", provider)
     try:
         from app.cv.parser import rule_based_extract, rule_based_to_nodes
 
@@ -275,25 +277,32 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
     )
 
 
-async def _call_ollama(user_message: str) -> str:
-    """Make a chat completion request to Ollama."""
-    url = f"{settings.ollama_base_url}/api/chat"
+async def _call_llm(user_message: str, provider: str, model: str) -> str:
+    """Make a chat completion request using LiteLLM."""
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": user_message},
+    ]
 
-    payload = {
-        "model": settings.ollama_model,
-        "stream": False,
-        "format": "json",
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
-        ],
+    completion_kwargs = {
+        "model": model,
+        "messages": messages,
+        "response_format": {"type": "json_object"},
     }
 
-    async with httpx.AsyncClient(timeout=180.0) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("message", {}).get("content", "")
+    if provider == "ollama":
+        completion_kwargs["model"] = f"ollama/{model}"
+        completion_kwargs["api_base"] = settings.ollama_base_url
+    elif provider == "claude":
+        completion_kwargs["model"] = f"anthropic/{model}"
+        completion_kwargs["api_key"] = settings.anthropic_api_key
+
+    try:
+        response = await litellm.acompletion(**completion_kwargs)
+        return response.choices[0].message.content or ""
+    except Exception as e:
+        logger.error("LiteLLM call failed: %s", e)
+        raise
 
 
 def _parse_result(raw_response: str) -> ClassificationResult:

@@ -51,6 +51,7 @@ def _mock_settings():
         mock_settings.ollama_base_url = "http://localhost:11434"
         mock_settings.ollama_model = "llama3.2:3b"
         mock_settings.claude_model = ""
+        mock_settings.anthropic_api_key = ""
         yield mock_settings
 
 
@@ -74,7 +75,7 @@ class TestEmptyInput:
 class TestSuccessfulClassification:
     async def test_ollama_provider_returns_parsed_nodes(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             return_value=GOOD_LLM_RESPONSE,
         ):
@@ -98,7 +99,7 @@ class TestSuccessfulClassification:
 
     async def test_relationships_preserved(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             return_value=GOOD_LLM_RESPONSE,
         ):
@@ -113,7 +114,7 @@ class TestSuccessfulClassification:
 class TestTruncation:
     async def test_short_text_not_truncated(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             return_value=GOOD_LLM_RESPONSE,
         ):
@@ -123,7 +124,7 @@ class TestTruncation:
     async def test_long_text_truncated(self):
         long_text = "x" * (TEXT_LIMIT + 3000)
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             return_value=GOOD_LLM_RESPONSE,
         ):
@@ -134,7 +135,7 @@ class TestTruncation:
         # Use a unique marker that only appears after TEXT_LIMIT
         long_text = "a" * TEXT_LIMIT + "UNIQUE_TAIL_MARKER"
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             return_value=GOOD_LLM_RESPONSE,
         ) as mock_ollama:
@@ -150,7 +151,7 @@ class TestRetryLogic:
     async def test_retries_on_empty_result(self):
         call_count = 0
 
-        async def mock_ollama(msg):
+        async def mock_ollama(*args):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -158,7 +159,7 @@ class TestRetryLogic:
             return GOOD_LLM_RESPONSE
 
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             side_effect=mock_ollama,
         ):
             result = await classify_entries("Some CV text")
@@ -168,7 +169,7 @@ class TestRetryLogic:
     async def test_retries_on_exception(self):
         call_count = 0
 
-        async def mock_ollama(msg):
+        async def mock_ollama(*args):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -176,7 +177,7 @@ class TestRetryLogic:
             return GOOD_LLM_RESPONSE
 
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             side_effect=mock_ollama,
         ):
             result = await classify_entries("Some CV text")
@@ -185,7 +186,7 @@ class TestRetryLogic:
 
     async def test_max_retries_exhausted_triggers_fallback(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ):
@@ -200,7 +201,7 @@ class TestRetryLogic:
 class TestRuleBasedFallback:
     async def test_fallback_produces_nodes_from_cv(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ):
@@ -210,7 +211,7 @@ class TestRuleBasedFallback:
 
     async def test_fallback_extracts_cv_owner_name(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ):
@@ -220,7 +221,7 @@ class TestRuleBasedFallback:
     async def test_fallback_sets_truncated_flag(self):
         long_text = SAMPLE_CV_TEXT + "x" * (TEXT_LIMIT + 1000)
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ):
@@ -230,7 +231,7 @@ class TestRuleBasedFallback:
     async def test_fallback_skips_invalid_nodes(self):
         """Rule-based fallback validates nodes the same way _parse_result does."""
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ), patch(
@@ -252,7 +253,7 @@ class TestRuleBasedFallback:
 class TestFinalFallback:
     async def test_returns_unmatched_lines_when_all_fails(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ), patch(
@@ -266,7 +267,7 @@ class TestFinalFallback:
     async def test_final_fallback_limits_to_50_lines(self):
         text = "\n".join(f"Line number {i} with enough text" for i in range(100))
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ), patch(
@@ -279,7 +280,7 @@ class TestFinalFallback:
     async def test_final_fallback_filters_short_lines(self):
         text = "Hi\nX\nThis is a real line of content"
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_llm",
             new_callable=AsyncMock,
             side_effect=ConnectionError("always fails"),
         ), patch(
