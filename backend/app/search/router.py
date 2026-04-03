@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException
-from neo4j import AsyncDriver
 from pydantic import BaseModel
 
 from app.dependencies import get_current_user, get_db
-from app.graph.embeddings import build_embedding_text, generate_embedding
+from app.graph.embeddings import generate_embedding
 from app.orbs.filter_token import decode_filter_token, node_matches_filters
+
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +82,7 @@ async def semantic_search(
 
 # ── Simple text search (no embeddings required) ──
 
+
 class TextSearchRequest(BaseModel):
     query: str
 
@@ -109,7 +113,7 @@ def _fuzzy_match(text: str, terms: list[str], threshold: float = 0.6) -> bool:
         if len(term) >= 3:
             # Check if any substring of similar length has good overlap
             for i in range(max(0, len(text_lower) - len(term) + 1)):
-                window = text_lower[i:i + len(term)]
+                window = text_lower[i : i + len(term)]
                 common = sum(1 for a, b in zip(window, term) if a == b)
                 if common / max(len(term), 1) >= threshold:
                     return True
@@ -144,7 +148,9 @@ async def text_search(
                 f"RETURN n, labels(n) AS node_labels"
             )
             try:
-                result = await session.run(cypher, user_id=current_user["user_id"], term=raw_term)
+                result = await session.run(
+                    cypher, user_id=current_user["user_id"], term=raw_term
+                )
                 async for record in result:
                     node = dict(record["n"])
                     node.pop("embedding", None)
@@ -184,7 +190,9 @@ async def text_search(
                             seen_uids.add(uid)
                             results.append(node)
                 except Exception as e:
-                    logger.warning("Fuzzy search query failed for label %s: %s", label, e)
+                    logger.warning(
+                        "Fuzzy search query failed for label %s: %s", label, e
+                    )
                     continue
 
     return results
@@ -234,12 +242,19 @@ async def public_text_search(
                     node.pop("embedding", None)
                     node["_labels"] = record["node_labels"]
                     if node.get("uid") not in seen_uids:
-                        if filter_keywords and node_matches_filters(node, filter_keywords):
+                        if filter_keywords and node_matches_filters(
+                            node, filter_keywords
+                        ):
                             continue
                         seen_uids.add(node.get("uid", ""))
                         results.append(node)
             except Exception as e:
-                logger.warning("Public text search failed for label %s on orb %s: %s", label, data.orb_id, e)
+                logger.warning(
+                    "Public text search failed for label %s on orb %s: %s",
+                    label,
+                    data.orb_id,
+                    e,
+                )
                 continue
 
     if len(results) < 3:
@@ -256,7 +271,9 @@ async def public_text_search(
                         uid = node.get("uid", "")
                         if uid in seen_uids:
                             continue
-                        if filter_keywords and node_matches_filters(node, filter_keywords):
+                        if filter_keywords and node_matches_filters(
+                            node, filter_keywords
+                        ):
                             continue
                         matched = False
                         for f in fields:
@@ -270,7 +287,12 @@ async def public_text_search(
                             seen_uids.add(uid)
                             results.append(node)
                 except Exception as e:
-                    logger.warning("Public fuzzy search failed for label %s on orb %s: %s", label, data.orb_id, e)
+                    logger.warning(
+                        "Public fuzzy search failed for label %s on orb %s: %s",
+                        label,
+                        data.orb_id,
+                        e,
+                    )
                     continue
 
     return results

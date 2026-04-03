@@ -2,24 +2,22 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from neo4j import AsyncDriver
-
-logger = logging.getLogger(__name__)
-from neo4j.time import DateTime as Neo4jDateTime, Date as Neo4jDate, Time as Neo4jTime
+from neo4j.time import Date as Neo4jDate
+from neo4j.time import DateTime as Neo4jDateTime
+from neo4j.time import Time as Neo4jTime
+from pydantic import BaseModel
 
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import decrypt_properties, encrypt_properties
-from pydantic import BaseModel
-
 from app.graph.queries import (
     ADD_NODE,
     DELETE_NODE,
     GET_FULL_ORB,
     GET_FULL_ORB_PUBLIC,
     GET_PERSON_BY_ORB_ID,
-    GET_SKILL_LINKS,
     LINK_SKILL,
     NODE_TYPE_LABELS,
     NODE_TYPE_RELATIONSHIPS,
@@ -28,12 +26,16 @@ from app.graph.queries import (
     UPDATE_ORB_ID,
     UPDATE_PERSON,
 )
-from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
 from app.orbs.filter_token import (
     create_filter_token,
     decode_filter_token,
     node_matches_filters,
 )
+
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
+
+    from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
 
 
 class SkillLinkRequest(BaseModel):
@@ -44,6 +46,9 @@ class SkillLinkRequest(BaseModel):
 class FilterTokenRequest(BaseModel):
     keywords: list[str]
 
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/orbs", tags=["orbs"])
 
 
@@ -51,9 +56,7 @@ def _sanitize_neo4j_types(d: dict) -> dict:
     """Convert Neo4j temporal types to JSON-safe strings."""
     result = {}
     for k, v in d.items():
-        if isinstance(v, Neo4jDateTime):
-            result[k] = v.iso_format()
-        elif isinstance(v, (Neo4jDate, Neo4jTime)):
+        if isinstance(v, (Neo4jDateTime, Neo4jDate, Neo4jTime)):
             result[k] = v.iso_format()
         else:
             result[k] = v
@@ -124,7 +127,9 @@ def _serialize_orb(record) -> dict:
             key = (src, tgt, cl.get("rel", ""))
             if key not in seen_links:
                 seen_links.add(key)
-                links.append({"source": src, "target": tgt, "type": cl.get("rel", "USED_SKILL")})
+                links.append(
+                    {"source": src, "target": tgt, "type": cl.get("rel", "USED_SKILL")}
+                )
 
     return {"person": person, "nodes": nodes, "links": links}
 
@@ -187,7 +192,9 @@ async def add_node(
     db: AsyncDriver = Depends(get_db),
 ):
     if data.node_type not in NODE_TYPE_LABELS:
-        raise HTTPException(status_code=400, detail=f"Invalid node type: {data.node_type}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid node type: {data.node_type}"
+        )
 
     label = NODE_TYPE_LABELS[data.node_type]
     rel_type = NODE_TYPE_RELATIONSHIPS[data.node_type]
@@ -320,8 +327,10 @@ async def get_public_orb(
                     filtered_nodes.append(node)
             # Remove links connected to filtered nodes
             filtered_links = [
-                link for link in orb_data["links"]
-                if link["target"] not in filtered_uids and link["source"] not in filtered_uids
+                link
+                for link in orb_data["links"]
+                if link["target"] not in filtered_uids
+                and link["source"] not in filtered_uids
             ]
             orb_data["nodes"] = filtered_nodes
             orb_data["links"] = filtered_links

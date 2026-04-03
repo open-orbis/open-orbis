@@ -14,7 +14,7 @@ async def generate_embedding(text: str) -> list[float] | None:
         return None
 
     try:
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
         # Use the embeddings endpoint if available, otherwise skip
         # Anthropic doesn't have a native embedding model yet,
         # so we use a simple hash-based placeholder for now.

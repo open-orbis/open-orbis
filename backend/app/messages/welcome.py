@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import uuid
+from typing import TYPE_CHECKING
 
-from neo4j import AsyncDriver
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
 
 WELCOME_SUBJECT = "Welcome to Orbis! Here's what you can do with your Orb"
 

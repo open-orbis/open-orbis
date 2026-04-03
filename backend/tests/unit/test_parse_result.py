@@ -14,34 +14,36 @@ from app.cv.ollama_classifier import (
     _parse_result,
 )
 
-
 # ── _normalize_date ──
 
 
 class TestNormalizeDate:
-    @pytest.mark.parametrize("input_val, expected", [
-        # Already ISO
-        ("2023-01-15", "2023-01-15"),
-        ("2023-01", "2023-01"),
-        ("2023", "2023"),
-        # Month Year formats
-        ("January 2023", "2023-01"),
-        ("Jan 2023", "2023-01"),
-        ("March 2020", "2020-03"),
-        ("Dec 2019", "2019-12"),
-        # Slash formats
-        ("01/2023", "2023-01"),
-        ("12/2020", "2020-12"),
-        # Full date formats
-        ("01/15/2023", "2023-01-15"),
-        ("15/01/2023", "2023-01-15"),
-        ("2023/01/15", "2023-01-15"),
-        # Verbose formats
-        ("15 January 2023", "2023-01-15"),
-        ("15 Jan 2023", "2023-01-15"),
-        ("January 15, 2023", "2023-01-15"),
-        ("Jan 15, 2023", "2023-01-15"),
-    ])
+    @pytest.mark.parametrize(
+        "input_val, expected",
+        [
+            # Already ISO
+            ("2023-01-15", "2023-01-15"),
+            ("2023-01", "2023-01"),
+            ("2023", "2023"),
+            # Month Year formats
+            ("January 2023", "2023-01"),
+            ("Jan 2023", "2023-01"),
+            ("March 2020", "2020-03"),
+            ("Dec 2019", "2019-12"),
+            # Slash formats
+            ("01/2023", "2023-01"),
+            ("12/2020", "2020-12"),
+            # Full date formats
+            ("01/15/2023", "2023-01-15"),
+            ("15/01/2023", "2023-01-15"),
+            ("2023/01/15", "2023-01-15"),
+            # Verbose formats
+            ("15 January 2023", "2023-01-15"),
+            ("15 Jan 2023", "2023-01-15"),
+            ("January 15, 2023", "2023-01-15"),
+            ("Jan 15, 2023", "2023-01-15"),
+        ],
+    )
     def test_normalizes_dates(self, input_val, expected):
         assert _normalize_date(input_val) == expected
 
@@ -154,17 +156,20 @@ class TestParseResultValidation:
         assert "Missing required fields" in result.skipped[0].reason
         assert "title" in result.skipped[0].reason
 
-    @pytest.mark.parametrize("node_type, props", [
-        ("skill", {"name": "Python"}),
-        ("language", {"name": "English"}),
-        ("work_experience", {"company": "Google", "title": "SWE"}),
-        ("education", {"institution": "MIT"}),
-        ("certification", {"name": "AWS SA"}),
-        ("publication", {"title": "Paper X"}),
-        ("project", {"name": "MyProject"}),
-        ("patent", {"title": "Patent X"}),
-        ("collaborator", {"name": "Bob"}),
-    ])
+    @pytest.mark.parametrize(
+        "node_type, props",
+        [
+            ("skill", {"name": "Python"}),
+            ("language", {"name": "English"}),
+            ("work_experience", {"company": "Google", "title": "SWE"}),
+            ("education", {"institution": "MIT"}),
+            ("certification", {"name": "AWS SA"}),
+            ("publication", {"title": "Paper X"}),
+            ("project", {"name": "MyProject"}),
+            ("patent", {"title": "Patent X"}),
+            ("collaborator", {"name": "Bob"}),
+        ],
+    )
     def test_all_valid_node_types_accepted(self, node_type, props):
         data = {
             "nodes": [{"node_type": node_type, "properties": props}],
@@ -252,9 +257,15 @@ class TestParseResultRelationships:
     def test_relationships_remapped_after_skip(self):
         data = {
             "nodes": [
-                {"node_type": "invalid_type", "properties": {"name": "X"}},   # idx 0 -> skipped
-                {"node_type": "work_experience", "properties": {"company": "A", "title": "B"}},  # idx 1 -> 0
-                {"node_type": "skill", "properties": {"name": "Python"}},     # idx 2 -> 1
+                {
+                    "node_type": "invalid_type",
+                    "properties": {"name": "X"},
+                },  # idx 0 -> skipped
+                {
+                    "node_type": "work_experience",
+                    "properties": {"company": "A", "title": "B"},
+                },  # idx 1 -> 0
+                {"node_type": "skill", "properties": {"name": "Python"}},  # idx 2 -> 1
             ],
             "relationships": [
                 {"from_index": 1, "to_index": 2, "type": "USED_SKILL"},
@@ -299,7 +310,10 @@ class TestParseResultRelationships:
     def test_default_relationship_type(self):
         data = {
             "nodes": [
-                {"node_type": "work_experience", "properties": {"company": "A", "title": "B"}},
+                {
+                    "node_type": "work_experience",
+                    "properties": {"company": "A", "title": "B"},
+                },
                 {"node_type": "skill", "properties": {"name": "Python"}},
             ],
             "relationships": [
@@ -379,9 +393,18 @@ class TestParseResultCvOwnerName:
 class TestConstants:
     def test_required_fields_covers_all_node_types(self):
         from app.graph.queries import NODE_TYPE_LABELS
+
         for nt in NODE_TYPE_LABELS:
             assert nt in REQUIRED_FIELDS, f"Missing REQUIRED_FIELDS entry for '{nt}'"
 
     def test_date_fields(self):
-        expected = {"start_date", "end_date", "date", "issue_date", "expiry_date", "filing_date", "grant_date"}
-        assert DATE_FIELDS == expected
+        expected = {
+            "start_date",
+            "end_date",
+            "date",
+            "issue_date",
+            "expiry_date",
+            "filing_date",
+            "grant_date",
+        }
+        assert expected == DATE_FIELDS

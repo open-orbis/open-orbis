@@ -36,11 +36,13 @@ def extract_text(file_path: str) -> str:
 # Section header patterns (common CV section names)
 SECTION_PATTERNS = {
     "education": re.compile(
-        r"(?i)^[\s]*(?:education|academic|studies|qualifications|formazione)", re.MULTILINE
+        r"(?i)^[\s]*(?:education|academic|studies|qualifications|formazione)",
+        re.MULTILINE,
     ),
     "work_experience": re.compile(
         r"(?i)^[\s]*(?:work\s*experience|experience|employment|professional\s*experience|"
-        r"esperienza|lavoro)", re.MULTILINE
+        r"esperienza|lavoro)",
+        re.MULTILINE,
     ),
     "skill": re.compile(
         r"(?i)^[\s]*(?:skills|technical\s*skills|competenze|abilità)", re.MULTILINE
@@ -48,15 +50,11 @@ SECTION_PATTERNS = {
     "certification": re.compile(
         r"(?i)^[\s]*(?:certifications?|licenses?|certificazioni)", re.MULTILINE
     ),
-    "language": re.compile(
-        r"(?i)^[\s]*(?:languages?|lingue)", re.MULTILINE
-    ),
+    "language": re.compile(r"(?i)^[\s]*(?:languages?|lingue)", re.MULTILINE),
     "publication": re.compile(
         r"(?i)^[\s]*(?:publications?|papers?|pubblicazioni)", re.MULTILINE
     ),
-    "project": re.compile(
-        r"(?i)^[\s]*(?:projects?|progetti)", re.MULTILINE
-    ),
+    "project": re.compile(r"(?i)^[\s]*(?:projects?|progetti)", re.MULTILINE),
 }
 
 DATE_PATTERN = re.compile(
@@ -111,7 +109,9 @@ def rule_based_extract(text: str) -> dict:
 
     # Extract section texts
     for i, (pos, section_type) in enumerate(section_positions):
-        end = section_positions[i + 1][0] if i + 1 < len(section_positions) else len(text)
+        end = (
+            section_positions[i + 1][0] if i + 1 < len(section_positions) else len(text)
+        )
         section_text = text[pos:end].strip()
         result["sections"][section_type] = section_text
 
@@ -141,10 +141,12 @@ def rule_based_to_nodes(extraction: dict) -> list[dict]:
             for skill in raw_skills:
                 skill = skill.strip().strip(".")
                 if skill and len(skill) > 1 and len(skill) < 60:
-                    nodes.append({
-                        "node_type": "skill",
-                        "properties": {"name": skill},
-                    })
+                    nodes.append(
+                        {
+                            "node_type": "skill",
+                            "properties": {"name": skill},
+                        }
+                    )
 
         elif section_type == "language":
             # Each line or comma-separated item is a language
@@ -156,24 +158,39 @@ def rule_based_to_nodes(extraction: dict) -> list[dict]:
                 # Try to split "English (C1)" or "English - Native"
                 match = re.match(r"(.+?)\s*[\(\-–:]\s*(.+?)[\)]?\s*$", item)
                 if match:
-                    nodes.append({
-                        "node_type": "language",
-                        "properties": {"name": match.group(1).strip(), "proficiency": match.group(2).strip()},
-                    })
+                    nodes.append(
+                        {
+                            "node_type": "language",
+                            "properties": {
+                                "name": match.group(1).strip(),
+                                "proficiency": match.group(2).strip(),
+                            },
+                        }
+                    )
                 else:
-                    nodes.append({
-                        "node_type": "language",
-                        "properties": {"name": item},
-                    })
+                    nodes.append(
+                        {
+                            "node_type": "language",
+                            "properties": {"name": item},
+                        }
+                    )
 
-        elif section_type in ("education", "work_experience", "certification", "publication", "project"):
+        elif section_type in (
+            "education",
+            "work_experience",
+            "certification",
+            "publication",
+            "project",
+        ):
             # Create one node per paragraph block (separated by double newline or significant gap)
             blocks = re.split(r"\n\s*\n|\n(?=[A-Z])", content)
             for block in blocks:
                 block = block.strip()
                 if not block or len(block) < 5:
                     continue
-                block_lines = [l.strip() for l in block.split("\n") if l.strip()]
+                block_lines = [
+                    line.strip() for line in block.split("\n") if line.strip()
+                ]
                 if not block_lines:
                     continue
 
@@ -214,7 +231,9 @@ def rule_based_to_nodes(extraction: dict) -> list[dict]:
                 # Extract URLs from block
                 urls = URL_PATTERN.findall(block)
                 if urls:
-                    url_key = "company_url" if section_type == "work_experience" else "url"
+                    url_key = (
+                        "company_url" if section_type == "work_experience" else "url"
+                    )
                     props[url_key] = urls[0]
 
                 nodes.append({"node_type": section_type, "properties": props})

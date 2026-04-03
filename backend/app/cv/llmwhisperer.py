@@ -78,7 +78,11 @@ async def extract_text(pdf_bytes: bytes) -> str:
                 elapsed += POLL_INTERVAL
 
         if elapsed >= WHISPER_TIMEOUT:
-            logger.error("LLM Whisperer timed out after %ds (hash: %s)", WHISPER_TIMEOUT, whisper_hash)
+            logger.error(
+                "LLM Whisperer timed out after %ds (hash: %s)",
+                WHISPER_TIMEOUT,
+                whisper_hash,
+            )
             raise TimeoutError(
                 f"LLM Whisperer did not finish within {WHISPER_TIMEOUT}s"
             )

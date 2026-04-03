@@ -12,25 +12,32 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.cv.ollama_classifier import ClassificationResult, TEXT_LIMIT, classify_entries
+from app.cv.ollama_classifier import TEXT_LIMIT, classify_entries
 
 # A valid LLM JSON response
-GOOD_LLM_RESPONSE = json.dumps({
-    "cv_owner_name": "Alice Smith",
-    "nodes": [
-        {"node_type": "skill", "properties": {"name": "Python"}},
-        {"node_type": "work_experience", "properties": {"company": "Acme", "title": "SWE"}},
-    ],
-    "relationships": [{"from_index": 0, "to_index": 1, "type": "USED_SKILL"}],
-    "unmatched": [],
-})
+GOOD_LLM_RESPONSE = json.dumps(
+    {
+        "cv_owner_name": "Alice Smith",
+        "nodes": [
+            {"node_type": "skill", "properties": {"name": "Python"}},
+            {
+                "node_type": "work_experience",
+                "properties": {"company": "Acme", "title": "SWE"},
+            },
+        ],
+        "relationships": [{"from_index": 0, "to_index": 1, "type": "USED_SKILL"}],
+        "unmatched": [],
+    }
+)
 
 # LLM response with no nodes and no unmatched (triggers retry)
-EMPTY_LLM_RESPONSE = json.dumps({
-    "nodes": [],
-    "relationships": [],
-    "unmatched": [],
-})
+EMPTY_LLM_RESPONSE = json.dumps(
+    {
+        "nodes": [],
+        "relationships": [],
+        "unmatched": [],
+    }
+)
 
 # Sample CV text for rule-based fallback
 SAMPLE_CV_TEXT = """John Smith
@@ -230,17 +237,20 @@ class TestRuleBasedFallback:
 
     async def test_fallback_skips_invalid_nodes(self):
         """Rule-based fallback validates nodes the same way _parse_result does."""
-        with patch(
-            "app.cv.ollama_classifier._call_llm",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
-        ), patch(
-            # Mock at source module — classify_entries imports lazily from app.cv.parser
-            "app.cv.parser.rule_based_to_nodes",
-            return_value=[
-                {"node_type": "skill", "properties": {"name": "Python"}},
-                {"node_type": "unknown", "properties": {"name": "X"}},
-            ],
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_llm",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("always fails"),
+            ),
+            patch(
+                # Mock at source module — classify_entries imports lazily from app.cv.parser
+                "app.cv.parser.rule_based_to_nodes",
+                return_value=[
+                    {"node_type": "skill", "properties": {"name": "Python"}},
+                    {"node_type": "unknown", "properties": {"name": "X"}},
+                ],
+            ),
         ):
             result = await classify_entries(SAMPLE_CV_TEXT)
             assert any(n.node_type == "skill" for n in result.nodes)
@@ -252,40 +262,51 @@ class TestRuleBasedFallback:
 
 class TestFinalFallback:
     async def test_returns_unmatched_lines_when_all_fails(self):
-        with patch(
-            "app.cv.ollama_classifier._call_llm",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
-        ), patch(
-            "app.cv.parser.rule_based_extract",
-            side_effect=RuntimeError("parser broken"),
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_llm",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("always fails"),
+            ),
+            patch(
+                "app.cv.parser.rule_based_extract",
+                side_effect=RuntimeError("parser broken"),
+            ),
         ):
-            result = await classify_entries("This is a line of text that should appear as unmatched")
+            result = await classify_entries(
+                "This is a line of text that should appear as unmatched"
+            )
             assert result.nodes == []
             assert len(result.unmatched) > 0
 
     async def test_final_fallback_limits_to_50_lines(self):
         text = "\n".join(f"Line number {i} with enough text" for i in range(100))
-        with patch(
-            "app.cv.ollama_classifier._call_llm",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
-        ), patch(
-            "app.cv.parser.rule_based_extract",
-            side_effect=RuntimeError("parser broken"),
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_llm",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("always fails"),
+            ),
+            patch(
+                "app.cv.parser.rule_based_extract",
+                side_effect=RuntimeError("parser broken"),
+            ),
         ):
             result = await classify_entries(text)
             assert len(result.unmatched) <= 50
 
     async def test_final_fallback_filters_short_lines(self):
         text = "Hi\nX\nThis is a real line of content"
-        with patch(
-            "app.cv.ollama_classifier._call_llm",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
-        ), patch(
-            "app.cv.parser.rule_based_extract",
-            side_effect=RuntimeError("parser broken"),
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_llm",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("always fails"),
+            ),
+            patch(
+                "app.cv.parser.rule_based_extract",
+                side_effect=RuntimeError("parser broken"),
+            ),
         ):
             result = await classify_entries(text)
             # Lines with len <= 5 should be filtered

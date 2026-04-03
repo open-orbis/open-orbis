@@ -2,8 +2,6 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
-logging.basicConfig(level=logging.INFO)
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth.router import router as auth_router
@@ -12,9 +10,11 @@ from app.cv.router import router as cv_router
 from app.cv.voice_router import router as voice_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
-from app.orbs.router import router as orbs_router
 from app.messages.router import router as messages_router
+from app.orbs.router import router as orbs_router
 from app.search.router import router as search_router
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
@@ -50,7 +50,3 @@ app.include_router(search_router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-
-

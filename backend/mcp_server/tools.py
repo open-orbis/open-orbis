@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from neo4j import AsyncDriver
+from typing import TYPE_CHECKING
 
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import (
     GET_FULL_ORB_PUBLIC,
-    GET_PERSON_BY_ORB_ID,
     NODE_TYPE_LABELS,
     NODE_TYPE_RELATIONSHIPS,
 )
+
+if TYPE_CHECKING:
+    from neo4j import AsyncDriver
 
 
 async def get_orb_summary(driver: AsyncDriver, orb_id: str) -> dict:
@@ -71,10 +73,16 @@ async def get_orb_full(driver: AsyncDriver, orb_id: str) -> dict:
         return {"person": person, "nodes": nodes}
 
 
-async def get_nodes_by_type(driver: AsyncDriver, orb_id: str, node_type: str) -> list[dict]:
+async def get_nodes_by_type(
+    driver: AsyncDriver, orb_id: str, node_type: str
+) -> list[dict]:
     """Get all nodes of a specific type from an orb."""
     if node_type not in NODE_TYPE_LABELS:
-        return [{"error": f"Invalid node type: {node_type}. Valid types: {list(NODE_TYPE_LABELS.keys())}"}]
+        return [
+            {
+                "error": f"Invalid node type: {node_type}. Valid types: {list(NODE_TYPE_LABELS.keys())}"
+            }
+        ]
 
     label = NODE_TYPE_LABELS[node_type]
     rel_type = NODE_TYPE_RELATIONSHIPS[node_type]
@@ -109,10 +117,12 @@ async def get_connections(driver: AsyncDriver, orb_id: str, node_uid: str) -> di
             conn_node = decrypt_properties(dict(record["connected"]))
             conn_node.pop("embedding", None)
             conn_node["_labels"] = record["connected_labels"]
-            connections.append({
-                "relationship": record["rel_type"],
-                "node": conn_node,
-            })
+            connections.append(
+                {
+                    "relationship": record["rel_type"],
+                    "node": conn_node,
+                }
+            )
         return {"node_uid": node_uid, "connections": connections}
 
 

@@ -37,7 +37,11 @@ async def exchange_google_code(code: str) -> dict:
             },
         )
         if token_resp.status_code != 200:
-            logger.error("Google token exchange failed: HTTP %d — %s", token_resp.status_code, token_resp.text[:500])
+            logger.error(
+                "Google token exchange failed: HTTP %d — %s",
+                token_resp.status_code,
+                token_resp.text[:500],
+            )
         token_resp.raise_for_status()
         tokens = token_resp.json()
 
@@ -46,6 +50,10 @@ async def exchange_google_code(code: str) -> dict:
             headers={"Authorization": f"Bearer {tokens['access_token']}"},
         )
         if userinfo_resp.status_code != 200:
-            logger.error("Google userinfo failed: HTTP %d — %s", userinfo_resp.status_code, userinfo_resp.text[:500])
+            logger.error(
+                "Google userinfo failed: HTTP %d — %s",
+                userinfo_resp.status_code,
+                userinfo_resp.text[:500],
+            )
         userinfo_resp.raise_for_status()
         return userinfo_resp.json()

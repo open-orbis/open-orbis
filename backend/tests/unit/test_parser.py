@@ -166,7 +166,9 @@ Skills
 Python, Java, Go, Kubernetes
 """
         nodes = self._extract_and_convert(text)
-        skill_names = [n["properties"]["name"] for n in nodes if n["node_type"] == "skill"]
+        skill_names = [
+            n["properties"]["name"] for n in nodes if n["node_type"] == "skill"
+        ]
         assert "Python" in skill_names
         assert "Java" in skill_names
         assert "Go" in skill_names
@@ -179,7 +181,9 @@ Skills
 A, Python, This is a very long skill name that exceeds sixty characters and should be filtered out entirely
 """
         nodes = self._extract_and_convert(text)
-        skill_names = [n["properties"]["name"] for n in nodes if n["node_type"] == "skill"]
+        skill_names = [
+            n["properties"]["name"] for n in nodes if n["node_type"] == "skill"
+        ]
         assert "A" not in skill_names  # too short (len <= 1)
         assert "Python" in skill_names
 
@@ -193,12 +197,14 @@ French: B2
 """
         nodes = self._extract_and_convert(text)
         langs = [n for n in nodes if n["node_type"] == "language"]
-        names = [l["properties"]["name"] for l in langs]
+        names = [lang["properties"]["name"] for lang in langs]
         assert "English" in names
         assert "Italian" in names
 
         # Check proficiency extracted
-        english = next(l for l in langs if l["properties"]["name"] == "English")
+        english = next(
+            lang for lang in langs if lang["properties"]["name"] == "English"
+        )
         assert english["properties"]["proficiency"] == "C1"
 
     def test_languages_without_proficiency(self):
@@ -285,7 +291,9 @@ Acme Corp, developer role, Jan 2019 to Dec 2021
         work = [n for n in nodes if n["node_type"] == "work_experience"]
         assert len(work) >= 1
         props = work[0]["properties"]
-        assert "start_date" in props, "Expected start_date to be extracted from block containing dates"
+        assert "start_date" in props, (
+            "Expected start_date to be extracted from block containing dates"
+        )
 
     def test_url_extracted_in_work_experience(self):
         text = """Name Person
@@ -331,13 +339,17 @@ Developer
 
 class TestExtractText:
     def test_pdf_dispatches_correctly(self):
-        with patch("app.cv.parser.extract_text_from_pdf", return_value="pdf content") as mock_pdf:
+        with patch(
+            "app.cv.parser.extract_text_from_pdf", return_value="pdf content"
+        ) as mock_pdf:
             result = extract_text("/tmp/cv.pdf")
             assert result == "pdf content"
             mock_pdf.assert_called_once_with("/tmp/cv.pdf")
 
     def test_docx_dispatches_correctly(self):
-        with patch("app.cv.parser.extract_text_from_docx", return_value="docx content") as mock_docx:
+        with patch(
+            "app.cv.parser.extract_text_from_docx", return_value="docx content"
+        ) as mock_docx:
             result = extract_text("/tmp/cv.docx")
             assert result == "docx content"
             mock_docx.assert_called_once_with("/tmp/cv.docx")
@@ -347,7 +359,9 @@ class TestExtractText:
             extract_text("/tmp/cv.txt")
 
     def test_case_insensitive_extension(self):
-        with patch("app.cv.parser.extract_text_from_pdf", return_value="ok") as mock_pdf:
+        with patch(
+            "app.cv.parser.extract_text_from_pdf", return_value="ok"
+        ) as mock_pdf:
             result = extract_text("/tmp/cv.PDF")
             assert result == "ok"
             mock_pdf.assert_called_once()
@@ -357,11 +371,12 @@ class TestExtractText:
         mock_page1.get_text.return_value = "Page 1 "
         mock_page2 = MagicMock()
         mock_page2.get_text.return_value = "Page 2"
-        
+
         mock_doc = MagicMock()
         mock_doc.__iter__.return_value = [mock_page1, mock_page2]
-        
+
         from app.cv.parser import extract_text_from_pdf
+
         with patch("fitz.open", return_value=mock_doc) as mock_open:
             result = extract_text_from_pdf("fake.pdf")
             assert result == "Page 1 Page 2"
@@ -373,11 +388,12 @@ class TestExtractText:
         mock_p1.text = "Para 1"
         mock_p2 = MagicMock()
         mock_p2.text = "Para 2"
-        
+
         mock_doc = MagicMock()
         mock_doc.paragraphs = [mock_p1, mock_p2]
-        
+
         from app.cv.parser import extract_text_from_docx
+
         with patch("app.cv.parser.Document", return_value=mock_doc) as mock_doc_class:
             result = extract_text_from_docx("fake.docx")
             assert result == "Para 1\nPara 2"
@@ -388,50 +404,68 @@ class TestExtractText:
 
 
 class TestPatterns:
-    @pytest.mark.parametrize("email", [
-        "user@example.com",
-        "first.last@domain.co.uk",
-        "user+tag@example.com",
-    ])
+    @pytest.mark.parametrize(
+        "email",
+        [
+            "user@example.com",
+            "first.last@domain.co.uk",
+            "user+tag@example.com",
+        ],
+    )
     def test_email_pattern(self, email):
         assert EMAIL_PATTERN.search(email)
 
-    @pytest.mark.parametrize("url", [
-        "https://example.com",
-        "http://linkedin.com/in/user",
-        "https://scholar.google.com/citations?user=abc",
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://example.com",
+            "http://linkedin.com/in/user",
+            "https://scholar.google.com/citations?user=abc",
+        ],
+    )
     def test_url_pattern(self, url):
         assert URL_PATTERN.search(url)
 
-    @pytest.mark.parametrize("name", [
-        "John Smith",
-        "Mary Jane Watson",
-    ])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "John Smith",
+            "Mary Jane Watson",
+        ],
+    )
     def test_name_pattern(self, name):
         assert NAME_PATTERN.search(name)
 
-    @pytest.mark.parametrize("date_str", [
-        "2020", "Jan 2021", "January 2021", "12/2020",
-    ])
+    @pytest.mark.parametrize(
+        "date_str",
+        [
+            "2020",
+            "Jan 2021",
+            "January 2021",
+            "12/2020",
+        ],
+    )
     def test_date_pattern(self, date_str):
         assert DATE_PATTERN.search(date_str)
 
-    @pytest.mark.parametrize("header, section_type", [
-        ("Education", "education"),
-        ("EDUCATION", "education"),
-        ("Work Experience", "work_experience"),
-        ("Professional Experience", "work_experience"),
-        ("Skills", "skill"),
-        ("Technical Skills", "skill"),
-        ("Languages", "language"),
-        ("Certifications", "certification"),
-        ("Publications", "publication"),
-        ("Projects", "project"),
-        ("Formazione", "education"),
-        ("Esperienza", "work_experience"),
-        ("Competenze", "skill"),
-        ("Lingue", "language"),
-    ])
+    @pytest.mark.parametrize(
+        "header, section_type",
+        [
+            ("Education", "education"),
+            ("EDUCATION", "education"),
+            ("Work Experience", "work_experience"),
+            ("Professional Experience", "work_experience"),
+            ("Skills", "skill"),
+            ("Technical Skills", "skill"),
+            ("Languages", "language"),
+            ("Certifications", "certification"),
+            ("Publications", "publication"),
+            ("Projects", "project"),
+            ("Formazione", "education"),
+            ("Esperienza", "work_experience"),
+            ("Competenze", "skill"),
+            ("Lingue", "language"),
+        ],
+    )
     def test_section_patterns(self, header, section_type):
         assert SECTION_PATTERNS[section_type].search(header)
