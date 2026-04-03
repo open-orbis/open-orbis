@@ -9,10 +9,19 @@ Welcome to Orbis. You are an autonomous AI developer agent assigned to maintain,
 
 ## Tech Stack & Tools You Must Know
 * **Frontend**: React 19, TypeScript, Vite, Tailwind CSS 4, Three.js, React Three Fiber, react-force-graph-3d, Zustand.
-* **Backend**: FastAPI, Python 3.10+, Uvicorn.
+* **Backend**: FastAPI, Python 3.10+, Uvicorn, uv.
 * **Database**: Neo4j 5.20+ (Community Edition) with vector indexes.
 * **AI/LLM**: Ollama (llama3.2:3b), Anthropic Claude API, LLM Whisperer (Unstract), OpenAI Whisper (self-hosted).
 * **Infrastructure**: Docker Compose.
+
+## Tools Usage Guidelines
+### Backend
+We use **uv** as our primary package and project manager. 
+* To install dependencies: `uv sync`
+* To run the application: `uv run uvicorn app.main:app`
+* To run tests: `uv run pytest`
+* To run linters/formatters: `uv run ruff check` / `uv run ruff format`
+* For convenience, use the `Makefile` in the `backend/` directory.
 
 ## Your Standard Operating Procedure (SOP)
 When you are invoked to contribute to this repository, you must strictly follow this workflow:
@@ -26,9 +35,11 @@ When you are invoked to contribute to this repository, you must strictly follow 
 3. **Branch Creation**: 
    * Create and check out a new branch for your work. Use a descriptive name: `git checkout -b feature/<issue-number>-<short-description>` or `git checkout -b fix/<issue-number>-<short-description>`.
 4. **Implementation**: 
-   * Write your code, ensuring it aligns with the existing architecture.
+   * Proceed using TDD, write tests first and then implement the code code. This is crucial to us to have a reliable software. 
+   * Write your code, ensuring it aligns with the existing architecture and that it passes the test you wrote based on the expectations and based on the api.
    * Respect the established database schema detailed in `ontology.md`. 
    * Maintain modularity (e.g., keep MCP tools in `/mcp_server`, graph logic in `/graph`, and UI in frontend components).
+   * Ensure that the test coverage is higher than 95%.
 5. **Testing**: 
    * Ensure your code works locally. 
    * Run any existing linters or test suites before committing.

@@ -116,7 +116,7 @@ Voice Input → Whisper (transcribe) → Ollama (classify) ───────
 | **3D Visualization** | Three.js, React Three Fiber, react-force-graph-3d |
 | **Animations** | Framer Motion |
 | **State** | Zustand |
-| **Backend** | FastAPI, Python 3.10+, Uvicorn |
+| **Backend** | FastAPI, Python 3.10+, Uvicorn, uv |
 | **Database** | Neo4j 5.20+ (Community Edition) with vector indexes |
 | **Auth** | Google OAuth 2.0, JWT (python-jose) |
 | **Encryption** | Fernet (cryptography) |
@@ -169,8 +169,8 @@ docker exec orbis-ollama ollama pull llama3.2:3b
 
 ```bash
 cd backend
-pip install -e ".[dev]"
-uvicorn app.main:app --reload --port 8000
+uv sync --all-extras
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ### 5. Start the frontend
