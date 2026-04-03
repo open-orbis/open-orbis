@@ -13,6 +13,7 @@ import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import type { DraftNote } from '../components/drafts/DraftNotes';
+import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
 import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 
@@ -543,24 +544,32 @@ export default function OrbViewPage() {
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [draftNotes, setDraftNotes] = useState<DraftNote[]>(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('orbis_drafts') || '[]');
-      if (stored.length > 0) return stored;
-    } catch { /* ignore */ }
-    // Seed a sample note for first-time users
-    return [{
-      id: 'sample-1',
-      text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orb later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
-      createdAt: Date.now(),
-      fromVoice: false,
-    }];
-  });
+  const userId = user?.user_id ?? '';
+  const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
+  const [draftsLoaded, setDraftsLoaded] = useState(false);
 
-  // Persist drafts to localStorage
+  // Load drafts when userId becomes available (async auth)
   useEffect(() => {
-    localStorage.setItem('orbis_drafts', JSON.stringify(draftNotes));
-  }, [draftNotes]);
+    if (!userId) return;
+    const stored = loadDraftNotes(userId);
+    if (stored.length > 0) {
+      setDraftNotes(stored);
+    } else {
+      // Seed a sample note for first-time users
+      setDraftNotes([{
+        id: 'sample-1',
+        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orb later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
+        createdAt: Date.now(),
+        fromVoice: false,
+      }]);
+    }
+    setDraftsLoaded(true);
+  }, [userId]);
+
+  // Persist drafts to localStorage (user-scoped) — only after initial load
+  useEffect(() => {
+    if (userId && draftsLoaded) saveDraftNotes(userId, draftNotes);
+  }, [draftNotes, userId, draftsLoaded]);
 
   useEffect(() => { fetchOrb(); }, [fetchOrb]);
 
@@ -598,8 +607,22 @@ export default function OrbViewPage() {
   };
 
   const handleDraftToGraph = (note: DraftNote) => {
-    // Pre-fill the entry form with the note text as description
-    setEditNode({ type: 'work_experience', values: { description: note.text } });
+    const text = note.text.toLowerCase();
+    const detect: [RegExp, string][] = [
+      [/\b(python|javascript|typescript|react|angular|vue|java|c\+\+|node\.?js|sql|docker|kubernetes|aws|git|html|css|figma|photoshop|agile|scrum|machine learning|data science|deep learning|tensorflow|pytorch)\b/i, 'skill'],
+      [/\b(university|degree|bachelor|master|phd|diploma|graduated|school|college|mba|studies|thesis)\b/i, 'education'],
+      [/\b(certified|certification|certificate|license|accredit|aws certified|pmp|cpa|comptia)\b/i, 'certification'],
+      [/\b(english|french|spanish|german|italian|portuguese|chinese|japanese|korean|arabic|hindi|russian|dutch|fluent|native speaker|bilingual)\b/i, 'language'],
+      [/\b(published|paper|article|journal|conference|proceedings|co-author|isbn|doi)\b/i, 'publication'],
+      [/\b(project|built|developed|created|launched|side project|open.?source|hackathon|prototype|app|website)\b/i, 'project'],
+      [/\b(patent|invention|filed|provisional|granted patent|patent number)\b/i, 'patent'],
+      [/\b(worked with|colleague|collaborator|team.?mate|mentor|manager|co.?founder|partner)\b/i, 'collaborator'],
+    ];
+    let type = 'work_experience';
+    for (const [regex, nodeType] of detect) {
+      if (regex.test(text)) { type = nodeType; break; }
+    }
+    setEditNode({ type, values: { description: note.text } });
     setShowInput(true);
     setShowDrafts(false);
   };
