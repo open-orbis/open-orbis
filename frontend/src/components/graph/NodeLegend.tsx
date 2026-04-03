@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { NODE_COLORS, NODE_TYPE_LABELS } from './NodeColors';
+import { NODE_COLORS, NODE_TYPE_LABELS, NODE_SHAPE_MARKERS } from './NodeColors';
 
 // PascalCase -> snake_case mapping for labels lookup
 const TYPE_KEY_MAP: Record<string, string> = {
@@ -52,6 +52,7 @@ export default function NodeLegend() {
             {LEGEND_TYPES.map((type) => {
               const color = NODE_COLORS[type];
               const label = NODE_TYPE_LABELS[TYPE_KEY_MAP[type]];
+              const marker = NODE_SHAPE_MARKERS[type] || '';
 
               return (
                 <li key={type} className="flex items-center gap-2 py-0.5">
@@ -60,6 +61,9 @@ export default function NodeLegend() {
                     style={{ backgroundColor: color }}
                     aria-hidden="true"
                   />
+                  <span className="text-white/40 text-[10px] w-3 text-center" aria-hidden="true">
+                    {marker}
+                  </span>
                   <span className="text-white/70 text-xs">{label}</span>
                 </li>
               );

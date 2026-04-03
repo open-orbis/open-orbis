@@ -40,6 +40,29 @@ const SHARED_GEO = {
   nodeMain: new THREE.SphereGeometry(3, 16, 16),
   nodeGlow: new THREE.SphereGeometry(4.5, 10, 10),
   highlightRing: new THREE.RingGeometry(5.1, 6.0, 24),
+
+  // Accessibility shapes
+  education: new THREE.OctahedronGeometry(3.5),
+  workExperience: new THREE.BoxGeometry(4.5, 4.5, 4.5),
+  language: new THREE.TetrahedronGeometry(4),
+  certification: new THREE.TorusKnotGeometry(2.2, 0.7, 48, 8),
+  project: new THREE.IcosahedronGeometry(3.5),
+  publication: new THREE.DodecahedronGeometry(3.5),
+  skill: new THREE.SphereGeometry(3, 16, 16),
+  collaborator: new THREE.CylinderGeometry(2.5, 2.5, 5, 12),
+  patent: new THREE.TorusGeometry(2.2, 1, 12, 24),
+};
+
+const GEOMETRY_MAP: Record<string, THREE.BufferGeometry> = {
+  Education: SHARED_GEO.education,
+  WorkExperience: SHARED_GEO.workExperience,
+  Language: SHARED_GEO.language,
+  Certification: SHARED_GEO.certification,
+  Project: SHARED_GEO.project,
+  Publication: SHARED_GEO.publication,
+  Skill: SHARED_GEO.skill,
+  Collaborator: SHARED_GEO.collaborator,
+  Patent: SHARED_GEO.patent,
 };
 
 export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, width, height }: OrbGraph3DProps) {
@@ -263,7 +286,6 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     const nodeCol = isFiltered ? new THREE.Color('#ffffff') : new THREE.Color(color);
 
     const group = new THREE.Group();
-    const col = new THREE.Color(color);
 
     if (isPerson) {
       // ── Person node: emissive core + orbital rings (no PointLight) ──
@@ -329,6 +351,8 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
     } else {
       // ── Regular nodes: 2 meshes (core + main), no PointLight ──
+      const label = node._labels?.[0] || '';
+      const mainGeo = GEOMETRY_MAP[label] || SHARED_GEO.nodeMain;
 
       // White core
       const coreMat = new THREE.MeshBasicMaterial({
@@ -338,13 +362,13 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
       });
       group.add(new THREE.Mesh(SHARED_GEO.nodeCore, coreMat));
 
-      // Main sphere — emissive color via MeshBasicMaterial (no light needed)
+      // Main shape — emissive color via MeshBasicMaterial (no light needed)
       const mainMat = new THREE.MeshBasicMaterial({
         color: nodeCol,
         transparent: true,
         opacity: (isDimmed ? 0.2 : 0.85) * fo,
       });
-      group.add(new THREE.Mesh(SHARED_GEO.nodeMain, mainMat));
+      group.add(new THREE.Mesh(mainGeo, mainMat));
 
       // Single glow layer
       const glowMat = new THREE.MeshBasicMaterial({
