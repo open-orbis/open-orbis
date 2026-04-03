@@ -352,6 +352,37 @@ class TestExtractText:
             assert result == "ok"
             mock_pdf.assert_called_once()
 
+    def test_extract_text_from_pdf_logic(self):
+        mock_page1 = MagicMock()
+        mock_page1.get_text.return_value = "Page 1 "
+        mock_page2 = MagicMock()
+        mock_page2.get_text.return_value = "Page 2"
+        
+        mock_doc = MagicMock()
+        mock_doc.__iter__.return_value = [mock_page1, mock_page2]
+        
+        from app.cv.parser import extract_text_from_pdf
+        with patch("fitz.open", return_value=mock_doc) as mock_open:
+            result = extract_text_from_pdf("fake.pdf")
+            assert result == "Page 1 Page 2"
+            mock_open.assert_called_once_with("fake.pdf")
+            mock_doc.close.assert_called_once()
+
+    def test_extract_text_from_docx_logic(self):
+        mock_p1 = MagicMock()
+        mock_p1.text = "Para 1"
+        mock_p2 = MagicMock()
+        mock_p2.text = "Para 2"
+        
+        mock_doc = MagicMock()
+        mock_doc.paragraphs = [mock_p1, mock_p2]
+        
+        from app.cv.parser import extract_text_from_docx
+        with patch("app.cv.parser.Document", return_value=mock_doc) as mock_doc_class:
+            result = extract_text_from_docx("fake.docx")
+            assert result == "Para 1\nPara 2"
+            mock_doc_class.assert_called_once_with("fake.docx")
+
 
 # ── Regex patterns ──
 
