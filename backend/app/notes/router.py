@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -85,6 +86,24 @@ Return ONLY valid JSON in this exact format:
 Return ONLY valid JSON. No markdown, no explanation, no code blocks."""
 
 
+def _normalize_date(value: str) -> str:
+    """Normalize a date string to YYYY-MM-DD for HTML date inputs.
+
+    Handles partial formats like YYYY or YYYY-MM by padding with -01.
+    """
+    value = value.strip()
+    # Already full ISO date
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", value):
+        return value
+    # YYYY-MM -> YYYY-MM-01
+    if re.match(r"^\d{4}-\d{2}$", value):
+        return f"{value}-01"
+    # YYYY -> YYYY-01-01
+    if re.match(r"^\d{4}$", value):
+        return f"{value}-01-01"
+    return value
+
+
 def _build_prompt(req: EnhanceNoteRequest) -> tuple[str, str]:
     """Build system prompt and user message for the LLM."""
     if req.existing_skills:
@@ -155,6 +174,16 @@ def _parse_enhance_result(
 
     # Remove null/empty values
     properties = {k: v for k, v in properties.items() if v is not None and v != ""}
+
+    # Normalize date fields to YYYY-MM-DD for HTML date inputs
+    _DATE_KEYS = {
+        "start_date", "end_date", "date",
+        "issue_date", "expiry_date",
+        "filing_date", "grant_date",
+    }
+    for key in _DATE_KEYS:
+        if key in properties and isinstance(properties[key], str):
+            properties[key] = _normalize_date(properties[key])
 
     # Filter suggested skills to only valid existing uids
     raw_skills = parsed.get("suggested_skill_uids", [])
