@@ -249,6 +249,24 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
     }
   };
 
+  const [enhancingInput, setEnhancingInput] = useState(false);
+
+  const handleEnhanceFromInput = async () => {
+    if (!onEnhance || !input.trim() || enhancingInput) return;
+    const note: DraftNote = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      text: input.trim(),
+      createdAt: Date.now(),
+    };
+    setEnhancingInput(true);
+    try {
+      await onEnhance(note, targetLang);
+      setInput('');
+    } finally {
+      setEnhancingInput(false);
+    }
+  };
+
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
@@ -392,13 +410,46 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
             />
             <div className="flex items-center justify-between mt-2">
               <VoiceRecorder onTranscript={(text) => addNote(text, true)} />
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="text-xs font-medium px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-30 text-white rounded-full transition-colors"
-              >
-                Add note
-              </button>
+              <div className="flex items-center gap-2">
+                {onEnhance && (
+                  <button
+                    type="button"
+                    onClick={handleEnhanceFromInput}
+                    disabled={!input.trim() || enhancingInput}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 ${
+                      enhancingInput
+                        ? 'bg-amber-500/20 text-amber-400/80'
+                        : input.trim()
+                          ? 'bg-amber-500/10 text-amber-400/70 hover:bg-amber-500/20 hover:text-amber-300 border border-amber-500/20'
+                          : 'bg-white/5 text-white/15 cursor-not-allowed'
+                    }`}
+                  >
+                    {enhancingInput ? (
+                      <>
+                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Enhancing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        Enhance
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="text-xs font-medium px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-30 text-white rounded-full transition-colors"
+                >
+                  Add note
+                </button>
+              </div>
             </div>
           </form>
         </div>

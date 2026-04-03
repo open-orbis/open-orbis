@@ -4,6 +4,11 @@ import { NODE_TYPE_LABELS, NODE_TYPE_COLORS } from '../graph/NodeColors';
 import { linkSkill, unlinkSkill } from '../../api/orbs';
 import { useOrbStore } from '../../stores/orbStore';
 
+interface EnhanceResult {
+  node_type: string;
+  properties: Record<string, string>;
+}
+
 interface NodeFormProps {
   initialType?: string;
   initialValues?: Record<string, unknown>;
@@ -11,6 +16,7 @@ interface NodeFormProps {
   onCancel: () => void;
   onTypeChange?: (nodeType: string) => void;
   onDelete?: () => void;
+  onEnhance?: (text: string) => Promise<EnhanceResult | null>;
 }
 
 // Layout config per type: which fields go where
@@ -108,9 +114,10 @@ function FieldInput({
   );
 }
 
-export default function NodeForm({ initialType, initialValues, onSubmit, onCancel, onTypeChange, onDelete }: NodeFormProps) {
+export default function NodeForm({ initialType, initialValues, onSubmit, onCancel, onTypeChange, onDelete, onEnhance }: NodeFormProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [nodeType, setNodeType] = useState(initialType || 'skill');
+  const [enhancing, setEnhancing] = useState(false);
 
   useEffect(() => {
     onTypeChange?.(nodeType);
@@ -141,12 +148,71 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
     onSubmit(nodeType, filtered);
   };
 
+  const handleEnhanceClick = async () => {
+    if (!onEnhance || enhancing) return;
+    // Build text from all non-empty values
+    const text = Object.entries(values)
+      .filter(([, v]) => v && v.trim())
+      .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+      .join('\n');
+    if (!text) return;
+    setEnhancing(true);
+    try {
+      const result = await onEnhance(text);
+      if (result) {
+        setNodeType(result.node_type);
+        setValues(result.properties);
+        // Auto-expand extra fields if they have values
+        const newLayout = LAYOUT_CONFIG[result.node_type];
+        if (newLayout && newLayout.extra.some((f) => result.properties[f])) {
+          setExpanded(true);
+        }
+      }
+    } finally {
+      setEnhancing(false);
+    }
+  };
+
+  const hasAnyText = Object.values(values).some((v) => v && v.trim());
+
   const color = NODE_TYPE_COLORS[nodeType] || '#8b5cf6';
   const layout = LAYOUT_CONFIG[nodeType];
   const simple = SIMPLE_FIELDS[nodeType];
 
   const actionButtons = (
     <div className="flex gap-2 mt-5">
+      {onEnhance && (
+        <button
+          type="button"
+          onClick={handleEnhanceClick}
+          disabled={enhancing || !hasAnyText}
+          className={`flex items-center gap-1.5 font-medium py-2.5 px-4 rounded-lg transition-all text-sm border ${
+            enhancing
+              ? 'border-amber-500/30 bg-amber-500/10 text-amber-400/80'
+              : hasAnyText
+                ? 'border-amber-500/20 text-amber-400/70 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300'
+                : 'border-white/5 text-white/15 cursor-not-allowed'
+          }`}
+          title="Enhance with AI: translate, improve, and extract fields"
+        >
+          {enhancing ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Enhancing...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              Enhance
+            </>
+          )}
+        </button>
+      )}
       <button
         type="submit"
         className="flex-1 text-white font-medium py-2.5 px-4 rounded-lg transition-all hover:brightness-110 text-sm shadow-lg"
