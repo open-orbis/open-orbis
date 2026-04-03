@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useOrbStore } from '../stores/orbStore';
+import { useTelemetry } from '../hooks/useTelemetry';
 import { publicTextSearch } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeLegend from '../components/graph/NodeLegend';
@@ -11,6 +12,7 @@ export default function SharedOrbPage() {
   const { orbId } = useParams<{ orbId: string }>();
   const [searchParams] = useSearchParams();
   const filterToken = searchParams.get('filter_token') || undefined;
+  const { trackEvent } = useTelemetry();
   const { data, loading, error, fetchPublicOrb } = useOrbStore();
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -21,6 +23,10 @@ export default function SharedOrbPage() {
     (query: string) => publicTextSearch(query, orbId || '', filterToken),
     [orbId, filterToken]
   );
+
+  useEffect(() => {
+    trackEvent('page_view', 'SharedOrbPage', { orbId, filtered: !!filterToken });
+  }, [trackEvent, orbId, filterToken]);
 
   useEffect(() => {
     if (orbId) fetchPublicOrb(orbId, filterToken);
@@ -51,7 +57,7 @@ export default function SharedOrbPage() {
     );
   }
 
-  const personName = data.person.name as string || orbId;
+  const personName = data.person.name as string || orbId || 'User';
 
   return (
     <div className="min-h-screen bg-black relative">
@@ -72,6 +78,7 @@ export default function SharedOrbPage() {
 
           <a
             href="/"
+            onClick={() => trackEvent('create_own_orb_click', 'SharedOrbPage')}
             className="text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors"
           >
             Create your own Orb

@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useTelemetry } from '../hooks/useTelemetry';
 
 const FEATURES = [
   {
@@ -26,6 +28,11 @@ const FEATURES = [
 
 export default function AboutPage() {
   const navigate = useNavigate();
+  const { trackEvent } = useTelemetry();
+
+  useEffect(() => {
+    trackEvent('page_view', 'AboutPage');
+  }, [trackEvent]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -80,7 +87,7 @@ export default function AboutPage() {
           className="mt-16"
         >
           <button
-            onClick={() => navigate('/')}
+            onClick={() => { trackEvent('about_cta_click', 'AboutPage'); navigate('/'); }}
             className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-lg shadow-purple-600/25"
           >
             Create Your Orb

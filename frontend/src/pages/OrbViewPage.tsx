@@ -3,8 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
+import { useDraftStore } from '../stores/draftStore';
+import { useTelemetry } from '../hooks/useTelemetry';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
+import { changeEmail, deleteAccount } from '../api/auth';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeLegend from '../components/graph/NodeLegend';
@@ -12,8 +15,7 @@ import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
-import type { DraftNote } from '../components/drafts/DraftNotes';
-import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
+import type { DraftNote } from '../api/drafts';
 import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 
@@ -25,6 +27,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
   const [filterToken, setFilterToken] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const { activeKeywords } = useFilterStore();
+  const { trackEvent } = useTelemetry();
   const hasActiveFilters = activeKeywords.length > 0;
   const shareUrl = `${window.location.origin}/${orbId}`;
   const filteredShareUrl = filterToken ? `${window.location.origin}/${orbId}?filter_token=${filterToken}` : '';
@@ -45,6 +48,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
 
   const copy = (text: string, filtered = false) => {
     navigator.clipboard.writeText(text);
+    trackEvent('copy_link', 'SharePanel', { filtered });
     if (filtered) {
       setCopiedFiltered(true);
       setTimeout(() => setCopiedFiltered(false), 2000);
@@ -134,32 +138,66 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
 
 function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onClose: () => void; onOrbIdChanged: () => void }) {
   const [customId, setCustomId] = useState(orbId);
+  const { user, setToken, logout } = useAuthStore();
+  const [newEmail, setNewEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const navigate = useNavigate();
+  const { trackEvent } = useTelemetry();
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
 
   const handleSave = async () => {
     const trimmed = customId.trim().toLowerCase();
     if (!trimmed) return;
-    if (trimmed === orbId) { onClose(); return; }
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { setError('Only lowercase letters, numbers, and hyphens allowed.'); return; }
-    if (trimmed.length < 3) { setError('Must be at least 3 characters.'); return; }
     setSaving(true); setError('');
     try {
-      await claimOrbId(trimmed);
-      setSuccess(true); onOrbIdChanged();
+      if (trimmed !== orbId) {
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { throw new Error('Only lowercase letters, numbers, and hyphens allowed.'); }
+        if (trimmed.length < 3) { throw new Error('Must be at least 3 characters.'); }
+        await claimOrbId(trimmed);
+        trackEvent('change_orb_id', 'SettingsPanel', { oldId: orbId, newId: trimmed });
+        onOrbIdChanged();
+      }
+
+      if (newEmail !== user?.email) {
+        if (!newEmail.includes('@')) { throw new Error('Invalid email address.'); }
+        const { access_token } = await changeEmail(newEmail);
+        trackEvent('change_email', 'SettingsPanel');
+        setToken(access_token);
+      }
+
+      setSuccess(true);
       setTimeout(() => onClose(), 1200);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to claim this ID. It may already be taken.');
+      setError(err?.message || err?.response?.data?.detail || 'Failed to save settings.');
     } finally { setSaving(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setSaving(true);
+    try {
+      trackEvent('delete_account', 'SettingsPanel');
+      await deleteAccount();
+      logout();
+      navigate('/');
+    } catch (err: any) {
+      setError('Failed to delete account.');
+      setSaving(false);
+    }
   };
 
   const handleAddKeyword = () => {
     const trimmed = newKeyword.trim();
     if (!trimmed) return;
     addKeyword(trimmed);
+    trackEvent('add_filter_keyword', 'SettingsPanel', { keyword: trimmed });
     setNewKeyword('');
   };
 
@@ -238,7 +276,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                     <span className="text-white text-sm font-mono truncate">{kw}</span>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button
-                        onClick={() => toggleKeyword(kw)}
+                        onClick={() => { toggleKeyword(kw); trackEvent('toggle_filter', 'SettingsPanel', { keyword: kw, active: !isActive }); }}
                         className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
                           isActive
                             ? 'bg-amber-500 text-white'
@@ -248,7 +286,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                         {isActive ? 'Active' : 'Activate'}
                       </button>
                       <button
-                        onClick={() => removeKeyword(kw)}
+                        onClick={() => { removeKeyword(kw); trackEvent('remove_filter_keyword', 'SettingsPanel', { keyword: kw }); }}
                         className="text-gray-500 hover:text-red-400 transition-colors"
                         title="Remove"
                       >
@@ -262,19 +300,56 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
               })}
             </div>
           )}
-
-          {activeKeywords.length > 0 && (
-            <p className="text-amber-400/70 text-[11px] mt-2">
-              {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
-                <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
-              ))} active. Matching nodes are transparent.
-            </p>
-          )}
         </div>
 
+        {/* ── Account section ── */}
+        <div className="mb-5 border-t border-gray-700 pt-4">
+          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account Settings</label>
+          <div className="mt-3">
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Email Address</label>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => { setNewEmail(e.target.value); setError(''); setSuccess(false); }}
+              placeholder="your@email.com"
+              className="w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* ── Danger Zone ── */}
+        <div className="mb-8 border-t border-red-900/30 pt-4">
+          <label className="text-xs text-red-400 uppercase tracking-wide font-medium">Danger Zone</label>
+          <div className="mt-3 p-3 border border-red-900/20 bg-red-900/5 rounded-xl">
+            <p className="text-[11px] text-gray-500 mb-3">Permanently delete your orb and all associated data. This action is irreversible.</p>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={saving}
+              className={`w-full py-2 rounded-lg text-xs font-semibold transition-all ${
+                confirmDelete
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-transparent border border-red-900/30 text-red-400 hover:bg-red-900/10'
+              }`}
+            >
+              {saving ? 'Deleting...' : confirmDelete ? 'Confirm Permanent Deletion' : 'Delete Account'}
+            </button>
+            {confirmDelete && !saving && (
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="w-full mt-2 py-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && <p className="text-red-400 text-xs mb-4 text-center">{error}</p>}
+        {success && <p className="text-green-400 text-xs mb-4 text-center">Settings saved successfully!</p>}
+
         <div className="flex gap-3">
-          <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving…' : 'Save'}</button>
-          <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving…' : 'Save Settings'}</button>
+          <button onClick={onClose} disabled={saving} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
         </div>
       </motion.div>
     </div>
@@ -308,9 +383,9 @@ function ProfilePanel({ person, onClose, onSaved }: {
   });
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const { trackEvent } = useTelemetry();
 
   const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
-  const emptyAccounts = SOCIAL_ACCOUNTS.filter((a) => !values[a.key]?.trim());
 
   const handleSave = async () => {
     setSaving(true);
@@ -320,6 +395,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
         props[k] = v.trim();
       }
       await updateProfile(props);
+      trackEvent('update_profile', 'ProfilePanel');
       onSaved();
       setEditing(false);
     } catch { /* toast handles */ }
@@ -446,7 +522,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
               </div>
             )}
 
-            <button onClick={() => setEditing(true)}
+            <button onClick={() => { setEditing(true); trackEvent('edit_profile_click', 'ProfilePanel'); }}
               className="w-full border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2 rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -462,18 +538,10 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
 // ── Icon components ──
 
-function IconShare() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-    </svg>
-  );
-}
-
 function IconSettings() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924-1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   );
@@ -483,14 +551,6 @@ function IconNotes() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-    </svg>
-  );
-}
-
-function IconPlus() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
   );
 }
@@ -531,8 +591,10 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 
 export default function OrbViewPage() {
   const navigate = useNavigate();
+  const { trackEvent } = useTelemetry();
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
   const { user, logout } = useAuthStore();
+  const { notes: draftNotes, fetchDrafts } = useDraftStore();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -545,33 +607,15 @@ export default function OrbViewPage() {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const userId = user?.user_id ?? '';
-  const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
-  const [draftsLoaded, setDraftsLoaded] = useState(false);
 
-  // Load drafts when userId becomes available (async auth)
   useEffect(() => {
-    if (!userId) return;
-    const stored = loadDraftNotes(userId);
-    if (stored.length > 0) {
-      setDraftNotes(stored);
-    } else {
-      // Seed a sample note for first-time users
-      setDraftNotes([{
-        id: 'sample-1',
-        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orb later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
-        createdAt: Date.now(),
-        fromVoice: false,
-      }]);
-    }
-    setDraftsLoaded(true);
-  }, [userId]);
+    trackEvent('page_view', 'OrbViewPage');
+  }, [trackEvent]);
 
-  // Persist drafts to localStorage (user-scoped) — only after initial load
   useEffect(() => {
-    if (userId && draftsLoaded) saveDraftNotes(userId, draftNotes);
-  }, [draftNotes, userId, draftsLoaded]);
-
-  useEffect(() => { fetchOrb(); }, [fetchOrb]);
+    fetchOrb();
+    fetchDrafts();
+  }, [fetchOrb, fetchDrafts]);
 
 
   useEffect(() => {
@@ -582,6 +626,7 @@ export default function OrbViewPage() {
 
   const handleNodeClick = useCallback((node: Record<string, unknown>) => {
     if (!node) return;
+    trackEvent('node_click', 'OrbGraph3D', { labels: node._labels });
     const labels = (node._labels as string[]) || [];
     if (labels[0] === 'Person') {
       setShowProfile(true);
@@ -594,12 +639,14 @@ export default function OrbViewPage() {
     };
     setEditNode({ type: typeMap[labels[0]] || 'skill', values: node });
     setShowInput(true);
-  }, []);
+  }, [trackEvent]);
 
   const handleSubmit = async (nodeType: string, properties: Record<string, unknown>) => {
     if (editNode?.values?.uid) {
+      trackEvent('update_node', 'NodeForm', { nodeType });
       await updateNode(editNode.values.uid as string, properties);
     } else {
+      trackEvent('add_node', 'NodeForm', { nodeType });
       await addNode(nodeType, properties);
     }
     setShowInput(false);
@@ -607,6 +654,7 @@ export default function OrbViewPage() {
   };
 
   const handleDraftToGraph = (note: DraftNote) => {
+    trackEvent('draft_to_graph', 'DraftNotes', { noteId: note.uid });
     const text = note.text.toLowerCase();
     const detect: [RegExp, string][] = [
       [/\b(python|javascript|typescript|react|angular|vue|java|c\+\+|node\.?js|sql|docker|kubernetes|aws|git|html|css|figma|photoshop|agile|scrum|machine learning|data science|deep learning|tensorflow|pytorch)\b/i, 'skill'],
@@ -652,7 +700,7 @@ export default function OrbViewPage() {
           {/* Left: identity — click avatar to open settings */}
           <div className="flex items-center gap-2 sm:gap-3">
             <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => { setShowSettings(true); trackEvent('open_settings', 'Header'); }}
               className="relative w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center hover:bg-purple-600/50 hover:border-purple-400/60 transition-all group"
               title="Settings"
             >
@@ -680,7 +728,7 @@ export default function OrbViewPage() {
           {/* Right: secondary actions */}
           <div className="flex items-center gap-1">
             <ProcessingCounter />
-            <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
+            <HeaderBtn onClick={() => { setShowInbox(true); trackEvent('open_inbox', 'Header'); }} variant="outline">
               <IconInbox />
               <span className="hidden sm:inline">Inbox</span>
               {unreadCount > 0 && (
@@ -689,7 +737,7 @@ export default function OrbViewPage() {
                 </span>
               )}
             </HeaderBtn>
-            <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
+            <HeaderBtn onClick={() => { setShowDrafts(true); trackEvent('open_drafts', 'Header'); }} variant="outline">
               <IconNotes />
               <span className="hidden sm:inline">Notes</span>
               {draftNotes.length > 0 && (
@@ -699,14 +747,14 @@ export default function OrbViewPage() {
               )}
             </HeaderBtn>
             <button
-              onClick={() => window.open('/cv-export', '_blank')}
+              onClick={() => { window.open('/cv-export', '_blank'); trackEvent('export_cv', 'Header'); }}
               className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
             >
               <IconDownload />
               <span className="hidden sm:inline">Export CV</span>
             </button>
             <button
-              onClick={() => { logout(); navigate('/'); }}
+              onClick={() => { logout(); trackEvent('logout', 'Header'); navigate('/'); }}
               className="text-white/30 text-xs font-medium py-1.5 px-2 sm:px-3 rounded-lg hover:text-red-400 hover:bg-red-500/10 transition-all"
             >
               Logout
@@ -764,6 +812,7 @@ export default function OrbViewPage() {
         onSubmit={handleSubmit}
         onCancel={() => { setShowInput(false); setEditNode(null); }}
         onDelete={async (uid) => {
+          trackEvent('delete_node', 'NodeForm');
           await deleteNode(uid);
           setShowInput(false);
           setEditNode(null);
@@ -775,8 +824,8 @@ export default function OrbViewPage() {
         onHighlight={setHighlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
-        onAdd={() => { setEditNode(null); setShowInput(true); }}
-        onShare={() => setShowShare(true)}
+        onAdd={() => { setEditNode(null); setShowInput(true); trackEvent('chat_add_node', 'ChatBox'); }}
+        onShare={() => { setShowShare(true); trackEvent('chat_share_click', 'ChatBox'); }}
         highlightAdd={data.nodes.length === 0 && !showInput}
       />
 
@@ -791,9 +840,8 @@ export default function OrbViewPage() {
       <DraftNotes
         open={showDrafts}
         onClose={() => setShowDrafts(false)}
-        notes={draftNotes}
-        onNotesChange={setDraftNotes}
         onAddToGraph={handleDraftToGraph}
+        userId={userId}
       />
 
       {/* ── Animated Panels ── */}

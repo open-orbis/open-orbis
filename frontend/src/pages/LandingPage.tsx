@@ -1,7 +1,8 @@
 import { motion, useInView } from 'framer-motion';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { useTelemetry } from '../hooks/useTelemetry';
 import HeroOrb from '../components/landing/HeroOrb';
 
 // ── Animated section wrapper ──
@@ -50,15 +51,19 @@ function FeatureCard({ title, description, icon, color }: { title: string; descr
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { trackEvent } = useTelemetry();
   const { user, loginDev, loading } = useAuthStore();
 
   const [signingIn, setSigningIn] = useState(false);
 
+  useEffect(() => {
+    trackEvent('page_view', 'LandingPage');
+  }, [trackEvent]);
+
   const handleGetStarted = async () => {
+    trackEvent('get_started_click', 'LandingPage');
     setSigningIn(true);
     await loginDev();
-    // Navigate only after login completes — the signingIn flag prevents
-    // the landing page from flashing the logged-in state during transition
     navigate('/create');
   };
 
@@ -80,7 +85,7 @@ export default function LandingPage() {
           </div>
           {user && !signingIn ? (
             <button
-              onClick={() => navigate('/orb')}
+              onClick={() => { trackEvent('go_to_orb_click', 'Header'); navigate('/orb'); }}
               className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
             >
               Go to My Orb &rarr;
@@ -159,7 +164,7 @@ export default function LandingPage() {
           {user && !signingIn ? (
             <>
               <button
-                onClick={() => navigate('/orb')}
+                onClick={() => { trackEvent('view_my_orb_click', 'Hero'); navigate('/orb'); }}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
                 View My Orb
@@ -182,7 +187,7 @@ export default function LandingPage() {
                 </svg>
               </button>
               <button
-                onClick={() => document.getElementById('orbis-difference')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => { trackEvent('learn_more_click', 'Hero'); document.getElementById('orbis-difference')?.scrollIntoView({ behavior: 'smooth' }); }}
                 className="border border-white/10 hover:border-white/20 text-white/50 hover:text-white/70 font-medium py-3.5 px-8 rounded-xl transition-all text-base"
               >
                 Learn more
@@ -392,7 +397,7 @@ export default function LandingPage() {
             </p>
             {user && !signingIn ? (
               <button
-                onClick={() => navigate('/orb')}
+                onClick={() => { trackEvent('view_my_orb_click', 'LandingPage_Footer'); navigate('/orb'); }}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
                 Go to My Orb
