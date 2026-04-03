@@ -5,7 +5,6 @@ import { useAuthStore } from './stores/authStore';
 import LandingPage from './pages/LandingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import CreateOrbPage from './pages/CreateOrbPage';
-// import ReviewPage from './pages/ReviewPage'; // CV upload disabled for now
 import AboutPage from './pages/AboutPage';
 import OrbViewPage from './pages/OrbViewPage';
 import SharedOrbPage from './pages/SharedOrbPage';
@@ -45,7 +44,6 @@ function AnimatedRoutes() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />
         <Route path="/create" element={<PageWrapper><CreateOrbPage /></PageWrapper>} />
-        {/* <Route path="/review" element={<PageWrapper><ReviewPage /></PageWrapper>} /> */}
         <Route path="/orb" element={<PageWrapper><OrbViewPage /></PageWrapper>} />
         <Route path="/cv-export" element={<CvExportPage />} />
         <Route path="/:orbId" element={<PageWrapper><SharedOrbPage /></PageWrapper>} />

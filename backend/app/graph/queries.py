@@ -117,11 +117,6 @@ MATCH (n {uid: $uid})
 DETACH DELETE n
 """
 
-GET_NODES_BY_TYPE = """
-MATCH (p:Person {user_id: $user_id})-[r:{rel_type}]->(n:{label})
-RETURN n
-"""
-
 # ── Merge keys for dedup during CV import ──
 
 NODE_TYPE_MERGE_KEYS: dict[str, list[str]] = {

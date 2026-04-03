@@ -10,7 +10,6 @@ from app.graph.queries import (
     DELETE_NODE,
     GET_FULL_ORB,
     GET_FULL_ORB_PUBLIC,
-    GET_NODES_BY_TYPE,
     GET_PERSON_BY_ORB_ID,
     GET_PERSON_BY_USER_ID,
     GET_SKILL_LINKS,
@@ -36,7 +35,6 @@ ALL_QUERIES = {
     "ADD_NODE": ADD_NODE,
     "UPDATE_NODE": UPDATE_NODE,
     "DELETE_NODE": DELETE_NODE,
-    "GET_NODES_BY_TYPE": GET_NODES_BY_TYPE,
     "LINK_SKILL": LINK_SKILL,
     "UNLINK_SKILL": UNLINK_SKILL,
     "GET_SKILL_LINKS": GET_SKILL_LINKS,
@@ -134,11 +132,6 @@ class TestQueryTemplates:
     def test_delete_node(self):
         assert "$uid" in DELETE_NODE
         assert "DETACH DELETE" in DELETE_NODE
-
-    def test_get_nodes_by_type(self):
-        assert "$user_id" in GET_NODES_BY_TYPE
-        assert "{rel_type}" in GET_NODES_BY_TYPE
-        assert "{label}" in GET_NODES_BY_TYPE
 
     def test_full_orb_queries_structure(self):
         for query in (GET_FULL_ORB, GET_FULL_ORB_PUBLIC):

@@ -10,7 +10,6 @@ interface FilterState {
   addKeyword: (keyword: string) => void;
   removeKeyword: (keyword: string) => void;
   toggleKeyword: (keyword: string) => void;
-  setActiveKeywords: (keywords: string[]) => void;
 }
 
 export const useFilterStore = create<FilterState>()(
@@ -44,9 +43,6 @@ export const useFilterStore = create<FilterState>()(
         }
       },
 
-      setActiveKeywords: (keywords: string[]) => {
-        set({ activeKeywords: keywords });
-      },
     }),
     {
       name: 'orbis_filters',
@@ -58,7 +54,7 @@ export const useFilterStore = create<FilterState>()(
  * Check if a node matches a filter keyword.
  * Returns true if any string field of the node contains the keyword (case-insensitive).
  */
-export function nodeMatchesFilter(
+function nodeMatchesFilter(
   node: Record<string, unknown>,
   keyword: string
 ): boolean {

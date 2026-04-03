@@ -121,7 +121,7 @@ def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:  # noq
 
             pdf.set_font("Helvetica", "B", 11)
             if title and org:
-                pdf.cell(0, 6, f"{title} — {org}", new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 6, f"{title} - {org}", new_x="LMARGIN", new_y="NEXT")
             elif title:
                 pdf.cell(0, 6, title, new_x="LMARGIN", new_y="NEXT")
             elif org:
@@ -140,7 +140,7 @@ def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:  # noq
             location = item.get("location", "")
             meta_parts = []
             if dates:
-                meta_parts.append(" — ".join(dates))
+                meta_parts.append(" - ".join(dates))
             if location:
                 meta_parts.append(location)
 
@@ -168,7 +168,7 @@ def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:  # noq
     pdf.ln(5)
     pdf.set_font("Helvetica", "I", 8)
     pdf.set_text_color(180, 180, 180)
-    pdf.cell(0, 4, f"Generated from Orbis — orbis.io/{orb_id}", align="C")
+    pdf.cell(0, 4, f"Generated from Orbis - orbis.io/{orb_id}", align="C")
 
     return pdf.output()
 

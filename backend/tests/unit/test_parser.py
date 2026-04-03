@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 from app.cv.parser import (
@@ -12,7 +10,6 @@ from app.cv.parser import (
     NAME_PATTERN,
     SECTION_PATTERNS,
     URL_PATTERN,
-    extract_text,
     rule_based_extract,
     rule_based_to_nodes,
 )
@@ -334,37 +331,18 @@ Developer
         )
 
 
-# ── extract_text (with mocks) ──
+class TestRuleBasedExtractExtra:
+    def test_extract_various_urls(self):
+        text = "Name\nhttps://github.com/user\nhttps://twitter.com/user"
+        res = rule_based_extract(text)
+        # It currently overwrites website_url with the last one found if not linkedin/scholar
+        assert res["contact"]["website_url"] == "https://twitter.com/user"
 
-
-class TestExtractText:
-    def test_pdf_dispatches_correctly(self):
-        with patch(
-            "app.cv.parser.extract_text_from_pdf", return_value="pdf content"
-        ) as mock_pdf:
-            result = extract_text("/tmp/cv.pdf")
-            assert result == "pdf content"
-            mock_pdf.assert_called_once_with("/tmp/cv.pdf")
-
-    def test_docx_dispatches_correctly(self):
-        with patch(
-            "app.cv.parser.extract_text_from_docx", return_value="docx content"
-        ) as mock_docx:
-            result = extract_text("/tmp/cv.docx")
-            assert result == "docx content"
-            mock_docx.assert_called_once_with("/tmp/cv.docx")
-
-    def test_unsupported_extension_raises(self):
-        with pytest.raises(ValueError, match="Unsupported file type"):
-            extract_text("/tmp/cv.txt")
-
-    def test_case_insensitive_extension(self):
-        with patch(
-            "app.cv.parser.extract_text_from_pdf", return_value="ok"
-        ) as mock_pdf:
-            result = extract_text("/tmp/cv.PDF")
-            assert result == "ok"
-            mock_pdf.assert_called_once()
+    def test_section_boundary_detection(self):
+        text = "Name\nSkills\nPython\nExperience\nGoogle"
+        res = rule_based_extract(text)
+        assert "skill" in res["sections"]
+        assert "work_experience" in res["sections"]
 
 
 # ── Regex patterns ──

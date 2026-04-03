@@ -6,18 +6,16 @@ from app.config import settings
 
 
 async def generate_embedding(text: str) -> list[float] | None:
-    """Generate a 1536-dim embedding using Anthropic's API via Voyager model,
-    falling back to None if unavailable."""
+    """Generate a 1536-dim embedding.
+
+    Currently uses a deterministic hash-based placeholder.
+    In production, swap with a real embedding model (e.g. OpenAI ada-002
+    or a local sentence-transformers model).
+    """
     if not settings.anthropic_api_key:
         return None
 
-    try:
-        # Anthropic doesn't have a native embedding model yet,
-        # so we use a simple hash-based placeholder for now.
-        # In production, swap with OpenAI ada-002 or a local sentence-transformers model.
-        return _simple_embedding(text)
-    except Exception:
-        return None
+    return _simple_embedding(text)
 
 
 def _simple_embedding(text: str, dim: int = 1536) -> list[float]:

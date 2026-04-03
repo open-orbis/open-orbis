@@ -58,14 +58,3 @@ export const NODE_SHAPE_MARKERS: Record<string, string> = {
   Patent: '\u2B1F',        // ⬟ pentagon
 };
 
-export const NODE_TYPE_SHAPE_MARKERS: Record<string, string> = {
-  education: '\u25C6',
-  work_experience: '\u25A0',
-  certification: '\u2605',
-  language: '\u25B2',
-  publication: '\u25C7',
-  project: '\u2B22',
-  skill: '\u25C9',
-  collaborator: '\u25CE',
-  patent: '\u2B1F',
-};

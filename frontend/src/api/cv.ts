@@ -6,7 +6,7 @@ export interface ExtractedRelationship {
   type: string;
 }
 
-export interface SkippedNode {
+interface SkippedNode {
   original: Record<string, unknown>;
   reason: string;
 }

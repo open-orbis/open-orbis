@@ -16,7 +16,3 @@ export async function devLogin(): Promise<{ access_token: string; user: UserInfo
   const { data } = await client.post('/auth/dev-login');
   return data;
 }
-
-export function getGoogleLoginUrl(): string {
-  return '/api/auth/google';
-}

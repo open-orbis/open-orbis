@@ -11,6 +11,8 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import respx
+from httpx import Response
 
 from app.cv.ollama_classifier import TEXT_LIMIT, classify_entries
 
@@ -197,8 +199,9 @@ class TestRetryLogic:
             side_effect=ConnectionError("always fails"),
         ):
             result = await classify_entries(SAMPLE_CV_TEXT)
-            # Should fall back to rule-based extraction
-            assert len(result.nodes) > 0 or len(result.unmatched) > 0
+            # Rule-based fallback should find skills from SAMPLE_CV_TEXT
+            types = {n.node_type for n in result.nodes}
+            assert "skill" in types
 
 
 # ── Rule-based fallback ──
@@ -311,3 +314,17 @@ class TestFinalFallback:
             # Lines with len <= 5 should be filtered
             for line in result.unmatched:
                 assert len(line) > 5
+
+
+@respx.mock
+async def test_call_ollama_success():
+    from app.config import settings
+    from app.cv.ollama_classifier import _call_ollama
+
+    url = f"{settings.ollama_base_url}/api/chat"
+    respx.post(url).mock(
+        return_value=Response(200, json={"message": {"content": "ollama response"}})
+    )
+
+    result = await _call_ollama("user msg")
+    assert result == "ollama response"
