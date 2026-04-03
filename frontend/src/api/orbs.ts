@@ -74,6 +74,27 @@ export async function unlinkSkill(nodeUid: string, skillUid: string): Promise<vo
   await client.post('/orbs/me/unlink-skill', { node_uid: nodeUid, skill_uid: skillUid });
 }
 
+// ── Note Enhancement ──
+
+export interface EnhanceNoteResult {
+  node_type: string;
+  properties: Record<string, string>;
+  suggested_skill_uids: string[];
+}
+
+export async function enhanceNote(
+  text: string,
+  targetLanguage: string,
+  existingSkills: { uid: string; name: string }[],
+): Promise<EnhanceNoteResult> {
+  const { data } = await client.post('/notes/enhance', {
+    text,
+    target_language: targetLanguage,
+    existing_skills: existingSkills,
+  });
+  return data;
+}
+
 // ── Messages / Inbox ──
 
 export interface MessageReply {

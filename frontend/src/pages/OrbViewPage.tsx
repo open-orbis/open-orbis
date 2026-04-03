@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
-import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
+import { claimOrbId, updateProfile, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeLegend from '../components/graph/NodeLegend';
@@ -547,6 +547,8 @@ export default function OrbViewPage() {
   const userId = user?.user_id ?? '';
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
+  const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
+  const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
 
   // Load drafts when userId becomes available (async auth)
   useEffect(() => {
@@ -600,8 +602,22 @@ export default function OrbViewPage() {
     if (editNode?.values?.uid) {
       await updateNode(editNode.values.uid as string, properties);
     } else {
-      await addNode(nodeType, properties);
+      const createdNode = await addNode(nodeType, properties);
+      // Auto-link suggested skills from AI enhancement
+      if (pendingSkillLinks.length > 0 && createdNode?.uid) {
+        for (const skillUid of pendingSkillLinks) {
+          try {
+            await linkSkill(createdNode.uid, skillUid);
+          } catch { /* skip failed links */ }
+        }
+        await fetchOrb();
+      }
     }
+    if (pendingDraftNoteId) {
+      setDraftNotes((prev) => prev.filter((n) => n.id !== pendingDraftNoteId));
+      setPendingDraftNoteId(null);
+    }
+    setPendingSkillLinks([]);
     setShowInput(false);
     setEditNode(null);
   };
@@ -622,7 +638,22 @@ export default function OrbViewPage() {
     for (const [regex, nodeType] of detect) {
       if (regex.test(text)) { type = nodeType; break; }
     }
+    setPendingDraftNoteId(note.id);
     setEditNode({ type, values: { description: note.text } });
+    setShowInput(true);
+    setShowDrafts(false);
+  };
+
+  const handleDraftEnhance = async (note: DraftNote, targetLang: string) => {
+    const existingSkills = (data?.nodes || [])
+      .filter((n) => n._labels?.[0] === 'Skill' && n.name)
+      .map((n) => ({ uid: n.uid, name: n.name as string }));
+
+    const result = await enhanceNote(note.text, targetLang, existingSkills);
+
+    setPendingDraftNoteId(note.id);
+    setPendingSkillLinks(result.suggested_skill_uids);
+    setEditNode({ type: result.node_type, values: result.properties });
     setShowInput(true);
     setShowDrafts(false);
   };
@@ -762,11 +793,20 @@ export default function OrbViewPage() {
         open={showInput}
         editNode={editNode}
         onSubmit={handleSubmit}
-        onCancel={() => { setShowInput(false); setEditNode(null); }}
+        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); }}
         onDelete={async (uid) => {
           await deleteNode(uid);
           setShowInput(false);
           setEditNode(null);
+        }}
+        onEnhance={async (text) => {
+          const existingSkills = (data?.nodes || [])
+            .filter((n) => n._labels?.[0] === 'Skill' && n.name)
+            .map((n) => ({ uid: n.uid, name: n.name as string }));
+          const targetLang = localStorage.getItem('orbis_note_target_lang') || 'en';
+          const result = await enhanceNote(text, targetLang, existingSkills);
+          setPendingSkillLinks(result.suggested_skill_uids);
+          return { node_type: result.node_type, properties: result.properties };
         }}
       />
 
@@ -794,6 +834,7 @@ export default function OrbViewPage() {
         notes={draftNotes}
         onNotesChange={setDraftNotes}
         onAddToGraph={handleDraftToGraph}
+        onEnhance={handleDraftEnhance}
       />
 
       {/* ── Animated Panels ── */}

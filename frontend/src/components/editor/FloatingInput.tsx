@@ -9,9 +9,10 @@ interface FloatingInputProps {
   onSubmit: (nodeType: string, properties: Record<string, unknown>) => void;
   onCancel: () => void;
   onDelete?: (uid: string) => void;
+  onEnhance?: (text: string) => Promise<{ node_type: string; properties: Record<string, string> } | null>;
 }
 
-export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDelete }: FloatingInputProps) {
+export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDelete, onEnhance }: FloatingInputProps) {
   const [currentType, setCurrentType] = useState(editNode?.type || 'skill');
   const color = NODE_TYPE_COLORS[currentType] || '#8b5cf6';
   const isEditing = !!editNode?.values?.uid;
@@ -71,6 +72,7 @@ export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDe
                   onCancel={onCancel}
                   onTypeChange={handleTypeChange}
                   onDelete={onDelete && editNode?.values?.uid ? () => onDelete(editNode.values.uid as string) : undefined}
+                  onEnhance={onEnhance}
                 />
               </div>
             </div>
