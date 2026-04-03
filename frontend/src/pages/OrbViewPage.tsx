@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
+import { useDraftStore } from '../stores/draftStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { claimOrbId, updateProfile, createFilterToken } from '../api/orbs';
+import { changeEmail, deleteAccount } from '../api/auth';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeLegend from '../components/graph/NodeLegend';
@@ -12,8 +14,7 @@ import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
-import type { DraftNote } from '../components/drafts/DraftNotes';
-import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
+import type { DraftNote } from '../api/drafts';
 import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 
@@ -134,26 +135,55 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
 
 function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onClose: () => void; onOrbIdChanged: () => void }) {
   const [customId, setCustomId] = useState(orbId);
+  const { user, setToken, logout } = useAuthStore();
+  const [newEmail, setNewEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const navigate = useNavigate();
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
 
   const handleSave = async () => {
     const trimmed = customId.trim().toLowerCase();
     if (!trimmed) return;
-    if (trimmed === orbId) { onClose(); return; }
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { setError('Only lowercase letters, numbers, and hyphens allowed.'); return; }
-    if (trimmed.length < 3) { setError('Must be at least 3 characters.'); return; }
     setSaving(true); setError('');
     try {
-      await claimOrbId(trimmed);
-      setSuccess(true); onOrbIdChanged();
+      if (trimmed !== orbId) {
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { throw new Error('Only lowercase letters, numbers, and hyphens allowed.'); }
+        if (trimmed.length < 3) { throw new Error('Must be at least 3 characters.'); }
+        await claimOrbId(trimmed);
+        onOrbIdChanged();
+      }
+
+      if (newEmail !== user?.email) {
+        if (!newEmail.includes('@')) { throw new Error('Invalid email address.'); }
+        const { access_token } = await changeEmail(newEmail);
+        setToken(access_token);
+      }
+
+      setSuccess(true);
       setTimeout(() => onClose(), 1200);
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to claim this ID. It may already be taken.');
+      setError(err?.message || err?.response?.data?.detail || 'Failed to save settings.');
     } finally { setSaving(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setSaving(true);
+    try {
+      await deleteAccount();
+      logout();
+      navigate('/');
+    } catch (err: any) {
+      setError('Failed to delete account.');
+      setSaving(false);
+    }
   };
 
   const handleAddKeyword = () => {
@@ -272,9 +302,54 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
           )}
         </div>
 
+        {/* ── Account section ── */}
+        <div className="mb-5 border-t border-gray-700 pt-4">
+          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account Settings</label>
+          <div className="mt-3">
+            <label className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Email Address</label>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => { setNewEmail(e.target.value); setError(''); setSuccess(false); }}
+              placeholder="your@email.com"
+              className="w-full mt-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {/* ── Danger Zone ── */}
+        <div className="mb-8 border-t border-red-900/30 pt-4">
+          <label className="text-xs text-red-400 uppercase tracking-wide font-medium">Danger Zone</label>
+          <div className="mt-3 p-3 border border-red-900/20 bg-red-900/5 rounded-xl">
+            <p className="text-[11px] text-gray-500 mb-3">Permanently delete your orb and all associated data. This action is irreversible.</p>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={saving}
+              className={`w-full py-2 rounded-lg text-xs font-semibold transition-all ${
+                confirmDelete
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-transparent border border-red-900/30 text-red-400 hover:bg-red-900/10'
+              }`}
+            >
+              {saving ? 'Deleting...' : confirmDelete ? 'Confirm Permanent Deletion' : 'Delete Account'}
+            </button>
+            {confirmDelete && !saving && (
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="w-full mt-2 py-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+
+        {error && <p className="text-red-400 text-xs mb-4 text-center">{error}</p>}
+        {success && <p className="text-green-400 text-xs mb-4 text-center">Settings saved successfully!</p>}
+
         <div className="flex gap-3">
-          <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving…' : 'Save'}</button>
-          <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving…' : 'Save Settings'}</button>
+          <button onClick={onClose} disabled={saving} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
         </div>
       </motion.div>
     </div>

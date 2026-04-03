@@ -7,12 +7,12 @@ from neo4j import AsyncDriver
 
 logger = logging.getLogger(__name__)
 
-from app.auth.models import TokenResponse, UserInfo
+from app.auth.models import ChangeEmailRequest, TokenResponse, UserInfo
 from app.auth.service import create_jwt, exchange_google_code
 from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_value
-from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
+from app.graph.queries import CREATE_PERSON, DELETE_ACCOUNT, GET_PERSON_BY_USER_ID, UPDATE_PERSON
 from app.messages.welcome import send_welcome_message
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -120,3 +120,50 @@ async def get_me(
             email=current_user["email"],
             name=person.get("name", ""),
         )
+
+
+@router.post("/change-email")
+async def change_email(
+    request: ChangeEmailRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Update user's email address in Neo4j and return a fresh JWT."""
+    user_id = current_user["user_id"]
+    new_email = request.new_email
+
+    async with db.session() as session:
+        # Check if user exists (should exist due to get_current_user)
+        result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        await session.run(
+            UPDATE_PERSON,
+            user_id=user_id,
+            properties={"email": encrypt_value(new_email)},
+        )
+
+    token = create_jwt(user_id, new_email)
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@router.delete("/account")
+async def delete_account(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Permanently delete the user node and all associated graph nodes."""
+    user_id = current_user["user_id"]
+    async with db.session() as session:
+        # Verify user exists before deletion
+        result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        await session.run(DELETE_ACCOUNT, user_id=user_id)
+
+    logger.info("Account deleted: user_id=%s", user_id)
+    return {"status": "ok", "message": "Account and all associated data deleted"}

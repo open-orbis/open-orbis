@@ -40,6 +40,7 @@ ALL_QUERIES = {
     "LINK_SKILL": LINK_SKILL,
     "UNLINK_SKILL": UNLINK_SKILL,
     "GET_SKILL_LINKS": GET_SKILL_LINKS,
+    "DELETE_ACCOUNT": DELETE_ACCOUNT,
 }
 
 
@@ -122,6 +123,11 @@ class TestQueryTemplates:
     def test_delete_node(self):
         assert "$uid" in DELETE_NODE
         assert "DETACH DELETE" in DELETE_NODE
+
+    def test_delete_account(self):
+        assert "$user_id" in DELETE_ACCOUNT
+        assert "DETACH DELETE" in DELETE_ACCOUNT
+        assert "OPTIONAL MATCH" in DELETE_ACCOUNT
 
     def test_get_nodes_by_type(self):
         assert "$user_id" in GET_NODES_BY_TYPE

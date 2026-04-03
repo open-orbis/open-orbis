@@ -41,6 +41,12 @@ MATCH (p:Person {user_id: $user_id})-[r]->(n)
 DETACH DELETE n
 """
 
+DELETE_ACCOUNT = """
+MATCH (p:Person {user_id: $user_id})
+OPTIONAL MATCH (p)-[]->(n)
+DETACH DELETE p, n
+"""
+
 UPDATE_ORB_ID = """
 MATCH (p:Person {user_id: $user_id})
 SET p.orb_id = $orb_id, p.updated_at = datetime()
