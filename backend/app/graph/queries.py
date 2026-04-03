@@ -36,6 +36,11 @@ SET p += $properties, p.updated_at = datetime()
 RETURN p
 """
 
+DELETE_USER_GRAPH = """
+MATCH (p:Person {user_id: $user_id})-[r]->(n)
+DETACH DELETE n
+"""
+
 UPDATE_ORB_ID = """
 MATCH (p:Person {user_id: $user_id})
 SET p.orb_id = $orb_id, p.updated_at = datetime()

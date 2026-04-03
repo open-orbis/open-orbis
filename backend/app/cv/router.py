@@ -18,6 +18,7 @@ from app.graph.queries import (
     NODE_TYPE_LABELS,
     NODE_TYPE_MERGE_KEYS,
     NODE_TYPE_RELATIONSHIPS,
+    DELETE_USER_GRAPH,
     UPDATE_PERSON,
 )
 
@@ -105,6 +106,9 @@ async def confirm_cv(
     created: list[str | None] = []
 
     async with db.session() as session:
+        # Wipe existing graph nodes (keep Person) so CV import replaces, not merges
+        await session.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
+
         # Update Person node name from CV owner if provided
         if data.cv_owner_name:
             await session.run(
