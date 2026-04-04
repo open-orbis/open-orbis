@@ -31,7 +31,9 @@ async def extract_text(pdf_bytes: bytes) -> str:
         try:
             text = await _extract_with_docling(tmp_path)
         except Exception as exc:
-            logger.warning("Docling extraction failed, falling back to PyMuPDF: %s", exc)
+            logger.warning(
+                "Docling extraction failed, falling back to PyMuPDF: %s", exc
+            )
             text = _extract_with_pymupdf(tmp_path)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
