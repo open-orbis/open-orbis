@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import anthropic
-
 from app.config import settings
 
 
@@ -14,8 +12,6 @@ async def generate_embedding(text: str) -> list[float] | None:
         return None
 
     try:
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        # Use the embeddings endpoint if available, otherwise skip
         # Anthropic doesn't have a native embedding model yet,
         # so we use a simple hash-based placeholder for now.
         # In production, swap with OpenAI ada-002 or a local sentence-transformers model.

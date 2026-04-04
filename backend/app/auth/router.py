@@ -5,15 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from neo4j import AsyncDriver
 
-logger = logging.getLogger(__name__)
-
-from app.auth.models import TokenResponse, UserInfo
+from app.auth.models import UserInfo
 from app.auth.service import create_jwt, exchange_google_code
 from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_value
 from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
 from app.messages.welcome import send_welcome_message
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -44,7 +44,9 @@ async def google_callback(
         userinfo = await exchange_google_code(code)
     except Exception as e:
         logger.error("Google OAuth exchange failed: %s", e, exc_info=True)
-        raise HTTPException(status_code=400, detail="Failed to authenticate with Google")
+        raise HTTPException(
+            status_code=400, detail="Failed to authenticate with Google"
+        ) from None
 
     user_id = userinfo["sub"]
     email = userinfo.get("email", "")
@@ -69,9 +71,7 @@ async def google_callback(
     token = create_jwt(user_id, email)
 
     # Redirect to frontend with token
-    return RedirectResponse(
-        f"{settings.frontend_url}/auth/callback?token={token}"
-    )
+    return RedirectResponse(f"{settings.frontend_url}/auth/callback?token={token}")
 
 
 @router.post("/dev-login")
@@ -98,7 +98,11 @@ async def dev_login(
             await send_welcome_message(db, user_id)
 
     token = create_jwt(user_id, email)
-    return {"access_token": token, "token_type": "bearer", "user": {"user_id": user_id, "email": email, "name": name}}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"user_id": user_id, "email": email, "name": name},
+    }
 
 
 @router.get("/me", response_model=UserInfo)

@@ -7,7 +7,6 @@ and overall precision / recall / F1 plus a property-similarity score.
 
 from __future__ import annotations
 
-import re
 import string
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -91,9 +90,7 @@ def property_similarity(a: str | None, b: str | None) -> float:
     return jaccard
 
 
-def node_similarity(
-    predicted: dict, golden: dict, node_type: str
-) -> float:
+def node_similarity(predicted: dict, golden: dict, node_type: str) -> float:
     """Similarity between two nodes based on key properties for *node_type*."""
     keys = KEY_PROPERTIES.get(node_type, [])
     if not keys:
@@ -219,9 +216,7 @@ def match_nodes_by_type(
 # ── top-level comparison ─────────────────────────────────────────────
 
 
-def compare_graphs(
-    predicted: list[dict], golden: list[dict]
-) -> ComparisonResult:
+def compare_graphs(predicted: list[dict], golden: list[dict]) -> ComparisonResult:
     """Compare full predicted graph against golden reference.
 
     Both *predicted* and *golden* are lists of dicts with keys
@@ -255,9 +250,7 @@ def compare_graphs(
         total_predicted += tr.predicted_count
         total_golden += tr.golden_count
         if tr.matched_count > 0:
-            all_prop_sims.extend(
-                [tr.mean_property_similarity] * tr.matched_count
-            )
+            all_prop_sims.extend([tr.mean_property_similarity] * tr.matched_count)
 
     overall_precision = total_matched / total_predicted if total_predicted else 0.0
     overall_recall = total_matched / total_golden if total_golden else 0.0

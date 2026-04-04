@@ -6,8 +6,6 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from neo4j import AsyncDriver
 
-logger = logging.getLogger(__name__)
-
 from app.dependencies import get_current_user, get_db
 from app.messages.models import (
     MessageOut,
@@ -17,13 +15,17 @@ from app.messages.models import (
     SendMessageRequest,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/messages", tags=["messages"])
 
 
 # ── Public endpoint: anyone / MCP can send a message to an orb ──
 
 
-@router.post("/{orb_id}", response_model=MessageSentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{orb_id}", response_model=MessageSentResponse, status_code=status.HTTP_201_CREATED
+)
 async def send_message(
     orb_id: str,
     payload: SendMessageRequest,
@@ -105,7 +107,11 @@ async def get_my_messages(
         return messages
 
 
-@router.post("/me/{message_id}/reply", response_model=ReplyOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/me/{message_id}/reply",
+    response_model=ReplyOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def reply_to_message(
     message_id: str,
     payload: ReplyRequest,

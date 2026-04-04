@@ -119,4 +119,4 @@ class TestGetFernet:
 
 class TestEncryptedFields:
     def test_expected_fields(self):
-        assert ENCRYPTED_FIELDS == {"email", "phone", "address"}
+        assert {"email", "phone", "address"} == ENCRYPTED_FIELDS

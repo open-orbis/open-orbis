@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
-
 from app.auth.models import TokenResponse, UserInfo
 from app.cv.models import (
     ConfirmRequest,
@@ -15,7 +12,6 @@ from app.cv.models import (
 )
 from app.graph.queries import CREATE_PERSON
 from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
-
 
 # ── CV Models ──
 
@@ -96,7 +92,9 @@ class TestUserInfo:
         assert user.picture == ""
 
     def test_with_picture(self):
-        user = UserInfo(user_id="u1", email="a@b.com", name="Alice", picture="https://pic.com/a.jpg")
+        user = UserInfo(
+            user_id="u1", email="a@b.com", name="Alice", picture="https://pic.com/a.jpg"
+        )
         assert user.picture == "https://pic.com/a.jpg"
 
 

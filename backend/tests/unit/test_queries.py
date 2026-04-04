@@ -55,22 +55,34 @@ class TestNodeTypeMappings:
 
     def test_all_labels_are_capitalized(self):
         for node_type, label in NODE_TYPE_LABELS.items():
-            assert label[0].isupper(), f"Label for '{node_type}' should be capitalized: '{label}'"
+            assert label[0].isupper(), (
+                f"Label for '{node_type}' should be capitalized: '{label}'"
+            )
 
     def test_all_relationships_uppercase(self):
         for node_type, rel in NODE_TYPE_RELATIONSHIPS.items():
-            assert rel == rel.upper(), f"Relationship for '{node_type}' should be uppercase: '{rel}'"
+            assert rel == rel.upper(), (
+                f"Relationship for '{node_type}' should be uppercase: '{rel}'"
+            )
 
     def test_merge_keys_non_empty_lists(self):
         for node_type, keys in NODE_TYPE_MERGE_KEYS.items():
-            assert isinstance(keys, list), f"Merge keys for '{node_type}' should be a list"
+            assert isinstance(keys, list), (
+                f"Merge keys for '{node_type}' should be a list"
+            )
             assert len(keys) > 0, f"Merge keys for '{node_type}' should not be empty"
 
     def test_expected_node_types(self):
         expected = {
-            "education", "work_experience", "certification",
-            "language", "publication", "project", "skill",
-            "collaborator", "patent",
+            "education",
+            "work_experience",
+            "certification",
+            "language",
+            "publication",
+            "project",
+            "skill",
+            "collaborator",
+            "patent",
         }
         assert set(NODE_TYPE_LABELS.keys()) == expected
 
@@ -185,29 +197,32 @@ class TestCypherStructure:
 
     @pytest.mark.parametrize("name, query", list(ALL_QUERIES.items()))
     def test_balanced_parentheses(self, name, query):
-        assert query.count("(") == query.count(")"), (
-            f"{name}: unbalanced parentheses"
-        )
+        assert query.count("(") == query.count(")"), f"{name}: unbalanced parentheses"
 
     @pytest.mark.parametrize("name, query", list(ALL_QUERIES.items()))
     def test_balanced_brackets(self, name, query):
-        assert query.count("[") == query.count("]"), (
-            f"{name}: unbalanced brackets"
-        )
+        assert query.count("[") == query.count("]"), f"{name}: unbalanced brackets"
 
     @pytest.mark.parametrize("name, query", list(ALL_QUERIES.items()))
     def test_balanced_braces(self, name, query):
         # Cypher uses {} for property maps; Python format placeholders like {label}
         # are also present — both should be balanced
-        assert query.count("{") == query.count("}"), (
-            f"{name}: unbalanced braces"
-        )
+        assert query.count("{") == query.count("}"), f"{name}: unbalanced braces"
 
     @pytest.mark.parametrize("name, query", list(ALL_QUERIES.items()))
     def test_starts_with_cypher_keyword(self, name, query):
         first_word = query.strip().split()[0].upper()
-        valid_starts = {"MATCH", "CREATE", "MERGE", "OPTIONAL", "WITH", "RETURN", "SET", "DELETE", "DETACH"}
+        valid_starts = {
+            "MATCH",
+            "CREATE",
+            "MERGE",
+            "OPTIONAL",
+            "WITH",
+            "RETURN",
+            "SET",
+            "DELETE",
+            "DETACH",
+        }
         assert first_word in valid_starts, (
             f"{name}: starts with '{first_word}', expected a Cypher keyword"
         )
-

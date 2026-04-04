@@ -107,9 +107,13 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
 # ── Date fields that should be normalized ──
 
 DATE_FIELDS = {
-    "start_date", "end_date", "date",
-    "issue_date", "expiry_date",
-    "filing_date", "grant_date",
+    "start_date",
+    "end_date",
+    "date",
+    "issue_date",
+    "expiry_date",
+    "filing_date",
+    "grant_date",
 }
 
 # ── Date normalization ──
@@ -157,6 +161,7 @@ def _normalize_date(value: str) -> str:
 
 # ── Classification result ──
 
+
 @dataclass
 class ClassificationResult:
     nodes: list[ExtractedNode] = field(default_factory=list)
@@ -171,7 +176,7 @@ MAX_RETRIES = 2
 TEXT_LIMIT = 12000
 
 
-async def classify_entries(raw_text: str) -> ClassificationResult:
+async def classify_entries(raw_text: str) -> ClassificationResult:  # noqa: C901
     """Send extracted CV text to Ollama for classification.
 
     Returns a ClassificationResult with nodes, unmatched, skipped, relationships, and truncated flag.
@@ -234,18 +239,22 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
                 node_type = item.get("node_type", "")
                 properties = item.get("properties", {})
                 if node_type not in NODE_TYPE_LABELS:
-                    skipped.append(SkippedNode(
-                        original=item,
-                        reason=f"Unknown node type: '{node_type}'",
-                    ))
+                    skipped.append(
+                        SkippedNode(
+                            original=item,
+                            reason=f"Unknown node type: '{node_type}'",
+                        )
+                    )
                     continue
                 required = REQUIRED_FIELDS.get(node_type, [])
                 missing = [f for f in required if not properties.get(f)]
                 if missing:
-                    skipped.append(SkippedNode(
-                        original=item,
-                        reason=f"Missing required fields: {', '.join(missing)}",
-                    ))
+                    skipped.append(
+                        SkippedNode(
+                            original=item,
+                            reason=f"Missing required fields: {', '.join(missing)}",
+                        )
+                    )
                     continue
                 for key in DATE_FIELDS:
                     if key in properties and properties[key]:
@@ -255,7 +264,9 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
                 logger.info("Rule-based fallback produced %d nodes", len(nodes))
                 fallback_name = extraction.get("contact", {}).get("name")
                 return ClassificationResult(
-                    nodes=nodes, skipped=skipped, truncated=truncated,
+                    nodes=nodes,
+                    skipped=skipped,
+                    truncated=truncated,
                     cv_owner_name=fallback_name,
                 )
     except Exception as e:
@@ -271,7 +282,8 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
         if line.strip() and len(line.strip()) > 5
     ]
     return ClassificationResult(
-        unmatched=fallback_lines[:50], truncated=truncated,
+        unmatched=fallback_lines[:50],
+        truncated=truncated,
     )
 
 
@@ -296,7 +308,7 @@ async def _call_ollama(user_message: str) -> str:
         return data.get("message", {}).get("content", "")
 
 
-def _parse_result(raw_response: str) -> ClassificationResult:
+def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
     """Parse Ollama JSON response into ClassificationResult."""
     text = raw_response.strip()
 
@@ -349,27 +361,33 @@ def _parse_result(raw_response: str) -> ClassificationResult:
         properties = item.get("properties", {})
 
         if not isinstance(properties, dict):
-            skipped.append(SkippedNode(
-                original=item,
-                reason="Invalid properties format",
-            ))
+            skipped.append(
+                SkippedNode(
+                    original=item,
+                    reason="Invalid properties format",
+                )
+            )
             continue
 
         if node_type not in NODE_TYPE_LABELS:
-            skipped.append(SkippedNode(
-                original=item,
-                reason=f"Unknown node type: '{node_type}'. Valid types: {', '.join(NODE_TYPE_LABELS.keys())}",
-            ))
+            skipped.append(
+                SkippedNode(
+                    original=item,
+                    reason=f"Unknown node type: '{node_type}'. Valid types: {', '.join(NODE_TYPE_LABELS.keys())}",
+                )
+            )
             continue
 
         # Required fields validation
         required = REQUIRED_FIELDS.get(node_type, [])
         missing = [f for f in required if not properties.get(f)]
         if missing:
-            skipped.append(SkippedNode(
-                original=item,
-                reason=f"Missing required fields: {', '.join(missing)}",
-            ))
+            skipped.append(
+                SkippedNode(
+                    original=item,
+                    reason=f"Missing required fields: {', '.join(missing)}",
+                )
+            )
             continue
 
         # Normalize date fields
@@ -395,11 +413,13 @@ def _parse_result(raw_response: str) -> ClassificationResult:
             and from_idx in original_to_filtered
             and to_idx in original_to_filtered
         ):
-            relationships.append(ExtractedRelationship(
-                from_index=original_to_filtered[from_idx],
-                to_index=original_to_filtered[to_idx],
-                type=rel_type,
-            ))
+            relationships.append(
+                ExtractedRelationship(
+                    from_index=original_to_filtered[from_idx],
+                    to_index=original_to_filtered[to_idx],
+                    type=rel_type,
+                )
+            )
 
     # Ensure unmatched items are strings
     unmatched_str = [str(u) for u in unmatched if u]

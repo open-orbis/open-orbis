@@ -17,16 +17,19 @@ def uid():
     return str(uuid.uuid4())
 
 
-async def main():
+async def main():  # noqa: C901
     driver = AsyncGraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 
     async with driver.session() as s:
         # Clean up any existing data for this user
-        await s.run("MATCH (p:Person {user_id: $uid}) OPTIONAL MATCH (p)-[]->(n) DETACH DELETE n, p",
-                     uid=TEST_USER_ID)
+        await s.run(
+            "MATCH (p:Person {user_id: $uid}) OPTIONAL MATCH (p)-[]->(n) DETACH DELETE n, p",
+            uid=TEST_USER_ID,
+        )
 
         # ── Person ──
-        await s.run("""
+        await s.run(
+            """
             CREATE (p:Person {
                 user_id: $user_id,
                 orb_id: $orb_id,
@@ -41,7 +44,10 @@ async def main():
                 created_at: datetime(),
                 updated_at: datetime()
             })
-        """, user_id=TEST_USER_ID, orb_id=TEST_ORB_ID)
+        """,
+            user_id=TEST_USER_ID,
+            orb_id=TEST_ORB_ID,
+        )
 
         # ── Helper to create nodes ──
         async def add_node(label, rel_type, props):
@@ -58,117 +64,185 @@ async def main():
         # ══════════════════════════════════════
         # EDUCATION
         # ══════════════════════════════════════
-        edu1 = await add_node("Education", "HAS_EDUCATION", {
-            "institution": "Universita di Pisa",
-            "degree": "Dottorato di Ricerca in Informatica (PhD)",
-            "description": "Thesis: Effectiveness of Quantum Algorithms: From Compilation to Measurement. Supervisors: Anna Bernasconi, Gianna Maria Del Corso, Riccardo Guidotti. Grade: Ottimo.",
-            "start_date": "11/2020",
-            "end_date": "05/2024",
-        })
+        edu1 = await add_node(
+            "Education",
+            "HAS_EDUCATION",
+            {
+                "institution": "Universita di Pisa",
+                "degree": "Dottorato di Ricerca in Informatica (PhD)",
+                "description": "Thesis: Effectiveness of Quantum Algorithms: From Compilation to Measurement. Supervisors: Anna Bernasconi, Gianna Maria Del Corso, Riccardo Guidotti. Grade: Ottimo.",
+                "start_date": "11/2020",
+                "end_date": "05/2024",
+            },
+        )
 
-        edu2 = await add_node("Education", "HAS_EDUCATION", {
-            "institution": "Universita di Pisa",
-            "degree": "Laurea Magistrale in Informatica (LM-18)",
-            "description": "Thesis: A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis. Grade: 110/110 e lode.",
-            "start_date": "09/2017",
-            "end_date": "06/2020",
-        })
+        edu2 = await add_node(
+            "Education",
+            "HAS_EDUCATION",
+            {
+                "institution": "Universita di Pisa",
+                "degree": "Laurea Magistrale in Informatica (LM-18)",
+                "description": "Thesis: A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis. Grade: 110/110 e lode.",
+                "start_date": "09/2017",
+                "end_date": "06/2020",
+            },
+        )
 
-        edu3 = await add_node("Education", "HAS_EDUCATION", {
-            "institution": "Universita di Pisa",
-            "degree": "Laurea Triennale in Informatica (L-31)",
-            "description": "Thesis: Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin. Grade: 100/110.",
-            "start_date": "09/2013",
-            "end_date": "12/2017",
-        })
+        edu3 = await add_node(
+            "Education",
+            "HAS_EDUCATION",
+            {
+                "institution": "Universita di Pisa",
+                "degree": "Laurea Triennale in Informatica (L-31)",
+                "description": "Thesis: Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin. Grade: 100/110.",
+                "start_date": "09/2013",
+                "end_date": "12/2017",
+            },
+        )
 
         # ══════════════════════════════════════
         # WORK EXPERIENCE
         # ══════════════════════════════════════
-        we1 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "Universita di Pisa - Dipartimento di Fisica",
-            "title": "Assegnista di Ricerca (Postdoc Researcher)",
-            "description": "Quantum algorithms for Machine Learning. Research on quantum subroutines for matrix/activation functions in quantum ML.",
-            "start_date": "04/2024",
-            "end_date": "present",
-        })
+        we1 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "Universita di Pisa - Dipartimento di Fisica",
+                "title": "Assegnista di Ricerca (Postdoc Researcher)",
+                "description": "Quantum algorithms for Machine Learning. Research on quantum subroutines for matrix/activation functions in quantum ML.",
+                "start_date": "04/2024",
+                "end_date": "present",
+            },
+        )
 
-        we2 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "Universita di Pisa - Dipartimento di Informatica",
-            "title": "Cultore della Materia in Computazione Quantistica",
-            "description": "Teaching support and examination role in Quantum Computing courses.",
-            "start_date": "09/2024",
-            "end_date": "present",
-        })
+        we2 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "Universita di Pisa - Dipartimento di Informatica",
+                "title": "Cultore della Materia in Computazione Quantistica",
+                "description": "Teaching support and examination role in Quantum Computing courses.",
+                "start_date": "09/2024",
+                "end_date": "present",
+            },
+        )
 
-        we3 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "SQMS Center - Fermilab",
-            "title": "Visiting PhD Student",
-            "description": "Design and implementation of a quantum reservoir computing model for learning noise-resilient quantum gates on superconductor architectures.",
-            "start_date": "08/2022",
-            "end_date": "01/2023",
-        })
+        we3 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "SQMS Center - Fermilab",
+                "title": "Visiting PhD Student",
+                "description": "Design and implementation of a quantum reservoir computing model for learning noise-resilient quantum gates on superconductor architectures.",
+                "start_date": "08/2022",
+                "end_date": "01/2023",
+            },
+        )
 
-        we4 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "Universita di Pisa - Dipartimento di Informatica",
-            "title": "Dottorando (PhD Student)",
-            "description": "Research on quantum algorithms effectiveness, from compilation to measurement. Published 24+ papers.",
-            "start_date": "11/2020",
-            "end_date": "05/2024",
-        })
+        we4 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "Universita di Pisa - Dipartimento di Informatica",
+                "title": "Dottorando (PhD Student)",
+                "description": "Research on quantum algorithms effectiveness, from compilation to measurement. Published 24+ papers.",
+                "start_date": "11/2020",
+                "end_date": "05/2024",
+            },
+        )
 
-        we5 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "Cinello",
-            "title": "Consulente Tecnico (Technical Consultant)",
-            "description": "Blockchain training sessions for R&D team. Supervised development of an Ethereum ERC-721 smart contract for digital art tokenization.",
-            "start_date": "10/2020",
-            "end_date": "10/2020",
-        })
+        we5 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "Cinello",
+                "title": "Consulente Tecnico (Technical Consultant)",
+                "description": "Blockchain training sessions for R&D team. Supervised development of an Ethereum ERC-721 smart contract for digital art tokenization.",
+                "start_date": "10/2020",
+                "end_date": "10/2020",
+            },
+        )
 
-        we6 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "IBM Quantum",
-            "title": "Qiskit Advocate",
-            "description": "Recognized by IBM Quantum for deep knowledge of quantum algorithms and circuits, contributing to the Qiskit Global Community.",
-            "start_date": "10/2023",
-            "end_date": "present",
-        })
+        we6 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "IBM Quantum",
+                "title": "Qiskit Advocate",
+                "description": "Recognized by IBM Quantum for deep knowledge of quantum algorithms and circuits, contributing to the Qiskit Global Community.",
+                "start_date": "10/2023",
+                "end_date": "present",
+            },
+        )
 
-        we7 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "Superhero Valley",
-            "title": "Fondatore & Head of Mentorship",
-            "description": "Founded an Italian community connecting university students with Big Tech. 2300+ members from 8+ universities. Manages mentorship program and corporate relations.",
-            "start_date": "11/2020",
-            "end_date": "09/2025",
-        })
+        await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "Superhero Valley",
+                "title": "Fondatore & Head of Mentorship",
+                "description": "Founded an Italian community connecting university students with Big Tech. 2300+ members from 8+ universities. Manages mentorship program and corporate relations.",
+                "start_date": "11/2020",
+                "end_date": "09/2025",
+            },
+        )
 
-        we8 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "Tocket",
-            "title": "Chief Technology Officer",
-            "description": "Startup to eliminate ticket scalping at live events. Built payment system with Stripe API, Ethereum smart contracts, Flutter mobile app for Android and iOS.",
-            "start_date": "09/2019",
-            "end_date": "09/2020",
-        })
+        we8 = await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "Tocket",
+                "title": "Chief Technology Officer",
+                "description": "Startup to eliminate ticket scalping at live events. Built payment system with Stripe API, Ethereum smart contracts, Flutter mobile app for Android and iOS.",
+                "start_date": "09/2019",
+                "end_date": "09/2020",
+            },
+        )
 
-        we9 = await add_node("WorkExperience", "HAS_WORK_EXPERIENCE", {
-            "company": "PointerPodcast",
-            "title": "Co-Host",
-            "description": "Weekly podcast on research and tech innovation. 230+ episodes. Interviewed experts from NASA, IBM, INFN, Fermilab/SQMS.",
-            "start_date": "05/2019",
-            "end_date": "present",
-        })
+        await add_node(
+            "WorkExperience",
+            "HAS_WORK_EXPERIENCE",
+            {
+                "company": "PointerPodcast",
+                "title": "Co-Host",
+                "description": "Weekly podcast on research and tech innovation. 230+ episodes. Interviewed experts from NASA, IBM, INFN, Fermilab/SQMS.",
+                "start_date": "05/2019",
+                "end_date": "present",
+            },
+        )
 
         # ══════════════════════════════════════
         # SKILLS
         # ══════════════════════════════════════
         skill_ids = {}
         skills = [
-            "Quantum Computing", "Quantum Algorithms", "Quantum Machine Learning",
-            "Quantum State Preparation", "Variational Quantum Algorithms",
-            "Qiskit", "Pennylane", "Python", "Java", "C", "C++",
-            "Blockchain", "Ethereum", "Smart Contracts", "Flutter", "Dart",
-            "Machine Learning", "Data Science", "Neo4j", "Graph Algorithms",
-            "Scientific Writing", "Jupyter", "Claude Code", "Roo Code",
-            "Adobe Premiere", "Adobe After Effects", "3D Modeling",
+            "Quantum Computing",
+            "Quantum Algorithms",
+            "Quantum Machine Learning",
+            "Quantum State Preparation",
+            "Variational Quantum Algorithms",
+            "Qiskit",
+            "Pennylane",
+            "Python",
+            "Java",
+            "C",
+            "C++",
+            "Blockchain",
+            "Ethereum",
+            "Smart Contracts",
+            "Flutter",
+            "Dart",
+            "Machine Learning",
+            "Data Science",
+            "Neo4j",
+            "Graph Algorithms",
+            "Scientific Writing",
+            "Jupyter",
+            "Claude Code",
+            "Roo Code",
+            "Adobe Premiere",
+            "Adobe After Effects",
+            "3D Modeling",
         ]
         for skill_name in skills:
             sid = await add_node("Skill", "HAS_SKILL", {"name": skill_name})
@@ -181,7 +255,8 @@ async def main():
             if skill_name in skill_ids:
                 await s.run(
                     "MATCH (n {uid: $nuid}), (sk:Skill {uid: $suid}) MERGE (n)-[:USED_SKILL]->(sk)",
-                    nuid=node_uid, suid=skill_ids[skill_name],
+                    nuid=node_uid,
+                    suid=skill_ids[skill_name],
                 )
 
         # Education -> Skills
@@ -192,13 +267,24 @@ async def main():
             await link_skill(edu3, sk)
 
         # Work -> Skills
-        for sk in ["Quantum Machine Learning", "Quantum Algorithms", "Python", "Qiskit", "Pennylane"]:
+        for sk in [
+            "Quantum Machine Learning",
+            "Quantum Algorithms",
+            "Python",
+            "Qiskit",
+            "Pennylane",
+        ]:
             await link_skill(we1, sk)
         for sk in ["Quantum Computing"]:
             await link_skill(we2, sk)
         for sk in ["Quantum Computing", "Quantum Machine Learning", "Python", "Qiskit"]:
             await link_skill(we3, sk)
-        for sk in ["Quantum Algorithms", "Quantum State Preparation", "Python", "Scientific Writing"]:
+        for sk in [
+            "Quantum Algorithms",
+            "Quantum State Preparation",
+            "Python",
+            "Scientific Writing",
+        ]:
             await link_skill(we4, sk)
         for sk in ["Blockchain", "Ethereum", "Smart Contracts"]:
             await link_skill(we5, sk)
@@ -210,107 +296,183 @@ async def main():
         # ══════════════════════════════════════
         # CERTIFICATIONS
         # ══════════════════════════════════════
-        await add_node("Certification", "HAS_CERTIFICATION", {
-            "name": "Qiskit Fall Fest Mentor",
-            "issuing_organization": "IBM",
-            "date": "12/2024",
-        })
-        await add_node("Certification", "HAS_CERTIFICATION", {
-            "name": "Qiskit Advocate Certification",
-            "issuing_organization": "IBM",
-            "date": "10/2023",
-        })
-        await add_node("Certification", "HAS_CERTIFICATION", {
-            "name": "IBM Certified Associate Developer - Quantum Computation using Qiskit v0.2X",
-            "issuing_organization": "IBM Professional Certification",
-            "date": "07/2023",
-        })
-        await add_node("Certification", "HAS_CERTIFICATION", {
-            "name": "IBM Blockchain Foundation Developer",
-            "issuing_organization": "IBM",
-            "date": "12/2019",
-        })
-        await add_node("Certification", "HAS_CERTIFICATION", {
-            "name": "Data Science for Business",
-            "issuing_organization": "IBM",
-            "date": "12/2019",
-        })
+        await add_node(
+            "Certification",
+            "HAS_CERTIFICATION",
+            {
+                "name": "Qiskit Fall Fest Mentor",
+                "issuing_organization": "IBM",
+                "date": "12/2024",
+            },
+        )
+        await add_node(
+            "Certification",
+            "HAS_CERTIFICATION",
+            {
+                "name": "Qiskit Advocate Certification",
+                "issuing_organization": "IBM",
+                "date": "10/2023",
+            },
+        )
+        await add_node(
+            "Certification",
+            "HAS_CERTIFICATION",
+            {
+                "name": "IBM Certified Associate Developer - Quantum Computation using Qiskit v0.2X",
+                "issuing_organization": "IBM Professional Certification",
+                "date": "07/2023",
+            },
+        )
+        await add_node(
+            "Certification",
+            "HAS_CERTIFICATION",
+            {
+                "name": "IBM Blockchain Foundation Developer",
+                "issuing_organization": "IBM",
+                "date": "12/2019",
+            },
+        )
+        await add_node(
+            "Certification",
+            "HAS_CERTIFICATION",
+            {
+                "name": "Data Science for Business",
+                "issuing_organization": "IBM",
+                "date": "12/2019",
+            },
+        )
 
         # ══════════════════════════════════════
         # LANGUAGES
         # ══════════════════════════════════════
-        await add_node("Language", "SPEAKS", {
-            "name": "Italiano",
-            "proficiency": "Madrelingua (Native)",
-        })
-        await add_node("Language", "SPEAKS", {
-            "name": "English",
-            "proficiency": "Avanzato (C1)",
-        })
+        await add_node(
+            "Language",
+            "SPEAKS",
+            {
+                "name": "Italiano",
+                "proficiency": "Madrelingua (Native)",
+            },
+        )
+        await add_node(
+            "Language",
+            "SPEAKS",
+            {
+                "name": "English",
+                "proficiency": "Avanzato (C1)",
+            },
+        )
 
         # ══════════════════════════════════════
         # PUBLICATIONS (selected key ones)
         # ══════════════════════════════════════
-        pub1 = await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Quantum subroutine for variance estimation: algorithmic design and applications",
-            "venue": "Quantum Machine Intelligence 6.2 (2024)",
-            "description": "Journal paper on quantum subroutines for variance estimation.",
-        })
-        pub2 = await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Quantum Subroutine for Efficient Matrix Multiplication",
-            "venue": "IEEE Access (2024)",
-            "description": "Journal paper on efficient quantum matrix multiplication subroutines.",
-        })
-        pub3 = await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "The role of encodings and distance metrics for the quantum nearest neighbor",
-            "venue": "Quantum Machine Intelligence 6.2 (2024)",
-            "description": "Study of encoding and distance function effects on quantum classifiers.",
-        })
-        pub4 = await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Quantum clustering with k-Means: A hybrid approach",
-            "venue": "Theoretical Computer Science 992 (2024)",
-            "description": "Hybrid quantum-classical approach to k-means clustering.",
-        })
-        pub5 = await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "XOR-AND-XOR Logic Forms for Autosymmetric Functions and Applications to Quantum Computing",
-            "venue": "IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems 42.6 (2023)",
-            "description": "Logic optimization techniques applied to quantum circuit design.",
-        })
-        await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Logarithmic Quantum Forking",
-            "venue": "Proceedings of ESANN (2023)",
-            "description": "Novel technique for logarithmic quantum state forking.",
-        })
-        await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
-            "venue": "PAKDD 2022, Springer",
-            "description": "Conference paper on quantum instance-based classification methods.",
-        })
-        pub8 = await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Variational Compression of Circuits for State Preparation",
-            "venue": "IEEE QCE 2024",
-            "description": "Variational circuits for compressing quantum state preparation.",
-        })
-        await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Quantum Reservoir Computing Approach to Error-Mitigated Compilation",
-            "venue": "QTML Workshop (2023)",
-            "description": "Reservoir computing for noise-resilient quantum gate learning.",
-        })
-        await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Outlier Detection and other applications of Quantum Matrix Multiplication",
-            "venue": "IEEE IPDPSW 2025",
-            "description": "Applications of quantum matrix multiplication to outlier detection.",
-        })
-        await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Variational Decision Trees with Structured Ansatzes",
-            "venue": "IEEE QCE 2025",
-            "description": "Variational quantum decision trees with structured circuit ansatzes.",
-        })
-        await add_node("Publication", "HAS_PUBLICATION", {
-            "title": "Efficient quantum state preparation with Bucket Brigade QRAM",
-            "venue": "Under Revision",
-            "description": "Efficient quantum state preparation using bucket brigade QRAM architecture.",
-        })
+        pub1 = await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Quantum subroutine for variance estimation: algorithmic design and applications",
+                "venue": "Quantum Machine Intelligence 6.2 (2024)",
+                "description": "Journal paper on quantum subroutines for variance estimation.",
+            },
+        )
+        pub2 = await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Quantum Subroutine for Efficient Matrix Multiplication",
+                "venue": "IEEE Access (2024)",
+                "description": "Journal paper on efficient quantum matrix multiplication subroutines.",
+            },
+        )
+        pub3 = await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "The role of encodings and distance metrics for the quantum nearest neighbor",
+                "venue": "Quantum Machine Intelligence 6.2 (2024)",
+                "description": "Study of encoding and distance function effects on quantum classifiers.",
+            },
+        )
+        pub4 = await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Quantum clustering with k-Means: A hybrid approach",
+                "venue": "Theoretical Computer Science 992 (2024)",
+                "description": "Hybrid quantum-classical approach to k-means clustering.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "XOR-AND-XOR Logic Forms for Autosymmetric Functions and Applications to Quantum Computing",
+                "venue": "IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems 42.6 (2023)",
+                "description": "Logic optimization techniques applied to quantum circuit design.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Logarithmic Quantum Forking",
+                "venue": "Proceedings of ESANN (2023)",
+                "description": "Novel technique for logarithmic quantum state forking.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
+                "venue": "PAKDD 2022, Springer",
+                "description": "Conference paper on quantum instance-based classification methods.",
+            },
+        )
+        pub8 = await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Variational Compression of Circuits for State Preparation",
+                "venue": "IEEE QCE 2024",
+                "description": "Variational circuits for compressing quantum state preparation.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Quantum Reservoir Computing Approach to Error-Mitigated Compilation",
+                "venue": "QTML Workshop (2023)",
+                "description": "Reservoir computing for noise-resilient quantum gate learning.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Outlier Detection and other applications of Quantum Matrix Multiplication",
+                "venue": "IEEE IPDPSW 2025",
+                "description": "Applications of quantum matrix multiplication to outlier detection.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Variational Decision Trees with Structured Ansatzes",
+                "venue": "IEEE QCE 2025",
+                "description": "Variational quantum decision trees with structured circuit ansatzes.",
+            },
+        )
+        await add_node(
+            "Publication",
+            "HAS_PUBLICATION",
+            {
+                "title": "Efficient quantum state preparation with Bucket Brigade QRAM",
+                "venue": "Under Revision",
+                "description": "Efficient quantum state preparation using bucket brigade QRAM architecture.",
+            },
+        )
 
         # Publication -> Skill links
         for pub in [pub1, pub2, pub3, pub4, pub8]:
@@ -323,26 +485,46 @@ async def main():
         # ══════════════════════════════════════
         # PROJECTS
         # ══════════════════════════════════════
-        proj1 = await add_node("Project", "HAS_PROJECT", {
-            "name": "GNCS Research Project - Quantum Subroutines (PI)",
-            "description": "Coordinator of research project on quantum subroutines for matrix/activation functions in quantum ML. Istituto Nazionale di Alta Matematica (2025-2026).",
-        })
-        proj2 = await add_node("Project", "HAS_PROJECT", {
-            "name": "PNRR CN1 - HPC, Big Data and Quantum Computing",
-            "description": "National research project at Politecnico di Milano. Study of quantum ML techniques for state preparation and quantum AI subroutines (2024-ongoing).",
-        })
-        proj3 = await add_node("Project", "HAS_PROJECT", {
-            "name": "SoBigData++ (H2020)",
-            "description": "European project for Social Mining & Big Data Ecosystem. Produced PyPI package for quantum k-Nearest Neighbors (2020-2024).",
-        })
-        proj4 = await add_node("Project", "HAS_PROJECT", {
-            "name": "PRA-Quantum Computing",
-            "description": "University of Pisa research project on quantum computing technologies and applications (2020-2022).",
-        })
-        proj5 = await add_node("Project", "HAS_PROJECT", {
-            "name": "Quantum Festival & Pisa Quantum Festival",
-            "description": "Co-organized quantum computing festivals in Pisa with 400+ participants, featuring speakers from academia and industry (2024-2025).",
-        })
+        proj1 = await add_node(
+            "Project",
+            "HAS_PROJECT",
+            {
+                "name": "GNCS Research Project - Quantum Subroutines (PI)",
+                "description": "Coordinator of research project on quantum subroutines for matrix/activation functions in quantum ML. Istituto Nazionale di Alta Matematica (2025-2026).",
+            },
+        )
+        proj2 = await add_node(
+            "Project",
+            "HAS_PROJECT",
+            {
+                "name": "PNRR CN1 - HPC, Big Data and Quantum Computing",
+                "description": "National research project at Politecnico di Milano. Study of quantum ML techniques for state preparation and quantum AI subroutines (2024-ongoing).",
+            },
+        )
+        proj3 = await add_node(
+            "Project",
+            "HAS_PROJECT",
+            {
+                "name": "SoBigData++ (H2020)",
+                "description": "European project for Social Mining & Big Data Ecosystem. Produced PyPI package for quantum k-Nearest Neighbors (2020-2024).",
+            },
+        )
+        proj4 = await add_node(
+            "Project",
+            "HAS_PROJECT",
+            {
+                "name": "PRA-Quantum Computing",
+                "description": "University of Pisa research project on quantum computing technologies and applications (2020-2022).",
+            },
+        )
+        await add_node(
+            "Project",
+            "HAS_PROJECT",
+            {
+                "name": "Quantum Festival & Pisa Quantum Festival",
+                "description": "Co-organized quantum computing festivals in Pisa with 400+ participants, featuring speakers from academia and industry (2024-2025).",
+            },
+        )
 
         for proj in [proj1, proj2, proj3, proj4]:
             await link_skill(proj, "Quantum Algorithms")
@@ -354,40 +536,68 @@ async def main():
         # ══════════════════════════════════════
         # PATENT
         # ══════════════════════════════════════
-        patent1 = await add_node("Patent", "HAS_PATENT", {
-            "name": "Circuito quantistico per forking di uno stato quantistico",
-            "description": "Quantum circuit for forking a quantum state. Patent ID: IT202200024873A1. Filed 12/2022, granted 11/2024. Applicant: Universita di Pisa.",
-        })
+        patent1 = await add_node(
+            "Patent",
+            "HAS_PATENT",
+            {
+                "name": "Circuito quantistico per forking di uno stato quantistico",
+                "description": "Quantum circuit for forking a quantum state. Patent ID: IT202200024873A1. Filed 12/2022, granted 11/2024. Applicant: Universita di Pisa.",
+            },
+        )
         await link_skill(patent1, "Quantum Algorithms")
         await link_skill(patent1, "Quantum State Preparation")
 
         # ══════════════════════════════════════
         # COLLABORATORS
         # ══════════════════════════════════════
-        await add_node("Collaborator", "COLLABORATED_WITH", {
-            "name": "Davide Venturelli",
-            "description": "USRA Research Institute, Quantum AI Laboratory at NASA ARC",
-        })
-        await add_node("Collaborator", "COLLABORATED_WITH", {
-            "name": "Nishchay Suri",
-            "description": "Associate Scientist, NASA and USRA Quantum AI Lab",
-        })
-        await add_node("Collaborator", "COLLABORATED_WITH", {
-            "name": "Silvia Zorzetti",
-            "description": "Principal Engineer and Department Head, Fermilab/SQMS",
-        })
-        await add_node("Collaborator", "COLLABORATED_WITH", {
-            "name": "Anna Bernasconi",
-            "description": "Professor, Universita di Pisa - PhD Supervisor",
-        })
-        await add_node("Collaborator", "COLLABORATED_WITH", {
-            "name": "Gianna Maria Del Corso",
-            "description": "Professor, Universita di Pisa - PhD Supervisor",
-        })
-        await add_node("Collaborator", "COLLABORATED_WITH", {
-            "name": "Riccardo Guidotti",
-            "description": "Professor, Universita di Pisa - PhD Supervisor",
-        })
+        await add_node(
+            "Collaborator",
+            "COLLABORATED_WITH",
+            {
+                "name": "Davide Venturelli",
+                "description": "USRA Research Institute, Quantum AI Laboratory at NASA ARC",
+            },
+        )
+        await add_node(
+            "Collaborator",
+            "COLLABORATED_WITH",
+            {
+                "name": "Nishchay Suri",
+                "description": "Associate Scientist, NASA and USRA Quantum AI Lab",
+            },
+        )
+        await add_node(
+            "Collaborator",
+            "COLLABORATED_WITH",
+            {
+                "name": "Silvia Zorzetti",
+                "description": "Principal Engineer and Department Head, Fermilab/SQMS",
+            },
+        )
+        await add_node(
+            "Collaborator",
+            "COLLABORATED_WITH",
+            {
+                "name": "Anna Bernasconi",
+                "description": "Professor, Universita di Pisa - PhD Supervisor",
+            },
+        )
+        await add_node(
+            "Collaborator",
+            "COLLABORATED_WITH",
+            {
+                "name": "Gianna Maria Del Corso",
+                "description": "Professor, Universita di Pisa - PhD Supervisor",
+            },
+        )
+        await add_node(
+            "Collaborator",
+            "COLLABORATED_WITH",
+            {
+                "name": "Riccardo Guidotti",
+                "description": "Professor, Universita di Pisa - PhD Supervisor",
+            },
+        )
 
     await driver.close()
     print("Knowledge graph seeded successfully!")

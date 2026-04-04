@@ -61,8 +61,11 @@ async def generate_one(cv_path: Path, output_path: Path, model: str) -> None:
         print(f"  {raw_response[:500]}", file=sys.stderr)
 
     if not nodes:
-        print(f"ERROR: extraction produced zero nodes for {cv_path.name} "
-              f"after {MAX_RETRIES} attempts", file=sys.stderr)
+        print(
+            f"ERROR: extraction produced zero nodes for {cv_path.name} "
+            f"after {MAX_RETRIES} attempts",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     data = {
