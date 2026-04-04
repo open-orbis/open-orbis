@@ -28,7 +28,7 @@ export async function uploadCV(file: File): Promise<ExtractedData> {
   formData.append('file', file);
   const { data } = await client.post('/cv/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 180000, // 3 min timeout for LLM Whisperer + Ollama
+    timeout: 600000, // 10 min timeout for Docling + Claude CLI
   });
   return data;
 }

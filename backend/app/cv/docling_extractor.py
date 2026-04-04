@@ -20,7 +20,7 @@ async def extract_text(pdf_bytes: bytes) -> str:
     text = ""
 
     # Write bytes to a temp file (Docling needs a file path)
-    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+    tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)  # noqa: SIM115
     try:
         tmp.write(pdf_bytes)
         tmp.flush()

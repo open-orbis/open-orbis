@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from app.cv.docling_extractor import (
-    _extract_with_pymupdf,
     _docling_sync,
+    _extract_with_pymupdf,
     extract_text,
 )
-
 
 FAKE_PDF_BYTES = b"%PDF-1.4 fake content"
 
@@ -55,9 +55,9 @@ class TestExtractText:
                 "app.cv.docling_extractor._extract_with_pymupdf",
                 return_value="",
             ),
+            pytest.raises(RuntimeError, match="Both Docling and PyMuPDF failed"),
         ):
-            with pytest.raises(RuntimeError, match="Both Docling and PyMuPDF failed"):
-                await extract_text(FAKE_PDF_BYTES)
+            await extract_text(FAKE_PDF_BYTES)
 
     @pytest.mark.asyncio
     async def test_raises_when_docling_returns_empty_and_pymupdf_returns_empty(self):
@@ -70,17 +70,16 @@ class TestExtractText:
                 "app.cv.docling_extractor._extract_with_pymupdf",
                 return_value="",
             ),
+            pytest.raises(RuntimeError, match="Both Docling and PyMuPDF failed"),
         ):
-            with pytest.raises(RuntimeError, match="Both Docling and PyMuPDF failed"):
-                await extract_text(FAKE_PDF_BYTES)
+            await extract_text(FAKE_PDF_BYTES)
 
     @pytest.mark.asyncio
     async def test_cleans_up_temp_file(self):
         """Verify temp file is deleted after extraction."""
-        import os
         import tempfile
 
-        created_files = []
+        created_files: list[str] = []
         original_ntf = tempfile.NamedTemporaryFile
 
         def tracking_ntf(**kwargs):
@@ -98,7 +97,7 @@ class TestExtractText:
             await extract_text(FAKE_PDF_BYTES)
 
         for path in created_files:
-            assert not os.path.exists(path), f"Temp file was not cleaned up: {path}"
+            assert not Path(path).exists(), f"Temp file was not cleaned up: {path}"
 
 
 # ── _docling_sync ──
@@ -136,9 +135,11 @@ class TestDoclingSyncUnit:
         mock_module = MagicMock()
         mock_module.DocumentConverter.return_value = mock_converter
 
-        with patch.dict("sys.modules", {"docling.document_converter": mock_module}):
-            with pytest.raises(RuntimeError, match="Docling returned empty text"):
-                _docling_sync("/tmp/fake.pdf")
+        with (
+            patch.dict("sys.modules", {"docling.document_converter": mock_module}),
+            pytest.raises(RuntimeError, match="Docling returned empty text"),
+        ):
+            _docling_sync("/tmp/fake.pdf")
 
 
 # ── _extract_with_pymupdf ──
@@ -153,7 +154,7 @@ class TestExtractWithPyMuPDF:
         mock_page2.get_text.return_value = "Page 2 text."
 
         mock_doc = MagicMock()
-        mock_doc.__iter__ = lambda self: iter([mock_page1, mock_page2])
+        mock_doc.__iter__ = lambda _self: iter([mock_page1, mock_page2])
 
         with patch.dict("sys.modules", {"fitz": MagicMock()}):
             import fitz
