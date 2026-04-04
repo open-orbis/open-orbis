@@ -242,7 +242,9 @@ async def export_orb(
 
     if format == "pdf":
         try:
-            pdf_bytes = _generate_pdf(person, nodes, orb_id, include_photo=include_photo)
+            pdf_bytes = _generate_pdf(
+                person, nodes, orb_id, include_photo=include_photo
+            )
         except Exception as e:
             logger.error(
                 "PDF generation failed for orb %s: %s", orb_id, e, exc_info=True
