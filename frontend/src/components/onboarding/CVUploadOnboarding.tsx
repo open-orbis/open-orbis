@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { uploadCV, confirmCV } from '../../api/cv';
+import { enhanceNote } from '../../api/orbs';
 import type { ExtractedData, ExtractedRelationship } from '../../api/cv';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import NodeForm from '../editor/NodeForm';
@@ -178,6 +179,14 @@ export default function CVUploadOnboarding() {
                                 setEditingIndex(null);
                               }}
                               onCancel={() => setEditingIndex(null)}
+                              onEnhance={async (text) => {
+                                const existingSkills = (extractedNodes || [])
+                                  .filter(n => n.node_type === 'Skill' && n.properties.name)
+                                  .map((n, i) => ({ uid: `cv-${i}`, name: n.properties.name as string }));
+                                const targetLang = localStorage.getItem('orbis_note_target_lang') || 'en';
+                                const result = await enhanceNote(text, targetLang, existingSkills);
+                                return { node_type: result.node_type, properties: result.properties };
+                              }}
                             />
                           </motion.div>
                         );
