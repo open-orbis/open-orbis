@@ -699,17 +699,6 @@ export default function CvExportPage() {
       <div className="cv-toolbar no-print">
         <span className="cv-toolbar-hint">Click text to edit and format · Drag sections to reorder · Save as PDF &amp; uncheck &quot;Headers and footers&quot;</span>
 
-        {/* Accent color picker */}
-        <label className="cv-color-picker">
-          <span className="cv-color-label">Accent</span>
-          <input
-            type="color"
-            value={accentColor}
-            onChange={(e) => setAccentColor(e.target.value)}
-          />
-          <span className="cv-color-swatch" style={{ background: accentColor }} />
-        </label>
-
         {/* Profile image toggle */}
         {(data?.person?.profile_image as string) && (
           <label className="cv-color-picker" style={{ cursor: 'pointer' }}>
@@ -722,6 +711,17 @@ export default function CvExportPage() {
             <span className="cv-color-label">Photo</span>
           </label>
         )}
+
+        {/* Accent color picker */}
+        <label className="cv-color-picker">
+          <span className="cv-color-label">Accent</span>
+          <input
+            type="color"
+            value={accentColor}
+            onChange={(e) => setAccentColor(e.target.value)}
+          />
+          <span className="cv-color-swatch" style={{ background: accentColor }} />
+        </label>
 
         {/* Undo button */}
         <button
@@ -773,15 +773,19 @@ export default function CvExportPage() {
 
           {/* Header */}
           <header>
-            {showProfileImage && (p.profile_image as string) && (
-              <img
-                src={p.profile_image as string}
-                alt=""
-                style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', marginBottom: 8 }}
-              />
-            )}
-            <h1 contentEditable suppressContentEditableWarning>{str(p.name)}</h1>
-            <h2 className="title" contentEditable suppressContentEditableWarning>{str(p.headline)}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div style={{ flex: 1 }}>
+                <h1 contentEditable suppressContentEditableWarning style={{ marginBottom: 0 }}>{str(p.name)}</h1>
+                <h2 className="title" contentEditable suppressContentEditableWarning>{str(p.headline)}</h2>
+              </div>
+              {showProfileImage && (p.profile_image as string) && (
+                <img
+                  src={p.profile_image as string}
+                  alt=""
+                  style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                />
+              )}
+            </div>
             <div className="contact-info">
               {visibleContacts.map((c, i) => {
                 const origIdx = contacts.indexOf(c);
