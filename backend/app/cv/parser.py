@@ -3,35 +3,6 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
-
-import fitz  # PyMuPDF
-from docx import Document
-
-
-def extract_text_from_pdf(file_path: str) -> str:
-    doc = fitz.open(file_path)
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    doc.close()
-    return text
-
-
-def extract_text_from_docx(file_path: str) -> str:
-    doc = Document(file_path)
-    return "\n".join(p.text for p in doc.paragraphs)
-
-
-def extract_text(file_path: str) -> str:
-    ext = Path(file_path).suffix.lower()
-    if ext == ".pdf":
-        return extract_text_from_pdf(file_path)
-    elif ext == ".docx":
-        return extract_text_from_docx(file_path)
-    else:
-        raise ValueError(f"Unsupported file type: {ext}")
-
 
 # Section header patterns (common CV section names)
 SECTION_PATTERNS = {
@@ -64,7 +35,6 @@ DATE_PATTERN = re.compile(
 )
 
 EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
-PHONE_PATTERN = re.compile(r"[\+]?[\d\s\-().]{7,15}")
 URL_PATTERN = re.compile(r"https?://[^\s]+")
 NAME_PATTERN = re.compile(r"^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)")
 

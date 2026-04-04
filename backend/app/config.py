@@ -7,10 +7,6 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "orbis_dev_password"
 
-    # Google OAuth
-    google_client_id: str = ""
-    google_client_secret: str = ""
-
     # JWT
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
@@ -39,7 +35,6 @@ class Settings(BaseSettings):
 
     # URLs
     frontend_url: str = "http://localhost:5173"
-    backend_url: str = "http://localhost:8000"
 
     model_config = {"env_file": ["../.env", ".env"], "env_file_encoding": "utf-8"}
 

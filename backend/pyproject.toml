@@ -18,12 +18,15 @@ dependencies = [
     "cryptography>=43.0.0",
     "python-multipart>=0.0.9",
     "mcp[cli]>=1.0.0",
+    "fpdf2>=2.8.7",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0",
+    "respx>=0.22.0",
     "ruff>=0.7.0",
 ]
 

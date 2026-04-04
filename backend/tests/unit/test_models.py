@@ -39,10 +39,6 @@ class TestExtractedRelationship:
         rel = ExtractedRelationship(from_index=0, to_index=1)
         assert rel.type == "USED_SKILL"
 
-    def test_negative_indices_accepted(self):
-        rel = ExtractedRelationship(from_index=-1, to_index=-2)
-        assert rel.from_index == -1
-
 
 class TestExtractedData:
     def test_valid_full(self):

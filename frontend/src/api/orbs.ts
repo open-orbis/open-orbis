@@ -6,7 +6,7 @@ export interface OrbNode {
   [key: string]: unknown;
 }
 
-export interface OrbLink {
+interface OrbLink {
   source: string;
   target: string;
   type: string;
