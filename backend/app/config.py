@@ -18,10 +18,6 @@ class Settings(BaseSettings):
     # Claude API
     anthropic_api_key: str = ""
 
-    # LLM Whisperer
-    llmwhisperer_api_url: str = "https://llmwhisperer-api.eu-west.unstract.com/api/v2"
-    llmwhisperer_api_key: str = ""
-
     # LLM provider: "ollama" (local) or "claude" (Claude Code CLI subscription)
     llm_provider: str = "ollama"
     claude_model: str = "claude-opus-4-6"
@@ -33,7 +29,11 @@ class Settings(BaseSettings):
     # URLs
     frontend_url: str = "http://localhost:5173"
 
-    model_config = {"env_file": ["../.env", ".env"], "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {
+        "env_file": ["../.env", ".env"],
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 settings = Settings()
