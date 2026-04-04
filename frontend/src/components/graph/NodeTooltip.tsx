@@ -5,13 +5,6 @@ interface NodeTooltipProps {
   position: { x: number; y: number };
 }
 
-// Keys to never show in the tooltip
-const HIDDEN_KEYS = new Set([
-  'uid', '_labels', 'embedding', 'user_id', 'encryption_key_id',
-  'id', 'index', 'x', 'y', 'z', 'vx', 'vy', 'vz',
-  '__threeObj', 'threeObj', 'fx', 'fy', 'fz',
-]);
-
 // Which fields to show as the "title" for each node type
 const TITLE_FIELD: Record<string, string> = {
   Person: 'name',

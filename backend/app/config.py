@@ -29,7 +29,11 @@ class Settings(BaseSettings):
     # URLs
     frontend_url: str = "http://localhost:5173"
 
-    model_config = {"env_file": ["../.env", ".env"], "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {
+        "env_file": ["../.env", ".env"],
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+    }
 
 
 settings = Settings()

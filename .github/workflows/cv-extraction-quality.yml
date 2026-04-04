@@ -13,7 +13,6 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   kg-quality:
@@ -89,25 +88,3 @@ jobs:
           uv run python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
 
-      - name: Post results as PR comment
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            let output = '';
-            try {
-              output = fs.readFileSync('backend/test_output.txt', 'utf8');
-            } catch {
-              output = 'No test output captured.';
-            }
-            const baseline = '${{ steps.baseline.outputs.available }}' === 'true'
-              ? '**main** branch extraction'
-              : 'static golden references (bootstrapping)';
-            const truncated = output.slice(-3000);
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## KG Quality Gate Results\n\nBaseline: ${baseline}\n\n\`\`\`\n${truncated}\n\`\`\`\n\n_Model: \`${process.env.KG_TEST_MODEL || 'claude-opus-4-6'}\`_`
-            });
