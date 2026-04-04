@@ -7,7 +7,7 @@ import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { claimOrbId, updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
-import NodeLegend from '../components/graph/NodeLegend';
+import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
@@ -614,6 +614,7 @@ export default function OrbViewPage() {
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
+  const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
 
   // ESC key closes any open panel/modal
   useEffect(() => {
@@ -747,6 +748,26 @@ export default function OrbViewPage() {
     [data?.nodes, activeKeywords]
   );
 
+  // Node type filter handlers
+  const handleToggleNodeType = useCallback((type: string) => {
+    setHiddenNodeTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }, []);
+
+  const handleShowAllNodeTypes = useCallback(() => {
+    setHiddenNodeTypes(new Set());
+  }, []);
+
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
+
+  const handleHideAllNodeTypes = useCallback(() => {
+    setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
+  }, []);
+
   if (loading || !data) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -872,12 +893,18 @@ export default function OrbViewPage() {
         }}
         highlightedNodeIds={highlightedNodeIds}
         filteredNodeIds={filteredNodeIds}
+        hiddenNodeTypes={hiddenNodeTypes}
         width={dimensions.width}
         height={dimensions.height}
       />
 
-      {/* ── Node Legend ── */}
-      <NodeLegend />
+      {/* ── Node Type View ── */}
+      <NodeTypeFilter
+        hiddenTypes={hiddenNodeTypes}
+        onToggleType={handleToggleNodeType}
+        onShowAll={handleShowAllNodeTypes}
+        onHideAll={handleHideAllNodeTypes}
+      />
 
       {/* ── Floating Input ── */}
       <FloatingInput

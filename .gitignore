@@ -38,3 +38,7 @@ neo4j_data/
 htmlcov/
 .pytest_cache/
 create_issues.sh
+
+# Claude Code agent/skill configs
+agents.md
+.claude/

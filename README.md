@@ -51,7 +51,6 @@ Create your graph once — share it with anyone, any tool, any agent.
 
 #### For Individuals
 - **Two onboarding paths** — upload a PDF or build your orb node-by-node
-- **Voice input** — speak your experience, Whisper transcribes, AI classifies
 - **3D interactive graph** — explore, edit, and share your professional identity
 - **Shareable link** — `orbis.io/your-name` with QR code generation
 - **Export anywhere** — download as PDF, JSON, or JSON-LD
@@ -102,8 +101,6 @@ Frontend (React + Three.js)          Backend (FastAPI)
 
 ```
 PDF Upload → LLM Whisperer (extract) → Ollama (classify) → Claude (refine) → Neo4j (store)
-                                                                                    │
-Voice Input → Whisper (transcribe) → Ollama (classify) ─────────────────────────────┘
 ```
 
 ---
@@ -122,7 +119,6 @@ Voice Input → Whisper (transcribe) → Ollama (classify) ───────
 | **Encryption** | Fernet (cryptography) |
 | **AI / LLM** | Ollama (llama3.2:3b), Anthropic Claude API |
 | **PDF Extraction** | LLM Whisperer (Unstract), PyMuPDF |
-| **Speech-to-Text** | OpenAI Whisper (self-hosted) |
 | **Agent Protocol** | Model Context Protocol (MCP) |
 | **Containers** | Docker Compose |
 
@@ -157,7 +153,6 @@ docker compose up -d
 This launches:
 - **Neo4j** on `localhost:7474` (browser) / `localhost:7687` (bolt)
 - **Ollama** on `localhost:11434`
-- **Whisper** on `localhost:9000`
 
 ### 3. Pull the LLM model
 
@@ -209,7 +204,6 @@ LLMWHISPERER_API_KEY=your-llmwhisperer-api-key
 
 # Local Services (defaults work with docker-compose)
 OLLAMA_BASE_URL=http://localhost:11434
-WHISPER_API_URL=http://localhost:9000
 ```
 
 ---
