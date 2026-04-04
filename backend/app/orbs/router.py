@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import base64
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from neo4j import AsyncDriver
 from neo4j.time import Date as Neo4jDate
 from neo4j.time import DateTime as Neo4jDateTime
@@ -179,6 +180,55 @@ async def claim_orb_id(
             UPDATE_ORB_ID, user_id=current_user["user_id"], orb_id=data.orb_id
         )
         return {"orb_id": data.orb_id}
+
+
+@router.post("/me/profile-image")
+async def upload_profile_image(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Upload a profile picture. Stored as base64 on the Person node."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    image_bytes = await file.read()
+    max_size = 2 * 1024 * 1024  # 2MB
+    if len(image_bytes) > max_size:
+        raise HTTPException(status_code=400, detail="Image too large (max 2MB)")
+
+    b64 = base64.b64encode(image_bytes).decode("ascii")
+    data_uri = f"data:{file.content_type};base64,{b64}"
+
+    async with db.session() as session:
+        result = await session.run(
+            UPDATE_PERSON,
+            user_id=current_user["user_id"],
+            properties={"profile_image": data_uri},
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+    return {"status": "uploaded"}
+
+
+@router.delete("/me/profile-image")
+async def delete_profile_image(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Remove the profile picture."""
+    async with db.session() as session:
+        result = await session.run(
+            UPDATE_PERSON,
+            user_id=current_user["user_id"],
+            properties={"profile_image": ""},
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "deleted"}
 
 
 @router.post("/me/nodes")

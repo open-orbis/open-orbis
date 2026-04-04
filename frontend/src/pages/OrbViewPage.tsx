@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
-import { claimOrbId, updateProfile, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
+import { claimOrbId, updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeLegend from '../components/graph/NodeLegend';
@@ -308,6 +308,36 @@ function ProfilePanel({ person, onClose, onSaved }: {
   });
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const profileImage = (person.profile_image as string) || '';
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image too large (max 2MB)');
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      await uploadProfileImage(file);
+      onSaved();
+    } catch { /* toast handles */ }
+    finally { setUploadingImage(false); }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleImageDelete = async () => {
+    setUploadingImage(true);
+    try {
+      await deleteProfileImage();
+      onSaved();
+    } catch { /* toast handles */ }
+    finally { setUploadingImage(false); }
+  };
 
   const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
   const emptyAccounts = SOCIAL_ACCOUNTS.filter((a) => !values[a.key]?.trim());
@@ -344,11 +374,37 @@ function ProfilePanel({ person, onClose, onSaved }: {
         className="relative bg-gray-950 border border-white/10 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl backdrop-blur-xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-14 h-14 rounded-full bg-purple-600/30 border-2 border-purple-500/50 flex items-center justify-center flex-shrink-0">
-            <span className="text-purple-300 text-xl font-bold">
-              {((person.name as string) || 'O').charAt(0).toUpperCase()}
-            </span>
-          </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImage}
+            className="relative w-14 h-14 rounded-full bg-purple-600/30 border-2 border-purple-500/50 flex items-center justify-center flex-shrink-0 group cursor-pointer hover:border-purple-400/70 transition-all overflow-hidden"
+            title="Click to upload profile picture"
+          >
+            {profileImage ? (
+              <img src={profileImage} alt="Profile" className="w-full h-full object-cover rounded-full" />
+            ) : (
+              <span className="text-purple-300 text-xl font-bold">
+                {((person.name as string) || 'O').charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+              {uploadingImage ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+          </button>
           <div className="min-w-0">
             <h2 className="text-white text-lg font-semibold truncate">{(person.name as string) || 'My Orb'}</h2>
             {values.headline && !editing && (
@@ -368,6 +424,15 @@ function ProfilePanel({ person, onClose, onSaved }: {
         {editing ? (
           /* ── Edit mode ── */
           <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+            {profileImage && (
+              <button
+                onClick={handleImageDelete}
+                disabled={uploadingImage}
+                className="text-[10px] font-medium text-red-400/70 hover:text-red-400 disabled:opacity-50 transition-colors"
+              >
+                Remove profile photo
+              </button>
+            )}
             <div>
               <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Headline</label>
               <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
@@ -684,15 +749,26 @@ export default function OrbViewPage() {
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() => setShowSettings(true)}
-              className="relative w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center hover:bg-purple-600/50 hover:border-purple-400/60 transition-all group"
+              className="relative w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center hover:bg-purple-600/50 hover:border-purple-400/60 transition-all group overflow-hidden"
               title="Settings"
             >
-              <span className="text-purple-300 text-xs font-bold group-hover:opacity-0 transition-opacity">
-                {(user?.name || 'O').charAt(0).toUpperCase()}
-              </span>
-              <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <IconSettings />
-              </span>
+              {(data.person.profile_image as string) ? (
+                <>
+                  <img src={data.person.profile_image as string} alt="" className="w-full h-full object-cover rounded-full group-hover:opacity-30 transition-opacity" />
+                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <IconSettings />
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-purple-300 text-xs font-bold group-hover:opacity-0 transition-opacity">
+                    {(user?.name || 'O').charAt(0).toUpperCase()}
+                  </span>
+                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <IconSettings />
+                  </span>
+                </>
+              )}
             </button>
             <div>
               <span className="text-white text-xs sm:text-sm font-semibold">{user?.name || 'My Orb'}</span>

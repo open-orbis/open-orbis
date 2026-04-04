@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import io
 import logging
 from typing import Any
@@ -36,13 +37,32 @@ def _gather_orb(record: Any) -> tuple[dict, list[dict]]:
     return person, nodes
 
 
-def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:  # noqa: C901
+def _generate_pdf(  # noqa: C901
+    person: dict, nodes: list[dict], orb_id: str, include_photo: bool = True
+) -> bytes:
     """Build a clean CV PDF from graph data using fpdf2."""
     from fpdf import FPDF
 
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
+
+    # ── Profile image ──
+    profile_image = person.get("profile_image", "")
+    if include_photo and profile_image and profile_image.startswith("data:image/"):
+        try:
+            header, b64data = profile_image.split(",", 1)
+            ext = "png"
+            if "jpeg" in header or "jpg" in header:
+                ext = "jpg"
+            elif "webp" in header:
+                ext = "png"  # fpdf2 doesn't support webp natively
+            img_bytes = base64.b64decode(b64data)
+            img_stream = io.BytesIO(img_bytes)
+            pdf.image(img_stream, x=10, y=10, w=25, h=25, type=ext)
+            pdf.set_xy(40, 10)
+        except Exception:
+            pass  # Skip image on error
 
     # ── Header ──
     pdf.set_font("Helvetica", "B", 22)
@@ -179,6 +199,7 @@ async def export_orb(
     format: str = Query("json", pattern="^(json|jsonld|pdf)$"),
     filter_token: str | None = Query(None),
     filter_keyword: str | None = Query(None),
+    include_photo: bool = Query(True),
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:
@@ -221,7 +242,7 @@ async def export_orb(
 
     if format == "pdf":
         try:
-            pdf_bytes = _generate_pdf(person, nodes, orb_id)
+            pdf_bytes = _generate_pdf(person, nodes, orb_id, include_photo=include_photo)
         except Exception as e:
             logger.error(
                 "PDF generation failed for orb %s: %s", orb_id, e, exc_info=True

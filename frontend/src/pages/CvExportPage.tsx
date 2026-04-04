@@ -142,6 +142,9 @@ export default function CvExportPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
 
+  /* Profile image toggle */
+  const [showProfileImage, setShowProfileImage] = useState(true);
+
   /* Hidden entries + undo stack */
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -707,6 +710,19 @@ export default function CvExportPage() {
           <span className="cv-color-swatch" style={{ background: accentColor }} />
         </label>
 
+        {/* Profile image toggle */}
+        {(data?.person?.profile_image as string) && (
+          <label className="cv-color-picker" style={{ cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={showProfileImage}
+              onChange={(e) => setShowProfileImage(e.target.checked)}
+              style={{ marginRight: '4px' }}
+            />
+            <span className="cv-color-label">Photo</span>
+          </label>
+        )}
+
         {/* Undo button */}
         <button
           onClick={undo}
@@ -757,6 +773,13 @@ export default function CvExportPage() {
 
           {/* Header */}
           <header>
+            {showProfileImage && (p.profile_image as string) && (
+              <img
+                src={p.profile_image as string}
+                alt=""
+                style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', marginBottom: 8 }}
+              />
+            )}
             <h1 contentEditable suppressContentEditableWarning>{str(p.name)}</h1>
             <h2 className="title" contentEditable suppressContentEditableWarning>{str(p.headline)}</h2>
             <div className="contact-info">

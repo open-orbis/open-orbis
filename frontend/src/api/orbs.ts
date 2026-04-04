@@ -56,6 +56,18 @@ export async function claimOrbId(orbId: string): Promise<void> {
   await client.put('/orbs/me/orb-id', { orb_id: orbId });
 }
 
+export async function uploadProfileImage(file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+  await client.post('/orbs/me/profile-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export async function deleteProfileImage(): Promise<void> {
+  await client.delete('/orbs/me/profile-image');
+}
+
 export async function textSearch(query: string): Promise<OrbNode[]> {
   const { data } = await client.post('/search/text', { query });
   return data;
