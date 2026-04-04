@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from neo4j import AsyncDriver
 
 from app.cv import counter
-from app.cv.llmwhisperer import extract_text as whisperer_extract
+from app.cv.docling_extractor import extract_text as docling_extract
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
 from app.dependencies import get_current_user, get_db
@@ -32,7 +32,7 @@ async def upload_cv(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
 ):
-    """Upload a PDF CV: extract text via LLM Whisperer, classify via Ollama."""
+    """Upload a PDF CV: extract text via Docling, classify via LLM."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -45,16 +45,16 @@ async def upload_cv(
 
     counter.increment()
     try:
-        # Step 1: Extract text via LLM Whisperer
+        # Step 1: Extract text via Docling (local, free)
         logger.info("Starting PDF extraction for user %s", current_user.get("user_id"))
-        raw_text = await whisperer_extract(pdf_bytes)
+        raw_text = await docling_extract(pdf_bytes)
 
         if not raw_text.strip():
             raise HTTPException(
                 status_code=400, detail="Could not extract text from PDF"
             )
 
-        # Step 2: Classify entries via local Ollama LLM
+        # Step 2: Classify entries via LLM
         logger.info("Classifying entries with Ollama (%d chars)", len(raw_text))
         result = await classify_entries(raw_text)
 
@@ -76,7 +76,7 @@ async def upload_cv(
     except HTTPException:
         raise
     except TimeoutError as e:
-        logger.error("LLM Whisperer timeout: %s", e)
+        logger.error("PDF extraction timeout: %s", e)
         raise HTTPException(
             status_code=504, detail="PDF processing timed out. Please try again."
         ) from None
