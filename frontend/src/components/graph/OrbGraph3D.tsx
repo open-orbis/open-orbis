@@ -12,6 +12,8 @@ interface OrbGraph3DProps {
   highlightedNodeIds?: Set<string>;
   /** Node IDs that match the active visibility filter — rendered as transparent */
   filteredNodeIds?: Set<string>;
+  /** PascalCase node types to hide completely (e.g., "Skill", "Education") */
+  hiddenNodeTypes?: Set<string>;
   width?: number;
   height?: number;
 }
@@ -42,7 +44,7 @@ const SHARED_GEO = {
   highlightRing: new THREE.RingGeometry(5.1, 6.0, 24),
 };
 
-export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, width, height }: OrbGraph3DProps) {
+export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, hiddenNodeTypes, width, height }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -62,6 +64,10 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   // Use ref for filtered nodes (visibility filter)
   const filteredRef = useRef<Set<string>>(new Set());
   filteredRef.current = filteredNodeIds ?? new Set();
+
+  // Use ref for hidden node types
+  const hiddenTypesRef = useRef<Set<string>>(new Set());
+  hiddenTypesRef.current = hiddenNodeTypes ?? new Set();
 
   // Clear cache when data changes & zoom to fit
   useEffect(() => {
@@ -223,6 +229,18 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     }
   }, [filteredNodeIds]);
 
+  // When hidden node types change, invalidate cache and refresh
+  const prevHiddenTypesKeyRef = useRef<string>('');
+  useEffect(() => {
+    const newKey = hiddenNodeTypes ? Array.from(hiddenNodeTypes).sort().join(',') : '';
+    if (newKey !== prevHiddenTypesKeyRef.current) {
+      prevHiddenTypesKeyRef.current = newKey;
+      nodeObjectCacheRef.current.clear();
+      const fg = fgRef.current;
+      if (fg) fg.refresh();
+    }
+  }, [hiddenNodeTypes]);
+
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node || null);
     const el = document.querySelector('canvas');
@@ -251,6 +269,17 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     if (cached) return cached;
 
     const isPerson = node._labels?.[0] === 'Person';
+    const nodeType = node._labels?.[0] || '';
+    const isHidden = !isPerson && hiddenTypesRef.current.has(nodeType);
+
+    // Hidden nodes: return an empty invisible group
+    if (isHidden) {
+      const empty = new THREE.Group();
+      empty.visible = false;
+      nodeObjectCacheRef.current.set(nodeId, empty);
+      return empty;
+    }
+
     const color = getNodeColor(node._labels || []);
     const radius = isPerson ? 5 : 3;
 
@@ -436,6 +465,18 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     return map;
   }, [graphData]);
 
+  // Node type map for link visibility
+  const nodeTypeMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const n of graphData.nodes) {
+      map.set(n.id as string, (n as any)._labels?.[0] || '');
+    }
+    return map;
+  }, [graphData]);
+
+  const nodeTypeMapRef = useRef(nodeTypeMap);
+  nodeTypeMapRef.current = nodeTypeMap;
+
   // Link color
   const nodeColorMapRef = useRef(nodeColorMap);
   nodeColorMapRef.current = nodeColorMap;
@@ -444,6 +485,14 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
   linkColorRef.current = (link: any) => {
     const sourceId = typeof link.source === 'object' ? (link.source.id || link.source.uid) : link.source;
     const targetId = typeof link.target === 'object' ? (link.target.id || link.target.uid) : link.target;
+
+    // Hide links to hidden node types
+    const sourceType = nodeTypeMapRef.current.get(sourceId) || '';
+    const targetType = nodeTypeMapRef.current.get(targetId) || '';
+    if (hiddenTypesRef.current.has(sourceType) || hiddenTypesRef.current.has(targetType)) {
+      return 'rgba(0,0,0,0)';
+    }
+
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
