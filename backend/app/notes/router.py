@@ -115,9 +115,7 @@ def _build_prompt(req: EnhanceNoteRequest) -> tuple[str, str]:
             'If any of these skills are relevant to this note, include their uid in "suggested_skill_uids".'
         )
     else:
-        existing_skills_section = (
-            'The user has no existing skill nodes. Leave "suggested_skill_uids" as an empty array.'
-        )
+        existing_skills_section = 'The user has no existing skill nodes. Leave "suggested_skill_uids" as an empty array.'
 
     system_prompt = ENHANCE_SYSTEM_PROMPT.format(
         target_language=req.target_language,
@@ -129,7 +127,7 @@ def _build_prompt(req: EnhanceNoteRequest) -> tuple[str, str]:
     return system_prompt, user_message
 
 
-def _parse_enhance_result(
+def _parse_enhance_result(  # noqa: C901
     raw: str, valid_skill_uids: set[str]
 ) -> EnhanceNoteResponse:
     """Parse LLM response into EnhanceNoteResponse."""
@@ -177,9 +175,13 @@ def _parse_enhance_result(
 
     # Normalize date fields to YYYY-MM-DD for HTML date inputs
     _DATE_KEYS = {
-        "start_date", "end_date", "date",
-        "issue_date", "expiry_date",
-        "filing_date", "grant_date",
+        "start_date",
+        "end_date",
+        "date",
+        "issue_date",
+        "expiry_date",
+        "filing_date",
+        "grant_date",
     }
     for key in _DATE_KEYS:
         if key in properties and isinstance(properties[key], str):
@@ -225,12 +227,14 @@ async def enhance_note(
         return _parse_enhance_result(result, valid_skill_uids)
     except ValueError as e:
         logger.error("Failed to parse enhance result: %s", e)
-        raise HTTPException(status_code=502, detail="Failed to parse LLM response")
+        raise HTTPException(
+            status_code=502, detail="Failed to parse LLM response"
+        ) from None
     except Exception as e:
         logger.error("Note enhance failed: %s", e, exc_info=True)
         raise HTTPException(
             status_code=502, detail=f"LLM processing failed: {str(e)}"
-        )
+        ) from None
 
 
 async def _call_ollama(system_prompt: str, user_message: str) -> str:

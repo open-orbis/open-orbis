@@ -66,6 +66,7 @@ class TestDecodeFilterToken:
 
     def test_wrong_type_returns_none(self):
         from jose import jwt
+
         payload = {
             "orb_id": "orb-1",
             "filters": ["test"],
@@ -76,6 +77,7 @@ class TestDecodeFilterToken:
 
     def test_missing_orb_id_returns_none(self):
         from jose import jwt
+
         payload = {
             "filters": ["test"],
             "type": "filter",
@@ -85,6 +87,7 @@ class TestDecodeFilterToken:
 
     def test_missing_filters_returns_none(self):
         from jose import jwt
+
         payload = {
             "orb_id": "orb-1",
             "filters": [],

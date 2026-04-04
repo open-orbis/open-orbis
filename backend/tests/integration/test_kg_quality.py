@@ -111,9 +111,13 @@ async def test_kg_extraction_quality(
     print(f"\n[{cv_name}]\n{report}")
 
     if result.composite_score >= COMPOSITE_MIN:
-        print(f"\nRESULT: PASS (composite={result.composite_score:.2f} >= {COMPOSITE_MIN})")
+        print(
+            f"\nRESULT: PASS (composite={result.composite_score:.2f} >= {COMPOSITE_MIN})"
+        )
     else:
-        print(f"\nRESULT: FAIL (composite={result.composite_score:.2f} < {COMPOSITE_MIN})")
+        print(
+            f"\nRESULT: FAIL (composite={result.composite_score:.2f} < {COMPOSITE_MIN})"
+        )
 
     # ── assertions ───────────────────────────────────────────────────
 

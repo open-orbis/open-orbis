@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from neo4j import AsyncDriver
 
-logger = logging.getLogger(__name__)
-
 from app.dependencies import get_db
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
 from app.orbs.filter_token import decode_filter_token, node_matches_filters
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -36,7 +36,7 @@ def _gather_orb(record: Any) -> tuple[dict, list[dict]]:
     return person, nodes
 
 
-def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:
+def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:  # noqa: C901
     """Build a clean CV PDF from graph data using fpdf2."""
     from fpdf import FPDF
 
@@ -111,7 +111,13 @@ def _generate_pdf(person: dict, nodes: list[dict], orb_id: str) -> bytes:
         for item in items:
             # Title line
             title = item.get("title") or item.get("name") or ""
-            org = item.get("company") or item.get("institution") or item.get("issuing_organization") or item.get("venue") or ""
+            org = (
+                item.get("company")
+                or item.get("institution")
+                or item.get("issuing_organization")
+                or item.get("venue")
+                or ""
+            )
 
             pdf.set_font("Helvetica", "B", 11)
             if title and org:
@@ -180,16 +186,24 @@ async def export_orb(
             result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
             record = await result.single()
         except Exception as e:
-            logger.error("Export DB query failed for orb %s: %s", orb_id, e, exc_info=True)
-            raise HTTPException(status_code=500, detail="Failed to load orb data")
+            logger.error(
+                "Export DB query failed for orb %s: %s", orb_id, e, exc_info=True
+            )
+            raise HTTPException(
+                status_code=500, detail="Failed to load orb data"
+            ) from None
         if record is None:
             raise HTTPException(status_code=404, detail="Orb not found")
 
     try:
         person, nodes = _gather_orb(record)
     except Exception as e:
-        logger.error("Export orb data extraction failed for %s: %s", orb_id, e, exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to process orb data")
+        logger.error(
+            "Export orb data extraction failed for %s: %s", orb_id, e, exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to process orb data"
+        ) from None
 
     # Apply filter: either via signed token or direct keywords (for owner exports)
     active_filters: list[str] = []
@@ -198,7 +212,9 @@ async def export_orb(
         if decoded and decoded["orb_id"] == orb_id:
             active_filters = decoded["filters"]
     elif filter_keyword:
-        active_filters = [kw.strip().lower() for kw in filter_keyword.split(",") if kw.strip()]
+        active_filters = [
+            kw.strip().lower() for kw in filter_keyword.split(",") if kw.strip()
+        ]
 
     if active_filters:
         nodes = [n for n in nodes if not node_matches_filters(n, active_filters)]
@@ -207,8 +223,12 @@ async def export_orb(
         try:
             pdf_bytes = _generate_pdf(person, nodes, orb_id)
         except Exception as e:
-            logger.error("PDF generation failed for orb %s: %s", orb_id, e, exc_info=True)
-            raise HTTPException(status_code=500, detail="Failed to generate PDF")
+            logger.error(
+                "PDF generation failed for orb %s: %s", orb_id, e, exc_info=True
+            )
+            raise HTTPException(
+                status_code=500, detail="Failed to generate PDF"
+            ) from None
         filename = f"{person.get('name', orb_id).replace(' ', '_')}_CV.pdf"
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
@@ -244,10 +264,12 @@ async def export_orb(
             node_type = node.pop("_type", "Thing")
             node.pop("_relationship", None)
             node.pop("uid", None)
-            jsonld["orb:nodes"].append({
-                "@type": type_mapping.get(node_type, "Thing"),
-                **{k: v for k, v in node.items() if v and not k.startswith("_")},
-            })
+            jsonld["orb:nodes"].append(
+                {
+                    "@type": type_mapping.get(node_type, "Thing"),
+                    **{k: v for k, v in node.items() if v and not k.startswith("_")},
+                }
+            )
 
         return JSONResponse(content=jsonld, media_type="application/ld+json")
 

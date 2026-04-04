@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from app.cv import counter
@@ -51,7 +51,7 @@ async def voice_transcribe(
         raise HTTPException(
             status_code=500,
             detail=f"Transcription failed: {str(e)}",
-        )
+        ) from None
 
 
 @router.post("/voice-classify", response_model=ExtractedData)
@@ -78,6 +78,6 @@ async def voice_classify(
         raise HTTPException(
             status_code=500,
             detail=f"Classification failed: {str(e)}",
-        )
+        ) from None
     finally:
         counter.decrement()

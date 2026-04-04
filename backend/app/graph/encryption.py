@@ -18,7 +18,9 @@ def _get_fernet() -> Fernet:
         try:
             _fernet = Fernet(key.encode() if isinstance(key, str) else key)
         except (ValueError, Exception):
-            logger.warning("Invalid or missing ENCRYPTION_KEY — using auto-generated key (dev only)")
+            logger.warning(
+                "Invalid or missing ENCRYPTION_KEY — using auto-generated key (dev only)"
+            )
             _fernet = Fernet(Fernet.generate_key())
     return _fernet
 

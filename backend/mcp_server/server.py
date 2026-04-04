@@ -14,7 +14,9 @@ from mcp_server.tools import (
     get_skills_for_experience,
 )
 
-mcp = FastMCP("Orbis", instructions="Query professional knowledge graphs (orbs) from Orbis.")
+mcp = FastMCP(
+    "Orbis", instructions="Query professional knowledge graphs (orbs) from Orbis."
+)
 
 _driver = None
 
@@ -58,7 +60,9 @@ async def orbis_get_connections(orb_id: str, node_uid: str) -> dict:
 
 
 @mcp.tool()
-async def orbis_get_skills_for_experience(orb_id: str, experience_uid: str) -> list[dict]:
+async def orbis_get_skills_for_experience(
+    orb_id: str, experience_uid: str
+) -> list[dict]:
     """Get all skills that were used in a specific work experience or project, identified by the experience's uid."""
     driver = await _get_driver()
     return await get_skills_for_experience(driver, orb_id, experience_uid)
