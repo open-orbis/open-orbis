@@ -714,13 +714,13 @@ export default function CvExportPage() {
 
         {/* Accent color picker */}
         <label className="cv-color-picker">
+          <span className="cv-color-swatch" style={{ background: accentColor }} />
           <span className="cv-color-label">Accent</span>
           <input
             type="color"
             value={accentColor}
             onChange={(e) => setAccentColor(e.target.value)}
           />
-          <span className="cv-color-swatch" style={{ background: accentColor }} />
         </label>
 
         {/* Undo button */}
