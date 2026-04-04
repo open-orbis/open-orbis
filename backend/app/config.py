@@ -30,13 +30,10 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
 
-    # Whisper (speech-to-text)
-    whisper_api_url: str = "http://localhost:9000"
-
     # URLs
     frontend_url: str = "http://localhost:5173"
 
-    model_config = {"env_file": ["../.env", ".env"], "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ["../.env", ".env"], "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

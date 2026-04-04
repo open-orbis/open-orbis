@@ -6,7 +6,6 @@ import { useAuthStore } from '../stores/authStore';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import FloatingInput from '../components/editor/FloatingInput';
 import { NODE_TYPE_LABELS } from '../components/graph/NodeColors';
-import VoiceOnboarding from '../components/onboarding/VoiceOnboarding';
 import CVUploadOnboarding from '../components/onboarding/CVUploadOnboarding';
 
 const SUGGESTED_ORDER = [
@@ -51,7 +50,7 @@ export default function CreateOrbPage() {
   const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode } = useOrbStore();
   const { user } = useAuthStore();
-  const [selectedPath, setSelectedPath] = useState<'voice' | 'upload' | 'manual' | null>(null);
+  const [selectedPath, setSelectedPath] = useState<'upload' | 'manual' | null>(null);
   const [showInput, setShowInput] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -122,19 +121,8 @@ export default function CreateOrbPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-3xl"
+          className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl"
         >
-          <PathCard
-            title="Tell us about yourself"
-            description="We'll ask you a few questions. Answer by voice or typing — we'll build your graph as you go."
-            color="#8b5cf6"
-            onClick={() => setSelectedPath('voice')}
-            icon={
-              <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-              </svg>
-            }
-          />
           <PathCard
             title="Import from your CV"
             description="Upload a PDF or DOCX file. We'll parse it and extract your experiences, skills, and education."
@@ -160,11 +148,6 @@ export default function CreateOrbPage() {
         </motion.div>
       </div>
     );
-  }
-
-  // ── Voice path ──
-  if (selectedPath === 'voice') {
-    return <VoiceOnboarding />;
   }
 
   // ── CV Upload path ──

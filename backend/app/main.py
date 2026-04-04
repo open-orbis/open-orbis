@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.router import router as cv_router
-from app.cv.voice_router import router as voice_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
 from app.messages.router import router as messages_router
@@ -42,7 +41,6 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(orbs_router)
 app.include_router(cv_router)
-app.include_router(voice_router)
 app.include_router(export_router)
 app.include_router(messages_router)
 app.include_router(notes_router)
