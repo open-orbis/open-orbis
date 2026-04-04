@@ -28,10 +28,13 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
       - name: Install dependencies
         working-directory: backend
-        run: pip install -e ".[dev]" --quiet
+        run: uv sync --all-extras
 
       - name: Run unit tests
         working-directory: backend
-        run: python -m pytest tests/unit/ -v --tb=short
+        run: uv run pytest tests/unit/ -v --tb=short

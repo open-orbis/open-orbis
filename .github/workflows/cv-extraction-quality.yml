@@ -32,6 +32,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -63,15 +66,15 @@ jobs:
             exit 0
           fi
           echo "available=true" >> "$GITHUB_OUTPUT"
-          pip install -e ".[dev]" --quiet
-          python -m tests.integration.generate_baseline /tmp/kg_baselines
+          uv sync --all-extras
+          uv run python -m tests.integration.generate_baseline /tmp/kg_baselines
 
       # ── phase 2: test PR branch against baselines ──────────────────
       - uses: actions/checkout@v4
 
       - name: Install backend dependencies (PR)
         working-directory: backend
-        run: pip install -e ".[dev]" --quiet
+        run: uv sync --all-extras
 
       - name: Run KG quality integration test
         working-directory: backend
@@ -83,7 +86,7 @@ jobs:
           else
             echo "Baseline: static golden references (first run — main lacks generate_baseline.py)"
           fi
-          python -m pytest tests/integration/test_kg_quality.py \
+          uv run python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
 
       - name: Post results as PR comment
