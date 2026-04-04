@@ -292,7 +292,6 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     const nodeCol = isFiltered ? new THREE.Color('#ffffff') : new THREE.Color(color);
 
     const group = new THREE.Group();
-    const col = new THREE.Color(color);
 
     if (isPerson) {
       // ── Person node: emissive core + orbital rings (no PointLight) ──

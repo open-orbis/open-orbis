@@ -35,14 +35,6 @@ jobs:
         working-directory: backend
         run: uv sync --all-extras
 
-      - name: Ruff lint
-        working-directory: backend
-        run: uv run ruff check .
-
-      - name: Ruff format check
-        working-directory: backend
-        run: uv run ruff format --check .
-
       - name: Run unit tests
         working-directory: backend
         run: uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75

@@ -455,7 +455,7 @@ function SkillLinker({ nodeUid }: { nodeUid: string }) {
   );
 }
 
-function TypeSelector({ nodeType, color, onChange }: { nodeType: string; color: string; onChange: (t: string) => void }) {
+function TypeSelector({ nodeType, onChange }: { nodeType: string; color: string; onChange: (t: string) => void }) {
   return (
     <div className="mb-4">
       <div className="flex flex-wrap gap-1 sm:gap-1.5">
