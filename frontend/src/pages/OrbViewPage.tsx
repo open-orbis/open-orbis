@@ -229,11 +229,18 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
 
           {/* Tab content */}
           <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+            <AnimatePresence mode="wait">
             {/* ── Orb ID tab ── */}
             {activeTab === 'orb-id' && (
-              <div>
+              <motion.div
+                key="orb-id"
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.15, ease: 'easeInOut' }}
+              >
                 <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-500 text-sm">{window.location.origin}/</span>
                   <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
@@ -245,13 +252,19 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                   <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving...' : 'Save'}</button>
                   <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* ── Filters tab ── */}
             {activeTab === 'filters' && (
-              <div>
-                <label className="text-xs text-amber-400/80 uppercase tracking-wide font-medium">Visibility Filters</label>
+              <motion.div
+                key="filters"
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.15, ease: 'easeInOut' }}
+              >
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility Filters</label>
                 <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
                   Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
                 </p>
@@ -322,14 +335,20 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                     ))} active. Matching nodes are transparent.
                   </p>
                 )}
-              </div>
+              </motion.div>
             )}
 
             {/* ── Account tab ── */}
             {activeTab === 'account' && (
-              <div>
+              <motion.div
+                key="account"
+                initial={{ opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -8 }}
+                transition={{ duration: 0.15, ease: 'easeInOut' }}
+              >
                 <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-5">Manage your account and data.</p>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Manage your account and data.</p>
 
                 <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
                   <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
@@ -368,8 +387,9 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                     </div>
                   )}
                 </div>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
           </div>
         </div>
       </motion.div>
