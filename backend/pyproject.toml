@@ -19,6 +19,9 @@ dependencies = [
     "python-multipart>=0.0.9",
     "mcp[cli]>=1.0.0",
     "fpdf2>=2.8.7",
+    "posthog>=3.5.0",
+    "bcrypt>=4.1.0",
+    "asyncpg>=0.29.0",
 ]
 
 [project.optional-dependencies]
