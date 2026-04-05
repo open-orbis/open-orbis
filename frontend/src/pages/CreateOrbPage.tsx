@@ -94,7 +94,7 @@ export default function CreateOrbPage() {
   }, []);
 
   const handleFinish = useCallback(() => {
-    navigate('/orb');
+    navigate('/myorbis');
   }, [navigate]);
 
   const currentSuggestion = currentStep < SUGGESTED_ORDER.length ? SUGGESTED_ORDER[currentStep] : null;
@@ -140,7 +140,7 @@ export default function CreateOrbPage() {
             title="Build from scratch"
             description="Start with an empty orb and add entries one by one. Full control over every detail."
             color="#10b981"
-            onClick={() => navigate('/orb')}
+            onClick={() => navigate('/myorbis')}
             icon={
               <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
