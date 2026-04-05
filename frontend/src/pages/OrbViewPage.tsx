@@ -351,17 +351,17 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                       </p>
                       <div className="flex gap-2">
                         <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
                           onClick={handleDeleteAccount}
                           disabled={deleting}
                           className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors"
                         >
                           {deleting ? 'Deleting...' : 'Yes, delete my account'}
-                        </button>
-                        <button
-                          onClick={() => setShowDeleteConfirm(false)}
-                          className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                        >
-                          Cancel
                         </button>
                       </div>
                       {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
