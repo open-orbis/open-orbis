@@ -19,11 +19,12 @@ function fromMonths(total: number): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
 /** Format "YYYY-MM" to readable label like "Jun 2020". */
 function formatLabel(ym: string): string {
   const [y, m] = ym.split('-').map(Number);
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${months[m - 1]} ${y}`;
+  return `${MONTH_NAMES[m - 1]} ${y}`;
 }
 
 export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderProps) {
@@ -35,9 +36,9 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
   const maxM = useMemo(() => toMonths(maxDate), [maxDate]);
   const totalSpan = maxM - minM;
 
-  // Current handle positions (default to full range)
-  const lowerM = rangeStart ? toMonths(rangeStart) : minM;
-  const upperM = rangeEnd ? toMonths(rangeEnd) : maxM;
+  // Current handle positions (default to full range, clamped to bounds)
+  const lowerM = Math.max(minM, Math.min(maxM, rangeStart ? toMonths(rangeStart) : minM));
+  const upperM = Math.max(minM, Math.min(maxM, rangeEnd ? toMonths(rangeEnd) : maxM));
 
   // Convert month value to % from BOTTOM of track (bottom = minDate, top = maxDate)
   const toPercent = useCallback(
@@ -95,6 +96,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
       className="absolute left-2 top-16 bottom-8 w-10 hidden sm:flex flex-col items-center z-20 select-none"
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       {/* Max date label (top) */}
       <span className="text-[9px] text-white/30 mb-1 whitespace-nowrap">
@@ -117,8 +119,8 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
 
         {/* Upper handle */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing touch-none"
-          style={{ bottom: `${upperPct}%`, transform: `translate(-50%, 50%)` }}
+          className="absolute cursor-grab active:cursor-grabbing touch-none"
+          style={{ left: '50%', bottom: `${upperPct}%`, transform: `translate(-50%, 50%)` }}
           onPointerDown={onPointerDown('upper')}
         >
           <div className="w-[14px] h-[14px] rounded-full bg-[#785EF0] border-2 border-white shadow-lg shadow-purple-500/30" />
@@ -129,8 +131,8 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
 
         {/* Lower handle */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing touch-none"
-          style={{ bottom: `${lowerPct}%`, transform: `translate(-50%, 50%)` }}
+          className="absolute cursor-grab active:cursor-grabbing touch-none"
+          style={{ left: '50%', bottom: `${lowerPct}%`, transform: `translate(-50%, 50%)` }}
           onPointerDown={onPointerDown('lower')}
         >
           <div className="w-[14px] h-[14px] rounded-full bg-[#785EF0] border-2 border-white shadow-lg shadow-purple-500/30" />
