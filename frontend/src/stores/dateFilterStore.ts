@@ -90,8 +90,12 @@ export function computeDateFilteredNodeIds(
   _links: Array<{ source: string; target: string }>,
   rangeStart: string | null,
   rangeEnd: string | null,
+  boundsMin?: string | null,
+  boundsMax?: string | null,
 ): Set<string> {
   if (!rangeStart || !rangeEnd) return new Set();
+  // If range covers the full bounds, no filtering needed
+  if (boundsMin && boundsMax && rangeStart <= boundsMin && rangeEnd >= boundsMax) return new Set();
 
   const outOfRangeIds = new Set<string>();
 

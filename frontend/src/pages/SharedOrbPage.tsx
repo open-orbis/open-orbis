@@ -79,8 +79,10 @@ export default function SharedOrbPage() {
       data?.links ?? [],
       rangeStart,
       rangeEnd,
+      dateBounds?.min,
+      dateBounds?.max,
     ),
-    [data?.nodes, data?.links, rangeStart, rangeEnd],
+    [data?.nodes, data?.links, rangeStart, rangeEnd, dateBounds],
   );
 
   if (loading) {

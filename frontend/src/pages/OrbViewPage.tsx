@@ -874,12 +874,14 @@ export default function OrbViewPage() {
       data?.links ?? [],
       rangeStart,
       rangeEnd,
+      dateBounds?.min,
+      dateBounds?.max,
     );
     // Union of both sets
     const merged = new Set(keywordFiltered);
     for (const id of dateFiltered) merged.add(id);
     return merged;
-  }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd]);
+  }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
   const handleToggleNodeType = useCallback((type: string) => {
