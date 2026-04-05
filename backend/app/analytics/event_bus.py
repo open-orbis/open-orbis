@@ -39,5 +39,5 @@ def collect_events() -> list[tuple[str, dict]]:
     if bucket is None:
         return []
     events = list(bucket)
-    bucket.clear()
+    _events.set([])
     return events

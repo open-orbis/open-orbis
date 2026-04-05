@@ -64,6 +64,15 @@ async def call_claude(
         })
         return envelope.get("result", "")
     except json.JSONDecodeError:
+        emit_event("llm_usage", {
+            "operation": "cv_classification",
+            "model": model or "claude-opus-4-6",
+            "provider": "anthropic",
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cost_usd": 0,
+            "latency_ms": 0,
+        })
         logger.warning(
             "Claude CLI output is not JSON, returning raw (%d chars)", len(output)
         )

@@ -70,7 +70,6 @@ def _extract_user_id(request: Request) -> str | None:
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
-            options={"verify_exp": False},
         )
         return payload.get("sub")
     except Exception:
