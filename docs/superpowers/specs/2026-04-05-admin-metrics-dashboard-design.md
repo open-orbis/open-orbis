@@ -8,7 +8,19 @@
 
 ## Overview
 
-Add an admin metrics dashboard to Orbis that provides visibility into user behavior, LLM token consumption, registration funnels, and platform growth. The dashboard lives at `/admin` within the existing React app, uses self-hosted PostHog for analytics storage, and has its own authentication system independent from Google OAuth.
+Add an admin metrics dashboard to Orbis that provides visibility into user behavior, LLM token consumption, registration funnels, and platform growth. Analytics is implemented as a **second layer** that wraps the application — the app code itself has no knowledge of analytics. The system uses an ASGI middleware for request-level tracking, an in-process event bus for LLM-specific data, and self-hosted PostHog for storage and querying. The admin dashboard lives at `/admin` within the React app with its own independent authentication system.
+
+## Core Principle: Analytics as a Second Layer
+
+The analytics system wraps the app rather than being embedded in it:
+
+1. **ASGI Middleware** intercepts all HTTP requests/responses — app routes are unaware
+2. **Event Bus** is the only analytics touchpoint inside app code — classifiers emit lightweight events, never import PostHog or analytics modules
+3. **Frontend Tracker** abstracts PostHog behind a thin interface — components never import PostHog directly
+
+Analytics failures never break core functionality. All tracking is fire-and-forget.
+
+---
 
 ## Architecture
 
@@ -23,10 +35,129 @@ Add an admin metrics dashboard to Orbis that provides visibility into user behav
 ### Data Flow
 
 ```
-Frontend (posthog-js)    ──→  PostHog  (page views, navigation, UI actions)
-Backend (posthog-python) ──→  PostHog  (server-side actions, LLM token usage)
-Admin Dashboard          ←──  PostHog API (all analytics) + PostgreSQL (admin auth)
+ASGI Middleware           ──→  PostHog  (request timing, status, endpoint, user)
+Event Bus (LLM events)   ──→  PostHog  (token counts, model, provider, latency)
+Frontend Tracker          ──→  PostHog  (page views, UI actions via posthog-js)
+Admin Dashboard           ←──  PostHog API (all analytics) + PostgreSQL (admin auth)
 ```
+
+---
+
+## Second Layer: ASGI Middleware
+
+### `backend/app/analytics/middleware.py`
+
+A single Starlette middleware that wraps every request:
+
+**Captures automatically (no app code changes):**
+- Endpoint path and HTTP method
+- Response status code
+- Response time (ms)
+- User ID (extracted from JWT in Authorization header — read-only, no auth logic)
+- Timestamp
+- Request content length
+
+**LLM event integration:**
+- After each request completes, checks the event bus for any `llm_usage` events emitted during that request
+- Bundles them with the request context (user ID, endpoint) and sends to PostHog
+- Uses request-scoped context via Python `contextvars` to correlate events to requests
+
+**Error isolation:**
+- All PostHog calls wrapped in try/except — log warning on failure, never propagate
+- Middleware never modifies the request or response
+
+**Excluded paths:**
+- `/docs`, `/openapi.json`, `/health` — no tracking for infrastructure endpoints
+- `/api/admin/*` — admin requests not tracked (avoid recursion and noise)
+
+### Event Schema — Request Tracking
+
+```python
+posthog.capture(user_id or "anonymous", "http_request", {
+    "method": "POST",
+    "path": "/cv/upload",
+    "status_code": 200,
+    "duration_ms": 1234,
+    "content_length": 56789
+})
+```
+
+---
+
+## Second Layer: Event Bus
+
+### `backend/app/analytics/event_bus.py`
+
+Lightweight in-process pub/sub using Python `contextvars` for request scoping:
+
+```python
+# Public API — this is the ONLY analytics import app code ever uses
+def emit(event_type: str, data: dict) -> None:
+    """Fire-and-forget event emission. Never raises."""
+```
+
+**How it works:**
+1. Middleware sets up a request-scoped event collector (via `contextvars.ContextVar`)
+2. App code calls `event_bus.emit("llm_usage", {...})` — appends to the collector
+3. After the request completes, middleware reads all collected events and sends to PostHog
+4. If no middleware is present (e.g., testing), events are silently discarded
+
+**LLM Usage Event Schema:**
+
+```python
+event_bus.emit("llm_usage", {
+    "operation": "cv_classification",    # or "note_enhancement"
+    "model": "llama3.2:3b",             # or "claude-opus-4-6"
+    "provider": "ollama",                # or "anthropic"
+    "input_tokens": 1200,
+    "output_tokens": 450,
+    "latency_ms": 2300
+})
+```
+
+### Token Capture Points (minimal app code changes)
+
+| File | Change |
+|------|--------|
+| `cv/ollama_classifier.py` | After Ollama HTTP response, emit `llm_usage` with `prompt_eval_count` and `eval_count` |
+| `cv/claude_classifier.py` | After Claude CLI response, emit `llm_usage` with `usage.input_tokens` and `usage.output_tokens` |
+| `notes/router.py` | After LLM call for note enhancement, emit `llm_usage` with token counts |
+
+Each change is 3-5 lines: import `event_bus`, emit one event. No PostHog import, no analytics logic.
+
+---
+
+## Second Layer: Frontend Tracker
+
+### `frontend/src/analytics/tracker.ts`
+
+Thin abstraction over `posthog-js`:
+
+```typescript
+// Public API — components import this, never posthog-js directly
+export function trackEvent(name: string, properties?: Record<string, unknown>): void
+export function identifyUser(userId: string): void
+export function resetUser(): void
+```
+
+**Initialization:**
+- `initTracker()` called once in `App.tsx`
+- Enables PostHog autocapture (page views, clicks, inputs — automatic)
+- Calls `posthog.identify()` on login to link anonymous sessions
+
+**Manual captures via tracker:**
+
+| Event | Trigger Point |
+|-------|--------------|
+| `orb_shared` | Filter token creation / copy share link |
+| `orb_filter_applied` | Node type filter toggled |
+| `cv_export_started` | Export button clicked (PDF/JSON) |
+| `search_performed` | Search submitted |
+| `graph_interaction` | Node click, zoom, rotate in 3D view |
+
+**Error isolation:**
+- `trackEvent` wraps all calls in try/catch — never throws
+- If PostHog fails to initialize, all tracker functions become no-ops
 
 ---
 
@@ -90,72 +221,6 @@ CREATE TABLE orbis_admin.admin_users (
 
 ---
 
-## LLM Token Tracking
-
-Core of issue #91. LLM token usage stored as PostHog custom events.
-
-### Event Schema
-
-```python
-posthog.capture(user_id, "llm_usage", {
-    "operation": "cv_classification",    # or "note_enhancement"
-    "model": "llama3.2:3b",             # or "claude-opus-4-6"
-    "provider": "ollama",                # or "anthropic"
-    "input_tokens": 1200,
-    "output_tokens": 450,
-    "latency_ms": 2300
-})
-```
-
-### Token Capture Points
-
-| File | Provider | How |
-|------|----------|-----|
-| `cv/ollama_classifier.py` | Ollama | Parse `prompt_eval_count` and `eval_count` from response |
-| `cv/claude_classifier.py` | Anthropic | Read `usage.input_tokens` and `usage.output_tokens` from response |
-| `notes/router.py` | Anthropic | Read `usage.input_tokens` and `usage.output_tokens` from response |
-
----
-
-## Analytics Event Tracking
-
-### Frontend Events (posthog-js)
-
-`posthog-js` initialized in `App.tsx` with **autocapture enabled** — gets page views, clicks, and inputs automatically.
-
-Manual captures for specific events:
-
-| Event | Trigger Point |
-|-------|--------------|
-| `orb_shared` | Filter token creation / copy share link |
-| `orb_filter_applied` | Node type filter toggled |
-| `cv_export_started` | Export button clicked (PDF/JSON) |
-| `search_performed` | Search submitted |
-| `graph_interaction` | Node click, zoom, rotate in 3D view |
-
-`posthog.identify()` called on login to link anonymous sessions to authenticated users.
-
-### Backend Events (posthog-python)
-
-`posthog-python` SDK initialized in `analytics/posthog_client.py`.
-
-| File | Events |
-|------|--------|
-| `auth/router.py` | `user_signup`, `user_login` |
-| `cv/router.py` | `cv_upload_started`, `cv_upload_completed` |
-| `cv/ollama_classifier.py` | `llm_usage` |
-| `cv/claude_classifier.py` | `llm_usage` |
-| `orbs/router.py` | `node_created`, `node_updated`, `node_deleted`, `skill_linked`, `skill_unlinked`, `orb_id_claimed`, `profile_image_uploaded`, `profile_image_deleted`, `filter_token_created` |
-| `notes/router.py` | `note_enhanced`, `llm_usage` |
-| `search/router.py` | `search_semantic`, `search_text` |
-| `export/router.py` | `cv_export_pdf`, `cv_export_json` |
-| `messages/router.py` | `message_sent`, `message_read`, `message_replied`, `message_deleted` |
-| `mcp_server/tools.py` | `mcp_tool_called` (with tool name in metadata) |
-
-All backend events sent asynchronously via `BackgroundTasks` to avoid blocking requests.
-
----
-
 ## Backend Module Structure
 
 ```
@@ -168,8 +233,10 @@ backend/app/
 │   ├── seed.py            # CLI to seed admin credentials
 │   └── db.py              # PostgreSQL connection for admin schema
 ├── analytics/
-│   ├── posthog_client.py  # PostHog SDK initialization
-│   └── tracker.py         # Helper: capture events to PostHog via BackgroundTasks
+│   ├── middleware.py       # ASGI middleware — request-level tracking
+│   ├── event_bus.py        # In-process event bus (pub/sub with contextvars)
+│   ├── posthog_client.py   # PostHog SDK initialization + singleton
+│   └── tracker.py          # Backend helper: flush events to PostHog
 ```
 
 ### Admin API Endpoints
@@ -216,11 +283,6 @@ All require admin JWT.
 - Registration funnel: sign-ups → first CV upload → orb ID claimed → first share
 - Real-time activity feed (last 20 events)
 
-**Trends:**
-- Line charts for key metrics over time (selectable: daily/weekly/monthly)
-- Metrics: DAU, signups, CV uploads, exports, LLM tokens, messages sent
-- Date range picker
-
 **Users:**
 - Sortable table: name, signup date, last active, node count, LLM tokens used, action count
 - Click into user detail: activity timeline, LLM usage breakdown, session history
@@ -240,6 +302,21 @@ All require admin JWT.
 
 **Recharts** — React-native, composable, lightweight. Supports line, bar, area, pie, funnel charts.
 
+### UI Style
+
+Functional/utilitarian — clean Tailwind layout, focus on data clarity. No animations or fancy design.
+
+---
+
+## Registration Metrics
+
+Two separate metrics forming a funnel:
+
+- **Sign-up**: first Google OAuth login (Person node created)
+- **Activation**: first CV upload completed
+
+PostHog funnel query chains: `user_signup` → `cv_upload_completed` → `orb_id_claimed` → `orb_shared`
+
 ---
 
 ## Integration Concerns
@@ -247,8 +324,10 @@ All require admin JWT.
 ### Error Isolation
 
 Analytics failures must never break core functionality:
-- Backend: `posthog.capture()` calls wrapped in try/except — log warning on failure, never propagate
-- Frontend: `posthog-js` fails silently by default — no error toasts for analytics issues
+- Backend middleware: all PostHog calls wrapped in try/except — log warning on failure, never propagate
+- Event bus: `emit()` never raises — silently discards on error
+- Frontend tracker: `trackEvent()` wraps in try/catch — never throws
+- Frontend `posthog-js`: fails silently by default — no error toasts
 
 ### Security
 
@@ -274,25 +353,14 @@ Analytics failures must never break core functionality:
 
 ---
 
-## Registration Metrics
-
-Two separate metrics forming a funnel:
-
-- **Sign-up**: first Google OAuth login (Person node created)
-- **Activation**: first CV upload completed
-
-PostHog funnel query chains: `user_signup` → `cv_upload_completed` → `orb_id_claimed` → `orb_shared`
-
----
-
 ## Acceptance Criteria
 
 - [ ] PostHog self-hosted running via docker-compose
+- [ ] ASGI middleware captures all request-level metrics without app code changes
+- [ ] Event bus captures LLM token usage with minimal (3-5 lines per file) classifier changes
+- [ ] Frontend tracker abstraction wraps posthog-js — no direct PostHog imports in components
 - [ ] Admin login system with separate credentials (PostgreSQL-backed)
-- [ ] Each LLM API call sends token usage to PostHog with user ID, operation, model, provider
-- [ ] Frontend autocapture enabled + manual captures for key UI events
-- [ ] Backend tracks all listed server-side events to PostHog
-- [ ] Admin dashboard with overview, trends, users, LLM usage, and events explorer pages
+- [ ] Admin dashboard with overview, users, LLM usage, and events explorer pages
 - [ ] Charts: sparklines, line/area/pie charts, heatmap, funnel visualization
 - [ ] Real-time metrics for current day
 - [ ] Analytics failures never break core app functionality
