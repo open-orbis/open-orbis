@@ -13,6 +13,8 @@ from app.messages.router import router as messages_router
 from app.notes.router import router as notes_router
 from app.orbs.router import router as orbs_router
 from app.search.router import router as search_router
+from app.analytics.middleware import AnalyticsMiddleware
+from app.analytics.posthog_client import init_posthog, shutdown_posthog
 
 logging.basicConfig(level=logging.INFO)
 
@@ -23,8 +25,10 @@ async def lifespan(app: FastAPI):
     driver = await get_driver()
     async with driver.session() as session:
         await session.run("RETURN 1")
+    init_posthog()
     yield
     # Shutdown
+    shutdown_posthog()
     await close_driver()
 
 
@@ -37,6 +41,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AnalyticsMiddleware)
 
 app.include_router(auth_router)
 app.include_router(orbs_router)
