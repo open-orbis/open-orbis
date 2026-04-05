@@ -94,73 +94,105 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
 
   return (
     <div
-      className="absolute left-5 top-16 bottom-24 w-10 hidden sm:flex flex-col items-center z-20 select-none"
+      className="absolute left-3 top-14 bottom-24 hidden sm:flex flex-col items-center z-20 select-none"
+      style={{ width: '52px' }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      {/* Max date label (top) */}
-      <span className="text-[9px] text-white/30 mb-1 whitespace-nowrap">
-        {formatLabel(maxDate)}
-      </span>
+      {/* Glass panel background */}
+      <div className="absolute inset-0 rounded-2xl bg-white/[0.03] backdrop-blur-sm border border-white/[0.06]" />
 
-      {/* Track container */}
-      <div ref={trackRef} className="relative flex-1 w-full flex justify-center">
-        {/* Background track */}
-        <div className="absolute top-0 bottom-0 w-[3px] rounded-full bg-white/10" />
+      {/* Content */}
+      <div className="relative flex flex-col items-center w-full h-full py-3 px-1">
+        {/* Max date label (top) */}
+        <span className="text-[8px] font-medium text-white/25 tracking-wide uppercase whitespace-nowrap mb-2">
+          {formatLabel(maxDate)}
+        </span>
 
-        {/* Active range (purple) */}
-        <div
-          className="absolute w-[3px] rounded-full bg-[#785EF0]"
-          style={{
-            bottom: `${lowerPct}%`,
-            top: `${100 - upperPct}%`,
-          }}
-        />
+        {/* Track container */}
+        <div ref={trackRef} className="relative flex-1 w-full flex justify-center">
+          {/* Background track */}
+          <div className="absolute top-0 bottom-0 w-[2px] rounded-full bg-white/[0.08]" />
 
-        {/* Upper handle */}
-        <div
-          className="absolute cursor-grab active:cursor-grabbing touch-none"
-          style={{ left: '50%', bottom: `${upperPct}%`, transform: `translate(-50%, 50%)` }}
-          onPointerDown={onPointerDown('upper')}
-        >
-          <div className="w-[14px] h-[14px] rounded-full bg-[#785EF0] border-2 border-white shadow-lg shadow-purple-500/30" />
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] text-white/50 whitespace-nowrap pointer-events-none">
-            {formatLabel(fromMonths(upperM))}
-          </span>
+          {/* Active range (purple gradient) */}
+          <div
+            className="absolute w-[2px] rounded-full"
+            style={{
+              bottom: `${lowerPct}%`,
+              top: `${100 - upperPct}%`,
+              background: 'linear-gradient(to top, #6347d6, #9b7eff)',
+            }}
+          />
+          {/* Active range glow */}
+          <div
+            className="absolute w-[6px] rounded-full opacity-30 blur-[2px]"
+            style={{
+              bottom: `${lowerPct}%`,
+              top: `${100 - upperPct}%`,
+              background: 'linear-gradient(to top, #6347d6, #9b7eff)',
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
+          />
+
+          {/* Upper handle */}
+          <div
+            className="absolute cursor-grab active:cursor-grabbing touch-none"
+            style={{ left: '50%', bottom: `${upperPct}%`, transform: 'translate(-50%, 50%)' }}
+            onPointerDown={onPointerDown('upper')}
+          >
+            {/* Larger invisible hit area */}
+            <div className="absolute -inset-2" />
+            {/* Handle visual */}
+            <div className="w-3 h-3 rounded-full bg-white border-[1.5px] border-[#785EF0] shadow-[0_0_8px_rgba(120,94,240,0.5)]
+              transition-transform active:scale-125" />
+            {/* Date label */}
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[10px] font-medium text-white/60 whitespace-nowrap pointer-events-none
+              bg-black/40 backdrop-blur-sm rounded px-1.5 py-0.5 border border-white/[0.06]">
+              {formatLabel(fromMonths(upperM))}
+            </span>
+          </div>
+
+          {/* Lower handle */}
+          <div
+            className="absolute cursor-grab active:cursor-grabbing touch-none"
+            style={{ left: '50%', bottom: `${lowerPct}%`, transform: 'translate(-50%, 50%)' }}
+            onPointerDown={onPointerDown('lower')}
+          >
+            {/* Larger invisible hit area */}
+            <div className="absolute -inset-2" />
+            {/* Handle visual */}
+            <div className="w-3 h-3 rounded-full bg-white border-[1.5px] border-[#785EF0] shadow-[0_0_8px_rgba(120,94,240,0.5)]
+              transition-transform active:scale-125" />
+            {/* Date label */}
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[10px] font-medium text-white/60 whitespace-nowrap pointer-events-none
+              bg-black/40 backdrop-blur-sm rounded px-1.5 py-0.5 border border-white/[0.06]">
+              {formatLabel(fromMonths(lowerM))}
+            </span>
+          </div>
         </div>
 
-        {/* Lower handle */}
-        <div
-          className="absolute cursor-grab active:cursor-grabbing touch-none"
-          style={{ left: '50%', bottom: `${lowerPct}%`, transform: `translate(-50%, 50%)` }}
-          onPointerDown={onPointerDown('lower')}
-        >
-          <div className="w-[14px] h-[14px] rounded-full bg-[#785EF0] border-2 border-white shadow-lg shadow-purple-500/30" />
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] text-white/50 whitespace-nowrap pointer-events-none">
-            {formatLabel(fromMonths(lowerM))}
-          </span>
-        </div>
+        {/* Min date label (bottom) */}
+        <span className="text-[8px] font-medium text-white/25 tracking-wide uppercase whitespace-nowrap mt-2">
+          {formatLabel(minDate)}
+        </span>
+
+        {/* Reset button */}
+        {isFiltered && (
+          <button
+            onClick={resetRange}
+            className="mt-2 w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] hover:border-white/[0.15]
+              flex items-center justify-center transition-all group"
+            title="Reset date filter"
+          >
+            <svg className="w-3 h-3 text-white/40 group-hover:text-white/70 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 1 9 9" />
+              <polyline points="3 3 3 12 12 12" />
+            </svg>
+          </button>
+        )}
       </div>
-
-      {/* Min date label (bottom) */}
-      <span className="text-[9px] text-white/30 mt-1 whitespace-nowrap">
-        {formatLabel(minDate)}
-      </span>
-
-      {/* Reset button */}
-      {isFiltered && (
-        <button
-          onClick={resetRange}
-          className="mt-2 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-          title="Reset date filter"
-        >
-          <svg className="w-3 h-3 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 1 1 9 9" />
-            <polyline points="3 3 3 12 12 12" />
-          </svg>
-        </button>
-      )}
     </div>
   );
 }
