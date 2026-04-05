@@ -106,7 +106,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
       {/* Content */}
       <div className="relative flex flex-col items-center w-full h-full py-3 px-1">
         {/* Max date label (top) */}
-        <span className="text-[8px] font-medium text-white/25 tracking-wide uppercase whitespace-nowrap mb-2">
+        <span className="text-[10px] font-medium text-white/30 tracking-wide uppercase whitespace-nowrap mb-2">
           {formatLabel(maxDate)}
         </span>
 
@@ -148,7 +148,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
             <div className="w-3 h-3 rounded-full bg-white border-[1.5px] border-[#785EF0] shadow-[0_0_8px_rgba(120,94,240,0.5)]
               transition-transform active:scale-125" />
             {/* Date label */}
-            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[10px] font-medium text-white/60 whitespace-nowrap pointer-events-none
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xs font-medium text-white/60 whitespace-nowrap pointer-events-none
               bg-black/40 backdrop-blur-sm rounded px-1.5 py-0.5 border border-white/[0.06]">
               {formatLabel(fromMonths(upperM))}
             </span>
@@ -166,7 +166,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
             <div className="w-3 h-3 rounded-full bg-white border-[1.5px] border-[#785EF0] shadow-[0_0_8px_rgba(120,94,240,0.5)]
               transition-transform active:scale-125" />
             {/* Date label */}
-            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[10px] font-medium text-white/60 whitespace-nowrap pointer-events-none
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-xs font-medium text-white/60 whitespace-nowrap pointer-events-none
               bg-black/40 backdrop-blur-sm rounded px-1.5 py-0.5 border border-white/[0.06]">
               {formatLabel(fromMonths(lowerM))}
             </span>
@@ -174,7 +174,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
         </div>
 
         {/* Min date label (bottom) */}
-        <span className="text-[8px] font-medium text-white/25 tracking-wide uppercase whitespace-nowrap mt-2">
+        <span className="text-[10px] font-medium text-white/30 tracking-wide uppercase whitespace-nowrap mt-2">
           {formatLabel(minDate)}
         </span>
 
