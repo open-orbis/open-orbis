@@ -6,6 +6,8 @@ import asyncio
 import json
 import logging
 
+from app.analytics.event_bus import emit as emit_event
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,6 +53,15 @@ async def call_claude(
     # with fields like: result, cost_usd, duration_ms, etc.
     try:
         envelope = json.loads(output)
+        emit_event("llm_usage", {
+            "operation": "cv_classification",
+            "model": model or "claude-opus-4-6",
+            "provider": "anthropic",
+            "input_tokens": envelope.get("tokens_in", 0),
+            "output_tokens": envelope.get("tokens_out", 0),
+            "cost_usd": envelope.get("cost_usd", 0),
+            "latency_ms": envelope.get("duration_ms", 0),
+        })
         return envelope.get("result", "")
     except json.JSONDecodeError:
         logger.warning(
