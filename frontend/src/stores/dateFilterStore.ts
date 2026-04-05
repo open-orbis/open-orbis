@@ -103,8 +103,11 @@ export function computeDateFilteredNodeIds(
     if (labels?.[0] === 'Person') continue;
 
     const dates = getNodeDates(node);
-    // Dateless nodes are always visible
-    if (dates.length === 0) continue;
+    // Dateless nodes are hidden when slider is not at full range
+    if (dates.length === 0) {
+      outOfRangeIds.add(uid);
+      continue;
+    }
 
     if (!nodeIsInRange(node, rangeStart, rangeEnd)) {
       outOfRangeIds.add(uid);
