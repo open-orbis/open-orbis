@@ -104,6 +104,17 @@ export function computeDateFilteredNodeIds(
     }
   }
 
+  // The Person node lives in data.person, not data.nodes, so the loop above
+  // never encounters it. Seed inRangeIds with any IDs that appear in links
+  // but not in nodes — this captures the Person node (always visible).
+  const nodeUidSet = new Set(nodes.map((n) => n.uid as string));
+  for (const link of links) {
+    const s = typeof link.source === 'string' ? link.source : (link.source as any).id ?? link.source;
+    const t = typeof link.target === 'string' ? link.target : (link.target as any).id ?? link.target;
+    if (s && !nodeUidSet.has(s)) inRangeIds.add(s);
+    if (t && !nodeUidSet.has(t)) inRangeIds.add(t);
+  }
+
   // Second pass: dateless nodes — check if any connected node is in range
   // Build adjacency from links
   const neighbors = new Map<string, string[]>();
