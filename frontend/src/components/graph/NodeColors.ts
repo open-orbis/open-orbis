@@ -1,7 +1,7 @@
 // ── Colorblind-safe palette (Wong + IBM Design) ──
 // Tested against Deuteranopia, Protanopia, and Tritanopia.
 export const NODE_COLORS: Record<string, string> = {
-  Person: '#CC79A7',       // Reddish Purple (Wong)
+  Person: '#785EF0',       // Purple (IBM) — central node
   Education: '#0072B2',    // Blue (Wong)
   WorkExperience: '#009E73', // Bluish Green (Wong)
   Certification: '#E69F00', // Orange (Wong)
@@ -9,7 +9,7 @@ export const NODE_COLORS: Record<string, string> = {
   Publication: '#56B4E9',  // Sky Blue (Wong)
   Project: '#D55E00',      // Vermillion (Wong)
   Skill: '#648FFF',        // Periwinkle (IBM)
-  Collaborator: '#785EF0', // Purple (IBM)
+  Collaborator: '#CC79A7', // Reddish Purple (Wong)
   Patent: '#DC267F',       // Magenta (IBM)
 };
 
@@ -28,7 +28,7 @@ export const NODE_TYPE_COLORS: Record<string, string> = {
   publication: '#56B4E9',
   project: '#D55E00',
   skill: '#648FFF',
-  collaborator: '#785EF0',
+  collaborator: '#CC79A7',
   patent: '#DC267F',
 };
 

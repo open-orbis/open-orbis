@@ -902,6 +902,13 @@ export default function OrbViewPage() {
           {/* Right: secondary actions */}
           <div className="flex items-center gap-1">
             <ProcessingCounter />
+            <NodeTypeFilter
+              hiddenTypes={hiddenNodeTypes}
+              onToggleType={handleToggleNodeType}
+              onShowAll={handleShowAllNodeTypes}
+              onHideAll={handleHideAllNodeTypes}
+            />
+            <div className="w-px h-5 bg-white/10 mx-1" />
             <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
               <IconInbox />
               <span className="hidden sm:inline">Inbox</span>
@@ -977,13 +984,7 @@ export default function OrbViewPage() {
         height={dimensions.height}
       />
 
-      {/* ── Node Type View ── */}
-      <NodeTypeFilter
-        hiddenTypes={hiddenNodeTypes}
-        onToggleType={handleToggleNodeType}
-        onShowAll={handleShowAllNodeTypes}
-        onHideAll={handleHideAllNodeTypes}
-      />
+      {/* NodeTypeFilter moved to header bar */}
 
       {/* ── Floating Input ── */}
       <FloatingInput
