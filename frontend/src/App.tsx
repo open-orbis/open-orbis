@@ -45,7 +45,7 @@ function AnimatedRoutes() {
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />
         <Route path="/create" element={<PageWrapper><CreateOrbPage /></PageWrapper>} />
-        <Route path="/orb" element={<PageWrapper><OrbViewPage /></PageWrapper>} />
+        <Route path="/myorbis" element={<PageWrapper><OrbViewPage /></PageWrapper>} />
         <Route path="/cv-export" element={<CvExportPage />} />
         <Route path="/privacy" element={<PageWrapper><PrivacyPolicyPage /></PageWrapper>} />
         <Route path="/:orbId" element={<PageWrapper><SharedOrbPage /></PageWrapper>} />

@@ -100,7 +100,7 @@ export default function CVUploadOnboarding() {
     try {
       await confirmCV(extractedNodes, relationships, cvOwnerName);
       await fetchUser();
-      navigate('/orb');
+      navigate('/myorbis');
     } catch {
       setError('Failed to save entries. Please try again.');
     } finally {

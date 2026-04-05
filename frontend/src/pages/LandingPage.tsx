@@ -80,7 +80,7 @@ export default function LandingPage() {
           </div>
           {user && !signingIn ? (
             <button
-              onClick={() => navigate('/orb')}
+              onClick={() => navigate('/myorbis')}
               className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
             >
               Go to My Orb &rarr;
@@ -159,7 +159,7 @@ export default function LandingPage() {
           {user && !signingIn ? (
             <>
               <button
-                onClick={() => navigate('/orb')}
+                onClick={() => navigate('/myorbis')}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
                 View My Orb
@@ -392,7 +392,7 @@ export default function LandingPage() {
             </p>
             {user && !signingIn ? (
               <button
-                onClick={() => navigate('/orb')}
+                onClick={() => navigate('/myorbis')}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
                 Go to My Orb
