@@ -147,8 +147,8 @@ export default function PrivacyPolicyPage() {
               <h2 className="text-white text-lg font-semibold mb-3">9. Contact</h2>
               <p>
                 For any privacy-related questions or to exercise your rights, contact us at:{' '}
-                <a href="mailto:privacy@openorbis.com" className="text-purple-400 hover:text-purple-300 underline">
-                  privacy@openorbis.com
+                <a href="mailto:privacy@open-orbis.com" className="text-purple-400 hover:text-purple-300 underline">
+                  privacy@open-orbis.com
                 </a>
               </p>
             </section>
