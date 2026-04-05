@@ -11,6 +11,13 @@ import SharedOrbPage from './pages/SharedOrbPage';
 import CvExportPage from './pages/CvExportPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ToastContainer from './components/ToastContainer';
+import { initTracker, identifyUser } from './analytics/tracker';
+import AdminLoginPage from './pages/admin/AdminLoginPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminLLMPage from './pages/admin/AdminLLMPage';
+import AdminEventsPage from './pages/admin/AdminEventsPage';
+import AdminRoute from './components/admin/AdminRoute';
 
 const pageVariants = {
   initial: { opacity: 0 },
@@ -48,6 +55,11 @@ function AnimatedRoutes() {
         <Route path="/orb" element={<PageWrapper><OrbViewPage /></PageWrapper>} />
         <Route path="/cv-export" element={<CvExportPage />} />
         <Route path="/privacy" element={<PageWrapper><PrivacyPolicyPage /></PageWrapper>} />
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+        <Route path="/admin/llm" element={<AdminRoute><AdminLLMPage /></AdminRoute>} />
+        <Route path="/admin/events" element={<AdminRoute><AdminEventsPage /></AdminRoute>} />
         <Route path="/:orbId" element={<PageWrapper><SharedOrbPage /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
@@ -56,6 +68,17 @@ function AnimatedRoutes() {
 
 function App() {
   const { token, fetchUser } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    initTracker();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      identifyUser(user.user_id);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (token) fetchUser();
