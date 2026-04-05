@@ -11,7 +11,7 @@ import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
 
 export default function CVUploadOnboarding() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, fetchUser } = useAuthStore();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -99,6 +99,7 @@ export default function CVUploadOnboarding() {
     setConfirming(true);
     try {
       await confirmCV(extractedNodes, relationships, cvOwnerName);
+      await fetchUser();
       navigate('/orb');
     } catch {
       setError('Failed to save entries. Please try again.');

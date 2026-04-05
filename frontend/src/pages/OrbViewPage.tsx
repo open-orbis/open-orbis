@@ -781,7 +781,7 @@ export default function OrbViewPage() {
               ) : (
                 <>
                   <span className="text-purple-300 text-xs font-bold group-hover:opacity-0 transition-opacity">
-                    {(user?.name || 'O').charAt(0).toUpperCase()}
+                    {((data.person.name as string) || user?.name || 'O').charAt(0).toUpperCase()}
                   </span>
                   <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <IconSettings />
@@ -790,7 +790,7 @@ export default function OrbViewPage() {
               )}
             </button>
             <div>
-              <span className="text-white text-xs sm:text-sm font-semibold">{user?.name || 'My Orb'}</span>
+              <span className="text-white text-xs sm:text-sm font-semibold">{(data.person.name as string) || user?.name || 'My Orb'}</span>
               <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
               {activeKeywords.length > 0 && (
                 <span className="text-amber-400/70 text-[10px] ml-2 hidden sm:inline-flex items-center gap-1">
