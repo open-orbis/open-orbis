@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getMyOrb } from '../api/orbs';
 import type { OrbData, OrbNode } from '../api/orbs';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
+import { trackEvent } from '../analytics/tracker';
 
 /* ── Helpers ── */
 
@@ -233,6 +234,7 @@ export default function CvExportPage() {
 
   /* ── PDF export (native print → selectable text + clickable links) ── */
   const handleDownloadPdf = useCallback(() => {
+    trackEvent('cv_export_started', { format: 'pdf' });
     const personName = (data?.person?.name as string) || 'CV';
     const prev = document.title;
     document.title = `${personName} CV by OpenOrbis`;

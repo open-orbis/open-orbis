@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import type { OrbData } from '../../api/orbs';
 import { getNodeColor, NODE_TYPE_LABELS, NODE_SHAPE_MARKERS } from './NodeColors';
 import NodeTooltip from './NodeTooltip';
+import { trackEvent } from '../../analytics/tracker';
 
 interface OrbGraph3DProps {
   data: OrbData;
@@ -253,7 +254,10 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
   const handleNodeClick = useCallback(
     (node: any) => {
-      if (onNodeClick && node) onNodeClick(node);
+      if (onNodeClick && node) {
+        trackEvent('graph_interaction', { type: 'node_click', nodeType: node._labels?.[0] });
+        onNodeClick(node);
+      }
     },
     [onNodeClick]
   );

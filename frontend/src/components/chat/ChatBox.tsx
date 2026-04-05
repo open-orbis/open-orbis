@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
+import { trackEvent } from '../../analytics/tracker';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -88,6 +89,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
     setLoading(true);
 
     try {
+      trackEvent('search_performed', { query });
       const results = await searchFn(query);
 
       if (results.length === 0) {

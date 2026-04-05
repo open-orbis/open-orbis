@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
+import { trackEvent } from '../analytics/tracker';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { claimOrbId, updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
@@ -45,6 +46,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
 
   const copy = (text: string, filtered = false) => {
     navigator.clipboard.writeText(text);
+    trackEvent('orb_shared', { filtered });
     if (filtered) {
       setCopiedFiltered(true);
       setTimeout(() => setCopiedFiltered(false), 2000);
@@ -829,6 +831,7 @@ export default function OrbViewPage() {
 
   // Node type filter handlers
   const handleToggleNodeType = useCallback((type: string) => {
+    trackEvent('orb_filter_applied', { type, action: 'toggle' });
     setHiddenNodeTypes((prev) => {
       const next = new Set(prev);
       if (next.has(type)) next.delete(type);
@@ -838,12 +841,14 @@ export default function OrbViewPage() {
   }, []);
 
   const handleShowAllNodeTypes = useCallback(() => {
+    trackEvent('orb_filter_applied', { action: 'show_all' });
     setHiddenNodeTypes(new Set());
   }, []);
 
   const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
 
   const handleHideAllNodeTypes = useCallback(() => {
+    trackEvent('orb_filter_applied', { action: 'hide_all' });
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
   }, []);
 
