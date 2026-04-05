@@ -2,11 +2,11 @@ from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
-@patch("app.cv.router.docling_extract")
+@patch("app.cv.router.pdf_extract")
 @patch("app.cv.router.classify_entries")
 @patch("app.cv.router.counter")
-def test_upload_cv_success(mock_counter, mock_classify, mock_docling, client):
-    mock_docling.return_value = "Extracted text"
+def test_upload_cv_success(mock_counter, mock_classify, mock_pdf_extract, client):
+    mock_pdf_extract.return_value = "Extracted text"
     mock_classify.return_value = MagicMock(
         nodes=[{"node_type": "skill", "properties": {"name": "Python"}}],
         unmatched=[],
@@ -146,9 +146,9 @@ def test_upload_cv_large_file(client):
     assert "too large" in response.json()["detail"]
 
 
-@patch("app.cv.router.docling_extract")
-def test_upload_cv_extraction_failed(mock_docling, client):
-    mock_docling.return_value = "  "  # Empty extraction
+@patch("app.cv.router.pdf_extract")
+def test_upload_cv_extraction_failed(mock_pdf_extract, client):
+    mock_pdf_extract.return_value = "  "  # Empty extraction
     file = BytesIO(b"%PDF-1.4 test")
     response = client.post(
         "/cv/upload", files={"file": ("test.pdf", file, "application/pdf")}
@@ -157,9 +157,9 @@ def test_upload_cv_extraction_failed(mock_docling, client):
     assert "Could not extract text" in response.json()["detail"]
 
 
-@patch("app.cv.router.docling_extract")
-def test_upload_cv_timeout(mock_docling, client):
-    mock_docling.side_effect = TimeoutError("Timeout")
+@patch("app.cv.router.pdf_extract")
+def test_upload_cv_timeout(mock_pdf_extract, client):
+    mock_pdf_extract.side_effect = TimeoutError("Timeout")
     file = BytesIO(b"%PDF-1.4 test")
     response = client.post(
         "/cv/upload", files={"file": ("test.pdf", file, "application/pdf")}

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from neo4j import AsyncDriver
 
 from app.cv import counter
-from app.cv.docling_extractor import extract_text as docling_extract
+from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
 from app.dependencies import get_current_user, get_db
@@ -47,7 +47,7 @@ async def upload_cv(
     try:
         # Step 1: Extract text via Docling (local, free)
         logger.info("Starting PDF extraction for user %s", current_user.get("user_id"))
-        raw_text = await docling_extract(pdf_bytes)
+        raw_text = await pdf_extract(pdf_bytes)
 
         if not raw_text.strip():
             raise HTTPException(
