@@ -15,8 +15,11 @@ from app.orbs.router import router as orbs_router
 from app.search.router import router as search_router
 from app.analytics.middleware import AnalyticsMiddleware
 from app.analytics.posthog_client import init_posthog, shutdown_posthog
+from app.admin.router import router as admin_router
+from app.admin.db import init_admin_db, close_admin_db
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -26,8 +29,13 @@ async def lifespan(app: FastAPI):
     async with driver.session() as session:
         await session.run("RETURN 1")
     init_posthog()
+    try:
+        await init_admin_db()
+    except Exception:
+        logger.warning("Admin DB not available — admin features disabled")
     yield
     # Shutdown
+    await close_admin_db()
     shutdown_posthog()
     await close_driver()
 
@@ -50,6 +58,7 @@ app.include_router(export_router)
 app.include_router(messages_router)
 app.include_router(notes_router)
 app.include_router(search_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")
