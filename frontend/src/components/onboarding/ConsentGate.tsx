@@ -57,7 +57,7 @@ export default function ConsentGate({ children }: { children: React.ReactNode })
             />
             <span className="text-white/60 text-sm leading-relaxed">
               I consent to OpenOrbis processing and storing my personal data as described in the{' '}
-              <a href="/privacy" target="_blank" className="text-purple-400 hover:text-purple-300 underline">
+              <a href="/privacy" className="text-purple-400 hover:text-purple-300 underline">
                 Privacy Policy
               </a>.
             </span>
