@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock
+from io import BytesIO
+from unittest.mock import AsyncMock, patch
 
 from tests.unit.conftest import MockNode
 
@@ -46,10 +47,6 @@ def test_get_me_defaults_consent_to_false(client, mock_db):
     response = client.get("/auth/me")
     assert response.status_code == 200
     assert response.json()["gdpr_consent"] is False
-
-
-from io import BytesIO
-from unittest.mock import patch, MagicMock
 
 
 @patch("app.cv.router.docling_extract")
