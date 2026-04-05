@@ -94,8 +94,8 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
 
   return (
     <div
-      className="absolute left-1/2 -translate-x-1/2 top-24 bottom-32 hidden sm:flex flex-col items-center z-20 select-none"
-      style={{ width: '52px' }}
+      className="absolute left-3 top-1/2 -translate-y-1/2 hidden sm:flex flex-col items-center z-20 select-none"
+      style={{ height: '55vh', width: '52px' }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
