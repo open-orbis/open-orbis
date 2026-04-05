@@ -863,8 +863,8 @@ export default function OrbViewPage() {
     return min === max ? null : { min, max };
   }, [data?.nodes]);
 
-  // Reset date filter when orb data changes
-  useEffect(() => { resetRange(); }, [data, resetRange]);
+  // Reset date filter when switching to a different orb (not on node edits)
+  useEffect(() => { resetRange(); }, [orbId, resetRange]);
 
   // Compute which nodes match any active visibility filter (keyword + date)
   const filteredNodeIds = useMemo(() => {
