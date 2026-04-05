@@ -56,6 +56,9 @@ def test_confirm_cv_success(client, mock_db):
     run_mock = mock_db.session.return_value.__aenter__.return_value.run
 
     # We need to return an object that has a .single() method which is an AsyncMock
+    result_mock_consent = MagicMock()
+    result_mock_consent.single = AsyncMock(return_value={"consent": True})
+
     result_mock_1 = MagicMock()
     result_mock_1.single = AsyncMock(return_value=None)
 
@@ -74,6 +77,7 @@ def test_confirm_cv_success(client, mock_db):
     result_mock_5.single = AsyncMock(return_value=None)
 
     run_mock.side_effect = [
+        result_mock_consent,  # _require_consent
         result_mock_1,  # DELETE_USER_GRAPH
         result_mock_2,  # UPDATE_PERSON
         result_mock_3,  # ADD_NODE 1
@@ -103,6 +107,9 @@ def test_confirm_cv_partial_link_failure(client, mock_db):
     # Node creation succeeds but LINK_SKILL fails (work_experience -> skill)
     run_mock = mock_db.session.return_value.__aenter__.return_value.run
 
+    res_consent = MagicMock()
+    res_consent.single = AsyncMock(return_value={"consent": True})
+
     res_ok = MagicMock()
     res_ok.single = AsyncMock(return_value=None)
 
@@ -115,6 +122,7 @@ def test_confirm_cv_partial_link_failure(client, mock_db):
     res_node_2.single = AsyncMock(return_value=node_rec_2)
 
     run_mock.side_effect = [
+        res_consent,  # _require_consent
         res_ok,  # DELETE_USER_GRAPH
         res_node_1,  # MERGE (work_experience)
         res_node_2,  # MERGE (skill)

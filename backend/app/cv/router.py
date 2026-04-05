@@ -27,12 +27,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cv", tags=["cv"])
 
 
+async def _require_consent(current_user: dict, db: AsyncDriver) -> None:
+    """Raise 403 if user hasn't given GDPR consent."""
+    async with db.session() as session:
+        result = await session.run(
+            "MATCH (p:Person {user_id: $user_id}) RETURN p.gdpr_consent AS consent",
+            user_id=current_user["user_id"],
+        )
+        record = await result.single()
+        if not record or not record["consent"]:
+            raise HTTPException(status_code=403, detail="GDPR consent required")
+
+
 @router.post("/upload", response_model=ExtractedData)
 async def upload_cv(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
 ):
     """Upload a PDF CV: extract text via Docling, classify via LLM."""
+    await _require_consent(current_user, db)
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -103,6 +117,7 @@ async def confirm_cv(
     db: AsyncDriver = Depends(get_db),
 ):
     """Persist confirmed CV nodes to Neo4j with dedup and cross-entity linking."""
+    await _require_consent(current_user, db)
     created: list[str | None] = []
 
     async with db.session() as session:
