@@ -5,6 +5,7 @@ export interface UserInfo {
   email: string;
   name: string;
   picture?: string;
+  gdpr_consent: boolean;
 }
 
 export async function getMe(): Promise<UserInfo> {
@@ -15,4 +16,8 @@ export async function getMe(): Promise<UserInfo> {
 export async function devLogin(): Promise<{ access_token: string; user: UserInfo }> {
   const { data } = await client.post('/auth/dev-login');
   return data;
+}
+
+export async function grantGdprConsent(): Promise<void> {
+  await client.post('/auth/gdpr-consent');
 }
