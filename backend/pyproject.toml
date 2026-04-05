@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "mcp[cli]>=1.0.0",
     "fpdf2>=2.8.7",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

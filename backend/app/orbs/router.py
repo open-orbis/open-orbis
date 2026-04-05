@@ -4,7 +4,7 @@ import base64
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from neo4j import AsyncDriver
 from neo4j.time import Date as Neo4jDate
 from neo4j.time import DateTime as Neo4jDateTime
@@ -33,6 +33,7 @@ from app.orbs.filter_token import (
     node_matches_filters,
 )
 from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -345,7 +346,9 @@ async def generate_filter_token(
 
 
 @router.get("/{orb_id}")
+@limiter.limit("30/minute")
 async def get_public_orb(
+    request: Request,
     orb_id: str,
     filter_token: str | None = Query(None),
     db: AsyncDriver = Depends(get_db),
@@ -354,6 +357,8 @@ async def get_public_orb(
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
         record = await result.single()
         if record is None:
+            client_ip = request.client.host if request.client else "unknown"
+            logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=404", client_ip, orb_id)
             raise HTTPException(status_code=404, detail="Orb not found")
 
     orb_data = _serialize_orb(record)
@@ -381,4 +386,6 @@ async def get_public_orb(
             orb_data["nodes"] = filtered_nodes
             orb_data["links"] = filtered_links
 
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=200", client_ip, orb_id)
     return orb_data

@@ -5,7 +5,7 @@ import io
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from neo4j import AsyncDriver
 
@@ -13,6 +13,7 @@ from app.dependencies import get_db
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
 from app.orbs.filter_token import decode_filter_token, node_matches_filters
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +195,9 @@ def _generate_pdf(  # noqa: C901
 
 
 @router.get("/{orb_id}")
+@limiter.limit("30/minute")
 async def export_orb(
+    request: Request,
     orb_id: str,
     format: str = Query("json", pattern="^(json|jsonld|pdf)$"),
     filter_token: str | None = Query(None),
@@ -214,6 +217,8 @@ async def export_orb(
                 status_code=500, detail="Failed to load orb data"
             ) from None
         if record is None:
+            client_ip = request.client.host if request.client else "unknown"
+            logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=404", client_ip, orb_id)
             raise HTTPException(status_code=404, detail="Orb not found")
 
     try:
@@ -239,6 +244,9 @@ async def export_orb(
 
     if active_filters:
         nodes = [n for n in nodes if not node_matches_filters(n, active_filters)]
+
+    client_ip = request.client.host if request.client else "unknown"
+    logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=200", client_ip, orb_id)
 
     if format == "pdf":
         try:
