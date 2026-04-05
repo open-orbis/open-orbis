@@ -9,6 +9,7 @@ import AboutPage from './pages/AboutPage';
 import OrbViewPage from './pages/OrbViewPage';
 import SharedOrbPage from './pages/SharedOrbPage';
 import CvExportPage from './pages/CvExportPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ToastContainer from './components/ToastContainer';
 
 const pageVariants = {
@@ -46,6 +47,7 @@ function AnimatedRoutes() {
         <Route path="/create" element={<PageWrapper><CreateOrbPage /></PageWrapper>} />
         <Route path="/orb" element={<PageWrapper><OrbViewPage /></PageWrapper>} />
         <Route path="/cv-export" element={<CvExportPage />} />
+        <Route path="/privacy" element={<PageWrapper><PrivacyPolicyPage /></PageWrapper>} />
         <Route path="/:orbId" element={<PageWrapper><SharedOrbPage /></PageWrapper>} />
       </Routes>
     </AnimatePresence>
