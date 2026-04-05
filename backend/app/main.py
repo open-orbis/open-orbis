@@ -28,7 +28,8 @@ async def lifespan(app: FastAPI):
     driver = await get_driver()
     async with driver.session() as session:
         await session.run("RETURN 1")
-    init_posthog()
+    if settings.analytics_enabled:
+        init_posthog()
     try:
         await init_admin_db()
     except Exception:
@@ -36,7 +37,8 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     await close_admin_db()
-    shutdown_posthog()
+    if settings.analytics_enabled:
+        shutdown_posthog()
     await close_driver()
 
 
@@ -49,7 +51,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(AnalyticsMiddleware)
+if settings.analytics_enabled:
+    app.add_middleware(AnalyticsMiddleware)
 
 app.include_router(auth_router)
 app.include_router(orbs_router)

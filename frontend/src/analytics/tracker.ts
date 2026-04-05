@@ -9,13 +9,12 @@ let initialized = false;
 
 export function initTracker(): void {
   try {
+    if (import.meta.env.VITE_ANALYTICS_ENABLED === 'false') return;
+
     const apiKey = import.meta.env.VITE_POSTHOG_API_KEY;
     const host = import.meta.env.VITE_POSTHOG_HOST || 'http://localhost:8001';
 
-    if (!apiKey) {
-      console.warn('VITE_POSTHOG_API_KEY not set — analytics disabled');
-      return;
-    }
+    if (!apiKey) return;
 
     posthog.init(apiKey, {
       api_host: host,
