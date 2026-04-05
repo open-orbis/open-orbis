@@ -6,6 +6,7 @@ class UserInfo(BaseModel):
     email: str
     name: str
     picture: str = ""
+    gdpr_consent: bool = False
 
 
 class TokenResponse(BaseModel):

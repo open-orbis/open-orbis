@@ -7,6 +7,7 @@ import OrbGraph3D from '../components/graph/OrbGraph3D';
 import FloatingInput from '../components/editor/FloatingInput';
 import { NODE_TYPE_LABELS } from '../components/graph/NodeColors';
 import CVUploadOnboarding from '../components/onboarding/CVUploadOnboarding';
+import ConsentGate from '../components/onboarding/ConsentGate';
 
 const SUGGESTED_ORDER = [
   { type: 'work_experience', prompt: "Let's start with your work experience" },
@@ -102,7 +103,8 @@ export default function CreateOrbPage() {
   // ── Path selector (no path chosen yet) ──
   if (!selectedPath) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
+      <ConsentGate>
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -146,7 +148,8 @@ export default function CreateOrbPage() {
             }
           />
         </motion.div>
-      </div>
+        </div>
+      </ConsentGate>
     );
   }
 

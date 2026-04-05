@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
@@ -64,4 +65,41 @@ async def get_me(
             user_id=person["user_id"],
             email=current_user["email"],
             name=person.get("name", ""),
+            gdpr_consent=bool(person.get("gdpr_consent", False)),
         )
+
+
+@router.post("/gdpr-consent")
+async def grant_gdpr_consent(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Record GDPR consent for the current user."""
+    async with db.session() as session:
+        await session.run(
+            "MATCH (p:Person {user_id: $user_id}) "
+            "SET p.gdpr_consent = true, p.gdpr_consent_at = $now",
+            user_id=current_user["user_id"],
+            now=datetime.now(timezone.utc).isoformat(),
+        )
+    return {"status": "ok"}
+
+
+@router.delete("/account")
+async def delete_account(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Schedule account deletion. Marks account for deletion after 30 days.
+
+    Sets deletion_requested_at on the Person node. A background job
+    should permanently delete accounts 30 days after this timestamp.
+    """
+    async with db.session() as session:
+        await session.run(
+            "MATCH (p:Person {user_id: $user_id}) "
+            "SET p.deletion_requested_at = $now",
+            user_id=current_user["user_id"],
+            now=datetime.now(timezone.utc).isoformat(),
+        )
+    return {"status": "scheduled", "message": "Account will be permanently deleted in 30 days."}

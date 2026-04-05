@@ -133,12 +133,17 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
 }
 
 function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onClose: () => void; onOrbIdChanged: () => void }) {
+  const [activeTab, setActiveTab] = useState<'orb-id' | 'filters' | 'account'>('orb-id');
   const [customId, setCustomId] = useState(orbId);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
+  const { logout } = useAuthStore();
+  const navigate = useNavigate();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleSave = async () => {
     const trimmed = customId.trim().toLowerCase();
@@ -163,6 +168,25 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
     setNewKeyword('');
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      const { deleteAccount } = await import('../api/auth');
+      await deleteAccount();
+      logout();
+      navigate('/');
+    } catch {
+      setError('Failed to delete account. Please try again.');
+      setDeleting(false);
+    }
+  };
+
+  const TABS = [
+    { id: 'orb-id' as const, label: 'Orb ID' },
+    { id: 'filters' as const, label: 'Filters' },
+    { id: 'account' as const, label: 'Account' },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <motion.div
@@ -178,103 +202,175 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
       >
-        <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
-        <p className="text-gray-400 text-sm mb-5">Customize your orb identity and visibility.</p>
-
-        {/* Orb ID section */}
-        <div className="mb-5">
-          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
-          <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm">{window.location.origin}/</span>
-            <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-          </div>
-          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-          {success && <p className="text-green-400 text-xs mt-2">Orb ID updated!</p>}
+        <div className="p-4 sm:p-6 pb-0">
+          <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
+          <p className="text-gray-400 text-sm mb-4">Customize your orb identity and visibility.</p>
         </div>
 
-        {/* ── Visibility Filters section ── */}
-        <div className="mb-5 border-t border-gray-700 pt-4">
-          <label className="text-xs text-amber-400/80 uppercase tracking-wide font-medium">Visibility Filters</label>
-          <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
-            Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
-          </p>
-
-          {/* Add new keyword */}
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              value={newKeyword}
-              onChange={(e) => setNewKeyword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
-              placeholder="e.g. confidential, private, salary..."
-              className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
-            />
-            <button
-              onClick={handleAddKeyword}
-              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
-            >
-              Add
-            </button>
+        <div className="flex flex-1 min-h-0">
+          {/* Tabs sidebar */}
+          <div className="w-32 sm:w-40 border-r border-gray-700 p-2 flex flex-col gap-0.5">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setError(''); setSuccess(false); }}
+                className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-gray-800 text-white font-medium'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {/* Keyword list */}
-          {keywords.length === 0 ? (
-            <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {keywords.map((kw) => {
-                const isActive = activeKeywords.includes(kw);
-                return (
-                  <div
-                    key={kw}
-                    className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
-                      isActive
-                        ? 'bg-amber-600/15 border-amber-500/40'
-                        : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
-                    }`}
+          {/* Tab content */}
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+            {/* ── Orb ID tab ── */}
+            {activeTab === 'orb-id' && (
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 text-sm">{window.location.origin}/</span>
+                  <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                </div>
+                {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                {success && <p className="text-green-400 text-xs mt-2">Orb ID updated!</p>}
+
+                <div className="flex gap-3 mt-5">
+                  <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving...' : 'Save'}</button>
+                  <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Filters tab ── */}
+            {activeTab === 'filters' && (
+              <div>
+                <label className="text-xs text-amber-400/80 uppercase tracking-wide font-medium">Visibility Filters</label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
+                  Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
+                </p>
+
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    value={newKeyword}
+                    onChange={(e) => setNewKeyword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
+                    placeholder="e.g. confidential, private, salary..."
+                    className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
+                  />
+                  <button
+                    onClick={handleAddKeyword}
+                    className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
                   >
-                    <span className="text-white text-sm font-mono truncate">{kw}</span>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <button
-                        onClick={() => toggleKeyword(kw)}
-                        className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
-                          isActive
-                            ? 'bg-amber-500 text-white'
-                            : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
-                        }`}
-                      >
-                        {isActive ? 'Active' : 'Activate'}
-                      </button>
-                      <button
-                        onClick={() => removeKeyword(kw)}
-                        className="text-gray-500 hover:text-red-400 transition-colors"
-                        title="Remove"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+                    Add
+                  </button>
+                </div>
+
+                {keywords.length === 0 ? (
+                  <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {keywords.map((kw) => {
+                      const isActive = activeKeywords.includes(kw);
+                      return (
+                        <div
+                          key={kw}
+                          className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
+                            isActive
+                              ? 'bg-amber-600/15 border-amber-500/40'
+                              : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
+                          }`}
+                        >
+                          <span className="text-white text-sm font-mono truncate">{kw}</span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              onClick={() => toggleKeyword(kw)}
+                              className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
+                                isActive
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
+                              }`}
+                            >
+                              {isActive ? 'Active' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => removeKeyword(kw)}
+                              className="text-gray-500 hover:text-red-400 transition-colors"
+                              title="Remove"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                )}
 
-          {activeKeywords.length > 0 && (
-            <p className="text-amber-400/70 text-[11px] mt-2">
-              {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
-                <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
-              ))} active. Matching nodes are transparent.
-            </p>
-          )}
-        </div>
+                {activeKeywords.length > 0 && (
+                  <p className="text-amber-400/70 text-[11px] mt-2">
+                    {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
+                      <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
+                    ))} active. Matching nodes are transparent.
+                  </p>
+                )}
+              </div>
+            )}
 
-        <div className="flex gap-3">
-          <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving…' : 'Save'}</button>
-          <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
+            {/* ── Account tab ── */}
+            {activeTab === 'account' && (
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account</label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-5">Manage your account and data.</p>
+
+                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                  <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
+                  <p className="text-gray-400 text-xs leading-relaxed mb-4">
+                    Permanently delete your account, your orb, and all associated data. After requesting deletion, your data will be retained for 30 days in case you change your mind, then permanently erased. This action cannot be undone.
+                  </p>
+
+                  {!showDeleteConfirm ? (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      Delete my account
+                    </button>
+                  ) : (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
+                      <p className="text-red-300 text-xs font-medium mb-3">
+                        Are you sure? Your orb and all data will be permanently deleted after 30 days.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleDeleteAccount}
+                          disabled={deleting}
+                          className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors"
+                        >
+                          {deleting ? 'Deleting...' : 'Yes, delete my account'}
+                        </button>
+                      </div>
+                      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
     </div>
