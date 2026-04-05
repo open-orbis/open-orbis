@@ -186,7 +186,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
             flex items-center justify-center transition-all group disabled:opacity-30 disabled:cursor-default"
           title="Reset date filter"
         >
-          <svg className="w-3 h-3 text-white/40 group-hover:text-white/70 group-disabled:text-white/40 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <svg className="w-3 h-3 text-amber-400/60 group-hover:text-amber-400 group-disabled:text-amber-400/20 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 12a9 9 0 1 1 9 9" />
             <polyline points="3 3 3 12 12 12" />
           </svg>
