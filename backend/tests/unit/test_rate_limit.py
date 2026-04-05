@@ -60,3 +60,32 @@ def test_public_orb_access_logging(client, mock_db, caplog):
 
     assert resp.status_code == 200
     assert any("PUBLIC_ACCESS" in r.message and "orb_id=test-orb" in r.message for r in caplog.records)
+
+
+def test_export_orb_rate_limit(client, mock_db):
+    """GET /export/{orb_id} returns 429 after exceeding 30 requests/minute."""
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value=_make_orb_record("export-orb"))
+    )
+
+    for _ in range(30):
+        resp = client.get("/export/export-orb")
+        assert resp.status_code == 200
+
+    resp = client.get("/export/export-orb")
+    assert resp.status_code == 429
+    assert "Rate limit exceeded" in resp.json()["detail"]
+
+
+def test_export_orb_access_logging(client, mock_db, caplog):
+    """GET /export/{orb_id} logs access with IP and orb_id."""
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value=_make_orb_record("export-log-orb"))
+    )
+
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        client.get("/export/export-log-orb")
+
+    assert any("PUBLIC_ACCESS" in r.message and "orb_id=export-log-orb" in r.message for r in caplog.records)
