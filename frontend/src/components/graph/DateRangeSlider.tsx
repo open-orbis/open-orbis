@@ -28,7 +28,8 @@ function formatLabel(ym: string): string {
 }
 
 export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderProps) {
-  const { rangeStart, rangeEnd, setRange } = useDateFilterStore();
+  const { rangeStart, rangeEnd, setRange, resetRange } = useDateFilterStore();
+  const isFiltered = rangeStart !== null || rangeEnd !== null;
   const trackRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef<'lower' | 'upper' | null>(null);
 
@@ -93,7 +94,7 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
 
   return (
     <div
-      className="absolute left-2 top-16 bottom-8 w-10 hidden sm:flex flex-col items-center z-20 select-none"
+      className="absolute left-5 top-16 bottom-24 w-10 hidden sm:flex flex-col items-center z-20 select-none"
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
@@ -146,6 +147,20 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
       <span className="text-[9px] text-white/30 mt-1 whitespace-nowrap">
         {formatLabel(minDate)}
       </span>
+
+      {/* Reset button */}
+      {isFiltered && (
+        <button
+          onClick={resetRange}
+          className="mt-2 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+          title="Reset date filter"
+        >
+          <svg className="w-3 h-3 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 1 9 9" />
+            <polyline points="3 3 3 12 12 12" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
