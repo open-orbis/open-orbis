@@ -83,6 +83,7 @@ function FieldInput({
   const isDate = field.includes('date');
   const isUrl = field.includes('url');
   const isTextarea = field === 'description' || field === 'abstract';
+  const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
 
   const baseClass = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors';
 
@@ -102,13 +103,18 @@ function FieldInput({
         />
       ) : (
         <input
-          type={isDate ? 'date' : isUrl ? 'url' : 'text'}
+          type={isDate ? 'date' : 'text'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={isDate ? '' : label}
           className={baseClass}
           style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
         />
+      )}
+      {showUrlHint && (
+        <p className="text-[10px] text-amber-400/60 mt-1">
+          This doesn't look like a valid URL (e.g. example.com)
+        </p>
       )}
     </div>
   );
