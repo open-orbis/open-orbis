@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useOrbStore } from '../stores/orbStore';
 import { publicTextSearch } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
-import NodeLegend from '../components/graph/NodeLegend';
+import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
+import DateRangeSlider from '../components/graph/DateRangeSlider';
+import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
 
 export default function SharedOrbPage() {
   const { orbId } = useParams<{ orbId: string }>();
@@ -15,6 +17,26 @@ export default function SharedOrbPage() {
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
+  const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
+
+  const handleToggleNodeType = useCallback((type: string) => {
+    setHiddenNodeTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }, []);
+
+  const handleShowAllNodeTypes = useCallback(() => {
+    setHiddenNodeTypes(new Set());
+  }, []);
+
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
+
+  const handleHideAllNodeTypes = useCallback(() => {
+    setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
+  }, []);
 
   // Public search bound to this orb — respects filter_token privacy
   const searchFn = useCallback(
@@ -31,6 +53,37 @@ export default function SharedOrbPage() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const { rangeStart, rangeEnd, resetRange } = useDateFilterStore();
+
+  // Compute date bounds for the slider
+  const dateBounds = useMemo(() => {
+    const allDates: string[] = [];
+    for (const node of data?.nodes ?? []) {
+      allDates.push(...getNodeDates(node as Record<string, unknown>));
+    }
+    if (allDates.length === 0) return null;
+    allDates.sort();
+    const min = allDates[0];
+    const max = allDates[allDates.length - 1];
+    return min === max ? null : { min, max };
+  }, [data?.nodes]);
+
+  // Reset date filter when viewing a different orb
+  useEffect(() => { resetRange(); }, [orbId, resetRange]);
+
+  // Compute date-filtered node IDs
+  const dateFilteredNodeIds = useMemo(
+    () => computeDateFilteredNodeIds(
+      data?.nodes ?? [],
+      data?.links ?? [],
+      rangeStart,
+      rangeEnd,
+      dateBounds?.min,
+      dateBounds?.max,
+    ),
+    [data?.nodes, data?.links, rangeStart, rangeEnd, dateBounds],
+  );
 
   if (loading) {
     return (
@@ -70,14 +123,27 @@ export default function SharedOrbPage() {
             </div>
           </div>
 
-          <a
-            href="/"
-            className="text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors"
-          >
-            Create your own Orb
-          </a>
+          <div className="flex items-center gap-1">
+            <NodeTypeFilter
+              hiddenTypes={hiddenNodeTypes}
+              onToggleType={handleToggleNodeType}
+              onShowAll={handleShowAllNodeTypes}
+              onHideAll={handleHideAllNodeTypes}
+            />
+            <a
+              href="/"
+              className="text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors"
+            >
+              Create your own Orb
+            </a>
+          </div>
         </div>
       </div>
+
+      {/* ── Date Range Slider ── */}
+      {dateBounds && (
+        <DateRangeSlider minDate={dateBounds.min} maxDate={dateBounds.max} />
+      )}
 
       {/* ── 3D Graph ── */}
       <OrbGraph3D
@@ -89,12 +155,11 @@ export default function SharedOrbPage() {
           }
         }}
         highlightedNodeIds={highlightedNodeIds}
+        filteredNodeIds={dateFilteredNodeIds}
+        hiddenNodeTypes={hiddenNodeTypes}
         width={dimensions.width}
         height={dimensions.height}
       />
-
-      {/* ── Node Legend ── */}
-      <NodeLegend />
 
       {/* ── Chat Box (no Add / Share buttons) ── */}
       <ChatBox

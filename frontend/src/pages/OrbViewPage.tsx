@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
+import DateRangeSlider from '../components/graph/DateRangeSlider';
+import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
 import { claimOrbId, updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
@@ -846,12 +848,40 @@ export default function OrbViewPage() {
 
   const orbId = (data?.person?.orb_id as string) || '';
   const { activeKeywords } = useFilterStore();
+  const { rangeStart, rangeEnd, resetRange } = useDateFilterStore();
 
-  // Compute which nodes match any active visibility filter
-  const filteredNodeIds = useMemo(
-    () => computeFilteredNodeIds(data?.nodes ?? [], activeKeywords),
-    [data?.nodes, activeKeywords]
-  );
+  // Compute date bounds for the slider
+  const dateBounds = useMemo(() => {
+    const allDates: string[] = [];
+    for (const node of data?.nodes ?? []) {
+      allDates.push(...getNodeDates(node as Record<string, unknown>));
+    }
+    if (allDates.length === 0) return null;
+    allDates.sort();
+    const min = allDates[0];
+    const max = allDates[allDates.length - 1];
+    return min === max ? null : { min, max };
+  }, [data?.nodes]);
+
+  // Reset date filter when switching to a different orb (not on node edits)
+  useEffect(() => { resetRange(); }, [orbId, resetRange]);
+
+  // Compute which nodes match any active visibility filter (keyword + date)
+  const filteredNodeIds = useMemo(() => {
+    const keywordFiltered = computeFilteredNodeIds(data?.nodes ?? [], activeKeywords);
+    const dateFiltered = computeDateFilteredNodeIds(
+      data?.nodes ?? [],
+      data?.links ?? [],
+      rangeStart,
+      rangeEnd,
+      dateBounds?.min,
+      dateBounds?.max,
+    );
+    // Union of both sets
+    const merged = new Set(keywordFiltered);
+    for (const id of dateFiltered) merged.add(id);
+    return merged;
+  }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
   const handleToggleNodeType = useCallback((type: string) => {
@@ -991,6 +1021,11 @@ export default function OrbViewPage() {
             </motion.div>
           </motion.div>
         </div>
+      )}
+
+      {/* ── Date Range Slider ── */}
+      {dateBounds && (
+        <DateRangeSlider minDate={dateBounds.min} maxDate={dateBounds.max} />
       )}
 
       {/* ── 3D Graph ── */}
