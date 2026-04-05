@@ -202,7 +202,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[420px] max-h-[90vh] overflow-hidden flex flex-col"
       >
         <div className="p-4 sm:p-6 pb-0">
           <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
@@ -228,7 +228,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col min-h-0">
             <AnimatePresence mode="wait">
             {/* ── Orb ID tab ── */}
             {activeTab === 'orb-id' && (
@@ -263,13 +263,14 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.15, ease: 'easeInOut' }}
+                className="flex flex-col h-full"
               >
                 <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility Filters</label>
                 <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
                   Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
                 </p>
 
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                   <input
                     value={newKeyword}
                     onChange={(e) => setNewKeyword(e.target.value)}
@@ -285,51 +286,53 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                   </button>
                 </div>
 
-                {keywords.length === 0 ? (
-                  <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {keywords.map((kw) => {
-                      const isActive = activeKeywords.includes(kw);
-                      return (
-                        <div
-                          key={kw}
-                          className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
-                            isActive
-                              ? 'bg-amber-600/15 border-amber-500/40'
-                              : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
-                          }`}
-                        >
-                          <span className="text-white text-sm font-mono truncate">{kw}</span>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              onClick={() => toggleKeyword(kw)}
-                              className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
-                                isActive
-                                  ? 'bg-amber-500 text-white'
-                                  : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
-                              }`}
-                            >
-                              {isActive ? 'Active' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => removeKeyword(kw)}
-                              className="text-gray-500 hover:text-red-400 transition-colors"
-                              title="Remove"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  {keywords.length === 0 ? (
+                    <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {keywords.map((kw) => {
+                        const isActive = activeKeywords.includes(kw);
+                        return (
+                          <div
+                            key={kw}
+                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
+                              isActive
+                                ? 'bg-amber-600/15 border-amber-500/40'
+                                : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
+                            }`}
+                          >
+                            <span className="text-white text-sm font-mono truncate">{kw}</span>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                onClick={() => toggleKeyword(kw)}
+                                className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
+                                  isActive
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
+                                }`}
+                              >
+                                {isActive ? 'Active' : 'Activate'}
+                              </button>
+                              <button
+                                onClick={() => removeKeyword(kw)}
+                                className="text-gray-500 hover:text-red-400 transition-colors"
+                                title="Remove"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 {activeKeywords.length > 0 && (
-                  <p className="text-amber-400/70 text-[11px] mt-2">
+                  <p className="text-amber-400/70 text-[11px] mt-2 flex-shrink-0">
                     {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
                       <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
                     ))} active. Matching nodes are transparent.
