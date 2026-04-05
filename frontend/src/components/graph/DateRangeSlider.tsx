@@ -179,19 +179,18 @@ export default function DateRangeSlider({ minDate, maxDate }: DateRangeSliderPro
         </span>
 
         {/* Reset button */}
-        {isFiltered && (
-          <button
-            onClick={resetRange}
-            className="mt-2 w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] hover:border-white/[0.15]
-              flex items-center justify-center transition-all group"
-            title="Reset date filter"
-          >
-            <svg className="w-3 h-3 text-white/40 group-hover:text-white/70 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 1 1 9 9" />
-              <polyline points="3 3 3 12 12 12" />
-            </svg>
-          </button>
-        )}
+        <button
+          onClick={resetRange}
+          disabled={!isFiltered}
+          className="mt-2 w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] disabled:hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/[0.15] disabled:hover:border-white/[0.08]
+            flex items-center justify-center transition-all group disabled:opacity-30 disabled:cursor-default"
+          title="Reset date filter"
+        >
+          <svg className="w-3 h-3 text-white/40 group-hover:text-white/70 group-disabled:text-white/40 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 1 9 9" />
+            <polyline points="3 3 3 12 12 12" />
+          </svg>
+        </button>
       </div>
     </div>
   );
