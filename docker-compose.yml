@@ -19,6 +19,81 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
+  posthog-db:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: posthog
+      POSTGRES_USER: posthog
+      POSTGRES_PASSWORD: posthog_dev_password
+    volumes:
+      - posthog_pg_data:/var/lib/postgresql/data
+
+  posthog-redis:
+    image: redis:7-alpine
+    volumes:
+      - posthog_redis_data:/data
+
+  posthog-clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    volumes:
+      - posthog_ch_data:/var/lib/clickhouse
+      - posthog_ch_logs:/var/log/clickhouse-server
+
+  posthog-kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@posthog-kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://posthog-kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    volumes:
+      - posthog_kafka_data:/bitnami/kafka
+
+  posthog:
+    image: posthog/posthog:latest
+    ports:
+      - "8001:8000"
+    environment:
+      SECRET_KEY: dev_secret_key_change_in_production
+      DATABASE_URL: postgres://posthog:posthog_dev_password@posthog-db:5432/posthog
+      REDIS_URL: redis://posthog-redis:6379/
+      CLICKHOUSE_HOST: posthog-clickhouse
+      KAFKA_HOSTS: posthog-kafka:9092
+      DISABLE_SECURE_SSL_REDIRECT: "true"
+      IS_BEHIND_PROXY: "true"
+      SITE_URL: http://localhost:8001
+    depends_on:
+      - posthog-db
+      - posthog-redis
+      - posthog-clickhouse
+      - posthog-kafka
+
+  posthog-worker:
+    image: posthog/posthog:latest
+    command: ./bin/docker-worker-celery --without-gossip --without-mingle --without-heartbeat
+    environment:
+      SECRET_KEY: dev_secret_key_change_in_production
+      DATABASE_URL: postgres://posthog:posthog_dev_password@posthog-db:5432/posthog
+      REDIS_URL: redis://posthog-redis:6379/
+      CLICKHOUSE_HOST: posthog-clickhouse
+      KAFKA_HOSTS: posthog-kafka:9092
+    depends_on:
+      - posthog-db
+      - posthog-redis
+      - posthog-clickhouse
+      - posthog-kafka
+
 volumes:
   neo4j_data:
   ollama_data:
+  posthog_pg_data:
+  posthog_redis_data:
+  posthog_ch_data:
+  posthog_ch_logs:
+  posthog_kafka_data:
