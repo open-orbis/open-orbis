@@ -21,3 +21,7 @@ export async function devLogin(): Promise<{ access_token: string; user: UserInfo
 export async function grantGdprConsent(): Promise<void> {
   await client.post('/auth/gdpr-consent');
 }
+
+export async function deleteAccount(): Promise<void> {
+  await client.delete('/auth/account');
+}
