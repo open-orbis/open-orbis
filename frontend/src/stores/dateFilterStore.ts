@@ -10,13 +10,27 @@ const DATE_FIELDS = [
 
 /**
  * Normalize a date string to "YYYY-MM" format.
- * Accepts "YYYY", "YYYY-MM", or "YYYY-MM-DD".
+ * Accepts: "YYYY", "YYYY-MM", "YYYY-MM-DD", "YYYY-MM-DDTHH:MM:SS...",
+ * "MM/YYYY", "DD/MM/YYYY". Skips non-date values like "present".
  */
 function normalizeDate(raw: string): string | null {
-  const trimmed = raw.trim();
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed || trimmed === 'present' || trimmed === 'current') return null;
+
+  // "YYYY"
   if (/^\d{4}$/.test(trimmed)) return `${trimmed}-01`;
+  // "YYYY-MM"
   if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed.slice(0, 7);
+  // "YYYY-MM-DD" optionally followed by time component (ISO datetime)
+  const isoMatch = trimmed.match(/^(\d{4}-\d{2})-\d{2}/);
+  if (isoMatch) return isoMatch[1];
+  // "MM/YYYY"
+  const mmYyyy = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
+  if (mmYyyy) return `${mmYyyy[2]}-${mmYyyy[1].padStart(2, '0')}`;
+  // "DD/MM/YYYY"
+  const ddMmYyyy = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddMmYyyy) return `${ddMmYyyy[3]}-${ddMmYyyy[2].padStart(2, '0')}`;
+
   return null;
 }
 
