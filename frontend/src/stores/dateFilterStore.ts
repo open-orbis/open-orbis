@@ -53,7 +53,8 @@ function nodeIsInRange(
     if (d >= rangeStart && d <= rangeEnd) return true;
   }
 
-  // Check span overlap: node's earliest..latest overlaps range
+  // Span check: catches nodes whose date range brackets the selected range entirely
+  // (e.g., start_date before rangeStart AND end_date after rangeEnd)
   const sorted = [...dates].sort();
   const nodeMin = sorted[0];
   const nodeMax = sorted[sorted.length - 1];
@@ -107,6 +108,8 @@ export function computeDateFilteredNodeIds(
   // Build adjacency from links
   const neighbors = new Map<string, string[]>();
   for (const link of links) {
+    // react-force-graph-3d resolves source/target strings into node objects at runtime;
+    // this guard handles both the pre-simulation string form and the post-simulation object form.
     const src = typeof link.source === 'string' ? link.source : (link.source as any).id ?? link.source;
     const tgt = typeof link.target === 'string' ? link.target : (link.target as any).id ?? link.target;
     if (!neighbors.has(src)) neighbors.set(src, []);
