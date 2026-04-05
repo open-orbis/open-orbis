@@ -218,7 +218,9 @@ async def export_orb(
             ) from None
         if record is None:
             client_ip = request.client.host if request.client else "unknown"
-            logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=404", client_ip, orb_id)
+            logger.info(
+                "PUBLIC_ACCESS | ip=%s | orb_id=%s | status=404", client_ip, orb_id
+            )
             raise HTTPException(status_code=404, detail="Orb not found")
 
     try:
