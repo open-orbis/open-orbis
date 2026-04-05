@@ -4,6 +4,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.admin.db import close_admin_db, init_admin_db
+from app.admin.router import router as admin_router
+from app.analytics.middleware import AnalyticsMiddleware
+from app.analytics.posthog_client import init_posthog, shutdown_posthog
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.router import router as cv_router
@@ -13,10 +17,6 @@ from app.messages.router import router as messages_router
 from app.notes.router import router as notes_router
 from app.orbs.router import router as orbs_router
 from app.search.router import router as search_router
-from app.analytics.middleware import AnalyticsMiddleware
-from app.analytics.posthog_client import init_posthog, shutdown_posthog
-from app.admin.router import router as admin_router
-from app.admin.db import init_admin_db, close_admin_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

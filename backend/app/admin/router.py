@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -84,11 +83,11 @@ async def admin_user_activity(
 
 @router.get("/llm-usage", response_model=LLMUsageResponse)
 async def admin_llm_usage(
-    user_id: Optional[str] = Query(None),
-    model: Optional[str] = Query(None),
-    operation: Optional[str] = Query(None),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    user_id: str | None = Query(None),
+    model: str | None = Query(None),
+    operation: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     admin_id: str = Depends(get_current_admin),
 ):
     return await service.get_llm_usage(
@@ -99,10 +98,10 @@ async def admin_llm_usage(
 
 @router.get("/events", response_model=EventsResponse)
 async def admin_events(
-    event_type: Optional[str] = Query(None),
-    user_id: Optional[str] = Query(None),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    event_type: str | None = Query(None),
+    user_id: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     admin_id: str = Depends(get_current_admin),
@@ -123,8 +122,8 @@ async def admin_funnel(admin_id: str = Depends(get_current_admin)):
 async def admin_trends(
     events: str = Query(..., description="Comma-separated event names"),
     interval: str = Query("day"),
-    date_from: Optional[str] = Query(None),
-    date_to: Optional[str] = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
     admin_id: str = Depends(get_current_admin),
 ):
     event_list = [e.strip() for e in events.split(",")]

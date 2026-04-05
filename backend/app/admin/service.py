@@ -36,7 +36,7 @@ async def get_overview() -> dict:
     now = datetime.now(timezone.utc)
     week_ago = (now - timedelta(days=7)).isoformat()
 
-    trends_result = await _posthog_post("/query/", {
+    await _posthog_post("/query/", {
         "kind": "EventsQuery",
         "select": ["count()"],
         "after": week_ago,

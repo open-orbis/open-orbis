@@ -14,8 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.analytics import event_bus
-from app.analytics import posthog_client
+from app.analytics import event_bus, posthog_client
 from app.config import settings
 
 logger = logging.getLogger(__name__)
