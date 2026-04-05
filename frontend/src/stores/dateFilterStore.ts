@@ -82,71 +82,31 @@ function nodeIsInRange(
  * Logic:
  * 1. If range is null, return empty set (no filtering).
  * 2. Dated nodes outside the range → filtered.
- * 3. Dateless nodes: visible if at least one connected node is in range; otherwise filtered.
+ * 3. Dateless nodes (Skill, Language, Collaborator) are always visible.
  * 4. Person node is never filtered.
  */
 export function computeDateFilteredNodeIds(
   nodes: Array<Record<string, unknown>>,
-  links: Array<{ source: string; target: string }>,
+  _links: Array<{ source: string; target: string }>,
   rangeStart: string | null,
   rangeEnd: string | null,
 ): Set<string> {
   if (!rangeStart || !rangeEnd) return new Set();
 
-  // First pass: determine which dated nodes are in/out of range
-  const inRangeIds = new Set<string>();
   const outOfRangeIds = new Set<string>();
-  const datelessIds: string[] = [];
 
   for (const node of nodes) {
     const uid = node.uid as string;
     const labels = node._labels as string[] | undefined;
 
     // Person node is never filtered
-    if (labels?.[0] === 'Person') {
-      inRangeIds.add(uid);
-      continue;
-    }
+    if (labels?.[0] === 'Person') continue;
 
     const dates = getNodeDates(node);
-    if (dates.length === 0) {
-      datelessIds.push(uid);
-    } else if (nodeIsInRange(node, rangeStart, rangeEnd)) {
-      inRangeIds.add(uid);
-    } else {
-      outOfRangeIds.add(uid);
-    }
-  }
+    // Dateless nodes are always visible
+    if (dates.length === 0) continue;
 
-  // The Person node lives in data.person, not data.nodes, so the loop above
-  // never encounters it. Seed inRangeIds with any IDs that appear in links
-  // but not in nodes — this captures the Person node (always visible).
-  const nodeUidSet = new Set(nodes.map((n) => n.uid as string));
-  for (const link of links) {
-    const s = typeof link.source === 'string' ? link.source : (link.source as any).id ?? link.source;
-    const t = typeof link.target === 'string' ? link.target : (link.target as any).id ?? link.target;
-    if (s && !nodeUidSet.has(s)) inRangeIds.add(s);
-    if (t && !nodeUidSet.has(t)) inRangeIds.add(t);
-  }
-
-  // Second pass: dateless nodes — check if any connected node is in range
-  // Build adjacency from links
-  const neighbors = new Map<string, string[]>();
-  for (const link of links) {
-    // react-force-graph-3d resolves source/target strings into node objects at runtime;
-    // this guard handles both the pre-simulation string form and the post-simulation object form.
-    const src = typeof link.source === 'string' ? link.source : (link.source as any).id ?? link.source;
-    const tgt = typeof link.target === 'string' ? link.target : (link.target as any).id ?? link.target;
-    if (!neighbors.has(src)) neighbors.set(src, []);
-    if (!neighbors.has(tgt)) neighbors.set(tgt, []);
-    neighbors.get(src)!.push(tgt);
-    neighbors.get(tgt)!.push(src);
-  }
-
-  for (const uid of datelessIds) {
-    const adj = neighbors.get(uid) || [];
-    const hasVisibleNeighbor = adj.some((nid) => inRangeIds.has(nid));
-    if (!hasVisibleNeighbor) {
+    if (!nodeIsInRange(node, rangeStart, rangeEnd)) {
       outOfRangeIds.add(uid);
     }
   }
