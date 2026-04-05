@@ -238,17 +238,20 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -8 }}
                 transition={{ duration: 0.15, ease: 'easeInOut' }}
+                className="flex flex-col justify-between h-full"
               >
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500 text-sm">{window.location.origin}/</span>
-                  <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                <div>
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
+                  <p className="text-[11px] text-gray-500 mt-1 mb-5">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500 text-sm">{window.location.origin}/</span>
+                    <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
+                  </div>
+                  {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                  {success && <p className="text-green-400 text-xs mt-2">Orb ID updated!</p>}
                 </div>
-                {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-                {success && <p className="text-green-400 text-xs mt-2">Orb ID updated!</p>}
 
-                <div className="flex gap-3 mt-5">
+                <div className="flex gap-3">
                   <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving...' : 'Save'}</button>
                   <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
                 </div>
