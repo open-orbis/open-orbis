@@ -37,7 +37,9 @@ async def admin_login(req: AdminLoginRequest):
     try:
         pool = await get_admin_pool()
     except RuntimeError:
-        raise HTTPException(status_code=503, detail="Admin database not available") from None
+        raise HTTPException(
+            status_code=503, detail="Admin database not available"
+        ) from None
 
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -91,8 +93,11 @@ async def admin_llm_usage(
     admin_id: str = Depends(get_current_admin),
 ):
     return await service.get_llm_usage(
-        user_id=user_id, model=model, operation=operation,
-        date_from=date_from, date_to=date_to,
+        user_id=user_id,
+        model=model,
+        operation=operation,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
@@ -107,9 +112,12 @@ async def admin_events(
     admin_id: str = Depends(get_current_admin),
 ):
     return await service.get_events(
-        event_type=event_type, user_id=user_id,
-        date_from=date_from, date_to=date_to,
-        limit=limit, offset=offset,
+        event_type=event_type,
+        user_id=user_id,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset,
     )
 
 
@@ -128,8 +136,10 @@ async def admin_trends(
 ):
     event_list = [e.strip() for e in events.split(",")]
     return await service.get_trends(
-        events=event_list, interval=interval,
-        date_from=date_from, date_to=date_to,
+        events=event_list,
+        interval=interval,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 

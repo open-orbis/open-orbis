@@ -44,12 +44,16 @@ class AnalyticsMiddleware(BaseHTTPMiddleware):
 
         # Capture request-level event
         distinct_id = user_id or "anonymous"
-        posthog_client.capture(distinct_id, "http_request", properties={
-            "method": request.method,
-            "path": path,
-            "status_code": response.status_code,
-            "duration_ms": duration_ms,
-        })
+        posthog_client.capture(
+            distinct_id,
+            "http_request",
+            properties={
+                "method": request.method,
+                "path": path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+            },
+        )
 
         # Flush event bus (LLM usage events, etc.)
         for event_type, data in event_bus.collect_events():

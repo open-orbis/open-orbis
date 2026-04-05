@@ -5,7 +5,12 @@ import pytest
 from fastapi import HTTPException
 from jose import jwt
 
-from app.admin.auth import create_admin_jwt, verify_admin_jwt, hash_password, verify_password
+from app.admin.auth import (
+    create_admin_jwt,
+    verify_admin_jwt,
+    hash_password,
+    verify_password,
+)
 from app.config import settings
 
 
@@ -36,7 +41,11 @@ def test_verify_admin_jwt_valid():
 def test_verify_admin_jwt_rejects_user_jwt():
     """User JWTs must not be accepted as admin JWTs."""
     user_token = jwt.encode(
-        {"sub": "user-1", "email": "u@test.com", "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+        {
+            "sub": "user-1",
+            "email": "u@test.com",
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        },
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
     )
@@ -47,7 +56,11 @@ def test_verify_admin_jwt_rejects_user_jwt():
 
 def test_verify_admin_jwt_rejects_expired():
     expired_token = jwt.encode(
-        {"type": "admin", "admin_id": "test", "exp": datetime.now(timezone.utc) - timedelta(hours=1)},
+        {
+            "type": "admin",
+            "admin_id": "test",
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+        },
         settings.admin_jwt_secret,
         algorithm=settings.admin_jwt_algorithm,
     )

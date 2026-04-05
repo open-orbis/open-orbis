@@ -97,9 +97,11 @@ async def delete_account(
     """
     async with db.session() as session:
         await session.run(
-            "MATCH (p:Person {user_id: $user_id}) "
-            "SET p.deletion_requested_at = $now",
+            "MATCH (p:Person {user_id: $user_id}) SET p.deletion_requested_at = $now",
             user_id=current_user["user_id"],
             now=datetime.now(timezone.utc).isoformat(),
         )
-    return {"status": "scheduled", "message": "Account will be permanently deleted in 30 days."}
+    return {
+        "status": "scheduled",
+        "message": "Account will be permanently deleted in 30 days.",
+    }

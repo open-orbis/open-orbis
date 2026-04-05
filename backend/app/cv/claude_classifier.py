@@ -53,26 +53,32 @@ async def call_claude(
     # with fields like: result, cost_usd, duration_ms, etc.
     try:
         envelope = json.loads(output)
-        emit_event("llm_usage", {
-            "operation": "cv_classification",
-            "model": model or "claude-opus-4-6",
-            "provider": "anthropic",
-            "input_tokens": envelope.get("tokens_in", 0),
-            "output_tokens": envelope.get("tokens_out", 0),
-            "cost_usd": envelope.get("cost_usd", 0),
-            "latency_ms": envelope.get("duration_ms", 0),
-        })
+        emit_event(
+            "llm_usage",
+            {
+                "operation": "cv_classification",
+                "model": model or "claude-opus-4-6",
+                "provider": "anthropic",
+                "input_tokens": envelope.get("tokens_in", 0),
+                "output_tokens": envelope.get("tokens_out", 0),
+                "cost_usd": envelope.get("cost_usd", 0),
+                "latency_ms": envelope.get("duration_ms", 0),
+            },
+        )
         return envelope.get("result", "")
     except json.JSONDecodeError:
-        emit_event("llm_usage", {
-            "operation": "cv_classification",
-            "model": model or "claude-opus-4-6",
-            "provider": "anthropic",
-            "input_tokens": 0,
-            "output_tokens": 0,
-            "cost_usd": 0,
-            "latency_ms": 0,
-        })
+        emit_event(
+            "llm_usage",
+            {
+                "operation": "cv_classification",
+                "model": model or "claude-opus-4-6",
+                "provider": "anthropic",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "cost_usd": 0,
+                "latency_ms": 0,
+            },
+        )
         logger.warning(
             "Claude CLI output is not JSON, returning raw (%d chars)", len(output)
         )

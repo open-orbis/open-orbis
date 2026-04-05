@@ -28,8 +28,16 @@ def test_admin_overview(mock_overview, admin_client):
     mock_overview.return_value = {
         "total_users": {"label": "Total Users", "value": 42, "sparkline": []},
         "active_today": {"label": "Active Today", "value": 5, "sparkline": []},
-        "signups_this_week": {"label": "Signups This Week", "value": 3, "sparkline": []},
-        "llm_tokens_today": {"label": "LLM Tokens Today", "value": 1000, "sparkline": []},
+        "signups_this_week": {
+            "label": "Signups This Week",
+            "value": 3,
+            "sparkline": [],
+        },
+        "llm_tokens_today": {
+            "label": "LLM Tokens Today",
+            "value": 1000,
+            "sparkline": [],
+        },
         "recent_events": [],
     }
 

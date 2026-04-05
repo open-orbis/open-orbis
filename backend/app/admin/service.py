@@ -36,67 +36,95 @@ async def get_overview() -> dict:
     now = datetime.now(timezone.utc)
     week_ago = (now - timedelta(days=7)).isoformat()
 
-    await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["count()"],
-        "after": week_ago,
-    })
-    recent = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["*"],
-        "orderBy": ["-timestamp"],
-        "limit": 20,
-    })
-    users_result = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["count(distinct person_id)"],
-        "after": week_ago,
-    })
+    await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["count()"],
+            "after": week_ago,
+        },
+    )
+    recent = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["*"],
+            "orderBy": ["-timestamp"],
+            "limit": 20,
+        },
+    )
+    users_result = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["count(distinct person_id)"],
+            "after": week_ago,
+        },
+    )
     return {
-        "total_users": {"label": "Total Users", "value": users_result.get("results", [[0]])[0][0], "sparkline": []},
+        "total_users": {
+            "label": "Total Users",
+            "value": users_result.get("results", [[0]])[0][0],
+            "sparkline": [],
+        },
         "active_today": {"label": "Active Today", "value": 0, "sparkline": []},
-        "signups_this_week": {"label": "Signups This Week", "value": 0, "sparkline": []},
+        "signups_this_week": {
+            "label": "Signups This Week",
+            "value": 0,
+            "sparkline": [],
+        },
         "llm_tokens_today": {"label": "LLM Tokens Today", "value": 0, "sparkline": []},
         "recent_events": recent.get("results", []),
     }
 
 
 async def get_users(limit: int = 50, offset: int = 0) -> dict:
-    result = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["person_id", "count()", "min(timestamp)", "max(timestamp)"],
-        "groupBy": ["person_id"],
-        "orderBy": ["-count()"],
-        "limit": limit,
-        "offset": offset,
-    })
+    result = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["person_id", "count()", "min(timestamp)", "max(timestamp)"],
+            "groupBy": ["person_id"],
+            "orderBy": ["-count()"],
+            "limit": limit,
+            "offset": offset,
+        },
+    )
     users = []
     for row in result.get("results", []):
-        users.append({
-            "user_id": row[0] or "anonymous",
-            "event_count": row[1],
-            "first_seen": row[2],
-            "last_seen": row[3],
-            "llm_tokens": 0,
-        })
+        users.append(
+            {
+                "user_id": row[0] or "anonymous",
+                "event_count": row[1],
+                "first_seen": row[2],
+                "last_seen": row[3],
+                "llm_tokens": 0,
+            }
+        )
     return {"users": users, "total": len(users)}
 
 
 async def get_user_activity(user_id: str) -> dict:
-    events = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["*"],
-        "where": [f"person_id = '{user_id}'"],
-        "orderBy": ["-timestamp"],
-        "limit": 100,
-    })
-    llm_events = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["*"],
-        "where": [f"person_id = '{user_id}'", "event = 'llm_usage'"],
-        "orderBy": ["-timestamp"],
-        "limit": 50,
-    })
+    events = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["*"],
+            "where": [f"person_id = '{user_id}'"],
+            "orderBy": ["-timestamp"],
+            "limit": 100,
+        },
+    )
+    llm_events = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["*"],
+            "where": [f"person_id = '{user_id}'", "event = 'llm_usage'"],
+            "orderBy": ["-timestamp"],
+            "limit": 50,
+        },
+    )
     return {
         "events": events.get("results", []),
         "llm_usage": llm_events.get("results", []),
@@ -140,29 +168,63 @@ async def get_llm_usage(
     by_model = []
     by_operation = []
     for row in result.get("results", []):
-        by_model.append({"model": row[0], "input_tokens": row[3], "output_tokens": row[4], "count": row[5]})
-        by_operation.append({"operation": row[1], "input_tokens": row[3], "output_tokens": row[4], "count": row[5]})
+        by_model.append(
+            {
+                "model": row[0],
+                "input_tokens": row[3],
+                "output_tokens": row[4],
+                "count": row[5],
+            }
+        )
+        by_operation.append(
+            {
+                "operation": row[1],
+                "input_tokens": row[3],
+                "output_tokens": row[4],
+                "count": row[5],
+            }
+        )
 
-    over_time = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["toDate(timestamp)", "sum(toInt64OrZero(properties.input_tokens))", "sum(toInt64OrZero(properties.output_tokens))"],
-        "where": where,
-        "groupBy": ["toDate(timestamp)"],
-        "orderBy": ["toDate(timestamp)"],
-    })
-    top_users = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["person_id", "sum(toInt64OrZero(properties.input_tokens))", "sum(toInt64OrZero(properties.output_tokens))"],
-        "where": where,
-        "groupBy": ["person_id"],
-        "orderBy": ["-sum(toInt64OrZero(properties.input_tokens))"],
-        "limit": 20,
-    })
+    over_time = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": [
+                "toDate(timestamp)",
+                "sum(toInt64OrZero(properties.input_tokens))",
+                "sum(toInt64OrZero(properties.output_tokens))",
+            ],
+            "where": where,
+            "groupBy": ["toDate(timestamp)"],
+            "orderBy": ["toDate(timestamp)"],
+        },
+    )
+    top_users = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": [
+                "person_id",
+                "sum(toInt64OrZero(properties.input_tokens))",
+                "sum(toInt64OrZero(properties.output_tokens))",
+            ],
+            "where": where,
+            "groupBy": ["person_id"],
+            "orderBy": ["-sum(toInt64OrZero(properties.input_tokens))"],
+            "limit": 20,
+        },
+    )
     return {
         "by_model": by_model,
         "by_operation": by_operation,
-        "over_time": [{"date": r[0], "input_tokens": r[1], "output_tokens": r[2]} for r in over_time.get("results", [])],
-        "top_users": [{"user_id": r[0], "input_tokens": r[1], "output_tokens": r[2]} for r in top_users.get("results", [])],
+        "over_time": [
+            {"date": r[0], "input_tokens": r[1], "output_tokens": r[2]}
+            for r in over_time.get("results", [])
+        ],
+        "top_users": [
+            {"user_id": r[0], "input_tokens": r[1], "output_tokens": r[2]}
+            for r in top_users.get("results", [])
+        ],
     }
 
 
@@ -192,21 +254,27 @@ async def get_events(
     if date_to:
         params["before"] = date_to
     result = await _posthog_post("/query/", params)
-    return {"events": result.get("results", []), "total": len(result.get("results", []))}
+    return {
+        "events": result.get("results", []),
+        "total": len(result.get("results", [])),
+    }
 
 
 async def get_funnel() -> dict:
-    result = await _posthog_post("/query/", {
-        "kind": "FunnelsQuery",
-        "series": [
-            {"event": "user_signup", "kind": "EventsNode"},
-            {"event": "cv_upload_completed", "kind": "EventsNode"},
-            {"event": "orb_id_claimed", "kind": "EventsNode"},
-            {"event": "orb_shared", "kind": "EventsNode"},
-        ],
-        "funnelWindowInterval": 30,
-        "funnelWindowIntervalUnit": "day",
-    })
+    result = await _posthog_post(
+        "/query/",
+        {
+            "kind": "FunnelsQuery",
+            "series": [
+                {"event": "user_signup", "kind": "EventsNode"},
+                {"event": "cv_upload_completed", "kind": "EventsNode"},
+                {"event": "orb_id_claimed", "kind": "EventsNode"},
+                {"event": "orb_shared", "kind": "EventsNode"},
+            ],
+            "funnelWindowInterval": 30,
+            "funnelWindowIntervalUnit": "day",
+        },
+    )
     return {"steps": result.get("results", [])}
 
 
@@ -233,29 +301,44 @@ async def get_trends(
 async def get_realtime() -> dict:
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    events_today = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["count()"],
-        "after": today_start,
-    })
-    active_users = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["count(distinct person_id)"],
-        "after": today_start,
-    })
-    llm_tokens = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["sum(toInt64OrZero(properties.input_tokens))", "sum(toInt64OrZero(properties.output_tokens))"],
-        "where": ["event = 'llm_usage'"],
-        "after": today_start,
-    })
-    recent = await _posthog_post("/query/", {
-        "kind": "EventsQuery",
-        "select": ["*"],
-        "orderBy": ["-timestamp"],
-        "after": today_start,
-        "limit": 20,
-    })
+    events_today = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["count()"],
+            "after": today_start,
+        },
+    )
+    active_users = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["count(distinct person_id)"],
+            "after": today_start,
+        },
+    )
+    llm_tokens = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": [
+                "sum(toInt64OrZero(properties.input_tokens))",
+                "sum(toInt64OrZero(properties.output_tokens))",
+            ],
+            "where": ["event = 'llm_usage'"],
+            "after": today_start,
+        },
+    )
+    recent = await _posthog_post(
+        "/query/",
+        {
+            "kind": "EventsQuery",
+            "select": ["*"],
+            "orderBy": ["-timestamp"],
+            "after": today_start,
+            "limit": 20,
+        },
+    )
     llm_row = llm_tokens.get("results", [[0, 0]])[0]
     return {
         "events_today": events_today.get("results", [[0]])[0][0],

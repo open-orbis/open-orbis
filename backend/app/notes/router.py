@@ -255,12 +255,15 @@ async def _call_ollama(system_prompt: str, user_message: str) -> str:
         resp = await client.post(url, json=payload)
         resp.raise_for_status()
         data = resp.json()
-        emit_event("llm_usage", {
-            "operation": "note_enhancement",
-            "model": settings.ollama_model,
-            "provider": "ollama",
-            "input_tokens": data.get("prompt_eval_count", 0),
-            "output_tokens": data.get("eval_count", 0),
-            "latency_ms": round(data.get("total_duration", 0) / 1_000_000),
-        })
+        emit_event(
+            "llm_usage",
+            {
+                "operation": "note_enhancement",
+                "model": settings.ollama_model,
+                "provider": "ollama",
+                "input_tokens": data.get("prompt_eval_count", 0),
+                "output_tokens": data.get("eval_count", 0),
+                "latency_ms": round(data.get("total_duration", 0) / 1_000_000),
+            },
+        )
         return data.get("message", {}).get("content", "")

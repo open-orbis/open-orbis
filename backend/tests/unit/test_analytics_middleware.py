@@ -34,7 +34,9 @@ def test_middleware_captures_request(mock_ph):
     mock_ph.capture.assert_called_once()
     call_args = mock_ph.capture.call_args
     assert call_args[0][1] == "http_request"
-    props = call_args[1]["properties"] if "properties" in call_args[1] else call_args[0][2]
+    props = (
+        call_args[1]["properties"] if "properties" in call_args[1] else call_args[0][2]
+    )
     assert props["method"] == "GET"
     assert props["path"] == "/test"
     assert props["status_code"] == 200
@@ -59,7 +61,10 @@ def test_middleware_flushes_event_bus(mock_ph):
 
     @app.get("/llm-endpoint")
     async def llm_endpoint():
-        emit("llm_usage", {"model": "llama3.2:3b", "input_tokens": 100, "output_tokens": 50})
+        emit(
+            "llm_usage",
+            {"model": "llama3.2:3b", "input_tokens": 100, "output_tokens": 50},
+        )
         return {"ok": True}
 
     client = TestClient(app)
