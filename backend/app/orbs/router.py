@@ -12,7 +12,6 @@ from neo4j.time import Time as Neo4jTime
 from pydantic import BaseModel
 
 from app.dependencies import get_current_user, get_db
-from app.rate_limit import limiter
 from app.graph.encryption import decrypt_properties, encrypt_properties
 from app.graph.queries import (
     ADD_NODE,
@@ -34,6 +33,7 @@ from app.orbs.filter_token import (
     node_matches_filters,
 )
 from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 

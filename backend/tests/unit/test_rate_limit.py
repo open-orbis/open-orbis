@@ -1,4 +1,9 @@
+import logging
+from unittest.mock import AsyncMock
+
+from app.main import app
 from app.rate_limit import limiter
+from tests.unit.conftest import MockNode
 
 
 def test_limiter_exists():
@@ -7,17 +12,9 @@ def test_limiter_exists():
     assert limiter._default_limits == []
 
 
-from app.main import app
-
-
 def test_app_has_rate_limit_state():
     """The limiter is attached to app.state."""
     assert hasattr(app.state, "limiter")
-
-
-from unittest.mock import AsyncMock
-
-from tests.unit.conftest import MockNode
 
 
 def _make_orb_record(orb_id="test-orb"):
@@ -53,13 +50,14 @@ def test_public_orb_access_logging(client, mock_db, caplog):
         AsyncMock(return_value=_make_orb_record("test-orb"))
     )
 
-    import logging
-
     with caplog.at_level(logging.INFO):
         resp = client.get("/orbs/test-orb")
 
     assert resp.status_code == 200
-    assert any("PUBLIC_ACCESS" in r.message and "orb_id=test-orb" in r.message for r in caplog.records)
+    assert any(
+        "PUBLIC_ACCESS" in r.message and "orb_id=test-orb" in r.message
+        for r in caplog.records
+    )
 
 
 def test_export_orb_rate_limit(client, mock_db):
@@ -83,9 +81,10 @@ def test_export_orb_access_logging(client, mock_db, caplog):
         AsyncMock(return_value=_make_orb_record("export-log-orb"))
     )
 
-    import logging
-
     with caplog.at_level(logging.INFO):
         client.get("/export/export-log-orb")
 
-    assert any("PUBLIC_ACCESS" in r.message and "orb_id=export-log-orb" in r.message for r in caplog.records)
+    assert any(
+        "PUBLIC_ACCESS" in r.message and "orb_id=export-log-orb" in r.message
+        for r in caplog.records
+    )

@@ -10,10 +10,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from neo4j import AsyncDriver
 
 from app.dependencies import get_db
-from app.rate_limit import limiter
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
 from app.orbs.filter_token import decode_filter_token, node_matches_filters
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
