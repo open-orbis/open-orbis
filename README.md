@@ -78,6 +78,7 @@ orb_project/
 │   ├── mcp_server/            # MCP tools for AI agents
 │   └── tests/                 # Unit + integration tests
 ├── docs/                      # Detailed documentation
+├── infra/                     # Neo4j init scripts (constraints, indexes)
 ├── docker-compose.yml         # Neo4j + Ollama services
 ├── .env.example               # Environment variable template
 ├── ontology.md                # Knowledge graph schema reference
@@ -154,6 +155,8 @@ Navigate to http://localhost:5173, click login (dev mode), and choose "Upload CV
 | `ANTHROPIC_API_KEY` | Claude API key | Optional |
 | `OLLAMA_BASE_URL` | Ollama endpoint (default: `http://localhost:11434`) | Optional |
 | `OLLAMA_MODEL` | Ollama model name (default: `llama3.2:3b`) | Optional |
+| `JWT_ALGORITHM` | JWT signing algorithm (default: `HS256`) | Optional |
+| `JWT_EXPIRE_MINUTES` | JWT token TTL in minutes (default: `1440`) | Optional |
 
 See [`.env.example`](.env.example) for the full template.
 
@@ -162,7 +165,7 @@ See [`.env.example`](.env.example) for the full template.
 ```bash
 # Backend unit tests (75% coverage minimum)
 cd backend
-uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75
+uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75
 
 # Backend linting
 uv run ruff check .
