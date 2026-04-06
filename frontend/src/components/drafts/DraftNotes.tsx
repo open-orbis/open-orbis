@@ -5,7 +5,6 @@ export interface DraftNote {
   id: string;
   text: string;
   createdAt: number;
-  fromVoice?: boolean;
 }
 
 // ── Shared localStorage helpers (user-scoped, with migration) ──
@@ -82,146 +81,6 @@ interface DraftNotesProps {
   onEnhance?: (note: DraftNote, targetLang: string) => Promise<void>;
 }
 
-function VoiceRecorder({ onTranscript }: { onTranscript: (text: string) => void }) {
-  const [recording, setRecording] = useState(false);
-  const [useFallback, setUseFallback] = useState(false);
-  const recognitionRef = useRef<any>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  const hasSpeechApi = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-  const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
-  const supported = hasSpeechApi || hasMediaRecorder;
-
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    setRecording(false);
-  };
-
-  const startSpeechApi = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join(' ')
-        .trim();
-      if (transcript) onTranscript(transcript);
-    };
-
-    recognition.onerror = (e: any) => {
-      // If speech API fails (not Chrome), fall back to MediaRecorder
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        setUseFallback(true);
-        startMediaRecorder();
-        return;
-      }
-      setRecording(false);
-    };
-    recognition.onend = () => setRecording(false);
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setRecording(true);
-  };
-
-  const startMediaRecorder = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      chunksRef.current = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        if (chunksRef.current.length === 0) return;
-
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        // Try to send to backend for transcription
-        try {
-          const formData = new FormData();
-          formData.append('audio', blob, 'recording.webm');
-          const resp = await fetch(
-            `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/transcribe`,
-            { method: 'POST', body: formData }
-          );
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.text) onTranscript(data.text);
-          } else {
-            onTranscript('[Voice note recorded — transcription unavailable]');
-          }
-        } catch {
-          onTranscript('[Voice note recorded — transcription unavailable]');
-        }
-      };
-
-      mediaRecorderRef.current = recorder;
-      recorder.start();
-      setRecording(true);
-    } catch {
-      setRecording(false);
-    }
-  };
-
-  const toggle = () => {
-    if (recording) {
-      stopRecording();
-      return;
-    }
-
-    if (hasSpeechApi && !useFallback) {
-      startSpeechApi();
-    } else if (hasMediaRecorder) {
-      startMediaRecorder();
-    }
-  };
-
-  useEffect(() => {
-    return () => stopRecording();
-  }, []);
-
-  if (!supported) return null;
-
-  return (
-    <button
-      onClick={toggle}
-      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
-        recording
-          ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-          : 'bg-red-500/10 text-red-400/70 border border-red-500/20 hover:bg-red-500/20 hover:text-red-400'
-      }`}
-    >
-      {recording ? (
-        <>
-          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-          Stop recording
-        </>
-      ) : (
-        <>
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-          </svg>
-          Voice note
-        </>
-      )}
-    </button>
-  );
-}
-
 export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph, onEnhance }: DraftNotesProps) {
   const [input, setInput] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -275,13 +134,12 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
     if (editingId) setTimeout(() => editRef.current?.focus(), 50);
   }, [editingId]);
 
-  const addNote = (text: string, fromVoice = false) => {
+  const addNote = (text: string) => {
     if (!text.trim()) return;
     const note: DraftNote = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       text: text.trim(),
       createdAt: Date.now(),
-      fromVoice,
     };
     onNotesChange([note, ...notes]);
     setInput('');
@@ -408,8 +266,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder:text-white/25 resize-none focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/30"
               rows={2}
             />
-            <div className="flex items-center justify-between mt-2">
-              <VoiceRecorder onTranscript={(text) => addNote(text, true)} />
+            <div className="flex items-center justify-end mt-2">
               <div className="flex items-center gap-2">
                 {onEnhance && (
                   <button
@@ -464,7 +321,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                 </svg>
               </div>
               <p className="text-white/20 text-sm">No draft notes yet</p>
-              <p className="text-white/10 text-xs mt-1">Type or record a voice note</p>
+              <p className="text-white/10 text-xs mt-1">Type a note to add later</p>
             </div>
           ) : (
             notes.map((note) => (
@@ -507,14 +364,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <span className="text-white/20 text-[10px]">{formatTime(note.createdAt)}</span>
-                        {note.fromVoice && (
-                          <span className="text-white/15 text-[10px] flex items-center gap-0.5">
-                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                            </svg>
-                            voice
-                          </span>
-                        )}
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
