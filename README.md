@@ -20,11 +20,13 @@
 
 ## What is OpenOrbis?
 
-OpenOrbis is a personal knowledge graph platform that transforms your professional identity — education, work experience, skills, projects, publications, certifications, languages, and patents — into an **interactive 3D graph**. Instead of a static PDF resume, your professional profile becomes a living, queryable data structure that both humans and AI agents can explore.
+OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Instead of a static PDF, your professional identity — skills, experience, education, projects, publications, and more — becomes a queryable data structure that both humans and AI agents can explore.
 
-Every orbis has a **shareable URL** and **QR code**, making it easy to share with recruiters, collaborators, or embed in your portfolio. The graph is natively accessible to AI agents via the **Model Context Protocol (MCP)**, so tools like Claude, Cursor, and Copilot can query your professional background directly.
+🌐 **Share it** — every orbis gets a unique URL and QR code, ready to send to recruiters or embed in your portfolio
 
-Sensitive data is **encrypted at rest** with Fernet, and **GDPR compliance** is built in — users must grant explicit consent before any data is stored, and accounts can be soft-deleted with a 30-day grace period.
+🤖 **Query it** — AI agents (Claude, Cursor, Copilot) can access your graph natively via the **Model Context Protocol (MCP)**
+
+🔒 **Own it** — PII is encrypted at rest, GDPR consent is enforced before any data is stored, and accounts can be soft-deleted with a 30-day grace period
 
 ---
 
