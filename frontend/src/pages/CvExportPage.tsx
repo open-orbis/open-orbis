@@ -19,14 +19,17 @@ function sortDesc(nodes: OrbNode[], field: string): OrbNode[] {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
-/* ── PDF pagination constants (must match @page margins in CSS below) ── */
-const A4_W = 210;
+/* ── PDF pagination constants (must match @page + print CSS below) ── */
 const A4_H = 297;
-const M_X = 10;       // @page left/right margin
-const M_TOP = 10;     // @page top margin
-const M_BOTTOM = 18;  // @page bottom margin
-const USABLE_W = A4_W - 2 * M_X;          // 190mm
-const USABLE_H = A4_H - M_TOP - M_BOTTOM; // 269mm
+const PAGE_M_X = 10;       // @page left/right margin (mm)
+const PAGE_M_TOP = 10;     // @page top margin (mm)
+const PAGE_M_BOTTOM = 18;  // @page bottom margin (mm)
+const PAGE_USABLE_H = A4_H - PAGE_M_TOP - PAGE_M_BOTTOM; // 269mm
+
+// Print .resume-container horizontal padding converted to mm (1 CSS px = 25.4/96 mm)
+const PRINT_PAD_X_PX = 16;
+const PRINT_PAD_X_MM = PRINT_PAD_X_PX * 25.4 / 96; // ~4.23mm
+const PRINT_CONTENT_W = (210 - 2 * PAGE_M_X) - 2 * PRINT_PAD_X_MM; // ~181.53mm
 
 /** Collect atomic blocks from the container — items that should not be split across pages. */
 function collectBlocks(container: HTMLElement): { top: number; height: number }[] {
@@ -215,9 +218,10 @@ export default function CvExportPage() {
     if (!el || !data) return;
 
     const update = () => {
-      const containerW = el.clientWidth;
-      const pxPerMm = containerW / USABLE_W;
-      const pageH = USABLE_H * pxPerMm;
+      const style = getComputedStyle(el);
+      const contentW = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const pxPerMm = contentW / PRINT_CONTENT_W;
+      const pageH = PAGE_USABLE_H * pxPerMm;
 
       const blocks = collectBlocks(el);
       if (blocks.length === 0) { setPageBreaks([]); return; }
