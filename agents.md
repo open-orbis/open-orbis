@@ -54,7 +54,7 @@ When you are invoked to contribute to this repository, you must strictly follow 
    * Use the security-and-hardening skill to ensure OWASP Top 10 prevention, auth patterns, secrets management, dependency auditing, three-tier boundary system
    * Use the performance-optimization skill to implement a Measure-first approach - Core Web Vitals targets, profiling workflows, bundle analysis, anti-pattern detection.
    * Close the subagent once the quality review is complete and any necessary changes have been made.
-6. **Commit & Pull Request**: 
+7. **Commit & Pull Request**: 
    * Commit your changes with clear, descriptive messages. Use conventional commits. 
    * Push your branch to the remote repository.
    * Open a Pull Request using `gh pr create --title "Fix: <Issue Description>" --body "Closes #<issue-number>. Details of the implementation..."`.
