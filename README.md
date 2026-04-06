@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-  Your professional identity as a knowledge graph — shareable, queryable, and always up to date.
+  <em>Your professional identity as a knowledge graph — shareable, queryable, and always up to date.</em>
 </p>
 
 <p align="center">
@@ -16,53 +16,84 @@
   <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml/badge.svg" alt="Tests"></a>
 </p>
 
+<br>
+
 ## What is OpenOrbis?
 
-OpenOrbis is a personal knowledge graph platform that transforms your professional identity — education, work experience, skills, projects, publications, certifications, languages, and patents — into an interactive 3D graph. Instead of a static PDF resume, your professional profile becomes a living, queryable data structure that both humans and AI agents can explore.
+OpenOrbis is a personal knowledge graph platform that transforms your professional identity — education, work experience, skills, projects, publications, certifications, languages, and patents — into an **interactive 3D graph**. Instead of a static PDF resume, your professional profile becomes a living, queryable data structure that both humans and AI agents can explore.
 
-Every orbis has a shareable URL and QR code, making it easy to share with recruiters, collaborators, or embed in your portfolio. The graph is natively accessible to AI agents via the Model Context Protocol (MCP), so tools like Claude, Cursor, and Copilot can query your professional background directly.
+Every orbis has a **shareable URL** and **QR code**, making it easy to share with recruiters, collaborators, or embed in your portfolio. The graph is natively accessible to AI agents via the **Model Context Protocol (MCP)**, so tools like Claude, Cursor, and Copilot can query your professional background directly.
 
-Sensitive data is encrypted at rest with Fernet, and GDPR compliance is built in — users must grant explicit consent before any data is stored, and accounts can be soft-deleted with a 30-day grace period.
+Sensitive data is **encrypted at rest** with Fernet, and **GDPR compliance** is built in — users must grant explicit consent before any data is stored, and accounts can be soft-deleted with a 30-day grace period.
+
+---
 
 ## Key Features
 
-**For Users:**
-- Two onboarding paths: upload a PDF CV or build your graph node-by-node
-- 3D interactive graph visualization (Three.js / react-force-graph-3d)
-- Export to PDF with accurate page-break preview
-- Custom shareable URL with QR code
-- Draft notes with LLM-powered enhancement (refine free text into structured CV entries)
-- Inbox for receiving messages from recruiters and AI agents
-- Date range slider to filter the graph by time period
-- Keyword-based node filtering with shareable filter tokens (privacy-aware sharing)
-- Fuzzy text search and semantic vector search across all node types
-- "Open to Work" flag on your profile
+<table>
+<tr>
+<td width="33%" valign="top">
 
-**For AI Agents (MCP):**
-- 6 queryable tools: `orbis_get_summary`, `orbis_get_full_orb`, `orbis_get_nodes_by_type`, `orbis_get_connections`, `orbis_get_skills_for_experience`, `orbis_send_message`
-- Structured JSON responses for easy LLM consumption
-- Filter token-based access control per consumer
+### For Users
 
-**Privacy & Security:**
-- Fernet encryption for all PII fields (email, phone, address) at rest
-- GDPR consent tracking and 30-day soft-delete
-- Granular sharing with filter tokens (hide specific nodes by keyword)
+- Upload a PDF CV or build node-by-node
+- 3D interactive graph (Three.js)
+- Export to PDF with page-break preview
+- Shareable URL with QR code
+- Draft notes with LLM enhancement
+- Inbox for recruiters & AI agents
+- Date range slider for temporal filtering
+- Privacy-aware sharing via filter tokens
+- Fuzzy + semantic vector search
+- "Open to Work" flag
+
+</td>
+<td width="33%" valign="top">
+
+### For AI Agents (MCP)
+
+- `orbis_get_summary`
+- `orbis_get_full_orb`
+- `orbis_get_nodes_by_type`
+- `orbis_get_connections`
+- `orbis_get_skills_for_experience`
+- `orbis_send_message`
+- Structured JSON responses
+- Filter token access control
+
+</td>
+<td width="33%" valign="top">
+
+### Privacy & Security
+
+- Fernet encryption for PII at rest
+- GDPR consent tracking
+- 30-day soft-delete grace period
+- Granular sharing with filter tokens
+- Per-field encryption (email, phone, address)
+
+</td>
+</tr>
+</table>
+
+---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | React 19, TypeScript, Vite 8, Tailwind CSS v4, Three.js, Framer Motion, Zustand |
-| **Backend** | FastAPI, Python 3.10+, Uvicorn |
-| **Database** | Neo4j 5 (graph database with vector indexes) |
-| **AI/LLM** | Anthropic Claude (via CLI), Ollama (llama3.2:3b local fallback) |
-| **Auth** | JWT (HS256), Google OAuth (scaffolded) |
-| **Encryption** | Fernet (cryptography) |
-| **Agent Protocol** | MCP (Model Context Protocol) |
-| **PDF Processing** | PyMuPDF (extraction), fpdf2 (generation) |
-| **CI/CD** | GitHub Actions (lint, unit tests, CV extraction quality) |
-| **Package Managers** | uv (backend), npm (frontend) |
-| **License** | GNU AGPL v3 |
+<table>
+<tr><td><strong>Frontend</strong></td><td>React 19 · TypeScript · Vite 8 · Tailwind CSS v4 · Three.js · Framer Motion · Zustand</td></tr>
+<tr><td><strong>Backend</strong></td><td>FastAPI · Python 3.10+ · Uvicorn</td></tr>
+<tr><td><strong>Database</strong></td><td>Neo4j 5 (graph database with vector indexes)</td></tr>
+<tr><td><strong>AI / LLM</strong></td><td>Anthropic Claude (via CLI) · Ollama (llama3.2:3b local fallback)</td></tr>
+<tr><td><strong>Auth</strong></td><td>JWT (HS256) · Google OAuth (scaffolded)</td></tr>
+<tr><td><strong>Encryption</strong></td><td>Fernet (cryptography)</td></tr>
+<tr><td><strong>Agent Protocol</strong></td><td>MCP (Model Context Protocol)</td></tr>
+<tr><td><strong>PDF</strong></td><td>PyMuPDF (extraction) · fpdf2 (generation)</td></tr>
+<tr><td><strong>CI/CD</strong></td><td>GitHub Actions — lint · unit tests · CV extraction quality</td></tr>
+<tr><td><strong>Package Mgrs</strong></td><td>uv (backend) · npm (frontend)</td></tr>
+</table>
+
+---
 
 ## Project Structure
 
@@ -96,14 +127,16 @@ orb_project/
 └── LICENSE                    # GNU AGPL v3
 ```
 
+---
+
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.10+
-- Node.js 20+
-- Docker and Docker Compose
-- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- **Python** 3.10+
+- **Node.js** 20+
+- **Docker** and Docker Compose
+- [**uv**](https://docs.astral.sh/uv/) (Python package manager)
 
 ### 1. Clone and configure
 
@@ -147,12 +180,14 @@ docker exec orbis-ollama ollama pull llama3.2:3b
 
 ### 6. Open the app
 
-Navigate to http://localhost:5173, click login (dev mode), and choose "Upload CV" or "Manual Entry" to build your orb.
+Navigate to http://localhost:5173, click login (dev mode), and choose **"Upload CV"** or **"Manual Entry"** to build your orb.
+
+---
 
 ## Environment Variables
 
 | Variable | Description | Required |
-|----------|-------------|----------|
+|----------|-------------|:--------:|
 | `NEO4J_URI` | Neo4j Bolt connection URI | Yes |
 | `NEO4J_USER` | Neo4j username | Yes |
 | `NEO4J_PASSWORD` | Neo4j password | Yes |
@@ -160,15 +195,17 @@ Navigate to http://localhost:5173, click login (dev mode), and choose "Upload CV
 | `ENCRYPTION_KEY` | Fernet key for PII field encryption | Yes |
 | `FRONTEND_URL` | Frontend origin for CORS | Yes |
 | `BACKEND_URL` | Backend URL | Yes |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Prod only |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Prod only |
-| `ANTHROPIC_API_KEY` | Claude API key | Optional |
-| `OLLAMA_BASE_URL` | Ollama endpoint (default: `http://localhost:11434`) | Optional |
-| `OLLAMA_MODEL` | Ollama model name (default: `llama3.2:3b`) | Optional |
-| `JWT_ALGORITHM` | JWT signing algorithm (default: `HS256`) | Optional |
-| `JWT_EXPIRE_MINUTES` | JWT token TTL in minutes (default: `1440`) | Optional |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Prod |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Prod |
+| `ANTHROPIC_API_KEY` | Claude API key | — |
+| `OLLAMA_BASE_URL` | Ollama endpoint (default: `http://localhost:11434`) | — |
+| `OLLAMA_MODEL` | Ollama model name (default: `llama3.2:3b`) | — |
+| `JWT_ALGORITHM` | JWT signing algorithm (default: `HS256`) | — |
+| `JWT_EXPIRE_MINUTES` | JWT token TTL in minutes (default: `1440`) | — |
 
-See [`.env.example`](.env.example) for the full template.
+> See [`.env.example`](.env.example) for the full template.
+
+---
 
 ## Running Tests
 
@@ -186,11 +223,13 @@ cd frontend
 npm run lint
 ```
 
-See [`docs/testing.md`](docs/testing.md) for the full test strategy, CI pipelines, and CV extraction quality gates.
+> See [`docs/testing.md`](docs/testing.md) for the full test strategy, CI pipelines, and CV extraction quality gates.
+
+---
 
 ## MCP Integration
 
-OpenOrbis includes an MCP server that exposes your knowledge graph to AI agents. The server provides 6 tools:
+OpenOrbis includes an MCP server that exposes your knowledge graph to AI agents:
 
 | Tool | Description |
 |------|-------------|
@@ -201,34 +240,34 @@ OpenOrbis includes an MCP server that exposes your knowledge graph to AI agents.
 | `orbis_get_skills_for_experience` | Skills linked to a work experience or project |
 | `orbis_send_message` | Send a message to the orb owner |
 
-To run the MCP server:
-
 ```bash
 cd backend
-uv run python -m mcp_server.server
+uv run python -m mcp_server.server    # streamable-http transport
 ```
 
-The server uses streamable-http transport and connects to Neo4j independently.
+---
 
 ## Knowledge Graph Schema
 
 Each user's orb is a graph rooted at a **Person** node, connected to domain-specific nodes via typed relationships:
 
 ```
-Person ──HAS_EDUCATION──► Education
-       ──HAS_WORK_EXPERIENCE──► WorkExperience
-       ──HAS_SKILL──► Skill
-       ──SPEAKS──► Language
-       ──HAS_CERTIFICATION──► Certification
-       ──HAS_PUBLICATION──► Publication
-       ──HAS_PROJECT──► Project
-       ──HAS_PATENT──► Patent
-       ──COLLABORATED_WITH──► Collaborator
+Person ──HAS_EDUCATION──────────► Education
+       ──HAS_WORK_EXPERIENCE───► WorkExperience
+       ──HAS_SKILL─────────────► Skill
+       ──SPEAKS────────────────► Language
+       ──HAS_CERTIFICATION─────► Certification
+       ──HAS_PUBLICATION───────► Publication
+       ──HAS_PROJECT───────────► Project
+       ──HAS_PATENT────────────► Patent
+       ──COLLABORATED_WITH─────► Collaborator
 ```
 
-The key graph feature is `USED_SKILL` — a cross-link between experience nodes (WorkExperience, Project, Education, Publication) and Skill nodes, enabling queries like "which skills were used at company X?"
+The key graph feature is **`USED_SKILL`** — a cross-link between experience nodes and Skill nodes, enabling queries like *"which skills were used at company X?"*
 
-See [`ontology.md`](ontology.md) for the full schema and [`docs/database.md`](docs/database.md) for query patterns and indexes.
+> See [`ontology.md`](ontology.md) for the full schema and [`docs/database.md`](docs/database.md) for query patterns and indexes.
+
+---
 
 ## Contributing
 
@@ -242,18 +281,24 @@ See [`ontology.md`](ontology.md) for the full schema and [`docs/database.md`](do
 4. Ensure tests pass with >= 75% coverage
 5. Open a pull request against `main`
 
+---
+
 ## Documentation
 
 Detailed documentation lives in [`docs/`](docs/):
 
-- [`architecture.md`](docs/architecture.md) — system design and data flow
-- [`api.md`](docs/api.md) — API endpoint reference
-- [`onboarding.md`](docs/onboarding.md) — local setup and dev workflow
-- [`database.md`](docs/database.md) — Neo4j schema and query patterns
-- [`testing.md`](docs/testing.md) — test strategy and CI pipelines
-- [`deployment.md`](docs/deployment.md) — production setup and Docker
-- [`cv-extraction-quality.md`](docs/cv-extraction-quality.md) — CV extraction quality metrics
+| Document | Description |
+|----------|-------------|
+| [`architecture.md`](docs/architecture.md) | System design and data flow |
+| [`api.md`](docs/api.md) | API endpoint reference |
+| [`onboarding.md`](docs/onboarding.md) | Local setup and dev workflow |
+| [`database.md`](docs/database.md) | Neo4j schema and query patterns |
+| [`testing.md`](docs/testing.md) | Test strategy and CI pipelines |
+| [`deployment.md`](docs/deployment.md) | Production setup and Docker |
+| [`cv-extraction-quality.md`](docs/cv-extraction-quality.md) | CV extraction quality metrics |
 
-## License
+---
 
-This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+<p align="center">
+  Licensed under the <a href="LICENSE">GNU Affero General Public License v3.0</a>
+</p>
