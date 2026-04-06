@@ -1,10 +1,16 @@
-# OpenOrbis
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
+    <img alt="OpenOrbis" src="docs/assets/logo-light.svg" width="400">
+  </picture>
+</p>
 
-> Your professional identity as a knowledge graph — shareable, queryable, and always up to date.
-
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![CI](https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml/badge.svg)](https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml)
-[![Tests](https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
+  <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml/badge.svg" alt="Tests"></a>
+</p>
 
 ## What is OpenOrbis?
 
