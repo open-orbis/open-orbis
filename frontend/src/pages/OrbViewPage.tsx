@@ -204,7 +204,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[420px] max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[520px] max-h-[90vh] overflow-hidden flex flex-col"
       >
         <div className="p-4 sm:p-6 pb-0">
           <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
