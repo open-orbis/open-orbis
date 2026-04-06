@@ -42,3 +42,7 @@ create_issues.sh
 # Claude Code agent/skill configs
 agents.md
 .claude/
+
+# Superpowers
+.superpowers/
+**/superpowers/
