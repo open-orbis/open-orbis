@@ -446,6 +446,7 @@ export default function CvExportPage() {
   /* Contact links */
   const contacts = [
     p.email && { icon: 'fas fa-envelope', text: str(p.email) },
+    p.phone && { icon: 'fas fa-phone', href: `tel:${str(p.phone)}`, text: str(p.phone) },
     p.website_url && { icon: 'fas fa-globe', href: str(p.website_url), text: 'Website' },
     p.scholar_url && { icon: 'fas fa-graduation-cap', href: str(p.scholar_url), text: 'Scholar' },
     p.github_url && { icon: 'fab fa-github', href: str(p.github_url), text: 'GitHub' },

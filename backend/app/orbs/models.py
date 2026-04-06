@@ -15,6 +15,7 @@ class NodeUpdate(BaseModel):
 class PersonUpdate(BaseModel):
     headline: str | None = None
     location: str | None = None
+    phone: str | None = None
     linkedin_url: str | None = None
     github_url: str | None = None
     twitter_url: str | None = None
