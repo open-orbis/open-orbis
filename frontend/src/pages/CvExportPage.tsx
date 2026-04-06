@@ -895,12 +895,14 @@ const CV_CSS = `
     font-family: 'Roboto', sans-serif;
   }
   .cv-toolbar-hint {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.85rem;
+    flex: 1;
+    min-width: 0;
+    font-size: 0.82rem;
     color: var(--md-on-surface-variant);
     font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .cv-toolbar-btn {
     display: inline-flex;
@@ -1399,8 +1401,10 @@ const CV_CSS = `
   @media (max-width: 900px) {
     .cv-sidebar { display: none; }
     .item-delete { right: -28px; width: 20px; height: 20px; font-size: 0.55rem; }
+    .cv-toolbar-hint { font-size: 0.72rem; }
   }
   @media (max-width: 600px) {
+    .cv-toolbar-hint { display: none; }
     .resume-container { padding: 24px 16px; border-radius: 16px; }
     .cv-page-body header { padding: 20px; }
     .cv-page-body h1 { font-size: 2rem; }
