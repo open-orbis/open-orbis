@@ -26,8 +26,6 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 
 🤖 **Query it** — AI agents (Claude, Cursor, Copilot) can access your graph natively via the **Model Context Protocol (MCP)**
 
-🔒 **Own it** — PII is encrypted at rest, GDPR consent is enforced before any data is stored, and accounts can be soft-deleted with a 30-day grace period
-
 ---
 
 ## Key Features
