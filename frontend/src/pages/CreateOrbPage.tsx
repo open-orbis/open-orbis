@@ -112,7 +112,7 @@ export default function CreateOrbPage() {
           className="text-center mb-10"
         >
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-            How do you want to build your orb?
+            How do you want to build your orbis?
           </h1>
           <p className="text-white/35 text-base max-w-md mx-auto">
             Choose how you'd like to add your professional information. You can always add more later.
@@ -138,7 +138,7 @@ export default function CreateOrbPage() {
           />
           <PathCard
             title="Build from scratch"
-            description="Start with an empty orb and add entries one by one. Full control over every detail."
+            description="Start with an empty orbis and add entries one by one. Full control over every detail."
             color="#10b981"
             onClick={() => navigate('/myorbis')}
             icon={
@@ -182,7 +182,7 @@ export default function CreateOrbPage() {
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4">
         <div className="text-white">
-          <span className="text-base sm:text-lg font-semibold">{user?.name || 'My Orb'}</span>
+          <span className="text-base sm:text-lg font-semibold">{user?.name || 'My Orbis'}</span>
           <span className="text-gray-500 text-xs sm:text-sm ml-2 sm:ml-3">{nodeCount} nodes</span>
         </div>
         <div className="flex gap-3">
@@ -191,7 +191,7 @@ export default function CreateOrbPage() {
               onClick={handleFinish}
               className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
             >
-              Done — View My Orb
+              Done — View My Orbisis
             </button>
           )}
         </div>
@@ -243,14 +243,14 @@ export default function CreateOrbPage() {
             exit={{ opacity: 0, y: 30 }}
             className="absolute bottom-8 left-0 right-0 z-30 flex flex-col items-center gap-4"
           >
-            <p className="text-white text-xl font-semibold">Your orb is ready!</p>
+            <p className="text-white text-xl font-semibold">Your orbis is ready!</p>
             <p className="text-gray-400 text-sm">{nodeCount} entries added to your knowledge graph</p>
             <div className="flex gap-3">
               <button
                 onClick={handleFinish}
                 className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-lg shadow-purple-600/25"
               >
-                View My Orb
+                View My Orbis
               </button>
               <button
                 onClick={() => { setCurrentStep(0); }}

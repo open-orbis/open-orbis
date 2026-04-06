@@ -73,8 +73,8 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
         className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
-        <h2 className="text-white text-lg font-semibold mb-1">Share Your Orb</h2>
-        <p className="text-gray-400 text-sm mb-5">Share your orb link or use the MCP identifier to let AI agents access your professional graph.</p>
+        <h2 className="text-white text-lg font-semibold mb-1">Share Your Orbis</h2>
+        <p className="text-gray-400 text-sm mb-5">Share your orbis link or use the MCP identifier to let AI agents access your professional graph.</p>
 
         {/* QR Code */}
         <div className="flex justify-center mb-5">
@@ -120,7 +120,7 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         )}
 
         <div className="mb-5">
-          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orb ID</label>
+          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
           <p className="text-[11px] text-gray-500 mt-0.5 mb-1">Use this ID with the OpenOrbis MCP server to let AI agents query your graph.</p>
           <div className="flex items-center gap-2">
             <input readOnly value={mcpUri} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
@@ -184,7 +184,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
   };
 
   const TABS = [
-    { id: 'orb-id' as const, label: 'Orb ID' },
+    { id: 'orb-id' as const, label: 'Orbis ID' },
     { id: 'filters' as const, label: 'Filters' },
     { id: 'account' as const, label: 'Account' },
   ];
@@ -208,7 +208,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
       >
         <div className="p-4 sm:p-6 pb-0">
           <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
-          <p className="text-gray-400 text-sm mb-4">Customize your orb identity and visibility.</p>
+          <p className="text-gray-400 text-sm mb-4">Customize your orbis identity and visibility.</p>
         </div>
 
         <div className="flex flex-1 min-h-0">
@@ -243,14 +243,14 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                 className="flex flex-col justify-between h-full"
               >
                 <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orb ID</label>
-                  <p className="text-[11px] text-gray-500 mt-1 mb-5">Choose a memorable ID for your orb. This will be your public URL and MCP identifier.</p>
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orbis ID</label>
+                  <p className="text-[11px] text-gray-500 mt-1 mb-5">Choose a memorable ID for your orbis. This will be your public URL and MCP identifier.</p>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500 text-sm">{window.location.origin}/</span>
                     <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
                   </div>
                   {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-                  {success && <p className="text-green-400 text-xs mt-2">Orb ID updated!</p>}
+                  {success && <p className="text-green-400 text-xs mt-2">Orbis ID updated!</p>}
                 </div>
 
                 <div className="flex gap-3">
@@ -361,7 +361,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                 <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
                   <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
                   <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                    Permanently delete your account, your orb, and all associated data. After requesting deletion, your data will be retained for 30 days in case you change your mind, then permanently erased. This action cannot be undone.
+                    Permanently delete your account, your orbis, and all associated data. After requesting deletion, your data will be retained for 30 days in case you change your mind, then permanently erased. This action cannot be undone.
                   </p>
 
                   {!showDeleteConfirm ? (
@@ -374,7 +374,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                   ) : (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
                       <p className="text-red-300 text-xs font-medium mb-3">
-                        Are you sure? Your orb and all data will be permanently deleted after 30 days.
+                        Are you sure? Your orbis and all data will be permanently deleted after 30 days.
                       </p>
                       <div className="flex gap-2">
                         <button
@@ -529,7 +529,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
             />
           </button>
           <div className="min-w-0">
-            <h2 className="text-white text-xl font-semibold truncate">{(person.name as string) || 'My Orb'}</h2>
+            <h2 className="text-white text-xl font-semibold truncate">{(person.name as string) || 'My Orbis'}</h2>
             {values.headline && !editing && (
               <p className="text-white/40 text-base truncate">{values.headline}</p>
             )}
@@ -748,7 +748,7 @@ export default function OrbViewPage() {
       // Seed a sample note for first-time users
       setDraftNotes([{
         id: 'sample-1',
-        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orb later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
+        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
         createdAt: Date.now(),
         fromVoice: false,
       }]);
@@ -942,7 +942,7 @@ export default function OrbViewPage() {
               )}
             </button>
             <div>
-              <span className="text-white text-xs sm:text-sm font-semibold">{(data.person.name as string) || user?.name || 'My Orb'}</span>
+              <span className="text-white text-xs sm:text-sm font-semibold">{(data.person.name as string) || user?.name || 'My Orbis'}</span>
               <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
               {activeKeywords.length > 0 && (
                 <span className="text-amber-400/70 text-[10px] ml-2 hidden sm:inline-flex items-center gap-1">
@@ -1010,7 +1010,7 @@ export default function OrbViewPage() {
             className="text-center"
           >
             <p className="text-white/50 text-sm mb-3">
-              Tap the <span className="text-purple-400 font-semibold">＋</span> button to start populating your Orb
+              Tap the <span className="text-purple-400 font-semibold">＋</span> button to start populating your Orbis
             </p>
             <motion.div
               animate={{ y: [0, 6, 0] }}

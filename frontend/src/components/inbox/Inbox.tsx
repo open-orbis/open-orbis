@@ -30,7 +30,7 @@ const DEMO_MESSAGES: Message[] = [
     sender_name: 'MCP Agent (RecruitBot)',
     sender_email: 'agent@recruitbot.io',
     subject: 'Skill match report: 94% fit for 3 open roles',
-    body: "Automated analysis of your orb via MCP tools:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n◉  Staff Engineer @ Dataflow Inc.\n    94% match — graph databases, Python, system design\n\n◉  Platform Lead @ CloudScale\n    89% match — distributed systems, API design\n\n◉  Senior Dev @ OpenMesh\n    87% match — Neo4j, FastAPI, React\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nThese matches are based on your skill nodes, work experience connections, and project relationships in your knowledge graph.\n\nReply to this message if you'd like introductions to any of these teams.",
+    body: "Automated analysis of your orbis via MCP tools:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n◉  Staff Engineer @ Dataflow Inc.\n    94% match — graph databases, Python, system design\n\n◉  Platform Lead @ CloudScale\n    89% match — distributed systems, API design\n\n◉  Senior Dev @ OpenMesh\n    87% match — Neo4j, FastAPI, React\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nThese matches are based on your skill nodes, work experience connections, and project relationships in your knowledge graph.\n\nReply to this message if you'd like introductions to any of these teams.",
     created_at: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(),
     read: false,
     replies: [],

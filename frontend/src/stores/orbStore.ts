@@ -43,7 +43,7 @@ export const useOrbStore = create<OrbState>((set, get) => ({
     try {
       const node = await orbsApi.addNode(nodeType, properties);
       await get().fetchOrb();
-      useToastStore.getState().addToast('Entry added to your orb', 'success');
+      useToastStore.getState().addToast('Entry added to your orbis', 'success');
       return node;
     } catch (e) {
       useToastStore.getState().addToast('Failed to add entry', 'error');

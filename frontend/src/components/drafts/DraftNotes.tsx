@@ -347,7 +347,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <div>
             <h2 className="text-white text-base font-semibold">Draft Notes</h2>
-            <p className="text-white/40 text-xs mt-0.5">Quick notes to add to your orb later</p>
+            <p className="text-white/40 text-xs mt-0.5">Quick notes to add to your orbis later</p>
           </div>
           <div className="flex items-center gap-2">
             {/* Language selector */}
