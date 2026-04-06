@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-  <em>Your professional identity as a knowledge graph — shareable, queryable, and always up to date.</em>
+  <em>Your professional identity as a knowledge graph.<br>Shareable, queryable, and always up to date.</em>
 </p>
 
 <p align="center">
