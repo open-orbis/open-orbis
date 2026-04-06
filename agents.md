@@ -25,6 +25,7 @@ When you are invoked to contribute to this repository, you must strictly follow 
    * If working from the internal TODO list, prioritize High priority tasks like "Test GraphRAG end-to-end" (A1) or "Fix graph visualization consistency" (A2). 
    * Avoid selecting issues that require significant refactoring or architectural changes unless you have explicit permission to do so. Focus on incremental improvements and bug fixes that align with the existing codebase and architecture. 
    * Avoid issues that requires research or learning new technologies that are not already part of the project. Stick to tasks that you can confidently complete with your current knowledge and capabilities.
+   * Assign the issue to ourselves.
 3. **Branch Creation**: 
    * Create and check out a new branch for your work. Use a descriptive name: `git checkout -b feature/<issue-number>-<short-description>` or `git checkout -b fix/<issue-number>-<short-description>`.
 4. **Define what to build**:
