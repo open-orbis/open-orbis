@@ -154,6 +154,9 @@ export default function CvExportPage() {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
 
+  /* Sidebar toggle (for narrow viewports) */
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   /* Profile image toggle */
   const [showProfileImage, setShowProfileImage] = useState(true);
 
@@ -777,8 +780,22 @@ export default function CvExportPage() {
         </button>
       </div>
 
+      {/* ── Sidebar toggle button (visible on narrow viewports) ── */}
+      <button
+        className="cv-sidebar-toggle no-print"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        title="Section Order"
+      >
+        <i className="fas fa-bars" />
+      </button>
+
+      {/* ── Sidebar backdrop (narrow viewports only) ── */}
+      {sidebarOpen && (
+        <div className="cv-sidebar-backdrop no-print" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar — section order (hidden when printing) ── */}
-      <div className="cv-sidebar no-print">
+      <div className={`cv-sidebar no-print${sidebarOpen ? ' open' : ''}`}>
         <div className="cv-sidebar-title">Section Order</div>
         {visibleSections.map((key, idx) => (
           <div
@@ -1015,7 +1032,33 @@ const CV_CSS = `
     padding: 16px 12px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     font-family: 'Roboto', sans-serif;
-    z-index: 90;
+    z-index: 100;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .cv-sidebar-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 20px;
+    bottom: 28px;
+    z-index: 101;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: var(--md-primary);
+    color: var(--md-on-primary, #fff);
+    font-size: 1.15rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .cv-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 99;
   }
   .cv-sidebar-title {
     font-size: 0.75rem;
@@ -1438,8 +1481,25 @@ const CV_CSS = `
   .rich-text li::marker { color: var(--md-on-surface); }
 
   /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .cv-page-body { padding-right: 230px; }
+  }
   @media (max-width: 900px) {
-    .cv-sidebar { display: none; }
+    .cv-page-body { padding-right: 20px; }
+    .cv-sidebar {
+      right: 0;
+      top: auto;
+      bottom: 80px;
+      transform: translateX(110%);
+      opacity: 0;
+      border-radius: 16px 0 0 16px;
+    }
+    .cv-sidebar.open {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    .cv-sidebar-toggle { display: flex; }
+    .cv-sidebar-backdrop { display: block; }
     .item-delete { right: -28px; width: 20px; height: 20px; font-size: 0.55rem; }
     .cv-toolbar-hint { font-size: 0.72rem; }
   }
