@@ -19,17 +19,26 @@ function sortDesc(nodes: OrbNode[], field: string): OrbNode[] {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
-/* ── PDF pagination constants (must match @page + print CSS below) ── */
+/* ── PDF pagination constants (must match @page + print CSS below) ──
+ *
+ * The preview container's max-width is chosen so that its content area
+ * (max-width minus padding) equals the print content area in CSS pixels
+ * (PRINT_CONTENT_W * 96/25.4). This guarantees identical text reflow in
+ * preview and print, making block heights — and therefore page-break
+ * positions — match exactly.
+ */
 const A4_H = 297;
-const PAGE_M_X = 10;       // @page left/right margin (mm)
 const PAGE_M_TOP = 10;     // @page top margin (mm)
 const PAGE_M_BOTTOM = 18;  // @page bottom margin (mm)
+const PAGE_M_X = 10;       // @page left/right margin (mm)
 const PAGE_USABLE_H = A4_H - PAGE_M_TOP - PAGE_M_BOTTOM; // 269mm
 
-// Print .resume-container horizontal padding converted to mm (1 CSS px = 25.4/96 mm)
-const PRINT_PAD_X_PX = 16;
-const PRINT_PAD_X_MM = PRINT_PAD_X_PX * 25.4 / 96; // ~4.23mm
+const PRINT_PAD_X_PX = 16; // .resume-container horizontal padding in print (px)
+const PRINT_PAD_X_MM = PRINT_PAD_X_PX * 25.4 / 96;       // ~4.23mm
 const PRINT_CONTENT_W = (210 - 2 * PAGE_M_X) - 2 * PRINT_PAD_X_MM; // ~181.53mm
+
+const PRINT_FOOTER_H = 8;  // mm — space reserved for the fixed print footer
+const PAGE_H_MM = PAGE_USABLE_H - PRINT_FOOTER_H; // 261mm effective per page
 
 /** Collect atomic blocks from the container — items that should not be split across pages. */
 function collectBlocks(container: HTMLElement): { top: number; height: number }[] {
@@ -221,7 +230,7 @@ export default function CvExportPage() {
       const style = getComputedStyle(el);
       const contentW = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       const pxPerMm = contentW / PRINT_CONTENT_W;
-      const pageH = PAGE_USABLE_H * pxPerMm;
+      const pageH = PAGE_H_MM * pxPerMm;
 
       const blocks = collectBlocks(el);
       if (blocks.length === 0) { setPageBreaks([]); return; }
@@ -1014,10 +1023,13 @@ const CV_CSS = `
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ── Resume card ── */
+  /* ── Resume card ──
+     max-width = print-content-px + 2 * preview-padding
+     print-content-px ≈ (190mm − 2×16px) × 96/25.4 ≈ 686px
+     686 + 2×48 = 782px — keeps text reflow identical to print */
   .resume-container {
     background-color: var(--md-surface);
-    max-width: 850px;
+    max-width: 782px;
     width: 100%;
     padding: 48px;
     border-radius: 28px;
