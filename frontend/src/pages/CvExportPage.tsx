@@ -19,14 +19,14 @@ function sortDesc(nodes: OrbNode[], field: string): OrbNode[] {
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
-/* ── PDF pagination constants ── */
+/* ── PDF pagination constants (must match @page margins in CSS below) ── */
 const A4_W = 210;
 const A4_H = 297;
-const M_X = 8;
-const M_TOP = 8;
-const FOOTER_H = 8;
-const USABLE_W = A4_W - 2 * M_X;   // 194mm
-const USABLE_H = A4_H - M_TOP - FOOTER_H; // 281mm
+const M_X = 10;       // @page left/right margin
+const M_TOP = 10;     // @page top margin
+const M_BOTTOM = 18;  // @page bottom margin
+const USABLE_W = A4_W - 2 * M_X;          // 190mm
+const USABLE_H = A4_H - M_TOP - M_BOTTOM; // 269mm
 
 /** Collect atomic blocks from the container — items that should not be split across pages. */
 function collectBlocks(container: HTMLElement): { top: number; height: number }[] {
