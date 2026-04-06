@@ -97,8 +97,8 @@ export default function SharedOrbPage() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Orb not found</h1>
-          <p className="text-gray-400">This orb doesn't exist or is private.</p>
+          <h1 className="text-2xl font-bold mb-2">Orbis not found</h1>
+          <p className="text-gray-400">This orbis doesn't exist or is private.</p>
         </div>
       </div>
     );
@@ -134,7 +134,7 @@ export default function SharedOrbPage() {
               href="/"
               className="text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors"
             >
-              Create your own Orb
+              Create your own Orbis
             </a>
           </div>
         </div>
@@ -166,7 +166,7 @@ export default function SharedOrbPage() {
         onHighlight={setHighlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
-        placeholder={`Query ${personName}'s orb...`}
+        placeholder={`Query ${personName}'s orbis...`}
         searchFn={searchFn}
       />
     </div>

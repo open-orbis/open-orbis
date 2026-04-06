@@ -129,7 +129,7 @@ export default function CVUploadOnboarding() {
             <h2 className="text-white text-xl font-semibold">
               Found {extractedNodes.length} entries
             </h2>
-            <p className="text-white/30 text-sm mt-1">Review, edit, or remove entries, then add them all to your orb.</p>
+            <p className="text-white/30 text-sm mt-1">Review, edit, or remove entries, then add them all to your orbis.</p>
             {truncated && (
               <p className="text-amber-400/80 text-xs mt-2">
                 Your CV was too long and was partially truncated. Some entries at the end may have been missed.

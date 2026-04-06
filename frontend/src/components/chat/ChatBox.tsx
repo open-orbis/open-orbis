@@ -60,7 +60,7 @@ function getNodeSubtitle(node: OrbNode): string {
   return '';
 }
 
-export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd, placeholder = 'Query your orb...', searchFn = textSearch }: ChatBoxProps) {
+export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd, placeholder = 'Query your orbis...', searchFn = textSearch }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -93,7 +93,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
       if (results.length === 0) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: `No matches found for "${query}". This information isn't in your orb yet.` },
+          { role: 'assistant', text: `No matches found for "${query}". This information isn't in your orbis yet.` },
         ]);
         onHighlight(new Set());
       } else {

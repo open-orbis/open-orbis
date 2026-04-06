@@ -377,7 +377,7 @@ export default function CvExportPage() {
     return (
       <>
         <style>{CV_CSS}</style>
-        <div className="cv-loading">Failed to load orb data.</div>
+        <div className="cv-loading">Failed to load orbis data.</div>
       </>
     );
 

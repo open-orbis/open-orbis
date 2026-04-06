@@ -8,11 +8,11 @@ const FEATURES = [
   },
   {
     title: 'Portable & machine-readable',
-    description: 'Your orb has a unique link (e.g. orbis.io/alessandro-berti). Pass it to any LLM, agent, or tool and it gets perfectly structured data.',
+    description: 'Your orbis has a unique link (e.g. orbis.io/alessandro-berti). Pass it to any LLM, agent, or tool and it gets perfectly structured data.',
   },
   {
     title: 'Always up to date',
-    description: 'Update your orb in one place. Generated CVs, websites, and profiles update downstream. Single source of truth.',
+    description: 'Update your orbis in one place. Generated CVs, websites, and profiles update downstream. Single source of truth.',
   },
   {
     title: 'You control access',
@@ -20,7 +20,7 @@ const FEATURES = [
   },
   {
     title: 'Connected network',
-    description: 'When collaborators join OpenOrbis, your orbs link together — forming a professional knowledge graph that recruiters can explore.',
+    description: 'When collaborators join OpenOrbis, your orbis link together — forming a professional knowledge graph that recruiters can explore.',
   },
 ];
 
@@ -45,7 +45,7 @@ export default function AboutPage() {
           transition={{ duration: 0.6 }}
           className="text-5xl font-bold mb-4"
         >
-          What is an Orb?
+          What is an Orbis?
         </motion.h1>
 
         <motion.p
@@ -54,7 +54,7 @@ export default function AboutPage() {
           transition={{ delay: 0.15, duration: 0.6 }}
           className="text-gray-400 text-lg mb-16"
         >
-          An orb is a portable, structured knowledge graph of your professional identity.
+          An orbis is a portable, structured knowledge graph of your professional identity.
           It replaces your CV, your landing page, and your LinkedIn profile — with something
           that both humans and machines can understand.
         </motion.p>
@@ -83,7 +83,7 @@ export default function AboutPage() {
             onClick={() => navigate('/')}
             className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-lg shadow-purple-600/25"
           >
-            Create Your Orb
+            Create Your Orbis
           </button>
         </motion.div>
       </div>

@@ -83,7 +83,7 @@ export default function LandingPage() {
               onClick={() => navigate('/myorbis')}
               className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
             >
-              Go to My Orb &rarr;
+              Go to My Orbisis &rarr;
             </button>
           ) : (
             <button
@@ -145,7 +145,7 @@ export default function LandingPage() {
           className="text-sm mb-8 z-10 font-medium tracking-wide"
         >
           <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
-            No more templates. No more formatting. Just your Orb.
+            No more templates. No more formatting. Just your Orbis.
           </span>
         </motion.p>
 
@@ -162,7 +162,7 @@ export default function LandingPage() {
                 onClick={() => navigate('/myorbis')}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
-                View My Orb
+                View My Orbis
               </button>
               <div className="flex items-center gap-2 px-4">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
@@ -176,7 +176,7 @@ export default function LandingPage() {
                 disabled={loading || signingIn}
                 className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base flex items-center gap-2"
               >
-                {loading || signingIn ? 'Signing in...' : 'Create Your Orb'}
+                {loading || signingIn ? 'Signing in...' : 'Create Your Orbis'}
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
@@ -234,7 +234,7 @@ export default function LandingPage() {
             <FadeIn delay={0.2}>
               <FeatureCard
                 title="Portable & machine-readable"
-                description="Your orb has a unique URL and QR code. Pass it to any LLM, embed it in your portfolio, or add it to your email signature. Humans see a 3D graph — AI agents get perfectly structured data via MCP."
+                description="Your orbis has a unique URL and QR code. Pass it to any LLM, embed it in your portfolio, or add it to your email signature. Humans see a 3D graph — AI agents get perfectly structured data via MCP."
                 color="#14b8a6"
                 icon={
                   <svg className="w-5 h-5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -246,7 +246,7 @@ export default function LandingPage() {
             <FadeIn delay={0.3}>
               <FeatureCard
                 title="Always up to date"
-                description="Update your orb in one place. Every generated CV, shared link, and agent query reflects the latest version instantly. No more outdated PDFs floating around."
+                description="Update your orbis in one place. Every generated CV, shared link, and agent query reflects the latest version instantly. No more outdated PDFs floating around."
                 color="#6366f1"
                 icon={
                   <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -281,7 +281,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <FadeIn className="text-center mb-16">
             <p className="text-purple-400/60 text-xs font-bold uppercase tracking-widest mb-3">How it works</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white">Three steps to your orb</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white">Three steps to your orbis</h2>
           </FadeIn>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-8">
@@ -367,7 +367,7 @@ export default function LandingPage() {
             <FadeIn delay={0.3}>
               <FeatureCard
                 title="For AI Agents"
-                description="Every orb is queryable via MCP tools. AI agents can search skills, match roles, and retrieve structured career data."
+                description="Every orbis is queryable via MCP tools. AI agents can search skills, match roles, and retrieve structured career data."
                 color="#3b82f6"
                 icon={
                   <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -385,7 +385,7 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto text-center">
           <FadeIn>
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-              Ready to build your orb?
+              Ready to build your orbis?
             </h2>
             <p className="text-white/30 text-base mb-8 max-w-md mx-auto">
               It takes less than five minutes. No templates, no formatting, no PDFs — just you and your graph.
@@ -395,7 +395,7 @@ export default function LandingPage() {
                 onClick={() => navigate('/myorbis')}
                 className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
               >
-                Go to My Orb
+                Go to My Orbis
               </button>
             ) : (
               <button
