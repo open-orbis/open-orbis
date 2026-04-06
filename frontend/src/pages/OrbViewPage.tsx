@@ -778,9 +778,8 @@ export default function OrbViewPage() {
       // Seed a sample note for first-time users
       setDraftNotes([{
         id: 'sample-1',
-        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. You can also use the 🎙️ mic to dictate notes by voice. When ready, click "Add to graph" to turn a note into a real entry.',
+        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
         createdAt: Date.now(),
-        fromVoice: false,
       }]);
     }
     setDraftsLoaded(true);
