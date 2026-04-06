@@ -45,6 +45,7 @@ When you are invoked to contribute to this repository, you must strictly follow 
    * Spawn a subagent to assist with testing.
     * Write comprehensive tests covering unit, integration, and end-to-end scenarios.
     * Use the debugging-and-error-recovery skill to identify and fix any issues that arise during testing. Five-step triage: reproduce, localize, reduce, fix, guard. Stop-the-line rule, safe fallbacks
+    * If needed, use the     browser-testing-with-devtools skill to test the frontend.
    * Ensure your code works locally. 
    * Run any existing linters or test suites before committing.
    * Once testing is complete and all tests pass, close the subagent.
