@@ -37,8 +37,8 @@ const PRINT_PAD_X_PX = 16; // .resume-container horizontal padding in print (px)
 const PRINT_PAD_X_MM = PRINT_PAD_X_PX * 25.4 / 96;       // ~4.23mm
 const PRINT_CONTENT_W = (210 - 2 * PAGE_M_X) - 2 * PRINT_PAD_X_MM; // ~181.53mm
 
-const PRINT_FOOTER_H = 8;  // mm — space reserved for the fixed print footer
-const PAGE_H_MM = PAGE_USABLE_H - PRINT_FOOTER_H; // 261mm effective per page
+// The fixed print footer overlaps content visually but does NOT affect the
+// browser's page-break positions, so we use the full PAGE_USABLE_H here.
 
 /** Collect atomic blocks from the container — items that should not be split across pages. */
 function collectBlocks(container: HTMLElement): { top: number; height: number }[] {
@@ -230,7 +230,7 @@ export default function CvExportPage() {
       const style = getComputedStyle(el);
       const contentW = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       const pxPerMm = contentW / PRINT_CONTENT_W;
-      const pageH = PAGE_H_MM * pxPerMm;
+      const pageH = PAGE_USABLE_H * pxPerMm;
 
       const blocks = collectBlocks(el);
       if (blocks.length === 0) { setPageBreaks([]); return; }
@@ -1325,11 +1325,10 @@ const CV_CSS = `
   }
   .page-break-label {
     position: absolute;
-    right: calc(100% + 24px);
-    top: 50%;
-    transform: translateY(-50%);
+    left: 0;
+    top: -22px;
     white-space: nowrap;
-    font-size: 1.36rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: rgba(239, 68, 68, 0.6);
     background: var(--md-surface);
