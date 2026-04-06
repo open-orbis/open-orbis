@@ -26,20 +26,6 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 
 🤖 **Query it** — AI agents (Claude, Cursor, Copilot) can access your graph natively via the **Model Context Protocol (MCP)**
 
-### Use Cases
-
-📄 **Job seekers** — replace your static CV with a living profile that highlights skill connections across roles
-
-🏢 **Recruiters & hiring managers** — explore a candidate's skill graph instead of skimming bullet points; filter by tech stack, time period, or role
-
-🎓 **Researchers & academics** — map publications, collaborations, and expertise areas into a navigable knowledge graph
-
-🤝 **Freelancers & consultants** — share a filtered view of your orbis per client, showing only relevant experience
-
-🔗 **AI-powered workflows** — let agents pull structured professional data via MCP for automated sourcing, matching, or portfolio analysis
-
-📊 **Team leads** — visualize your team's collective skills to identify gaps or plan training
-
 ---
 
 ## Key Features
