@@ -433,6 +433,18 @@ function ProfilePanel({ person, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showDeleteConfirmPhoto, setShowDeleteConfirmPhoto] = useState(false);
+
+  // Sync values when person data refreshes (e.g. after save + re-fetch)
+  useEffect(() => {
+    const v: Record<string, string> = {};
+    for (const acc of SOCIAL_ACCOUNTS) {
+      v[acc.key] = (person[acc.key] as string) || '';
+    }
+    v.headline = (person.headline as string) || '';
+    v.location = (person.location as string) || '';
+    setValues(v);
+  }, [person]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profileImage = (person.profile_image as string) || '';
@@ -460,7 +472,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
       await deleteProfileImage();
       onSaved();
     } catch { /* toast handles */ }
-    finally { setUploadingImage(false); }
+    finally { setUploadingImage(false); setShowDeleteConfirmPhoto(false); }
   };
 
   const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
@@ -548,13 +560,31 @@ function ProfilePanel({ person, onClose, onSaved }: {
           /* ── Edit mode ── */
           <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
             {profileImage && (
-              <button
-                onClick={handleImageDelete}
-                disabled={uploadingImage}
-                className="text-[10px] font-medium text-red-400/70 hover:text-red-400 disabled:opacity-50 transition-colors"
-              >
-                Remove profile photo
-              </button>
+              showDeleteConfirmPhoto ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-red-400">Remove photo?</span>
+                  <button
+                    onClick={handleImageDelete}
+                    disabled={uploadingImage}
+                    className="text-[10px] font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
+                  >
+                    {uploadingImage ? 'Removing...' : 'Yes, remove'}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirmPhoto(false)}
+                    className="text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowDeleteConfirmPhoto(true)}
+                  className="text-[10px] font-medium text-red-400/70 hover:text-red-400 transition-colors"
+                >
+                  Remove profile photo
+                </button>
+              )
             )}
             <div>
               <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Headline</label>

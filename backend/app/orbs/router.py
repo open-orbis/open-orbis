@@ -152,6 +152,7 @@ async def update_my_profile(
     db: AsyncDriver = Depends(get_db),
 ):
     props = {k: v for k, v in data.model_dump().items() if v is not None}
+    props = encrypt_properties(props)
     async with db.session() as session:
         result = await session.run(
             UPDATE_PERSON, user_id=current_user["user_id"], properties=props
