@@ -157,6 +157,10 @@ export default function CvExportPage() {
   /* Profile image toggle */
   const [showProfileImage, setShowProfileImage] = useState(true);
 
+  /* Phone number toggle + value (for CV export only) */
+  const [showPhone, setShowPhone] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+
   /* Hidden entries + undo stack */
   const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(new Set());
   const [undoStack, setUndoStack] = useState<string[]>([]);
@@ -444,9 +448,10 @@ export default function CvExportPage() {
   }
 
   /* Contact links */
+  const phoneVal = showPhone && phoneNumber.trim() ? phoneNumber.trim() : str(p.phone);
   const contacts = [
     p.email && { icon: 'fas fa-envelope', text: str(p.email) },
-    p.phone && { icon: 'fas fa-phone', href: `tel:${str(p.phone)}`, text: str(p.phone) },
+    phoneVal && { icon: 'fas fa-phone', href: `tel:${phoneVal}`, text: phoneVal },
     p.website_url && { icon: 'fas fa-globe', href: str(p.website_url), text: 'Website' },
     p.scholar_url && { icon: 'fas fa-graduation-cap', href: str(p.scholar_url), text: 'Scholar' },
     p.github_url && { icon: 'fab fa-github', href: str(p.github_url), text: 'GitHub' },
@@ -713,6 +718,26 @@ export default function CvExportPage() {
       <div className="cv-toolbar no-print">
         <span className="cv-toolbar-hint">Click text to edit and format · Drag sections to reorder · Save as PDF &amp; uncheck &quot;Headers and footers&quot;</span>
 
+        {/* Phone toggle + input */}
+        <label className="cv-color-picker" style={{ cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={showPhone}
+            onChange={(e) => setShowPhone(e.target.checked)}
+            style={{ marginRight: '4px' }}
+          />
+          <span className="cv-color-label">Phone</span>
+        </label>
+        {showPhone && (
+          <input
+            type="tel"
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            placeholder="+1 234 567 890"
+            className="cv-phone-input"
+          />
+        )}
+
         {/* Profile image toggle */}
         {(data?.person?.profile_image as string) && (
           <label className="cv-color-picker" style={{ cursor: 'pointer' }}>
@@ -904,6 +929,20 @@ const CV_CSS = `
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .cv-phone-input {
+    padding: 6px 10px;
+    border: 1px solid var(--md-outline-variant);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-family: 'Roboto', sans-serif;
+    color: var(--md-on-surface);
+    background: var(--md-surface);
+    width: 140px;
+  }
+  .cv-phone-input:focus {
+    outline: 2px solid var(--md-primary);
+    outline-offset: -1px;
   }
   .cv-toolbar-btn {
     display: inline-flex;

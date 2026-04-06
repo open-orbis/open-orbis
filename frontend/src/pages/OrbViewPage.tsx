@@ -582,7 +582,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
                   <input
                     value={values[acc.key]}
                     onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
-                    placeholder={`${acc.label} URL`}
+                    placeholder={acc.key === 'phone' ? 'e.g. +1 234 567 890' : `${acc.label} URL`}
                     className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
                   />
                 </div>
@@ -608,7 +608,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
                 {filledAccounts.map((acc) => (
                   <a
                     key={acc.key}
-                    href={values[acc.key]}
+                    href={acc.key === 'phone' ? `tel:${values[acc.key]}` : values[acc.key]}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/15 hover:bg-white/8 transition-all group"
