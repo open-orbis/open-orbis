@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "orbis_token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZWVkLWFsZXNzYW5kcm8tYmVydGkiLCJlbWFpbCI6ImRldkBvcmJpcy5sb2NhbCIsImV4cCI6MTc3NTU5NjIwMn0.pZo5C050ui_hlqChvTy2UXwoRALnapeqalAUGdCXSjk"
+        }
+      ]
+    }
+  ]
+}
