@@ -2,9 +2,8 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo.svg">
     <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
-    <img alt="" src="docs/assets/logo-light.svg" width="36" valign="middle">
+    <img alt="OpenOrbis" src="docs/assets/logo-light.svg" width="400">
   </picture>
-  OpenOrbis
 </h1>
 
 <p align="center">
