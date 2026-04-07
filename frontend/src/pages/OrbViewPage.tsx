@@ -485,6 +485,7 @@ export default function OrbViewPage() {
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
+  const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
 
   // ESC key closes any open panel/modal
@@ -578,12 +579,23 @@ export default function OrbViewPage() {
       setDraftNotes((prev) => prev.filter((n) => n.id !== pendingDraftNoteId));
       setPendingDraftNoteId(null);
     }
+    setPendingDraftRawText('');
     setPendingSkillLinks([]);
     setShowInput(false);
     setEditNode(null);
   };
 
   const handleDraftToGraph = (note: DraftNote) => {
+    setPendingDraftNoteId(note.id);
+    // If the draft has been enhanced, jump straight into the form with the
+    // enhanced state so the user only has to confirm before creating the node.
+    if (note.enhanced) {
+      setPendingSkillLinks(note.enhanced.suggestedSkillUids);
+      setEditNode({ type: note.enhanced.nodeType, values: note.enhanced.properties });
+      setShowInput(true);
+      setShowDrafts(false);
+      return;
+    }
     const text = note.text.toLowerCase();
     const detect: [RegExp, string][] = [
       [/\b(python|javascript|typescript|react|angular|vue|java|c\+\+|node\.?js|sql|docker|kubernetes|aws|git|html|css|figma|photoshop|agile|scrum|machine learning|data science|deep learning|tensorflow|pytorch)\b/i, 'skill'],
@@ -598,13 +610,24 @@ export default function OrbViewPage() {
     for (const [regex, nodeType] of detect) {
       if (regex.test(text)) { type = nodeType; break; }
     }
-    setPendingDraftNoteId(note.id);
     setEditNode({ type, values: { description: note.text } });
     setShowInput(true);
     setShowDrafts(false);
   };
 
   const handleDraftEnhance = async (note: DraftNote, targetLang: string) => {
+    // Already enhanced: re-open the form with the saved structured data so
+    // the user can keep refining without spending another LLM call.
+    if (note.enhanced) {
+      setPendingDraftNoteId(note.id);
+      setPendingDraftRawText(note.text);
+      setPendingSkillLinks(note.enhanced.suggestedSkillUids);
+      setEditNode({ type: note.enhanced.nodeType, values: note.enhanced.properties });
+      setShowInput(true);
+      setShowDrafts(false);
+      return;
+    }
+
     const existingSkills = (data?.nodes || [])
       .filter((n) => n._labels?.[0] === 'Skill' && n.name)
       .map((n) => ({ uid: n.uid, name: n.name as string }));
@@ -612,10 +635,44 @@ export default function OrbViewPage() {
     const result = await enhanceNote(note.text, targetLang, existingSkills);
 
     setPendingDraftNoteId(note.id);
+    setPendingDraftRawText(note.text);
     setPendingSkillLinks(result.suggested_skill_uids);
     setEditNode({ type: result.node_type, values: result.properties });
     setShowInput(true);
     setShowDrafts(false);
+  };
+
+  const handleSaveDraftEnhanced = (nodeType: string, properties: Record<string, unknown>) => {
+    if (!pendingDraftNoteId) return;
+    const draftId = pendingDraftNoteId;
+    const rawText = pendingDraftRawText;
+    const skillUids = pendingSkillLinks;
+    setDraftNotes((prev) => {
+      const existing = prev.find((n) => n.id === draftId);
+      if (existing) {
+        return prev.map((n) =>
+          n.id === draftId
+            ? { ...n, enhanced: { nodeType, properties, suggestedSkillUids: skillUids, updatedAt: Date.now() } }
+            : n,
+        );
+      }
+      // The draft was created on the fly from the input field — persist it now.
+      return [
+        {
+          id: draftId,
+          text: rawText,
+          createdAt: Date.now(),
+          enhanced: { nodeType, properties, suggestedSkillUids: skillUids, updatedAt: Date.now() },
+        },
+        ...prev,
+      ];
+    });
+    setPendingDraftNoteId(null);
+    setPendingDraftRawText('');
+    setPendingSkillLinks([]);
+    setShowInput(false);
+    setEditNode(null);
+    setShowDrafts(true);
   };
 
   const orbId = (data?.person?.orb_id as string) || '';
@@ -784,7 +841,7 @@ export default function OrbViewPage() {
         open={showInput}
         editNode={editNode}
         onSubmit={handleSubmit}
-        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); }}
+        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); setPendingDraftRawText(''); }}
         onDelete={async (uid) => {
           await deleteNode(uid);
           setShowInput(false);
@@ -799,6 +856,7 @@ export default function OrbViewPage() {
           setPendingSkillLinks(result.suggested_skill_uids);
           return { node_type: result.node_type, properties: result.properties };
         }}
+        onSaveDraft={pendingDraftNoteId ? handleSaveDraftEnhanced : undefined}
       />
 
       {/* ── Chat Box ── */}
