@@ -11,6 +11,18 @@ services:
       - neo4j_data:/data
       - ./infra/neo4j:/import
 
+  neo4j-social:
+    image: neo4j:5-community
+    ports:
+      - "7475:7474"  # Browser
+      - "7688:7687"  # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/orbis_social_dev_password
+      NEO4J_PLUGINS: '[]'
+    volumes:
+      - neo4j_social_data:/data
+      - ./infra/neo4j-social:/import
+
   ollama:
     image: ollama/ollama:latest
     container_name: orbis-ollama
@@ -21,4 +33,5 @@ services:
 
 volumes:
   neo4j_data:
+  neo4j_social_data:
   ollama_data:
