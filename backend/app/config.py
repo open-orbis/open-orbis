@@ -7,6 +7,12 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "orbis_dev_password"
 
+    # Social Neo4j
+    social_neo4j_uri: str = "bolt://localhost:7688"
+    social_neo4j_user: str = "neo4j"
+    social_neo4j_password: str = "orbis_social_dev_password"
+    social_dev_endpoints: bool = True
+
     # JWT
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
