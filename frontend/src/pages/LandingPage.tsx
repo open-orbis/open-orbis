@@ -89,7 +89,7 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
         {signingInProvider === 'google' ? 'Signing in...' : 'Sign in with Google'}
       </button>
       <button
-        onClick={() => { !busy && redirectToLinkedIn(); }}
+        onClick={() => { if (!busy) redirectToLinkedIn(); }}
         disabled={busy}
         className="flex items-center justify-center gap-3 bg-[#0A66C2] hover:bg-[#004182] disabled:opacity-50 text-white font-medium py-3 px-6 rounded-xl transition-all shadow-lg text-sm w-full cursor-pointer"
       >
