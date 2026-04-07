@@ -33,7 +33,15 @@ async def call_claude(
         stderr=asyncio.subprocess.PIPE,
     )
 
-    stdout, stderr = await process.communicate(input=user_message.encode("utf-8"))
+    try:
+        stdout, stderr = await asyncio.wait_for(
+            process.communicate(input=user_message.encode("utf-8")),
+            timeout=1800,  # 30 minutes
+        )
+    except asyncio.TimeoutError:
+        process.kill()
+        logger.error("Claude CLI timed out after 30 minutes")
+        raise RuntimeError("Claude CLI timed out after 30 minutes")
 
     if process.returncode != 0:
         error_msg = stderr.decode("utf-8", errors="replace").strip()

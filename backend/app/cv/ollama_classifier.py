@@ -173,7 +173,7 @@ class ClassificationResult:
 
 
 MAX_RETRIES = 2
-TEXT_LIMIT = 12000
+TEXT_LIMIT_OLLAMA = 12000
 
 
 async def classify_entries(raw_text: str) -> ClassificationResult:  # noqa: C901
@@ -184,8 +184,13 @@ async def classify_entries(raw_text: str) -> ClassificationResult:  # noqa: C901
     if not raw_text.strip():
         return ClassificationResult()
 
-    truncated = len(raw_text) > TEXT_LIMIT
-    text_for_llm = raw_text[:TEXT_LIMIT]
+    # Ollama needs a limit due to small context window; Claude handles full text
+    if settings.llm_provider == "claude":
+        text_for_llm = raw_text
+        truncated = False
+    else:
+        truncated = len(raw_text) > TEXT_LIMIT_OLLAMA
+        text_for_llm = raw_text[:TEXT_LIMIT_OLLAMA]
 
     user_message = f"""Here is the text extracted from a CV/resume document:
 

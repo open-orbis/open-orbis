@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # LLM provider: "ollama" (local) or "claude" (Claude Code CLI subscription)
-    llm_provider: str = "ollama"
+    llm_provider: str = "claude"
     claude_model: str = "claude-opus-4-6"
 
     # Ollama (local LLM)

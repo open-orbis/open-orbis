@@ -6,6 +6,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from neo4j import AsyncDriver
 
+from app.config import settings
 from app.cv import counter
 from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
@@ -69,7 +70,7 @@ async def upload_cv(
             )
 
         # Step 2: Classify entries via LLM
-        logger.info("Classifying entries with Ollama (%d chars)", len(raw_text))
+        logger.info("Classifying entries with %s (%d chars)", settings.llm_provider, len(raw_text))
         result = await classify_entries(raw_text)
 
         if not result.nodes and not result.unmatched:

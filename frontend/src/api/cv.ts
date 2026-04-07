@@ -28,7 +28,7 @@ export async function uploadCV(file: File): Promise<ExtractedData> {
   formData.append('file', file);
   const { data } = await client.post('/cv/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 600000, // 10 min timeout for Docling + Claude CLI
+    timeout: 1800000, // 30 min timeout for Docling + Claude CLI
   });
   return data;
 }
