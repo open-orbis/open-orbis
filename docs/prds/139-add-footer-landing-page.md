@@ -11,7 +11,7 @@ The goal of this task is to enhance the `LandingPage.tsx` with a comprehensive f
   - GitHub: `https://github.com/Brotherhood94/orb_project`
   - About: `/about`
   - Privacy Policy: `/privacy`
-- Copyright notice is present and reflects the current year (2025).
+- Copyright notice is present and reflects the current year.
 - Consistent styling with the existing landing page theme (dark theme, Tailwind 4, Framer Motion).
 
 ## Tech Stack
