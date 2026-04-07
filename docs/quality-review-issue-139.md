@@ -21,7 +21,8 @@ A quality review was performed on the footer implementation for issue #139. The 
 
 ### 4. Security
 - External links (GitHub) correctly use `target="_blank"` with `rel="noopener noreferrer"` to prevent security risks and performance issues.
-- No sensitive data or user inputs are handled in these components.
+- The reviewed footer components do not themselves process sensitive user input, but PRs must not commit sensitive auth state or tokens.
+- In particular, files such as `frontend/e2e/.auth/user.json` can contain authentication data (for example, tokens stored in `localStorage`) and must be removed from the PR and kept out of version control.
 
 ### 5. Performance
 - Animations use `framer-motion`'s `whileInView`, which ensures they only trigger when the component is visible in the viewport.
