@@ -31,7 +31,7 @@ test('Add, Edit, and Delete a node', async ({ page }) => {
   // Alternative: Since we just added it, it's the only node if it was a fresh account.
   // Let's assume we can't reliably click the 3D node and instead verify the "Add" worked by checking 
   // if it's searchable.
-  await expect(page.getByText(/Testing Master/i)).toBeVisible();
+  await expect(page.getByText(/Testing Master/i).first()).toBeVisible();
 
   // Let's try to click the node using a coordinate if we had one, 
   // but better: use the "Inbox" or "Notes" if it was there.

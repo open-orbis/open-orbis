@@ -5,9 +5,11 @@ import io
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+import json
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from neo4j import AsyncDriver
+from neo4j.time import Date, DateTime
 
 from app.dependencies import get_db
 from app.graph.encryption import decrypt_properties
@@ -194,6 +196,12 @@ def _generate_pdf(  # noqa: C901
     return pdf.output()
 
 
+def serialize_neo4j(obj):
+    if isinstance(obj, (DateTime, Date)):
+        return obj.iso_format()
+    return obj
+
+
 @router.get("/{orb_id}")
 @limiter.limit("30/minute")
 async def export_orb(
@@ -304,11 +312,16 @@ async def export_orb(
                 }
             )
 
-        return JSONResponse(content=jsonld, media_type="application/ld+json")
+        return Response(
+            content=json.dumps(jsonld, default=serialize_neo4j),
+            media_type="application/ld+json",
+        )
 
     # Plain JSON
-    return {
-        "orb_id": orb_id,
-        "person": person,
-        "nodes": nodes,
-    }
+    return Response(
+        content=json.dumps(
+            {"orb_id": orb_id, "person": person, "nodes": nodes},
+            default=serialize_neo4j,
+        ),
+        media_type="application/json",
+    )

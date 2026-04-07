@@ -63,10 +63,10 @@ test('user can upload CV and see graph', async ({ page }) => {
   - Run E2E tests against production databases.
 
 ## Success Criteria
-- [ ] Playwright is successfully integrated into the `frontend` project.
-- [ ] All 5 critical user journeys listed in the Objective are covered by automated tests.
-- [ ] Tests pass consistently in a headless environment.
-- [ ] A GitHub Action is configured to run these tests on every Pull Request to `main`.
+- [x] Playwright is successfully integrated into the `frontend` project.
+- [x] All 5 critical user journeys listed in the Objective are covered by automated tests.
+- [x] Tests pass consistently in a headless environment.
+- [x] A GitHub Action is configured to run these tests on every Pull Request to `main`.
 
 ## Implementation Plan
 
