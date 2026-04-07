@@ -23,6 +23,7 @@ backend/
     messages/    # Inbox system (public send, authenticated read/reply/delete)
     notes/       # LLM-enhanced note-to-node conversion
     search/      # Semantic (vector index) and fuzzy text search
+    social/      # Social graph: separate Neo4j for user connections (encrypted)
     export/      # Public orb export (JSON, JSON-LD, PDF)
     main.py      # FastAPI app factory, middleware (CORS, SlowAPI), router registration
     config.py    # Pydantic Settings (env-based)
@@ -59,6 +60,7 @@ infra/           # Neo4j init script (constraints, indexes, vector indexes)
 ## Services (Docker Compose)
 
 - **Neo4j:** ports 7474 (browser), 7687 (bolt) — auth: neo4j/orbis_dev_password
+- **Neo4j Social:** ports 7475 (browser), 7688 (bolt) — auth: neo4j/orbis_social_dev_password
 - **Ollama:** port 11434
 - **Backend API:** port 8000 (run locally, not in Docker)
 - **Frontend dev:** port 5173 (Vite dev server with /api proxy to backend)
@@ -82,7 +84,7 @@ npm run lint                  # ESLint
 npm run build                 # Type-check + build
 
 # Infrastructure
-docker compose up -d          # Start Neo4j + Ollama
+docker compose up -d          # Start Neo4j, Neo4j Social, Ollama
 ```
 
 ## Documentation
