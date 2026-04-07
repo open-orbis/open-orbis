@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import HeroOrb from '../components/landing/HeroOrb';
+import Footer from '../components/landing/Footer';
 
 // ── Animated section wrapper ──
 function FadeIn({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -410,18 +411,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-white/[0.05] py-8 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-purple-600/30 border border-purple-500/30 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-purple-400" />
-            </div>
-            <span className="text-white/30 text-sm font-medium">OpenOrbis</span>
-          </div>
-          <p className="text-white/15 text-xs">Your career as a knowledge graph.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
