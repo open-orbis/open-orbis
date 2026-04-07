@@ -16,8 +16,12 @@ client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      const hadToken = localStorage.getItem('orbis_token') !== null;
       localStorage.removeItem('orbis_token');
-      window.location.href = '/';
+      // Notify the app — handled in App.tsx (toast + soft navigation)
+      if (hadToken) {
+        window.dispatchEvent(new CustomEvent('orbis:session-expired'));
+      }
     }
     return Promise.reject(error);
   }

@@ -1,21 +1,38 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import { hasOrbContent } from '../api/orbs';
 
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setToken, fetchUser } = useAuthStore();
+  const { setToken, fetchUser, loginGoogle } = useAuthStore();
 
   useEffect(() => {
+    const goToPostLogin = async () => {
+      const hasContent = await hasOrbContent();
+      navigate(hasContent ? '/myorbis' : '/create');
+    };
+
+    // Legacy flow: backend redirects with ?token=
     const token = searchParams.get('token');
     if (token) {
       setToken(token);
-      fetchUser().then(() => navigate('/create'));
-    } else {
-      navigate('/');
+      fetchUser().then(goToPostLogin);
+      return;
     }
-  }, [searchParams, setToken, fetchUser, navigate]);
+
+    // Google redirect flow: ?code=
+    const code = searchParams.get('code');
+    if (code) {
+      loginGoogle(code)
+        .then(goToPostLogin)
+        .catch(() => navigate('/'));
+      return;
+    }
+
+    navigate('/');
+  }, [searchParams, setToken, fetchUser, loginGoogle, navigate]);
 
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center">

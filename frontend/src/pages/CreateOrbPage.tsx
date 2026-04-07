@@ -8,6 +8,7 @@ import FloatingInput from '../components/editor/FloatingInput';
 import { NODE_TYPE_LABELS } from '../components/graph/NodeColors';
 import CVUploadOnboarding from '../components/onboarding/CVUploadOnboarding';
 import ConsentGate from '../components/onboarding/ConsentGate';
+import Navbar from '../components/Navbar';
 
 const SUGGESTED_ORDER = [
   { type: 'work_experience', prompt: "Let's start with your work experience" },
@@ -104,7 +105,8 @@ export default function CreateOrbPage() {
   if (!selectedPath) {
     return (
       <ConsentGate>
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6">
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 relative">
+        <Navbar />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -127,7 +129,7 @@ export default function CreateOrbPage() {
         >
           <PathCard
             title="Import from your CV"
-            description="Upload a PDF or DOCX file. We'll parse it and extract your experiences, skills, and education."
+            description="Upload a PDF file. We'll parse it and extract your experiences, skills, and education."
             color="#3b82f6"
             onClick={() => setSelectedPath('upload')}
             icon={
@@ -140,7 +142,7 @@ export default function CreateOrbPage() {
             title="Build from scratch"
             description="Start with an empty orbis and add entries one by one. Full control over every detail."
             color="#10b981"
-            onClick={() => navigate('/myorbis')}
+            onClick={() => navigate('/myorbis', { state: { allowEmpty: true } })}
             icon={
               <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -155,7 +157,12 @@ export default function CreateOrbPage() {
 
   // ── CV Upload path ──
   if (selectedPath === 'upload') {
-    return <CVUploadOnboarding />;
+    return (
+      <div className="relative">
+        <Navbar />
+        <CVUploadOnboarding />
+      </div>
+    );
   }
 
   // ── Manual path (existing flow) ──
@@ -180,22 +187,24 @@ export default function CreateOrbPage() {
       )}
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4">
-        <div className="text-white">
-          <span className="text-base sm:text-lg font-semibold">{user?.name || 'My Orbis'}</span>
-          <span className="text-gray-500 text-xs sm:text-sm ml-2 sm:ml-3">{nodeCount} nodes</span>
-        </div>
-        <div className="flex gap-3">
-          {nodeCount > 0 && (
+      <Navbar
+        center={
+          <div className="text-white/70 text-sm">
+            <span className="font-medium text-white">{user?.name || 'My Orbis'}</span>
+            <span className="text-white/30 ml-2 hidden sm:inline">{nodeCount} nodes</span>
+          </div>
+        }
+        rightBefore={
+          nodeCount > 0 ? (
             <button
               onClick={handleFinish}
-              className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+              className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-1.5 px-3 sm:px-4 rounded-lg transition-colors cursor-pointer"
             >
-              Done — View My Orbisis
+              Done <span className="hidden sm:inline">— View My Orbis</span>
             </button>
-          )}
-        </div>
-      </div>
+          ) : null
+        }
+      />
 
       {/* Bottom prompt bar — shown when input is closed */}
       <AnimatePresence>

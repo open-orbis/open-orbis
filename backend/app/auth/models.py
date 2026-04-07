@@ -6,6 +6,7 @@ class UserInfo(BaseModel):
     email: str
     name: str
     picture: str = ""
+    profile_image: str = ""
     gdpr_consent: bool = False
 
 
@@ -13,3 +14,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserInfo
+
+
+class OAuthCodeRequest(BaseModel):
+    code: str
