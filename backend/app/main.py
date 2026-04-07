@@ -25,13 +25,19 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: verify Neo4j connection
+    # Startup: verify Neo4j connections
     driver = await get_driver()
     async with driver.session() as session:
         await session.run("RETURN 1")
+
+    social_driver = await get_social_driver()
+    async with social_driver.session() as session:
+        await session.run("RETURN 1")
+
     yield
     # Shutdown
     await close_driver()
+    await close_social_driver()
 
 
 app = FastAPI(title="Orbis API", version="0.1.0", lifespan=lifespan)
