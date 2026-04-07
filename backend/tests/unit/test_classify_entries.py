@@ -14,7 +14,7 @@ import pytest
 import respx
 from httpx import Response
 
-from app.cv.ollama_classifier import TEXT_LIMIT_OLLAMA_OLLAMA, classify_entries
+from app.cv.ollama_classifier import TEXT_LIMIT_OLLAMA, classify_entries
 
 # A valid LLM JSON response
 GOOD_LLM_RESPONSE = json.dumps(
