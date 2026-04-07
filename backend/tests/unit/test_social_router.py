@@ -53,7 +53,9 @@ def test_create_connection_success(social_client, mock_social_db):
         }
     )
 
-    session_mock.run = AsyncMock(side_effect=[merge_result, merge_result, create_result])
+    session_mock.run = AsyncMock(
+        side_effect=[merge_result, merge_result, create_result]
+    )
 
     payload = {"target_user_id": "other-user", "direction": "outgoing"}
     response = social_client.post("/connections/dev", json=payload)
@@ -69,7 +71,9 @@ def test_create_connection_duplicate(social_client, mock_social_db):
     create_result = AsyncMock()
     create_result.single = AsyncMock(return_value=None)
 
-    session_mock.run = AsyncMock(side_effect=[merge_result, merge_result, create_result])
+    session_mock.run = AsyncMock(
+        side_effect=[merge_result, merge_result, create_result]
+    )
 
     payload = {"target_user_id": "other-user", "direction": "outgoing"}
     response = social_client.post("/connections/dev", json=payload)
@@ -92,14 +96,21 @@ def test_get_connections(social_client, mock_social_db):
     connections_result.single = AsyncMock(
         return_value={
             "connections": [
-                {"user_id": "encrypted-other", "direction": "outgoing", "created_at": "2026-04-07T10:00:00"},
+                {
+                    "user_id": "encrypted-other",
+                    "direction": "outgoing",
+                    "created_at": "2026-04-07T10:00:00",
+                },
             ]
         }
     )
 
     session_mock.run = AsyncMock(return_value=connections_result)
 
-    with patch("app.social.router.decrypt_value", side_effect=lambda x: x.replace("encrypted-", "")):
+    with patch(
+        "app.social.router.decrypt_value",
+        side_effect=lambda x: x.replace("encrypted-", ""),
+    ):
         response = social_client.get("/connections/me")
 
     assert response.status_code == 200
@@ -112,9 +123,7 @@ def test_get_connections_empty(social_client, mock_social_db):
     session_mock = mock_social_db.session.return_value.__aenter__.return_value
 
     connections_result = AsyncMock()
-    connections_result.single = AsyncMock(
-        return_value={"connections": []}
-    )
+    connections_result.single = AsyncMock(return_value={"connections": []})
 
     session_mock.run = AsyncMock(return_value=connections_result)
 

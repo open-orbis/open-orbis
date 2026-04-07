@@ -12,12 +12,12 @@ from app.config import settings
 from app.cv.router import router as cv_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
-from app.social.neo4j_client import close_social_driver, get_social_driver
 from app.messages.router import router as messages_router
 from app.notes.router import router as notes_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
 from app.search.router import router as search_router
+from app.social.neo4j_client import close_social_driver, get_social_driver
 from app.social.router import router as social_router
 
 logging.basicConfig(level=logging.INFO)

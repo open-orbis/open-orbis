@@ -16,7 +16,12 @@ from app.social.models import (
     CreateConnectionRequest,
     Direction,
 )
-from app.social.queries import CREATE_CONNECTION, DELETE_CONNECTION, GET_CONNECTIONS, MERGE_USER
+from app.social.queries import (
+    CREATE_CONNECTION,
+    DELETE_CONNECTION,
+    GET_CONNECTIONS,
+    MERGE_USER,
+)
 
 logger = logging.getLogger(__name__)
 
