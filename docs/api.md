@@ -90,3 +90,18 @@ Query params: `?format=json|jsonld|pdf`, `?filter_token=`, `?filter_keyword=`, `
 | POST | `/search/semantic` | JWT | Vector similarity search across 5 Neo4j indexes |
 | POST | `/search/text` | JWT | Fuzzy text search on own orb |
 | POST | `/search/text/public` | No | Fuzzy text search on any public orb (supports `?filter_token=`) |
+
+## MCP Tools (Model Context Protocol)
+
+The Orbis MCP server exposes professional knowledge graph data to AI agents. These tools are available via the MCP protocol.
+
+| Tool Name | Description | Parameters |
+|-----------|-------------|------------|
+| `orbis_get_summary` | Get professional profile summary and node counts. | `orb_id` (str), `filter_token` (opt, str) |
+| `orbis_get_full_orb` | Get complete graph data (person + nodes). | `orb_id` (str), `filter_token` (opt, str) |
+| `orbis_get_nodes_by_type` | Get all nodes of a specific type. | `orb_id` (str), `node_type` (str), `filter_token` (opt, str) |
+| `orbis_get_connections` | Get all relationships for a specific node. | `orb_id` (str), `node_uid` (str), `filter_token` (opt, str) |
+| `orbis_get_skills_for_experience` | Get skills associated with an experience/project. | `orb_id` (str), `experience_uid` (str), `filter_token` (opt, str) |
+| `orbis_send_message` | Send a message to an orb owner. | `orb_id`, `sender_name`, `sender_email`, `subject`, `body` |
+
+Note: retrieval tools (`get_*`) support an optional `filter_token` for fine-grained privacy. If provided and valid, nodes matching the filter keywords will be excluded from the response.

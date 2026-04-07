@@ -32,40 +32,59 @@ async def _get_driver():
 
 
 @mcp.tool()
-async def orbis_get_summary(orb_id: str) -> dict:
-    """Get a summary of a person's professional profile including name, headline, location, and counts of each node type (education, work, skills, etc.)."""
+async def orbis_get_summary(orb_id: str, filter_token: str | None = None) -> dict:
+    """Get a summary of a person's professional profile including name, headline, location, and counts of each node type (education, work, skills, etc.).
+
+    If a filter_token is provided, nodes matching the filter keywords will be excluded from counts.
+    """
     driver = await _get_driver()
-    return await get_orb_summary(driver, orb_id)
+    return await get_orb_summary(driver, orb_id, filter_token)
 
 
 @mcp.tool()
-async def orbis_get_full_orb(orb_id: str) -> dict:
-    """Get the complete graph data for a person's orb, including all nodes (education, work experience, skills, publications, projects, certifications, languages, collaborators) and their properties."""
+async def orbis_get_full_orb(orb_id: str, filter_token: str | None = None) -> dict:
+    """Get the complete graph data for a person's orb, including all nodes and their properties.
+
+    If a filter_token is provided, matching nodes will be omitted from the results.
+    """
     driver = await _get_driver()
-    return await get_orb_full(driver, orb_id)
+    return await get_orb_full(driver, orb_id, filter_token)
 
 
 @mcp.tool()
-async def orbis_get_nodes_by_type(orb_id: str, node_type: str) -> list[dict]:
-    """Get all nodes of a specific type from an orb. Valid node_types: education, work_experience, certification, language, publication, project, skill, collaborator."""
+async def orbis_get_nodes_by_type(
+    orb_id: str, node_type: str, filter_token: str | None = None
+) -> list[dict]:
+    """Get all nodes of a specific type from an orb. Valid node_types: education, work_experience, certification, language, publication, project, skill, collaborator.
+
+    If a filter_token is provided, matching nodes will be omitted.
+    """
     driver = await _get_driver()
-    return await get_nodes_by_type(driver, orb_id, node_type)
+    return await get_nodes_by_type(driver, orb_id, node_type, filter_token)
 
 
 @mcp.tool()
-async def orbis_get_connections(orb_id: str, node_uid: str) -> dict:
-    """Get all relationships and connected nodes for a specific node identified by its uid."""
+async def orbis_get_connections(
+    orb_id: str, node_uid: str, filter_token: str | None = None
+) -> dict:
+    """Get all relationships and connected nodes for a specific node identified by its uid.
+
+    If a filter_token is provided, connected nodes matching the filters will be omitted.
+    """
     driver = await _get_driver()
-    return await get_connections(driver, orb_id, node_uid)
+    return await get_connections(driver, orb_id, node_uid, filter_token)
 
 
 @mcp.tool()
 async def orbis_get_skills_for_experience(
-    orb_id: str, experience_uid: str
+    orb_id: str, experience_uid: str, filter_token: str | None = None
 ) -> list[dict]:
-    """Get all skills that were used in a specific work experience or project, identified by the experience's uid."""
+    """Get all skills that were used in a specific work experience or project, identified by the experience's uid.
+
+    If a filter_token is provided, matching skills will be omitted.
+    """
     driver = await _get_driver()
-    return await get_skills_for_experience(driver, orb_id, experience_uid)
+    return await get_skills_for_experience(driver, orb_id, experience_uid, filter_token)
 
 
 @mcp.tool()
