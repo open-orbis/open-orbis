@@ -301,73 +301,86 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
         {editing ? (
           /* ── Edit mode ── */
-          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+          <div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+            {/* Photo actions */}
             {profileImage && (
-              showDeleteConfirmPhoto ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-red-400">Remove photo?</span>
-                  <button
-                    onClick={handleImageDelete}
-                    disabled={uploadingImage}
-                    className="text-[10px] font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
-                  >
-                    {uploadingImage ? 'Removing...' : 'Yes, remove'}
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirmPhoto(false)}
-                    className="text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowDeleteConfirmPhoto(true)}
-                  className="text-[10px] font-medium text-red-400/70 hover:text-red-400 transition-colors"
-                >
-                  Remove profile photo
-                </button>
-              )
-            )}
-            <div>
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Headline</label>
-              <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
-                placeholder="e.g. Senior Software Engineer"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Location</label>
-              <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
-                placeholder="e.g. San Francisco, CA"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-            </div>
-
-            <div className="border-t border-white/5 pt-3 mt-3">
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-2">Social Accounts</label>
-              {SOCIAL_ACCOUNTS.map((acc) => (
-                <div key={acc.key} className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
-                      <path d={acc.icon} />
-                    </svg>
+              <div className="mb-4">
+                {showDeleteConfirmPhoto ? (
+                  <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+                    <span className="text-xs text-red-400">Remove photo?</span>
+                    <button onClick={handleImageDelete} disabled={uploadingImage}
+                      className="text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors cursor-pointer">
+                      {uploadingImage ? 'Removing...' : 'Yes'}
+                    </button>
+                    <button onClick={() => setShowDeleteConfirmPhoto(false)}
+                      className="text-xs font-medium text-white/40 hover:text-white/60 transition-colors cursor-pointer">
+                      Cancel
+                    </button>
                   </div>
-                  <input
-                    value={values[acc.key]}
-                    onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
-                    placeholder={`${acc.label} URL`}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
-                  />
-                </div>
-              ))}
+                ) : (
+                  <button onClick={() => setShowDeleteConfirmPhoto(true)}
+                    className="text-xs font-medium text-red-400/60 hover:text-red-400 transition-colors cursor-pointer">
+                    Remove profile photo
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Profile fields */}
+            <div className="space-y-4 mb-5">
+              <div>
+                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Headline</label>
+                <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
+                  placeholder="e.g. Senior Software Engineer"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Location</label>
+                <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
+                  placeholder="e.g. San Francisco, CA"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            {/* Social accounts */}
+            <div className="border-t border-white/5 pt-4">
+              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-3">Social Accounts</label>
+              <div className="space-y-2">
+                {SOCIAL_ACCOUNTS.map((acc) => (
+                  <div key={acc.key} className="flex items-center gap-2.5 bg-white/[0.02] rounded-lg px-2 py-1 hover:bg-white/[0.04] transition-colors">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${acc.color}15` }}>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
+                        <path d={acc.icon} />
+                      </svg>
+                    </div>
+                    <input
+                      value={values[acc.key]}
+                      onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
+                      placeholder={`${acc.label} URL`}
+                      className="flex-1 bg-transparent border-none text-white text-xs placeholder:text-white/20 focus:outline-none min-w-0"
+                    />
+                    {values[acc.key]?.trim() && (
+                      <button onClick={() => setValues({ ...values, [acc.key]: '' })}
+                        className="text-white/15 hover:text-white/40 transition-colors flex-shrink-0 cursor-pointer">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-5 sticky bottom-0 bg-gray-950 pb-1">
               <button onClick={handleSave} disabled={saving}
-                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">
+                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
                 {saving ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setEditing(false)}
-                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2 rounded-lg transition-colors text-sm">
+                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
                 Cancel
               </button>
             </div>
@@ -656,23 +669,18 @@ export default function OrbViewPage() {
   }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
-  const handleToggleNodeType = useCallback((type: string) => {
-    setHiddenNodeTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  }, []);
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent', 'Award', 'Outreach'];
 
   const handleShowAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set());
   }, []);
 
-  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
-
   const handleHideAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
+  }, []);
+
+  const handleSetVisibleNodeTypes = useCallback((visibleTypes: Set<string>) => {
+    setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
   if (loading || !data) {
@@ -704,9 +712,9 @@ export default function OrbViewPage() {
             <div className="flex items-center gap-1">
               <NodeTypeFilter
                 hiddenTypes={hiddenNodeTypes}
-                onToggleType={handleToggleNodeType}
                 onShowAll={handleShowAllNodeTypes}
                 onHideAll={handleHideAllNodeTypes}
+                onSetVisible={handleSetVisibleNodeTypes}
               />
               <KeywordFilterDropdown />
               <button
