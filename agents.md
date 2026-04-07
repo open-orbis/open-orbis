@@ -25,6 +25,10 @@ When you are invoked to contribute to this repository, you must strictly follow 
    * If working from the internal TODO list, prioritize High priority tasks like "Test GraphRAG end-to-end" (A1) or "Fix graph visualization consistency" (A2). 
    * Avoid selecting issues that require significant refactoring or architectural changes unless you have explicit permission to do so. Focus on incremental improvements and bug fixes that align with the existing codebase and architecture. 
    * Avoid issues that requires research or learning new technologies that are not already part of the project. Stick to tasks that you can confidently complete with your current knowledge and capabilities.
+   * Assign the issue to ourselves.
+   * Remember that each PR should follow the single responsibility principle. If an issue is too broad, break it down into smaller, more focused issues before proceeding.
+   * Start working on the issue by commenting "Working on this issue" to indicate that you have taken ownership and are actively addressing it. 
+   * Start working on the issue from the main branch to ensure you have the latest codebase before creating a new branch for your work.
 3. **Branch Creation**: 
    * Create and check out a new branch for your work. Use a descriptive name: `git checkout -b feature/<issue-number>-<short-description>` or `git checkout -b fix/<issue-number>-<short-description>`.
 4. **Define what to build**:
@@ -44,6 +48,7 @@ When you are invoked to contribute to this repository, you must strictly follow 
    * Spawn a subagent to assist with testing.
     * Write comprehensive tests covering unit, integration, and end-to-end scenarios.
     * Use the debugging-and-error-recovery skill to identify and fix any issues that arise during testing. Five-step triage: reproduce, localize, reduce, fix, guard. Stop-the-line rule, safe fallbacks
+    * If needed, use the     browser-testing-with-devtools skill to test the frontend.
    * Ensure your code works locally. 
    * Run any existing linters or test suites before committing.
    * Once testing is complete and all tests pass, close the subagent.
@@ -64,3 +69,19 @@ When you are invoked to contribute to this repository, you must strictly follow 
 * **Respect End-to-End Encryption**: Sensitive fields must remain protected with Fernet encryption.
 * **Stay within Scope**: Do not refactor unrelated files unless strictly necessary to complete your chosen issue.
 * When you make changes, commit the code. Use conventional commits when you commit the code.
+* When you have to test html pages, use the browser-testing-with-devtools skill to test the frontend. Do not expect the user to test the frontend for you. Do not expect user to paste errors, if you use Playwright or Cypress you can test the frontend and get the logs with the errors without serving the HTML and expecting an input by the user.
+
+
+## Documentation
+
+Detailed docs live in `docs/`. Key files:
+
+- `docs/architecture.md` — system design, data flow, module interactions
+- `docs/api.md` — API endpoint reference (routes, methods, auth, payloads)
+- `docs/onboarding.md` — local setup, prerequisites, first-run steps
+- `docs/database.md` — Neo4j schema, node types, relationships, encryption
+- `docs/testing.md` — test strategy, running tests, CI pipelines, coverage
+- `docs/deployment.md` — production setup, Docker, environment variables
+- `docs/cv-extraction-quality.md` — CV extraction quality metrics and CI
+
+When making architectural changes, update both this file and the relevant docs.
