@@ -97,7 +97,7 @@ def test_get_connections(social_client, mock_social_db):
         return_value={
             "connections": [
                 {
-                    "user_id": "encrypted-other",
+                    "user_id": "other-user",
                     "direction": "outgoing",
                     "created_at": "2026-04-07T10:00:00",
                 },
@@ -107,11 +107,7 @@ def test_get_connections(social_client, mock_social_db):
 
     session_mock.run = AsyncMock(return_value=connections_result)
 
-    with patch(
-        "app.social.router.decrypt_value",
-        side_effect=lambda x: x.replace("encrypted-", ""),
-    ):
-        response = social_client.get("/connections/me")
+    response = social_client.get("/connections/me")
 
     assert response.status_code == 200
     data = response.json()
@@ -151,9 +147,41 @@ def test_delete_connection_not_found(social_client, mock_social_db):
     session_mock = mock_social_db.session.return_value.__aenter__.return_value
 
     delete_result = AsyncMock()
-    delete_result.single = AsyncMock(return_value={"deleted_count": 0})
+    delete_result.single = AsyncMock(return_value=None)
 
     session_mock.run = AsyncMock(return_value=delete_result)
 
     response = social_client.delete("/connections/nonexistent")
     assert response.status_code == 404
+
+
+def test_create_connection_dev_disabled(social_client, mock_social_db):
+    with patch("app.social.router.settings") as mock_settings:
+        mock_settings.social_dev_endpoints = False
+        payload = {"target_user_id": "other-user", "direction": "outgoing"}
+        response = social_client.post("/connections/dev", json=payload)
+        assert response.status_code == 404
+
+
+def test_create_connection_incoming(social_client, mock_social_db):
+    session_mock = mock_social_db.session.return_value.__aenter__.return_value
+
+    merge_result = AsyncMock()
+    merge_result.single = AsyncMock(return_value={"u": {"user_id": "some-id"}})
+
+    create_result = AsyncMock()
+    create_result.single = AsyncMock(
+        return_value={
+            "r": {"created_at": "2026-04-07T10:00:00"},
+            "a": {"user_id": "other-user"},
+            "b": {"user_id": "test-user"},
+        }
+    )
+
+    session_mock.run = AsyncMock(
+        side_effect=[merge_result, merge_result, create_result]
+    )
+
+    payload = {"target_user_id": "other-user", "direction": "incoming"}
+    response = social_client.post("/connections/dev", json=payload)
+    assert response.status_code == 201

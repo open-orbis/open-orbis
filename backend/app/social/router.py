@@ -7,7 +7,6 @@ from neo4j import AsyncDriver
 
 from app.config import settings
 from app.dependencies import get_current_user
-from app.graph.encryption import decrypt_value, encrypt_value
 from app.rate_limit import limiter
 from app.social.dependencies import get_social_db
 from app.social.models import (
@@ -58,19 +57,16 @@ async def create_connection_dev(
         from_id = payload.target_user_id
         to_id = current_user_id
 
-    encrypted_from = encrypt_value(from_id)
-    encrypted_to = encrypt_value(to_id)
-
     async with db.session() as session:
         # Lazily create User nodes
-        await session.run(MERGE_USER, user_id=encrypted_from)
-        await session.run(MERGE_USER, user_id=encrypted_to)
+        await session.run(MERGE_USER, user_id=from_id)
+        await session.run(MERGE_USER, user_id=to_id)
 
         # Create the directed connection
         result = await session.run(
             CREATE_CONNECTION,
-            from_user_id=encrypted_from,
-            to_user_id=encrypted_to,
+            from_user_id=from_id,
+            to_user_id=to_id,
         )
         record = await result.single()
 
@@ -89,21 +85,17 @@ async def get_my_connections(
     user: dict = Depends(get_current_user),
 ):
     """List the authenticated user's connections (outgoing and incoming)."""
-    encrypted_user_id = encrypt_value(user["user_id"])
-
     async with db.session() as session:
-        result = await session.run(GET_CONNECTIONS, user_id=encrypted_user_id)
+        result = await session.run(GET_CONNECTIONS, user_id=user["user_id"])
         record = await result.single()
 
     raw_connections = record["connections"] if record else []
 
     connections = []
     for conn in raw_connections:
-        if conn.get("user_id") is None:
-            continue
         connections.append(
             ConnectionOut(
-                user_id=decrypt_value(conn["user_id"]),
+                user_id=conn["user_id"],
                 direction=conn["direction"],
                 created_at=conn["created_at"],
             )
@@ -119,18 +111,15 @@ async def delete_connection(
     user: dict = Depends(get_current_user),
 ):
     """Remove a connection between the authenticated user and the target."""
-    encrypted_user_id = encrypt_value(user["user_id"])
-    encrypted_target = encrypt_value(target_user_id)
-
     async with db.session() as session:
         result = await session.run(
             DELETE_CONNECTION,
-            user_id=encrypted_user_id,
-            target_user_id=encrypted_target,
+            user_id=user["user_id"],
+            target_user_id=target_user_id,
         )
         record = await result.single()
 
-    if record is None or record["deleted_count"] == 0:
+    if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Connection not found",
