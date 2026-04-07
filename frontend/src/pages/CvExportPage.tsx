@@ -123,11 +123,11 @@ function hexToHsl(hex: string): [number, number, number] {
 
 /* ── Section types ── */
 
-type SectionKey = 'experience' | 'education' | 'projects' | 'publications' | 'patents' | 'certifications' | 'skills' | 'languages';
+type SectionKey = 'experience' | 'education' | 'projects' | 'publications' | 'patents' | 'awards' | 'outreach' | 'certifications' | 'skills' | 'languages';
 
 const DEFAULT_ORDER: SectionKey[] = [
   'experience', 'education', 'projects', 'publications',
-  'patents', 'certifications', 'skills', 'languages',
+  'patents', 'awards', 'outreach', 'certifications', 'skills', 'languages',
 ];
 
 const SECTION_LABELS: Record<SectionKey, string> = {
@@ -136,6 +136,8 @@ const SECTION_LABELS: Record<SectionKey, string> = {
   projects: 'Projects',
   publications: 'Publications',
   patents: 'Patents',
+  awards: 'Awards',
+  outreach: 'Outreach',
   certifications: 'Certifications',
   skills: 'Skills',
   languages: 'Languages',
@@ -395,6 +397,8 @@ export default function CvExportPage() {
   const projects = visible('Project');
   const publications = visible('Publication');
   const patents = visible('Patent');
+  const awards = sortDesc(visible('Award'), 'date');
+  const outreach = sortDesc(visible('Outreach'), 'date');
   const certifications = sortDesc(visible('Certification'), 'date');
   const skills = visible('Skill');
   const languages = visible('Language');
@@ -406,6 +410,8 @@ export default function CvExportPage() {
     projects: projects.length > 0,
     publications: publications.length > 0,
     patents: patents.length > 0,
+    awards: awards.length > 0,
+    outreach: outreach.length > 0,
     certifications: certifications.length > 0,
     skills: skills.length > 0,
     languages: languages.length > 0,
@@ -610,6 +616,58 @@ export default function CvExportPage() {
                     Patent Number: {str(n.patent_number)}
                   </p>
                 )}
+                {n.description && (
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </section>
+        );
+
+      case 'awards':
+        return (
+          <section key={key}>
+            <h3 className="section-title">Awards</h3>
+            {awards.map((n) => (
+              <div key={n.uid} className="item">
+                <DeleteBtn id={n.uid} />
+                <LinkBtn id={n.uid} />
+                <div className="item-header">
+                  <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.name)}</h4>
+                  <EntryLink id={n.uid} />
+                </div>
+                {n.issuing_organization && (
+                  <p className="item-subtitle" contentEditable suppressContentEditableWarning>
+                    {str(n.issuing_organization)}{n.date ? ` — ${str(n.date)}` : ''}
+                  </p>
+                )}
+                {n.description && (
+                  <div className="rich-text" contentEditable suppressContentEditableWarning>
+                    <ul><li>{str(n.description)}</li></ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </section>
+        );
+
+      case 'outreach':
+        return (
+          <section key={key}>
+            <h3 className="section-title">Outreach</h3>
+            {outreach.map((n) => (
+              <div key={n.uid} className="item">
+                <DeleteBtn id={n.uid} />
+                <LinkBtn id={n.uid} />
+                <div className="item-header">
+                  <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.title)}</h4>
+                  <EntryLink id={n.uid} />
+                </div>
+                <p className="item-subtitle" contentEditable suppressContentEditableWarning>
+                  {n.role ? `${str(n.role)} — ` : ''}{str(n.venue)}{n.date ? ` — ${str(n.date)}` : ''}
+                </p>
                 {n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>

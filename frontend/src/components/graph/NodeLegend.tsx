@@ -12,6 +12,8 @@ const TYPE_KEY_MAP: Record<string, string> = {
   Skill: 'skill',
   Collaborator: 'collaborator',
   Patent: 'patent',
+  Award: 'award',
+  Outreach: 'outreach',
 };
 
 const LEGEND_TYPES = Object.keys(TYPE_KEY_MAP);

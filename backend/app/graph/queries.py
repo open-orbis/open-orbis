@@ -15,6 +15,7 @@ CREATE (p:Person {
     linkedin_url: '',
     scholar_url: '',
     website_url: '',
+    orcid_url: '',
     open_to_work: false,
     created_at: datetime(),
     updated_at: datetime()
@@ -87,6 +88,8 @@ NODE_TYPE_LABELS = {
     "skill": "Skill",
     "collaborator": "Collaborator",
     "patent": "Patent",
+    "award": "Award",
+    "outreach": "Outreach",
 }
 
 NODE_TYPE_RELATIONSHIPS = {
@@ -99,6 +102,8 @@ NODE_TYPE_RELATIONSHIPS = {
     "skill": "HAS_SKILL",
     "collaborator": "COLLABORATED_WITH",
     "patent": "HAS_PATENT",
+    "award": "HAS_AWARD",
+    "outreach": "HAS_OUTREACH",
 }
 
 # ── Generic Node CRUD ──
@@ -133,6 +138,8 @@ NODE_TYPE_MERGE_KEYS: dict[str, list[str]] = {
     "project": ["name"],
     "patent": ["title"],
     "collaborator": ["name"],
+    "award": ["name"],
+    "outreach": ["title", "venue"],
 }
 
 # ── Cross-node relationships ──

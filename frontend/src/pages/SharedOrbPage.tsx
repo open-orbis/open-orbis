@@ -19,23 +19,18 @@ export default function SharedOrbPage() {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
 
-  const handleToggleNodeType = useCallback((type: string) => {
-    setHiddenNodeTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  }, []);
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent', 'Award', 'Outreach'];
 
   const handleShowAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set());
   }, []);
 
-  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
-
   const handleHideAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
+  }, []);
+
+  const handleSetVisibleNodeTypes = useCallback((visibleTypes: Set<string>) => {
+    setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
   // Public search bound to this orb — respects filter_token privacy
@@ -111,32 +106,35 @@ export default function SharedOrbPage() {
       {/* ── Header ── */}
       <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3">
         <div className="flex items-center justify-between">
+          {/* Left: logo + name + view filter */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
-              <span className="text-purple-300 text-xs font-bold">
-                {personName.charAt(0).toUpperCase()}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+                <div className="w-3 h-3 rounded-full bg-purple-400" />
+              </div>
+              <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
             </div>
+            <div className="hidden sm:block w-px h-5 bg-white/10" />
             <div>
               <span className="text-white text-xs sm:text-sm font-semibold">{personName}</span>
               <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
             </div>
-          </div>
-
-          <div className="flex items-center gap-1">
+            <div className="hidden sm:block w-px h-5 bg-white/10" />
             <NodeTypeFilter
               hiddenTypes={hiddenNodeTypes}
-              onToggleType={handleToggleNodeType}
               onShowAll={handleShowAllNodeTypes}
               onHideAll={handleHideAllNodeTypes}
+              onSetVisible={handleSetVisibleNodeTypes}
             />
-            <a
-              href="/"
-              className="text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors"
-            >
-              Create your own Orbis
-            </a>
           </div>
+
+          {/* Right: CTA */}
+          <a
+            href="/"
+            className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 transition-all"
+          >
+            Create your own Orbis
+          </a>
         </div>
       </div>
 

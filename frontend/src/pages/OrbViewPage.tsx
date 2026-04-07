@@ -146,6 +146,7 @@ const SOCIAL_ACCOUNTS = [
   { key: 'instagram_url', label: 'Instagram', icon: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z', color: '#E4405F' },
   { key: 'website_url', label: 'Website', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z', color: '#60a5fa' },
   { key: 'scholar_url', label: 'Google Scholar', icon: 'M5.242 13.769L0 9.5 12 0l12 9.5-5.242 4.269C17.548 11.249 14.978 9.5 12 9.5c-2.977 0-5.548 1.748-6.758 4.269zM12 10a7 7 0 100 14 7 7 0 000-14z', color: '#4285F4' },
+  { key: 'orcid_url', label: 'ORCID', icon: 'M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zM7.369 4.378a.869.869 0 110 1.738.869.869 0 010-1.738zm-.78 3.451h1.56v11.561H6.59V7.829zm3.921 0h4.21c4.518 0 6.758 2.906 6.758 5.78 0 3.12-2.602 5.78-6.758 5.78h-4.21V7.83zm1.56 1.387v8.787h2.65c3.483 0 5.198-2.263 5.198-4.393 0-2.39-1.86-4.394-5.197-4.394h-2.65z', color: '#A6CE39' },
 ];
 
 function ProfilePanel({ person, onClose, onSaved }: {
@@ -300,73 +301,86 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
         {editing ? (
           /* ── Edit mode ── */
-          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+          <div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+            {/* Photo actions */}
             {profileImage && (
-              showDeleteConfirmPhoto ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-red-400">Remove photo?</span>
-                  <button
-                    onClick={handleImageDelete}
-                    disabled={uploadingImage}
-                    className="text-[10px] font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
-                  >
-                    {uploadingImage ? 'Removing...' : 'Yes, remove'}
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirmPhoto(false)}
-                    className="text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowDeleteConfirmPhoto(true)}
-                  className="text-[10px] font-medium text-red-400/70 hover:text-red-400 transition-colors"
-                >
-                  Remove profile photo
-                </button>
-              )
-            )}
-            <div>
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Headline</label>
-              <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
-                placeholder="e.g. Senior Software Engineer"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Location</label>
-              <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
-                placeholder="e.g. San Francisco, CA"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-            </div>
-
-            <div className="border-t border-white/5 pt-3 mt-3">
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-2">Social Accounts</label>
-              {SOCIAL_ACCOUNTS.map((acc) => (
-                <div key={acc.key} className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
-                      <path d={acc.icon} />
-                    </svg>
+              <div className="mb-4">
+                {showDeleteConfirmPhoto ? (
+                  <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+                    <span className="text-xs text-red-400">Remove photo?</span>
+                    <button onClick={handleImageDelete} disabled={uploadingImage}
+                      className="text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors cursor-pointer">
+                      {uploadingImage ? 'Removing...' : 'Yes'}
+                    </button>
+                    <button onClick={() => setShowDeleteConfirmPhoto(false)}
+                      className="text-xs font-medium text-white/40 hover:text-white/60 transition-colors cursor-pointer">
+                      Cancel
+                    </button>
                   </div>
-                  <input
-                    value={values[acc.key]}
-                    onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
-                    placeholder={`${acc.label} URL`}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
-                  />
-                </div>
-              ))}
+                ) : (
+                  <button onClick={() => setShowDeleteConfirmPhoto(true)}
+                    className="text-xs font-medium text-red-400/60 hover:text-red-400 transition-colors cursor-pointer">
+                    Remove profile photo
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Profile fields */}
+            <div className="space-y-4 mb-5">
+              <div>
+                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Headline</label>
+                <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
+                  placeholder="e.g. Senior Software Engineer"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Location</label>
+                <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
+                  placeholder="e.g. San Francisco, CA"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            {/* Social accounts */}
+            <div className="border-t border-white/5 pt-4">
+              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-3">Social Accounts</label>
+              <div className="space-y-2">
+                {SOCIAL_ACCOUNTS.map((acc) => (
+                  <div key={acc.key} className="flex items-center gap-2.5 bg-white/[0.02] rounded-lg px-2 py-1 hover:bg-white/[0.04] transition-colors">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${acc.color}15` }}>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
+                        <path d={acc.icon} />
+                      </svg>
+                    </div>
+                    <input
+                      value={values[acc.key]}
+                      onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
+                      placeholder={`${acc.label} URL`}
+                      className="flex-1 bg-transparent border-none text-white text-xs placeholder:text-white/20 focus:outline-none min-w-0"
+                    />
+                    {values[acc.key]?.trim() && (
+                      <button onClick={() => setValues({ ...values, [acc.key]: '' })}
+                        className="text-white/15 hover:text-white/40 transition-colors flex-shrink-0 cursor-pointer">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-5 sticky bottom-0 bg-gray-950 pb-1">
               <button onClick={handleSave} disabled={saving}
-                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">
+                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
                 {saving ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setEditing(false)}
-                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2 rounded-lg transition-colors text-sm">
+                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
                 Cancel
               </button>
             </div>
@@ -655,23 +669,18 @@ export default function OrbViewPage() {
   }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
-  const handleToggleNodeType = useCallback((type: string) => {
-    setHiddenNodeTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  }, []);
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent', 'Award', 'Outreach'];
 
   const handleShowAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set());
   }, []);
 
-  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
-
   const handleHideAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
+  }, []);
+
+  const handleSetVisibleNodeTypes = useCallback((visibleTypes: Set<string>) => {
+    setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
   if (loading || !data) {
@@ -703,9 +712,9 @@ export default function OrbViewPage() {
             <div className="flex items-center gap-1">
               <NodeTypeFilter
                 hiddenTypes={hiddenNodeTypes}
-                onToggleType={handleToggleNodeType}
                 onShowAll={handleShowAllNodeTypes}
                 onHideAll={handleHideAllNodeTypes}
+                onSetVisible={handleSetVisibleNodeTypes}
               />
               <KeywordFilterDropdown />
               <button

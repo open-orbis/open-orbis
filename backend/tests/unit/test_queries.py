@@ -81,6 +81,8 @@ class TestNodeTypeMappings:
             "skill",
             "collaborator",
             "patent",
+            "award",
+            "outreach",
         }
         assert set(NODE_TYPE_LABELS.keys()) == expected
 
