@@ -39,7 +39,8 @@ async def main():  # noqa: C901
                 location: 'Pisa, Italy',
                 linkedin_url: '',
                 scholar_url: 'https://scholar.google.com/citations?user=o6wy2g0AAAAJ&hl=en',
-                website_url: 'https://orcid.org/0000-0001-9144-9572',
+                website_url: '',
+                orcid_url: 'https://orcid.org/0000-0001-9144-9572',
                 open_to_work: false,
                 created_at: datetime(),
                 updated_at: datetime()
@@ -596,6 +597,78 @@ async def main():  # noqa: C901
             {
                 "name": "Riccardo Guidotti",
                 "description": "Professor, Universita di Pisa - PhD Supervisor",
+            },
+        )
+
+        # ══════════════════════════════════════
+        # AWARDS
+        # ══════════════════════════════════════
+        award1 = await add_node(
+            "Award",
+            "HAS_AWARD",
+            {
+                "name": "Best Paper Award - IEEE QCE 2024",
+                "issuing_organization": "IEEE Quantum Week",
+                "date": "09/2024",
+                "description": "Awarded for the paper on Variational Compression of Circuits for State Preparation.",
+            },
+        )
+        await link_skill(award1, "Quantum Algorithms")
+        await link_skill(award1, "Variational Quantum Algorithms")
+
+        await add_node(
+            "Award",
+            "HAS_AWARD",
+            {
+                "name": "GNCS Young Researcher Grant",
+                "issuing_organization": "Istituto Nazionale di Alta Matematica (INdAM)",
+                "date": "01/2025",
+                "description": "Competitive grant for coordinating a research project on quantum subroutines for ML.",
+            },
+        )
+
+        # ══════════════════════════════════════
+        # OUTREACH
+        # ══════════════════════════════════════
+        out1 = await add_node(
+            "Outreach",
+            "HAS_OUTREACH",
+            {
+                "title": "Pisa Quantum Festival 2024",
+                "type": "event",
+                "venue": "Pisa, Italy",
+                "date": "05/2024",
+                "role": "Organizer",
+                "description": "Co-organized quantum computing festival with 400+ participants, speakers from academia and industry.",
+            },
+        )
+        await link_skill(out1, "Quantum Computing")
+
+        out2 = await add_node(
+            "Outreach",
+            "HAS_OUTREACH",
+            {
+                "title": "Invited Talk: Quantum ML Subroutines",
+                "type": "talk",
+                "venue": "SQMS Center, Fermilab",
+                "date": "01/2023",
+                "role": "Speaker",
+                "description": "Presented research on quantum reservoir computing for noise-resilient gate learning.",
+            },
+        )
+        await link_skill(out2, "Quantum Machine Learning")
+        await link_skill(out2, "Qiskit")
+
+        await add_node(
+            "Outreach",
+            "HAS_OUTREACH",
+            {
+                "title": "PointerPodcast - Weekly Episodes",
+                "type": "podcast",
+                "venue": "Online",
+                "date": "05/2019",
+                "role": "Host",
+                "description": "Co-host of weekly podcast on research and tech innovation. 230+ episodes with experts from NASA, IBM, INFN, Fermilab.",
             },
         )
 

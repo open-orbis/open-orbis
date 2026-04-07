@@ -58,6 +58,17 @@ Valid node_types and their expected properties:
 - collaborator:
     name (string), email (string or null)
 
+- award:
+    name (string), issuing_organization (string), date (string),
+    description (string or null), url (string or null)
+
+- outreach:
+    title (string), type (one of: "talk", "seminar", "keynote", "workshop",
+    "tutorial", "lecture", "event", "panel", "podcast", "media", "other"),
+    venue (string), date (string), description (string or null),
+    role (string, e.g. "Speaker", "Organizer", "Panelist"),
+    url (string or null)
+
 Rules:
 - Use ISO date format when possible (YYYY-MM-DD, YYYY-MM, or YYYY)
 - If end_date is "Present", "Current", or ongoing, set it to null
@@ -65,9 +76,9 @@ Rules:
 - For skills, extract individual skills (not groups)
 - If something does not clearly fit any node_type, put the raw text in the "unmatched" array
 
-For each skill that is mentioned in the context of a work_experience, project, or education entry,
-include a relationship entry linking the experience node (by its index in the nodes array)
-to the skill node (by its index in the nodes array). Use type "USED_SKILL".
+For each skill that is mentioned in the context of a work_experience, project, education,
+publication, award, or outreach entry, include a relationship entry linking the experience
+node (by its index in the nodes array) to the skill node (by its index). Use type "USED_SKILL".
 
 You MUST return valid JSON in exactly this format:
 {
@@ -102,6 +113,8 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "project": ["name"],
     "patent": ["title"],
     "collaborator": ["name"],
+    "award": ["name"],
+    "outreach": ["title"],
 }
 
 # ── Date fields that should be normalized ──

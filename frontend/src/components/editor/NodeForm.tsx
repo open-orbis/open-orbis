@@ -59,6 +59,16 @@ const LAYOUT_CONFIG: Record<string, {
     main: ['title', 'patent_number', 'inventors'],
     extra: ['description', 'url'],
   },
+  award: {
+    left: ['date'],
+    main: ['name', 'issuing_organization'],
+    extra: ['description', 'url'],
+  },
+  outreach: {
+    left: ['date'],
+    main: ['title', 'type', 'venue', 'role'],
+    extra: ['description', 'url'],
+  },
 };
 
 // Simple layout types (no 3-column)
