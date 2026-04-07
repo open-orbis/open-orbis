@@ -31,6 +31,8 @@ def mock_neo4j_driver():
     with (
         patch("app.main.get_driver", AsyncMock(return_value=mock_driver)),
         patch("app.main.close_driver", AsyncMock()),
+        patch("app.main.get_social_driver", AsyncMock(return_value=mock_driver)),
+        patch("app.main.close_social_driver", AsyncMock()),
     ):
         yield mock_driver
 
