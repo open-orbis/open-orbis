@@ -10,7 +10,6 @@ const TYPE_KEY_MAP: Record<string, string> = {
   Publication: 'publication',
   Project: 'project',
   Skill: 'skill',
-  Collaborator: 'collaborator',
   Patent: 'patent',
   Award: 'award',
   Outreach: 'outreach',

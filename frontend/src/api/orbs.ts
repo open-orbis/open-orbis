@@ -116,40 +116,4 @@ export async function enhanceNote(
   return data;
 }
 
-// ── Messages / Inbox ──
 
-export interface MessageReply {
-  uid: string;
-  body: string;
-  created_at: string;
-  from_owner: boolean;
-}
-
-export interface Message {
-  uid: string;
-  sender_name: string;
-  sender_email: string;
-  subject: string;
-  body: string;
-  created_at: string;
-  read: boolean;
-  replies: MessageReply[];
-}
-
-export async function getMessages(): Promise<Message[]> {
-  const { data } = await client.get('/messages/me');
-  return data;
-}
-
-export async function replyToMessage(messageId: string, body: string): Promise<MessageReply> {
-  const { data } = await client.post(`/messages/me/${messageId}/reply`, { body });
-  return data;
-}
-
-export async function markMessageRead(messageId: string): Promise<void> {
-  await client.put(`/messages/me/${messageId}/read`);
-}
-
-export async function deleteMessage(messageId: string): Promise<void> {
-  await client.delete(`/messages/me/${messageId}`);
-}

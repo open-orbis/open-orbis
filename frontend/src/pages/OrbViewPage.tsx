@@ -16,7 +16,6 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import type { DraftNote } from '../components/drafts/DraftNotes';
 import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
-import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
@@ -452,14 +451,6 @@ function IconDownload() {
   );
 }
 
-function IconInbox() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-    </svg>
-  );
-}
-
 // ── Header button ──
 
 function HeaderBtn({ onClick, children, variant = 'ghost' }: {
@@ -485,8 +476,6 @@ export default function OrbViewPage() {
   const [showShare, setShowShare] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
-  const [showInbox, setShowInbox] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [editNode, setEditNode] = useState<{ type: string; values: Record<string, unknown> } | null>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
@@ -506,11 +495,10 @@ export default function OrbViewPage() {
       if (showProfile) { setShowProfile(false); return; }
       if (showShare) { setShowShare(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
-      if (showInbox) { setShowInbox(false); return; }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, showProfile, showShare, showDrafts, showInbox]);
+  }, [showInput, showProfile, showShare, showDrafts]);
 
   // Load drafts when userId becomes available (async auth)
   useEffect(() => {
@@ -565,7 +553,7 @@ export default function OrbViewPage() {
     const typeMap: Record<string, string> = {
       Education: 'education', WorkExperience: 'work_experience', Certification: 'certification',
       Language: 'language', Publication: 'publication', Project: 'project',
-      Skill: 'skill', Collaborator: 'collaborator', Patent: 'patent',
+      Skill: 'skill', Patent: 'patent',
     };
     setEditNode({ type: typeMap[labels[0]] || 'skill', values: node });
     setShowInput(true);
@@ -605,7 +593,6 @@ export default function OrbViewPage() {
       [/\b(published|paper|article|journal|conference|proceedings|co-author|isbn|doi)\b/i, 'publication'],
       [/\b(project|built|developed|created|launched|side project|open.?source|hackathon|prototype|app|website)\b/i, 'project'],
       [/\b(patent|invention|filed|provisional|granted patent|patent number)\b/i, 'patent'],
-      [/\b(worked with|colleague|collaborator|team.?mate|mentor|manager|co.?founder|partner)\b/i, 'collaborator'],
     ];
     let type = 'work_experience';
     for (const [regex, nodeType] of detect) {
@@ -669,7 +656,7 @@ export default function OrbViewPage() {
   }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
-  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent', 'Award', 'Outreach'];
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
 
   const handleShowAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set());
@@ -730,15 +717,6 @@ export default function OrbViewPage() {
           {/* Right: inbox, notes, user menu */}
           <div className="flex items-center gap-1">
             <ProcessingCounter />
-            <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
-              <IconInbox />
-              <span className="hidden sm:inline">Inbox</span>
-              {unreadCount > 0 && (
-                <span className="bg-green-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </HeaderBtn>
             <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
               <IconNotes />
               <span className="hidden sm:inline">Notes</span>
@@ -831,13 +809,6 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
-      />
-
-      {/* ── Inbox ── */}
-      <Inbox
-        open={showInbox}
-        onClose={() => setShowInbox(false)}
-        onUnreadCountChange={setUnreadCount}
       />
 
       {/* ── Draft Notes ── */}

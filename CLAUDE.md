@@ -20,7 +20,6 @@ backend/
     cv/          # CV PDF parsing (PyMuPDF), LLM classification (Ollama/Claude CLI), rule-based fallback
     graph/       # Neo4j async driver, Cypher queries, Fernet encryption, embeddings (placeholder)
     orbs/        # Orb (knowledge graph) CRUD, filter tokens for privacy-aware sharing
-    messages/    # Inbox system (public send, authenticated read/reply/delete)
     notes/       # LLM-enhanced note-to-node conversion
     search/      # Semantic (vector index) and fuzzy text search
     export/      # Public orb export (JSON, JSON-LD, PDF)

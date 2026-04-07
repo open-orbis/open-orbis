@@ -57,18 +57,6 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 
 `title`, `patent_number`, `filing_date`, `grant_date`, `status`, `description`, `url`, `uid`
 
-### Collaborator
-
-`name`, `email` (Fernet-encrypted), `uid`
-
-### Message
-
-`uid`, `sender_name`, `sender_email`, `subject`, `body`, `created_at`, `read`
-
-### Reply
-
-`uid`, `body`, `created_at`, `from_owner`
-
 ## Relationships
 
 | Relationship | From | To | Purpose |
@@ -81,9 +69,6 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 | `HAS_PUBLICATION` | Person | Publication | |
 | `HAS_PROJECT` | Person | Project | |
 | `HAS_PATENT` | Person | Patent | |
-| `COLLABORATED_WITH` | Person | Collaborator | |
-| `HAS_MESSAGE` | Person | Message | Inbox |
-| `HAS_REPLY` | Message | Reply | Reply thread |
 | `USED_SKILL` | WorkExperience / Project / Education / Publication | Skill | Cross-entity skill link |
 
 The `USED_SKILL` relationship is the key graph feature — it connects experience nodes directly to Skill nodes, enabling queries like "which skills were used at company X?"
@@ -102,7 +87,6 @@ Used during `POST /cv/confirm` with Cypher `MERGE`:
 | Publication | `title` |
 | Project | `name` |
 | Patent | `title` |
-| Collaborator | `name` |
 
 ## Vector Indexes
 

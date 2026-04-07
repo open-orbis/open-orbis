@@ -325,8 +325,8 @@ Developer
         handled_by_patterns = set(SECTION_PATTERNS.keys())
         all_node_types = set(NODE_TYPE_LABELS.keys())
         missing = all_node_types - handled_by_patterns
-        assert missing == {"patent", "collaborator", "award", "outreach"}, (
-            f"Expected patent/collaborator/award/outreach to be missing from SECTION_PATTERNS, "
+        assert missing == {"patent", "award", "outreach"}, (
+            f"Expected patent/award/outreach to be missing from SECTION_PATTERNS, "
             f"got: {missing}"
         )
 
