@@ -63,7 +63,9 @@ async def google_login(
         userinfo = await exchange_google_code(body.code)
     except Exception as e:
         logger.error("Google OAuth failed: %s", e)
-        raise HTTPException(status_code=401, detail="Google authentication failed") from None
+        raise HTTPException(
+            status_code=401, detail="Google authentication failed"
+        ) from None
 
     user_id = f"google-{userinfo['sub']}"
     email = userinfo["email"]
@@ -91,7 +93,9 @@ async def linkedin_login(
         )
     except Exception as e:
         logger.error("LinkedIn OAuth failed: %s", e)
-        raise HTTPException(status_code=401, detail="LinkedIn authentication failed") from None
+        raise HTTPException(
+            status_code=401, detail="LinkedIn authentication failed"
+        ) from None
 
     user_id = f"linkedin-{userinfo['sub']}"
     email = userinfo["email"]
