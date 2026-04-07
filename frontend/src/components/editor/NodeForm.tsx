@@ -75,7 +75,6 @@ const LAYOUT_CONFIG: Record<string, {
 const SIMPLE_FIELDS: Record<string, string[]> = {
   skill: ['name', 'category', 'proficiency'],
   language: ['name', 'proficiency'],
-  collaborator: ['name', 'email'],
 };
 
 function FieldInput({

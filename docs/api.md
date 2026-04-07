@@ -67,16 +67,6 @@ All protected endpoints require `Authorization: Bearer <jwt>`. JWT is obtained v
 
 Query params: `?format=json|jsonld|pdf`, `?filter_token=`, `?filter_keyword=`, `?include_photo=true|false`
 
-## Messages (`/messages`)
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/messages/{orb_id}` | No | Send message to orb owner (public) |
-| GET | `/messages/me` | JWT | List all messages with replies |
-| POST | `/messages/me/{message_id}/reply` | JWT | Reply to a message |
-| PUT | `/messages/me/{message_id}/read` | JWT | Mark as read (204) |
-| DELETE | `/messages/me/{message_id}` | JWT | Delete message + replies (204) |
-
 ## Notes (`/notes`)
 
 | Method | Path | Auth | Description |

@@ -9,7 +9,6 @@ export const NODE_COLORS: Record<string, string> = {
   Publication: '#56B4E9',  // Sky Blue (Wong)
   Project: '#D55E00',      // Vermillion (Wong)
   Skill: '#648FFF',        // Periwinkle (IBM)
-  Collaborator: '#CC79A7', // Reddish Purple (Wong)
   Patent: '#DC267F',       // Magenta (IBM)
   Award: '#FFB000',        // Gold (IBM)
   Outreach: '#FE6100',     // Orange-Red (IBM)
@@ -30,7 +29,6 @@ export const NODE_TYPE_COLORS: Record<string, string> = {
   publication: '#56B4E9',
   project: '#D55E00',
   skill: '#648FFF',
-  collaborator: '#CC79A7',
   patent: '#DC267F',
   award: '#FFB000',
   outreach: '#FE6100',
@@ -44,7 +42,6 @@ export const NODE_TYPE_LABELS: Record<string, string> = {
   publication: 'Publication',
   project: 'Project',
   skill: 'Skill',
-  collaborator: 'Collaborator',
   patent: 'Patent',
   award: 'Award',
   outreach: 'Outreach',
@@ -60,7 +57,6 @@ export const NODE_SHAPE_MARKERS: Record<string, string> = {
   Publication: '\u25C7',   // ◇ open diamond
   Project: '\u2B22',       // ⬢ hexagon
   Skill: '\u25C9',         // ◉ bullseye
-  Collaborator: '\u25CE',  // ◎ double circle
   Patent: '\u2B1F',        // ⬟ pentagon
   Award: '\u2606',         // ☆ open star
   Outreach: '\u25E3',      // ◣ triangle (lower left)

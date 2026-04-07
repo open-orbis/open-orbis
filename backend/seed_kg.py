@@ -549,58 +549,6 @@ async def main():  # noqa: C901
         await link_skill(patent1, "Quantum State Preparation")
 
         # ══════════════════════════════════════
-        # COLLABORATORS
-        # ══════════════════════════════════════
-        await add_node(
-            "Collaborator",
-            "COLLABORATED_WITH",
-            {
-                "name": "Davide Venturelli",
-                "description": "USRA Research Institute, Quantum AI Laboratory at NASA ARC",
-            },
-        )
-        await add_node(
-            "Collaborator",
-            "COLLABORATED_WITH",
-            {
-                "name": "Nishchay Suri",
-                "description": "Associate Scientist, NASA and USRA Quantum AI Lab",
-            },
-        )
-        await add_node(
-            "Collaborator",
-            "COLLABORATED_WITH",
-            {
-                "name": "Silvia Zorzetti",
-                "description": "Principal Engineer and Department Head, Fermilab/SQMS",
-            },
-        )
-        await add_node(
-            "Collaborator",
-            "COLLABORATED_WITH",
-            {
-                "name": "Anna Bernasconi",
-                "description": "Professor, Universita di Pisa - PhD Supervisor",
-            },
-        )
-        await add_node(
-            "Collaborator",
-            "COLLABORATED_WITH",
-            {
-                "name": "Gianna Maria Del Corso",
-                "description": "Professor, Universita di Pisa - PhD Supervisor",
-            },
-        )
-        await add_node(
-            "Collaborator",
-            "COLLABORATED_WITH",
-            {
-                "name": "Riccardo Guidotti",
-                "description": "Professor, Universita di Pisa - PhD Supervisor",
-            },
-        )
-
-        # ══════════════════════════════════════
         # AWARDS
         # ══════════════════════════════════════
         award1 = await add_node(

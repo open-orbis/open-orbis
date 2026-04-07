@@ -30,7 +30,6 @@ const LABEL_TO_TYPE: Record<string, string> = {
   Certification: 'certification',
   Publication: 'publication',
   Project: 'project',
-  Collaborator: 'collaborator',
   Patent: 'patent',
 };
 
@@ -42,7 +41,6 @@ const DISPLAY_LABELS: Record<string, string> = {
   Certification: 'Certification',
   Publication: 'Publication',
   Project: 'Project',
-  Collaborator: 'Collaborator',
   Patent: 'Patent',
 };
 

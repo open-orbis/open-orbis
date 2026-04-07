@@ -93,7 +93,6 @@ _SEARCH_FIELDS: dict[str, list[str]] = {
     "Certification": ["name", "issuing_organization"],
     "Publication": ["title", "venue", "abstract"],
     "Project": ["name", "role", "description"],
-    "Collaborator": ["name", "email"],
     "Patent": ["title", "patent_number", "description", "inventors"],
 }
 

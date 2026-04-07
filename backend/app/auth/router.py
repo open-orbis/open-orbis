@@ -19,7 +19,6 @@ from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_value
 from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
-from app.messages.welcome import send_welcome_message
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,6 @@ async def _get_or_create_person(
             picture=picture,
             provider=provider,
         )
-        await send_welcome_message(db, user_id)
 
 
 @router.post("/google", response_model=TokenResponse)

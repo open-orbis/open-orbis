@@ -167,7 +167,8 @@ class TestParseResultValidation:
             ("publication", {"title": "Paper X"}),
             ("project", {"name": "MyProject"}),
             ("patent", {"title": "Patent X"}),
-            ("collaborator", {"name": "Bob"}),
+            ("award", {"name": "Best Paper"}),
+            ("outreach", {"title": "Guest Talk"}),
         ],
     )
     def test_all_valid_node_types_accepted(self, node_type, props):

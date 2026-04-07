@@ -55,9 +55,6 @@ Valid node_types and their expected properties:
     grant_date (string or null), status (string or null), description (string or null),
     url (string or null)
 
-- collaborator:
-    name (string), email (string or null)
-
 - award:
     name (string), issuing_organization (string), date (string),
     description (string or null), url (string or null)
@@ -112,7 +109,6 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "publication": ["title"],
     "project": ["name"],
     "patent": ["title"],
-    "collaborator": ["name"],
     "award": ["name"],
     "outreach": ["title"],
 }
