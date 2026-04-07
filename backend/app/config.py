@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
 
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
+    # LinkedIn OAuth (login app — "Sign In with LinkedIn using OpenID Connect")
+    linkedin_client_id: str = ""
+    linkedin_client_secret: str = ""
+    linkedin_redirect_uri: str = "http://localhost:5173/auth/linkedin/callback"
+
     # URLs
     frontend_url: str = "http://localhost:5173"
 

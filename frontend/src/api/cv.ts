@@ -41,6 +41,7 @@ export async function confirmCV(
   await client.post('/cv/confirm', { nodes, relationships: relationships || [], cv_owner_name: cv_owner_name || null });
 }
 
+
 export async function getProcessingCount(): Promise<number> {
   const { data } = await client.get('/cv/processing-count');
   return data.count;

@@ -48,6 +48,11 @@ export function saveDraftNotes(userId: string, notes: DraftNote[]) {
   localStorage.setItem(userDraftsKey(userId), JSON.stringify(notes));
 }
 
+/** Remove all draft notes for a user (used on account delete). */
+export function clearDraftNotes(userId: string) {
+  localStorage.removeItem(userDraftsKey(userId));
+}
+
 const TARGET_LANGUAGES = [
   { code: 'en', label: 'English' },
   { code: 'it', label: 'Italiano' },

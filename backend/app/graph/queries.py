@@ -8,6 +8,8 @@ CREATE (p:Person {
     email: $email,
     name: $name,
     orb_id: $orb_id,
+    picture: $picture,
+    provider: $provider,
     headline: '',
     location: '',
     linkedin_url: '',
@@ -52,6 +54,7 @@ RETURN p
 GET_FULL_ORB = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
+WHERE NOT n:Message
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
 WITH p, connections,
@@ -63,6 +66,7 @@ RETURN p, connections, cross_links, cross_skill_nodes
 GET_FULL_ORB_PUBLIC = """
 MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
+WHERE NOT n:Message
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
 WITH p, connections,

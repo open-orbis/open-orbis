@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
@@ -18,6 +18,8 @@ import type { DraftNote } from '../components/drafts/DraftNotes';
 import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
 import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
+import UserMenu from '../components/UserMenu';
+import { useToastStore } from '../stores/toastStore';
 
 // ── Modals ──
 
@@ -142,7 +144,8 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
   const [success, setSuccess] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const addToast = useToastStore((s) => s.addToast);
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -174,9 +177,12 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
     setDeleting(true);
     try {
       const { deleteAccount } = await import('../api/auth');
+      const { clearDraftNotes } = await import('../components/drafts/DraftNotes');
       await deleteAccount();
+      if (user?.user_id) clearDraftNotes(user.user_id);
       logout();
-      navigate('/');
+      addToast('Your account has been deleted', 'info');
+      navigate('/', { replace: true });
     } catch {
       setError('Failed to delete account. Please try again.');
       setDeleting(false);
@@ -361,7 +367,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                 <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
                   <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
                   <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                    Permanently delete your account, your orbis, and all associated data. After requesting deletion, your data will be retained for 30 days in case you change your mind, then permanently erased. This action cannot be undone.
+                    Permanently delete your account, your orbis, and all associated data. This action is immediate and cannot be undone.
                   </p>
 
                   {!showDeleteConfirm ? (
@@ -374,7 +380,7 @@ function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onCl
                   ) : (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
                       <p className="text-red-300 text-xs font-medium mb-3">
-                        Are you sure? Your orbis and all data will be permanently deleted after 30 days.
+                        Are you sure? Your orbis and all data will be permanently deleted immediately.
                       </p>
                       <div className="flex gap-2">
                         <button
@@ -421,6 +427,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const addToast = useToastStore((s) => s.addToast);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const v: Record<string, string> = {};
     for (const acc of SOCIAL_ACCOUNTS) {
@@ -452,17 +459,22 @@ function ProfilePanel({ person, onClose, onSaved }: {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return;
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select an image file', 'error');
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
-      alert('Image too large (max 2MB)');
+      addToast('Image too large (max 2MB)', 'error');
       return;
     }
     setUploadingImage(true);
     try {
       await uploadProfileImage(file);
+      addToast('Profile picture updated', 'success');
       onSaved();
-    } catch { /* toast handles */ }
-    finally { setUploadingImage(false); }
+    } catch {
+      addToast('Failed to upload profile picture', 'error');
+    } finally { setUploadingImage(false); }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -470,9 +482,11 @@ function ProfilePanel({ person, onClose, onSaved }: {
     setUploadingImage(true);
     try {
       await deleteProfileImage();
+      addToast('Profile picture removed', 'info');
       onSaved();
-    } catch { /* toast handles */ }
-    finally { setUploadingImage(false); setShowDeleteConfirmPhoto(false); }
+    } catch {
+      addToast('Failed to remove profile picture', 'error');
+    } finally { setUploadingImage(false); setShowDeleteConfirmPhoto(false); }
   };
 
   const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
@@ -485,10 +499,12 @@ function ProfilePanel({ person, onClose, onSaved }: {
         props[k] = v.trim();
       }
       await updateProfile(props);
+      addToast('Profile updated', 'success');
       onSaved();
       setEditing(false);
-    } catch { /* toast handles */ }
-    finally { setSaving(false); }
+    } catch {
+      addToast('Failed to update profile', 'error');
+    } finally { setSaving(false); }
   };
 
   return (
@@ -732,9 +748,8 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 // ── Page ──
 
 export default function OrbViewPage() {
-  const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -791,6 +806,18 @@ export default function OrbViewPage() {
   }, [draftNotes, userId, draftsLoaded]);
 
   useEffect(() => { fetchOrb(); }, [fetchOrb]);
+
+  // If the orb is empty (only Person node, no career entries), redirect to the
+  // create flow — UNLESS the user explicitly chose "Build from scratch" (in which
+  // case they passed `state.allowEmpty` and we let them stay on the empty view).
+  const navigate = useNavigate();
+  const location = useLocation();
+  const allowEmpty = (location.state as { allowEmpty?: boolean } | null)?.allowEmpty === true;
+  useEffect(() => {
+    if (!loading && data && data.nodes.length === 0 && !allowEmpty) {
+      navigate('/create', { replace: true });
+    }
+  }, [loading, data, allowEmpty, navigate]);
 
 
   useEffect(() => {
@@ -1014,17 +1041,12 @@ export default function OrbViewPage() {
             </HeaderBtn>
             <button
               onClick={() => window.open('/cv-export', '_blank')}
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
+              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
             >
               <IconDownload />
               <span className="hidden sm:inline">Export CV</span>
             </button>
-            <button
-              onClick={() => { logout(); navigate('/'); }}
-              className="text-white/30 text-xs font-medium py-1.5 px-2 sm:px-3 rounded-lg hover:text-red-400 hover:bg-red-500/10 transition-all"
-            >
-              Logout
-            </button>
+            <UserMenu />
           </div>
         </div>
       </div>
