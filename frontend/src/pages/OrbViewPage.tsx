@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
-import { claimOrbId, updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
+import { updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -18,6 +18,7 @@ import type { DraftNote } from '../components/drafts/DraftNotes';
 import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
 import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
+import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
 import { useToastStore } from '../stores/toastStore';
 
@@ -131,281 +132,6 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         </div>
 
         <button onClick={onClose} className="w-full border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Close</button>
-      </motion.div>
-    </div>
-  );
-}
-
-function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onClose: () => void; onOrbIdChanged: () => void }) {
-  const [activeTab, setActiveTab] = useState<'orb-id' | 'filters' | 'account'>('orb-id');
-  const [customId, setCustomId] = useState(orbId);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [newKeyword, setNewKeyword] = useState('');
-  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
-  const { user, logout } = useAuthStore();
-  const addToast = useToastStore((s) => s.addToast);
-  const navigate = useNavigate();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleSave = async () => {
-    const trimmed = customId.trim().toLowerCase();
-    if (!trimmed) return;
-    if (trimmed === orbId) { onClose(); return; }
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { setError('Only lowercase letters, numbers, and hyphens allowed.'); return; }
-    if (trimmed.length < 3) { setError('Must be at least 3 characters.'); return; }
-    setSaving(true); setError('');
-    try {
-      await claimOrbId(trimmed);
-      setSuccess(true); onOrbIdChanged();
-      setTimeout(() => onClose(), 1200);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to claim this ID. It may already be taken.');
-    } finally { setSaving(false); }
-  };
-
-  const handleAddKeyword = () => {
-    const trimmed = newKeyword.trim();
-    if (!trimmed) return;
-    addKeyword(trimmed);
-    setNewKeyword('');
-  };
-
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    try {
-      const { deleteAccount } = await import('../api/auth');
-      const { clearDraftNotes } = await import('../components/drafts/DraftNotes');
-      await deleteAccount();
-      if (user?.user_id) clearDraftNotes(user.user_id);
-      logout();
-      addToast('Your account has been deleted', 'info');
-      navigate('/', { replace: true });
-    } catch {
-      setError('Failed to delete account. Please try again.');
-      setDeleting(false);
-    }
-  };
-
-  const TABS = [
-    { id: 'orb-id' as const, label: 'Orbis ID' },
-    { id: 'filters' as const, label: 'Filters' },
-    { id: 'account' as const, label: 'Account' },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 24 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: 24 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[520px] max-h-[90vh] overflow-hidden flex flex-col"
-      >
-        <div className="p-4 sm:p-6 pb-0">
-          <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
-          <p className="text-gray-400 text-sm mb-4">Customize your orbis identity and visibility.</p>
-        </div>
-
-        <div className="flex flex-1 min-h-0">
-          {/* Tabs sidebar */}
-          <div className="w-32 sm:w-40 border-r border-gray-700 p-2 flex flex-col gap-0.5">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setError(''); setSuccess(false); }}
-                className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-gray-800 text-white font-medium'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col min-h-0">
-            <AnimatePresence mode="wait">
-            {/* ── Orb ID tab ── */}
-            {activeTab === 'orb-id' && (
-              <motion.div
-                key="orb-id"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
-                className="flex flex-col justify-between h-full"
-              >
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orbis ID</label>
-                  <p className="text-[11px] text-gray-500 mt-1 mb-5">Choose a memorable ID for your orbis. This will be your public URL and MCP identifier.</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500 text-sm">{window.location.origin}/</span>
-                    <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                  </div>
-                  {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-                  {success && <p className="text-green-400 text-xs mt-2">Orbis ID updated!</p>}
-                </div>
-
-                <div className="flex gap-3">
-                  <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving...' : 'Save'}</button>
-                  <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Filters tab ── */}
-            {activeTab === 'filters' && (
-              <motion.div
-                key="filters"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
-                className="flex flex-col h-full"
-              >
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility Filters</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
-                  Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
-                </p>
-
-                <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                  <input
-                    value={newKeyword}
-                    onChange={(e) => setNewKeyword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
-                    placeholder="e.g. confidential, private, salary..."
-                    className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleAddKeyword}
-                    className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  {keywords.length === 0 ? (
-                    <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {keywords.map((kw) => {
-                        const isActive = activeKeywords.includes(kw);
-                        return (
-                          <div
-                            key={kw}
-                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
-                              isActive
-                                ? 'bg-amber-600/15 border-amber-500/40'
-                                : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
-                            }`}
-                          >
-                            <span className="text-white text-sm font-mono truncate">{kw}</span>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <button
-                                onClick={() => toggleKeyword(kw)}
-                                className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
-                                  isActive
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
-                                }`}
-                              >
-                                {isActive ? 'Active' : 'Activate'}
-                              </button>
-                              <button
-                                onClick={() => removeKeyword(kw)}
-                                className="text-gray-500 hover:text-red-400 transition-colors"
-                                title="Remove"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {activeKeywords.length > 0 && (
-                  <p className="text-amber-400/70 text-[11px] mt-2 flex-shrink-0">
-                    {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
-                      <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
-                    ))} active. Matching nodes are transparent.
-                  </p>
-                )}
-              </motion.div>
-            )}
-
-            {/* ── Account tab ── */}
-            {activeTab === 'account' && (
-              <motion.div
-                key="account"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
-              >
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Manage your account and data.</p>
-
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                  <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
-                  <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                    Permanently delete your account, your orbis, and all associated data. This action is immediate and cannot be undone.
-                  </p>
-
-                  {!showDeleteConfirm ? (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                    >
-                      Delete my account
-                    </button>
-                  ) : (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
-                      <p className="text-red-300 text-xs font-medium mb-3">
-                        Are you sure? Your orbis and all data will be permanently deleted immediately.
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setShowDeleteConfirm(false)}
-                          className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleDeleteAccount}
-                          disabled={deleting}
-                          className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                        >
-                          {deleting ? 'Deleting...' : 'Yes, delete my account'}
-                        </button>
-                      </div>
-                      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </div>
-        </div>
       </motion.div>
     </div>
   );
@@ -696,15 +422,6 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
 // ── Icon components ──
 
-function IconSettings() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
 function IconNotes() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -752,7 +469,6 @@ export default function OrbViewPage() {
   const { user } = useAuthStore();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [showInbox, setShowInbox] = useState(false);
@@ -774,14 +490,13 @@ export default function OrbViewPage() {
       if (e.key !== 'Escape') return;
       if (showInput) { setShowInput(false); setEditNode(null); return; }
       if (showProfile) { setShowProfile(false); return; }
-      if (showSettings) { setShowSettings(false); return; }
       if (showShare) { setShowShare(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
       if (showInbox) { setShowInbox(false); return; }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, showProfile, showSettings, showShare, showDrafts, showInbox]);
+  }, [showInput, showProfile, showShare, showDrafts, showInbox]);
 
   // Load drafts when userId becomes available (async auth)
   useEffect(() => {
@@ -972,55 +687,40 @@ export default function OrbViewPage() {
       {/* ── Header ── */}
       <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3">
         <div className="flex items-center justify-between">
-          {/* Left: identity — click avatar to open settings */}
+          {/* Left: identity + view/filter/export */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="relative w-12 h-12 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center hover:bg-purple-600/50 hover:border-purple-400/60 transition-all group overflow-hidden"
-              title="Settings"
-            >
-              {(data.person.profile_image as string) ? (
-                <>
-                  <img src={data.person.profile_image as string} alt="" className="w-full h-full object-cover rounded-full group-hover:opacity-30 transition-opacity" />
-                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <IconSettings />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-purple-300 text-xs font-bold group-hover:opacity-0 transition-opacity">
-                    {((data.person.name as string) || user?.name || 'O').charAt(0).toUpperCase()}
-                  </span>
-                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <IconSettings />
-                  </span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+                <div className="w-3 h-3 rounded-full bg-purple-400" />
+              </div>
+              <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
+            </div>
+            <div className="hidden sm:block w-px h-5 bg-white/10" />
             <div>
-              <span className="text-white text-xs sm:text-sm font-semibold">{(data.person.name as string) || user?.name || 'My Orbis'}</span>
-              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
-              {activeKeywords.length > 0 && (
-                <span className="text-amber-400/70 text-[10px] ml-2 hidden sm:inline-flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  {activeKeywords.join(', ')}
-                </span>
-              )}
+              <span className="text-white/20 text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
+            </div>
+            <div className="hidden sm:block w-px h-5 bg-white/10" />
+            <div className="flex items-center gap-1">
+              <NodeTypeFilter
+                hiddenTypes={hiddenNodeTypes}
+                onToggleType={handleToggleNodeType}
+                onShowAll={handleShowAllNodeTypes}
+                onHideAll={handleHideAllNodeTypes}
+              />
+              <KeywordFilterDropdown />
+              <button
+                onClick={() => window.open('/cv-export', '_blank')}
+                className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
+              >
+                <IconDownload />
+                <span className="hidden sm:inline">Export CV</span>
+              </button>
             </div>
           </div>
 
-          {/* Right: secondary actions */}
+          {/* Right: inbox, notes, user menu */}
           <div className="flex items-center gap-1">
             <ProcessingCounter />
-            <NodeTypeFilter
-              hiddenTypes={hiddenNodeTypes}
-              onToggleType={handleToggleNodeType}
-              onShowAll={handleShowAllNodeTypes}
-              onHideAll={handleHideAllNodeTypes}
-            />
-            <div className="w-px h-5 bg-white/10 mx-1" />
             <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
               <IconInbox />
               <span className="hidden sm:inline">Inbox</span>
@@ -1039,14 +739,8 @@ export default function OrbViewPage() {
                 </span>
               )}
             </HeaderBtn>
-            <button
-              onClick={() => window.open('/cv-export', '_blank')}
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
-            >
-              <IconDownload />
-              <span className="hidden sm:inline">Export CV</span>
-            </button>
-            <UserMenu />
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
           </div>
         </div>
       </div>
@@ -1150,9 +844,6 @@ export default function OrbViewPage() {
       {/* ── Animated Panels ── */}
       <AnimatePresence>
         {showShare && <SharePanel key="share" orbId={orbId} onClose={() => setShowShare(false)} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {showSettings && <SettingsPanel key="settings" orbId={orbId} onClose={() => setShowSettings(false)} onOrbIdChanged={fetchOrb} />}
       </AnimatePresence>
       <AnimatePresence>
         {showProfile && <ProfilePanel key="profile" person={data.person} onClose={() => setShowProfile(false)} onSaved={fetchOrb} />}

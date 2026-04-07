@@ -14,7 +14,7 @@ import pytest
 import respx
 from httpx import Response
 
-from app.cv.ollama_classifier import TEXT_LIMIT, classify_entries
+from app.cv.ollama_classifier import TEXT_LIMIT_OLLAMA, classify_entries
 
 # A valid LLM JSON response
 GOOD_LLM_RESPONSE = json.dumps(
@@ -121,35 +121,41 @@ class TestSuccessfulClassification:
 
 class TestTruncation:
     async def test_short_text_not_truncated(self):
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            new_callable=AsyncMock,
-            return_value=GOOD_LLM_RESPONSE,
-        ):
-            result = await classify_entries("Short CV")
-            assert result.truncated is False
+        with patch("app.cv.ollama_classifier.settings") as mock_settings:
+            mock_settings.llm_provider = "ollama"
+            with patch(
+                "app.cv.ollama_classifier._call_ollama",
+                new_callable=AsyncMock,
+                return_value=GOOD_LLM_RESPONSE,
+            ):
+                result = await classify_entries("Short CV")
+                assert result.truncated is False
 
     async def test_long_text_truncated(self):
-        long_text = "x" * (TEXT_LIMIT + 3000)
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            new_callable=AsyncMock,
-            return_value=GOOD_LLM_RESPONSE,
-        ):
-            result = await classify_entries(long_text)
-            assert result.truncated is True
+        long_text = "x" * (TEXT_LIMIT_OLLAMA + 3000)
+        with patch("app.cv.ollama_classifier.settings") as mock_settings:
+            mock_settings.llm_provider = "ollama"
+            with patch(
+                "app.cv.ollama_classifier._call_ollama",
+                new_callable=AsyncMock,
+                return_value=GOOD_LLM_RESPONSE,
+            ):
+                result = await classify_entries(long_text)
+                assert result.truncated is True
 
     async def test_long_text_sends_truncated_content_to_llm(self):
-        # Use a unique marker that only appears after TEXT_LIMIT
-        long_text = "a" * TEXT_LIMIT + "UNIQUE_TAIL_MARKER"
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            new_callable=AsyncMock,
-            return_value=GOOD_LLM_RESPONSE,
-        ) as mock_ollama:
-            await classify_entries(long_text)
-            call_args = mock_ollama.call_args[0][0]
-            assert "UNIQUE_TAIL_MARKER" not in call_args
+        # Use a unique marker that only appears after TEXT_LIMIT_OLLAMA
+        long_text = "a" * TEXT_LIMIT_OLLAMA + "UNIQUE_TAIL_MARKER"
+        with patch("app.cv.ollama_classifier.settings") as mock_settings:
+            mock_settings.llm_provider = "ollama"
+            with patch(
+                "app.cv.ollama_classifier._call_ollama",
+                new_callable=AsyncMock,
+                return_value=GOOD_LLM_RESPONSE,
+            ) as mock_ollama:
+                await classify_entries(long_text)
+                call_args = mock_ollama.call_args[0][0]
+                assert "UNIQUE_TAIL_MARKER" not in call_args
 
 
 # ── Retry logic ──
@@ -228,14 +234,16 @@ class TestRuleBasedFallback:
             assert result.cv_owner_name == "John Smith"
 
     async def test_fallback_sets_truncated_flag(self):
-        long_text = SAMPLE_CV_TEXT + "x" * (TEXT_LIMIT + 1000)
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
-        ):
-            result = await classify_entries(long_text)
-            assert result.truncated is True
+        long_text = SAMPLE_CV_TEXT + "x" * (TEXT_LIMIT_OLLAMA + 1000)
+        with patch("app.cv.ollama_classifier.settings") as mock_settings:
+            mock_settings.llm_provider = "ollama"
+            with patch(
+                "app.cv.ollama_classifier._call_ollama",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("always fails"),
+            ):
+                result = await classify_entries(long_text)
+                assert result.truncated is True
 
     async def test_fallback_skips_invalid_nodes(self):
         """Rule-based fallback validates nodes the same way _parse_result does."""

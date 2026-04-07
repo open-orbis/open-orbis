@@ -70,7 +70,11 @@ async def upload_cv(
             )
 
         # Step 2: Classify entries via LLM
-        logger.info("Classifying entries with %s (%d chars)", settings.llm_provider, len(raw_text))
+        logger.info(
+            "Classifying entries with %s (%d chars)",
+            settings.llm_provider,
+            len(raw_text),
+        )
         result = await classify_entries(raw_text)
 
         if not result.nodes and not result.unmatched:
