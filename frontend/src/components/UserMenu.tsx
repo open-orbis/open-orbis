@@ -1,56 +1,25 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
+import { claimOrbId } from '../api/orbs';
 import { clearDraftNotes } from './drafts/DraftNotes';
 
-interface NavLink {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
+interface UserMenuProps {
+  orbId?: string;
+  onOrbIdChanged?: () => void;
+  /** Display name next to avatar — makes the whole thing a clickable pill */
+  label?: string;
 }
 
-const NAV_LINKS: NavLink[] = [
-  {
-    label: 'My Orbis',
-    path: '/myorbis',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
-        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
-      </svg>
-    ),
-  },
-  {
-    label: 'Add entries',
-    path: '/create',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-      </svg>
-    ),
-  },
-  {
-    label: 'Export CV',
-    path: '/cv-export',
-    icon: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 8l-4-4m4 4l4-4" />
-      </svg>
-    ),
-  },
-];
-
-export default function UserMenu() {
+export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps) {
   const { user, logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const navigate = useNavigate();
-  const location = useLocation();
   const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAccountSettings, setShowAccountSettings] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -59,7 +28,6 @@ export default function UserMenu() {
     const onClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
-        setConfirmDelete(false);
       }
     };
     document.addEventListener('mousedown', onClick);
@@ -70,10 +38,7 @@ export default function UserMenu() {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setConfirmDelete(false);
-      }
+      if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -90,38 +55,25 @@ export default function UserMenu() {
     navigate('/', { replace: true });
   };
 
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    try {
-      await deleteAccount();
-      // Wipe user-scoped local data (draft notes, etc.) before logging out
-      if (user?.user_id) clearDraftNotes(user.user_id);
-      logout();
-      addToast('Your account has been deleted', 'info');
-      navigate('/', { replace: true });
-    } catch {
-      addToast('Failed to delete account', 'error');
-      setDeleting(false);
-    }
-  };
-
-  const handleNavigate = (path: string) => {
-    setOpen(false);
-    navigate(path);
-  };
-
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative w-10 h-10 rounded-full bg-purple-600/30 border border-purple-500/40 hover:bg-purple-600/50 hover:border-purple-400/60 transition-all overflow-hidden cursor-pointer flex items-center justify-center"
+        className={
+          label
+            ? 'flex items-center gap-2 bg-white/5 border border-white/10 rounded-full pl-3 pr-1 py-1 hover:bg-white/10 hover:border-white/15 transition-all cursor-pointer'
+            : 'relative w-10 h-10 rounded-full bg-purple-600/30 border border-purple-500/40 hover:bg-purple-600/50 hover:border-purple-400/60 transition-all overflow-hidden cursor-pointer flex items-center justify-center'
+        }
         title="Account menu"
       >
-        {avatarSrc ? (
-          <img src={avatarSrc} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-        ) : (
-          <span className="text-purple-200 text-sm font-bold">{initial}</span>
-        )}
+        {label && <span className="text-white/80 text-xs font-medium">{label}</span>}
+        <div className={`rounded-full bg-purple-600/30 border border-purple-500/40 overflow-hidden flex items-center justify-center flex-shrink-0 ${label ? 'w-8 h-8' : 'w-10 h-10'}`}>
+          {avatarSrc ? (
+            <img src={avatarSrc} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+          ) : (
+            <span className="text-purple-200 text-sm font-bold">{initial}</span>
+          )}
+        </div>
       </button>
 
       <AnimatePresence>
@@ -148,26 +100,17 @@ export default function UserMenu() {
               </div>
             </div>
 
-            {/* Nav links */}
-            <div className="py-1">
-              {NAV_LINKS.map((link) => {
-                const isActive = location.pathname === link.path;
-                return (
-                  <button
-                    key={link.path}
-                    onClick={() => handleNavigate(link.path)}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors cursor-pointer ${
-                      isActive
-                        ? 'bg-purple-600/15 text-purple-300'
-                        : 'text-white/70 hover:bg-white/5 hover:text-white'
-                    }`}
-                  >
-                    {link.icon}
-                    <span>{link.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Account settings */}
+            <button
+              onClick={() => { setOpen(false); setShowAccountSettings(true); }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Account settings
+            </button>
 
             <div className="border-t border-white/5" />
 
@@ -181,45 +124,223 @@ export default function UserMenu() {
               </svg>
               Sign out
             </button>
-
-            {/* Delete account */}
-            <div className="border-t border-white/5" />
-            {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/40 hover:bg-red-500/10 hover:text-red-400 transition-colors cursor-pointer"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete account
-              </button>
-            ) : (
-              <div className="px-4 py-3 bg-red-500/5">
-                <p className="text-red-300/90 text-xs mb-3">
-                  This will permanently delete your orb and all data. This cannot be undone.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={deleting}
-                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 text-red-300 text-xs font-semibold py-1.5 rounded transition-colors cursor-pointer"
-                  >
-                    {deleting ? 'Deleting...' : 'Yes, delete'}
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    disabled={deleting}
-                    className="flex-1 bg-white/5 hover:bg-white/10 text-white/60 text-xs font-semibold py-1.5 rounded transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Account Settings Modal */}
+      <AnimatePresence>
+        {showAccountSettings && (
+          <AccountSettingsModal
+            orbId={orbId}
+            onOrbIdChanged={onOrbIdChanged}
+            onClose={() => setShowAccountSettings(false)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Account Settings Modal ──
+
+function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
+  orbId?: string;
+  onOrbIdChanged?: () => void;
+  onClose: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<'orb-id' | 'account'>('orb-id');
+  const { user, logout } = useAuthStore();
+  const addToast = useToastStore((s) => s.addToast);
+  const navigate = useNavigate();
+
+  // Orbis ID state
+  const [customId, setCustomId] = useState(orbId || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  // Delete account state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleSaveOrbId = async () => {
+    const trimmed = customId.trim().toLowerCase();
+    if (!trimmed) return;
+    if (trimmed === orbId) { onClose(); return; }
+    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { setError('Only lowercase letters, numbers, and hyphens allowed.'); return; }
+    if (trimmed.length < 3) { setError('Must be at least 3 characters.'); return; }
+    setSaving(true); setError('');
+    try {
+      await claimOrbId(trimmed);
+      setSuccess(true);
+      onOrbIdChanged?.();
+      setTimeout(() => onClose(), 1200);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to claim this ID. It may already be taken.');
+    } finally { setSaving(false); }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      if (user?.user_id) clearDraftNotes(user.user_id);
+      logout();
+      addToast('Your account has been deleted', 'info');
+      navigate('/', { replace: true });
+    } catch {
+      setError('Failed to delete account. Please try again.');
+      setDeleting(false);
+    }
+  };
+
+  const TABS = [
+    { id: 'orb-id' as const, label: 'Orbis ID', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+      </svg>
+    )},
+    { id: 'account' as const, label: 'Account', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+      </svg>
+    )},
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 24 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 24 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[420px] max-h-[90vh] overflow-hidden flex flex-col"
+      >
+        <div className="p-4 sm:p-6 pb-0">
+          <h2 className="text-white text-lg font-semibold mb-1">Account Settings</h2>
+          <p className="text-gray-400 text-sm mb-4">Manage your orbis identity and account.</p>
+        </div>
+
+        <div className="flex flex-1 min-h-0">
+          {/* Tabs sidebar */}
+          <div className="w-36 sm:w-44 border-r border-gray-700 p-2 flex flex-col gap-0.5">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setError(''); setSuccess(false); setShowDeleteConfirm(false); }}
+                className={`flex items-center gap-2.5 text-left px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer ${
+                  activeTab === tab.id
+                    ? 'bg-gray-800 text-white font-medium'
+                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col min-h-0">
+            <AnimatePresence mode="wait">
+              {/* ── Orbis ID tab ── */}
+              {activeTab === 'orb-id' && (
+                <motion.div
+                  key="orb-id"
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.15, ease: 'easeInOut' }}
+                  className="flex flex-col justify-between h-full"
+                >
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orbis ID</label>
+                    <p className="text-[11px] text-gray-500 mt-1 mb-5">Choose a memorable ID for your orbis. This will be your public URL and MCP identifier.</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-500 text-sm">{window.location.origin}/</span>
+                      <input
+                        value={customId}
+                        onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }}
+                        placeholder="your-name"
+                        className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                    {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                    {success && <p className="text-green-400 text-xs mt-2">Orbis ID updated!</p>}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button onClick={handleSaveOrbId} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm cursor-pointer">{saving ? 'Saving...' : 'Save'}</button>
+                    <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm cursor-pointer">Cancel</button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── Account tab ── */}
+              {activeTab === 'account' && (
+                <motion.div
+                  key="account"
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.15, ease: 'easeInOut' }}
+                >
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account</label>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Manage your account and data.</p>
+
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                    <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
+                    <p className="text-gray-400 text-xs leading-relaxed mb-4">
+                      Permanently delete your account, your orbis, and all associated data. This action is immediate and cannot be undone.
+                    </p>
+
+                    {!showDeleteConfirm ? (
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Delete my account
+                      </button>
+                    ) : (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
+                        <p className="text-red-300 text-xs font-medium mb-3">
+                          Are you sure? Your orbis and all data will be permanently deleted immediately.
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleDeleteAccount}
+                            disabled={deleting}
+                            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                          >
+                            {deleting ? 'Deleting...' : 'Yes, delete my account'}
+                          </button>
+                        </div>
+                        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
