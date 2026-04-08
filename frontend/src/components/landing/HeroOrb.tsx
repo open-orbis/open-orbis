@@ -141,7 +141,7 @@ export default function HeroOrb() {
   return (
     <div className="w-64 h-64 md:w-80 md:h-80">
       <Canvas
-        camera={{ position: [0, 0, 7], fov: 45 }}
+        camera={{ position: [0, 0, 8], fov: 45 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
