@@ -116,6 +116,64 @@ def _fuzzy_match(text: str, terms: list[str], threshold: float = 0.6) -> bool:
     return False
 
 
+def _best_window_similarity(text: str, term: str) -> float:
+    """Best character overlap ratio for a term inside text."""
+    if not text or not term:
+        return 0.0
+    if len(text) < len(term):
+        common = sum(1 for a, b in zip(text, term) if a == b)
+        return common / max(len(term), 1)
+
+    best = 0.0
+    for i in range(max(0, len(text) - len(term) + 1)):
+        window = text[i : i + len(term)]
+        common = sum(1 for a, b in zip(window, term) if a == b)
+        best = max(best, common / max(len(term), 1))
+    return best
+
+
+def _field_match_score(text: str, raw_term: str, terms: list[str]) -> float:
+    """Compute a normalized relevance score [0, 1] for one field."""
+    if not text:
+        return 0.0
+    text_lower = text.lower()
+    score = 0.0
+
+    if raw_term and raw_term in text_lower:
+        term_ratio = min(1.0, len(raw_term) / max(len(text_lower), 1))
+        score = max(score, 0.75 + (0.2 * term_ratio))
+
+    matched_terms = sum(1 for t in terms if t and t in text_lower)
+    if terms and matched_terms > 0:
+        coverage = matched_terms / len(terms)
+        score = max(score, 0.55 + (0.35 * coverage))
+
+    for term in terms:
+        if len(term) < 3:
+            continue
+        best_similarity = _best_window_similarity(text_lower, term)
+        if best_similarity >= 0.6:
+            score = max(score, 0.35 + (0.5 * best_similarity))
+
+    return min(1.0, score)
+
+
+def _node_match_score(
+    node: dict, fields: list[str], raw_term: str, terms: list[str]
+) -> float:
+    """Compute a normalized node relevance score [0, 1]."""
+    field_scores = [
+        _field_match_score(str(node.get(field, "")), raw_term, terms)
+        for field in fields
+        if node.get(field)
+    ]
+    if not field_scores:
+        return 0.0
+    top_score = max(field_scores)
+    extra_matches = max(0, sum(1 for s in field_scores if s >= 0.6) - 1)
+    return min(1.0, top_score + (0.03 * extra_matches))
+
+
 @router.post("/text")
 async def text_search(  # noqa: C901
     data: TextSearchRequest,
@@ -151,6 +209,7 @@ async def text_search(  # noqa: C901
                     node = dict(record["n"])
                     node.pop("embedding", None)
                     node["_labels"] = record["node_labels"]
+                    node["score"] = _node_match_score(node, fields, raw_term, terms)
                     if node.get("uid") not in seen_uids:
                         seen_uids.add(node.get("uid", ""))
                         results.append(node)
@@ -183,6 +242,9 @@ async def text_search(  # noqa: C901
                         if matched:
                             node.pop("embedding", None)
                             node["_labels"] = record["node_labels"]
+                            node["score"] = _node_match_score(
+                                node, fields, raw_term, terms
+                            )
                             seen_uids.add(uid)
                             results.append(node)
                 except Exception as e:
@@ -191,6 +253,7 @@ async def text_search(  # noqa: C901
                     )
                     continue
 
+    results.sort(key=lambda n: n.get("score", 0), reverse=True)
     return results
 
 
@@ -237,6 +300,7 @@ async def public_text_search(  # noqa: C901
                     node = dict(record["n"])
                     node.pop("embedding", None)
                     node["_labels"] = record["node_labels"]
+                    node["score"] = _node_match_score(node, fields, raw_term, terms)
                     if node.get("uid") not in seen_uids:
                         if filter_keywords and node_matches_filters(
                             node, filter_keywords
@@ -280,6 +344,9 @@ async def public_text_search(  # noqa: C901
                         if matched:
                             node.pop("embedding", None)
                             node["_labels"] = record["node_labels"]
+                            node["score"] = _node_match_score(
+                                node, fields, raw_term, terms
+                            )
                             seen_uids.add(uid)
                             results.append(node)
                 except Exception as e:
@@ -291,4 +358,5 @@ async def public_text_search(  # noqa: C901
                     )
                     continue
 
+    results.sort(key=lambda n: n.get("score", 0), reverse=True)
     return results

@@ -3,6 +3,7 @@ import client from './client';
 export interface OrbNode {
   uid: string;
   _labels: string[];
+  score?: number;
   [key: string]: unknown;
 }
 
@@ -115,5 +116,4 @@ export async function enhanceNote(
   });
   return data;
 }
-
 

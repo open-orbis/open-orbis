@@ -924,10 +924,7 @@ export default function OrbViewPage() {
           data={data}
           onNodeClick={isPendingDeletion ? undefined : handleNodeClick}
           onBackgroundClick={isPendingDeletion ? undefined : () => {
-            if (chatMessages.length > 0) {
-              setChatMessages([]);
-              setHighlightedNodeIds(new Set());
-            }
+            setHighlightedNodeIds(new Set());
           }}
           highlightedNodeIds={highlightedNodeIds}
           filteredNodeIds={filteredNodeIds}
@@ -965,6 +962,7 @@ export default function OrbViewPage() {
       {/* ── Chat Box ── */}
       {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
+        highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
         onAdd={() => { setEditNode(null); setShowInput(true); }}

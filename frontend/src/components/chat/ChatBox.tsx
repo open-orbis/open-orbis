@@ -7,10 +7,12 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   matchedNodes?: OrbNode[];
+  selectedNodeUid?: string;
 }
 
 interface ChatBoxProps {
   onHighlight: (nodeIds: Set<string>) => void;
+  highlightedNodeIds?: Set<string>;
   messages: ChatMessage[];
   onMessagesChange: (msgs: ChatMessage[]) => void;
   onAdd?: () => void;
@@ -58,7 +60,19 @@ function getNodeSubtitle(node: OrbNode): string {
   return '';
 }
 
-export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd, placeholder = 'Query your orbis...', searchFn = textSearch }: ChatBoxProps) {
+function getNodeScore(node: OrbNode): number {
+  const raw = node.score ?? (node._score as number | undefined);
+  if (typeof raw !== 'number' || Number.isNaN(raw)) return 0;
+  return Math.max(0, Math.min(1, raw));
+}
+
+function getScoreStyle(score: number): { dot: string; text: string } {
+  if (score >= 0.8) return { dot: '#34d399', text: '#86efac' };
+  if (score >= 0.6) return { dot: '#facc15', text: '#fde68a' };
+  return { dot: '#f87171', text: '#fca5a5' };
+}
+
+export default function ChatBox({ onHighlight, highlightedNodeIds, messages, onMessagesChange, onAdd, onShare, highlightAdd, placeholder = 'Query your orbis...', searchFn = textSearch }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -87,24 +101,25 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
 
     try {
       const results = await searchFn(query);
+      const sortedResults = [...results].sort((a, b) => getNodeScore(b) - getNodeScore(a));
 
-      if (results.length === 0) {
+      if (sortedResults.length === 0) {
         setMessages((prev) => [
           ...prev,
           { role: 'assistant', text: `No matches found for "${query}". This information isn't in your orbis yet.` },
         ]);
         onHighlight(new Set());
       } else {
-        const nodeIds = new Set(results.map((n) => n.uid));
-        onHighlight(nodeIds);
+        const selectedNodeUid = sortedResults[0].uid;
+        onHighlight(new Set([selectedNodeUid]));
 
-        const summary = results.length === 1
-          ? `Found 1 matching node — highlighted in your graph.`
-          : `Found ${results.length} matching nodes — highlighted in your graph.`;
+        const summary = sortedResults.length === 1
+          ? 'Found 1 matching node — highlighted in your graph.'
+          : `Found ${sortedResults.length} matching nodes — click one to highlight it in your graph.`;
 
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', text: summary, matchedNodes: results },
+          { role: 'assistant', text: summary, matchedNodes: sortedResults, selectedNodeUid },
         ]);
       }
     } catch {
@@ -116,6 +131,14 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResultClick = (messageIndex: number, nodeUid: string) => {
+    onHighlight(new Set([nodeUid]));
+    setMessages((prev) => prev.map((msg, idx) => {
+      if (idx !== messageIndex || !msg.matchedNodes) return msg;
+      return { ...msg, selectedNodeUid: nodeUid };
+    }));
   };
 
   const hasMessages = messages.length > 0;
@@ -160,12 +183,30 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
                             const label = node._labels?.[0] || '';
                             const typeKey = LABEL_TO_TYPE[label] || '';
                             const color = NODE_TYPE_COLORS[typeKey] || '#8b5cf6';
+                            const score = getNodeScore(node);
+                            const scorePercent = Math.round(score * 100);
+                            const scoreStyle = getScoreStyle(score);
+                            const isSelected = highlightedNodeIds?.has(node.uid) ?? (msg.selectedNodeUid === node.uid);
                             return (
-                              <div
+                              <button
                                 key={j}
-                                className="flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur-sm"
-                                style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                type="button"
+                                onClick={() => handleResultClick(i, node.uid)}
+                                className="w-full flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur-sm text-left transition-colors"
+                                style={{
+                                  backgroundColor: isSelected ? 'rgba(139,92,246,0.18)' : 'rgba(255,255,255,0.08)',
+                                  border: isSelected ? '1px solid rgba(167,139,250,0.65)' : '1px solid rgba(255,255,255,0.1)',
+                                }}
                               >
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full"
+                                    style={{ backgroundColor: scoreStyle.dot, boxShadow: `0 0 6px ${scoreStyle.dot}` }}
+                                  />
+                                  <span className="text-[10px] font-semibold" style={{ color: scoreStyle.text }}>
+                                    {scorePercent}%
+                                  </span>
+                                </div>
                                 <div
                                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
@@ -186,7 +227,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
                                 >
                                   {DISPLAY_LABELS[label] || label}
                                 </span>
-                              </div>
+                              </button>
                             );
                           })}
                         </div>

@@ -147,10 +147,7 @@ export default function SharedOrbPage() {
       <OrbGraph3D
         data={data}
         onBackgroundClick={() => {
-          if (chatMessages.length > 0) {
-            setChatMessages([]);
-            setHighlightedNodeIds(new Set());
-          }
+          setHighlightedNodeIds(new Set());
         }}
         highlightedNodeIds={highlightedNodeIds}
         filteredNodeIds={dateFilteredNodeIds}
@@ -162,6 +159,7 @@ export default function SharedOrbPage() {
       {/* ── Chat Box (no Add / Share buttons) ── */}
       <ChatBox
         onHighlight={setHighlightedNodeIds}
+        highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
         placeholder={`Query ${personName}'s orbis...`}
