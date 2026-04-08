@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { uploadCV } from '../../api/cv';
-import type { ExtractedData, ExtractedRelationship } from '../../api/cv';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { uploadCV, getCVProgress } from '../../api/cv';
+import type { ExtractedData, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
 import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
 import ExtractedDataReview from './ExtractedDataReview';
@@ -10,6 +10,25 @@ export default function CVUploadOnboarding() {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [progressData, setProgressData] = useState<CVProgressData | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll progress while uploading
+  useEffect(() => {
+    if (!uploading) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    const poll = async () => {
+      try {
+        const data = await getCVProgress();
+        setProgressData(data);
+      } catch { /* ignore */ }
+    };
+    poll();
+    pollRef.current = setInterval(poll, 2000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [uploading]);
   const [extractedData, setExtractedData] = useState<{
     nodes: ExtractedData['nodes'];
     relationships: ExtractedRelationship[];
@@ -118,10 +137,7 @@ export default function CVUploadOnboarding() {
           }`}
         >
           {uploading ? (
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-white/50 text-sm">Parsing your CV...</p>
-            </div>
+            <ProgressSteps progress={progressData} />
           ) : (
             <>
               <svg className="w-10 h-10 mx-auto text-white/15 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -152,6 +168,91 @@ export default function CVUploadOnboarding() {
 
         {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
       </div>
+    </div>
+  );
+}
+
+// ── Progress steps display ──
+
+const STEPS = [
+  { key: 'reading_pdf', label: 'Reading PDF' },
+  { key: 'extracting_text', label: 'Extracting text' },
+  { key: 'classifying', label: 'Classifying entries' },
+  { key: 'parsing_response', label: 'Building graph' },
+];
+
+function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
+  const currentStep = progress?.step || 'reading_pdf';
+  const percent = progress?.percent || 5;
+  const detail = progress?.detail || '';
+  const elapsed = progress?.elapsed_seconds || 0;
+
+  const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
+
+  const formatTime = (secs: number) => {
+    if (secs < 60) return `${secs}s`;
+    return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-2">
+      {/* Steps */}
+      <div className="w-full max-w-xs space-y-2">
+        {STEPS.map((step, i) => {
+          const isDone = i < currentIdx || currentStep === 'done';
+          const isCurrent = i === currentIdx && currentStep !== 'done';
+          const isPending = i > currentIdx && currentStep !== 'done';
+
+          return (
+            <div key={step.key} className="flex items-center gap-3">
+              {/* Icon */}
+              <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                {isDone ? (
+                  <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : isCurrent ? (
+                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                ) : isPending ? (
+                  <div className="w-3 h-3 rounded-full bg-white/10" />
+                ) : null}
+              </div>
+              {/* Label */}
+              <span className={`text-sm ${
+                isDone ? 'text-white/40' :
+                isCurrent ? 'text-white font-medium' :
+                'text-white/20'
+              }`}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-full max-w-xs">
+        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-1000 ease-out"
+            style={{
+              width: `${percent}%`,
+              background: percent >= 90
+                ? 'linear-gradient(to right, #a855f6, #22c55e)'
+                : 'linear-gradient(to right, #7c3aed, #a855f6)',
+            }}
+          />
+        </div>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-white/20 text-[10px]">{percent}%</span>
+          <span className="text-white/20 text-[10px]">{formatTime(elapsed)}</span>
+        </div>
+      </div>
+
+      {/* Detail */}
+      {detail && (
+        <p className="text-white/30 text-xs text-center">{detail}</p>
+      )}
     </div>
   );
 }

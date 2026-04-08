@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from neo4j import AsyncDriver
 
 from app.config import settings
-from app.cv import counter
+from app.cv import counter, progress
 from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
+from app.cv.progress import CVStep
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties
 from app.graph.queries import (
@@ -58,18 +59,33 @@ async def upload_cv(
     if len(pdf_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
+    user_id = current_user.get("user_id", "")
     counter.increment()
     try:
-        # Step 1: Extract text via Docling (local, free)
-        logger.info("Starting PDF extraction for user %s", current_user.get("user_id"))
+        # Step 1: Read PDF
+        progress.set_progress(user_id, CVStep.READING_PDF)
+        logger.info("Starting PDF extraction for user %s", user_id)
+
+        # Step 2: Extract text
+        progress.set_progress(
+            user_id,
+            CVStep.EXTRACTING_TEXT,
+            f"{len(pdf_bytes) // 1024}KB document",
+        )
         raw_text = await pdf_extract(pdf_bytes)
 
         if not raw_text.strip():
+            progress.set_progress(user_id, CVStep.FAILED, "No text found")
             raise HTTPException(
                 status_code=400, detail="Could not extract text from PDF"
             )
 
-        # Step 2: Classify entries via LLM
+        # Step 3: Classify entries via LLM
+        progress.set_progress(
+            user_id,
+            CVStep.CLASSIFYING,
+            f"Analyzing {len(raw_text):,} characters",
+        )
         logger.info(
             "Classifying entries with %s (%d chars)",
             settings.llm_provider,
@@ -77,11 +93,21 @@ async def upload_cv(
         )
         result = await classify_entries(raw_text)
 
+        # Step 4: Parse response
+        progress.set_progress(
+            user_id,
+            CVStep.PARSING_RESPONSE,
+            f"Found {len(result.nodes)} entries",
+        )
+
         if not result.nodes and not result.unmatched:
+            progress.set_progress(user_id, CVStep.FAILED, "No entries extracted")
             raise HTTPException(
                 status_code=400,
                 detail="No entries could be extracted. Try a different CV.",
             )
+
+        progress.set_progress(user_id, CVStep.DONE)
 
         return ExtractedData(
             nodes=result.nodes,
@@ -96,23 +122,61 @@ async def upload_cv(
         raise
     except TimeoutError as e:
         logger.error("PDF extraction timeout: %s", e)
+        progress.set_progress(user_id, CVStep.FAILED, "Timed out")
         raise HTTPException(
             status_code=504, detail="PDF processing timed out. Please try again."
         ) from None
     except Exception as e:
         logger.error("CV upload pipeline error: %s", e, exc_info=True)
+        progress.set_progress(user_id, CVStep.FAILED, str(e))
         raise HTTPException(
             status_code=500,
             detail=f"Failed to process CV: {str(e)}",
         ) from None
     finally:
         counter.decrement()
+        # Clean up progress after a delay so the frontend can show "Done"
+        import asyncio
+
+        async def _cleanup():
+            await asyncio.sleep(5)
+            progress.clear_progress(user_id)
+
+        asyncio.create_task(_cleanup())
 
 
 @router.get("/processing-count")
 async def get_processing_count():
     """Return the number of PDFs currently being processed."""
     return {"count": counter.get_count()}
+
+
+@router.get("/progress")
+async def get_cv_progress(
+    current_user: dict = Depends(get_current_user),
+):
+    """Return granular progress for the current user's CV processing."""
+    user_id = current_user["user_id"]
+    p = progress.get_progress(user_id)
+    if p is None:
+        return {
+            "active": False,
+            "step": None,
+            "percent": 0,
+            "message": None,
+            "detail": None,
+            "elapsed_seconds": 0,
+        }
+    import time
+
+    return {
+        "active": p.step not in ("done", "failed"),
+        "step": p.step,
+        "percent": p.percent,
+        "message": p.message,
+        "detail": p.detail,
+        "elapsed_seconds": round(time.time() - p.started_at),
+    }
 
 
 @router.post("/confirm")
