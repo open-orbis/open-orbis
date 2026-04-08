@@ -365,9 +365,7 @@ async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noq
                 merge_key_values = {k: properties.get(k, "") for k in merge_keys}
                 has_all = all(merge_key_values.values())
                 if has_all:
-                    merge_match = ", ".join(
-                        f"{k}: $merge_{k}" for k in merge_keys
-                    )
+                    merge_match = ", ".join(f"{k}: $merge_{k}" for k in merge_keys)
                     query = (
                         f"MATCH (p:Person {{user_id: $user_id}}) "
                         f"MERGE (p)-[:{rel_type}]->(n:{label} {{{merge_match}}}) "
