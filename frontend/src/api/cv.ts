@@ -55,6 +55,36 @@ export async function downloadCV(): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+export async function importDocument(file: File): Promise<ExtractedData> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await client.post('/cv/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 1800000,
+  });
+  return data;
+}
+
+export async function confirmImport(
+  nodes: ExtractedData['nodes'],
+  relationships?: ExtractedRelationship[],
+  cv_owner_name?: string | null,
+): Promise<void> {
+  await client.post('/cv/import-confirm', {
+    nodes,
+    relationships: relationships || [],
+    cv_owner_name: cv_owner_name || null,
+  });
+}
+
+export async function storeFile(file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append('file', file);
+  await client.post('/cv/store-file', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
 export async function getProcessingCount(): Promise<number> {
   const { data } = await client.get('/cv/processing-count');
   return data.count;

@@ -18,6 +18,10 @@ interface ExtractedDataReviewProps {
   truncated: boolean;
   onReset: () => void;
   resetLabel?: string;
+  /** Override the confirm function (default: confirmCV which wipes existing data) */
+  onConfirm?: (nodes: ExtractedData['nodes'], relationships: ExtractedRelationship[], cvOwnerName: string | null) => Promise<void>;
+  /** Extra content rendered below the header (e.g., checkbox) */
+  children?: React.ReactNode;
 }
 
 export default function ExtractedDataReview({
@@ -29,6 +33,8 @@ export default function ExtractedDataReview({
   truncated,
   onReset,
   resetLabel = 'Try another file',
+  onConfirm: onConfirmOverride,
+  children,
 }: ExtractedDataReviewProps) {
   const navigate = useNavigate();
   const { fetchUser } = useAuthStore();
@@ -40,8 +46,9 @@ export default function ExtractedDataReview({
   const [error, setError] = useState('');
   const [existingNodeCount, setExistingNodeCount] = useState<number | null>(null);
   const [showReplaceWarning, setShowReplaceWarning] = useState(false);
+  const isReplaceMode = !onConfirmOverride;
 
-  // Check how many nodes the user already has — we need to warn them that confirm wipes the graph
+  // Check how many nodes the user already has so we can show accurate import messaging
   useEffect(() => {
     getMyOrb()
       .then((orb) => setExistingNodeCount(orb.nodes.length))
@@ -65,8 +72,9 @@ export default function ExtractedDataReview({
 
   const handleConfirmClick = () => {
     if (extractedNodes.length === 0) return;
-    // If the user already has nodes, ask for explicit confirmation — confirmCV wipes the graph
-    if ((existingNodeCount ?? 0) > 0) {
+    // If using default confirmCV (which wipes the graph), warn the user
+    // If using a custom confirm (import mode — merge), skip the warning
+    if (isReplaceMode && (existingNodeCount ?? 0) > 0) {
       setShowReplaceWarning(true);
       return;
     }
@@ -78,9 +86,10 @@ export default function ExtractedDataReview({
     setConfirming(true);
     try {
       const replaced = existingNodeCount ?? 0;
-      await confirmCV(extractedNodes, relationships, cvOwnerName);
+      const doConfirm = onConfirmOverride || confirmCV;
+      await doConfirm(extractedNodes, relationships, cvOwnerName);
       await fetchUser();
-      if (replaced > 0) {
+      if (isReplaceMode && replaced > 0) {
         addToast(
           `Imported ${extractedNodes.length} entries (replaced ${replaced} existing)`,
           'success',
@@ -132,6 +141,7 @@ export default function ExtractedDataReview({
               {skippedCount} entr{skippedCount === 1 ? 'y was' : 'ies were'} skipped due to missing required fields or unknown types.
             </p>
           )}
+          {children}
         </div>
 
         <div className="space-y-6 mb-8">
@@ -223,7 +233,10 @@ export default function ExtractedDataReview({
 
         {(existingNodeCount ?? 0) > 0 && (
           <p className="text-amber-400/80 text-xs text-center mb-3">
-            You currently have {existingNodeCount} entries in your orb. Importing will replace them.
+            You currently have {existingNodeCount} entries in your orb.{' '}
+            {isReplaceMode
+              ? 'Importing will replace them.'
+              : 'Importing will merge with your existing entries.'}
           </p>
         )}
 
