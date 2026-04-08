@@ -17,7 +17,26 @@ from app.graph.queries import NODE_TYPE_LABELS
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are a CV/resume parsing assistant. Given raw text extracted from a CV document,
-identify and classify every entry into structured nodes.
+extract the person's profile information AND classify every entry into structured nodes.
+
+## Person Profile
+
+Extract the following about the CV owner (all optional, include only if found):
+- cv_owner_name: full name
+- headline: professional title or tagline (e.g. "Senior ML Engineer", "PhD Researcher in Quantum Computing")
+- location: city, country (e.g. "Pisa, Italy", "San Francisco, CA")
+- email: email address
+- phone: phone number
+- linkedin_url: LinkedIn profile URL
+- github_url: GitHub profile URL
+- website_url: personal website URL
+- scholar_url: Google Scholar URL
+- orcid_url: ORCID URL (https://orcid.org/...)
+
+For the headline: if no explicit tagline is given, infer it from the most recent job title
+and company (e.g. "Postdoc Researcher @ University of Pisa").
+
+## Node Types
 
 Each node must have a "node_type" and a "properties" object.
 
@@ -32,7 +51,8 @@ Valid node_types and their expected properties:
     start_date (string), end_date (string or null), description (string), location (string)
 
 - skill:
-    name (string), category (one of: "Programming", "Framework", "Tool", "Methodology", "Soft Skill", "Other"),
+    name (string), category (one of: "Programming", "Framework", "Tool", "Methodology",
+    "Research Area", "Domain Knowledge", "Soft Skill", "Other"),
     proficiency (one of: "Expert", "Advanced", "Intermediate", "Beginner" or null)
 
 - language:
@@ -45,6 +65,8 @@ Valid node_types and their expected properties:
 - publication:
     title (string), venue (string), date (string), doi (string or null),
     url (string or null), abstract (string or null)
+    NOTE: Publications often appear as numbered lists or multi-line entries with authors, title,
+    venue/journal, and year. Extract each publication as a separate node. Include ALL publications.
 
 - project:
     name (string), role (string), description (string),
@@ -66,20 +88,37 @@ Valid node_types and their expected properties:
     role (string, e.g. "Speaker", "Organizer", "Panelist"),
     url (string or null)
 
-Rules:
+## Rules
+
 - Use ISO date format when possible (YYYY-MM-DD, YYYY-MM, or YYYY)
 - If end_date is "Present", "Current", or ongoing, set it to null
-- Extract ALL entries you can find — do not skip any
-- For skills, extract individual skills (not groups)
-- If something does not clearly fit any node_type, put the raw text in the "unmatched" array
+- Extract ALL entries — do not skip any. Completeness is critical.
+- For skills, extract individual skills (not groups). Normalize names (e.g. "JS" → "JavaScript").
+- Do not create duplicate skill nodes — if the same skill appears multiple times, create it once.
+- Education: only extract actual degrees (BSc, MSc, PhD, etc.), not workshops or short courses.
+- If something does not clearly fit any node_type, put the raw text in the "unmatched" array.
 
-For each skill that is mentioned in the context of a work_experience, project, education,
-publication, award, or outreach entry, include a relationship entry linking the experience
-node (by its index in the nodes array) to the skill node (by its index). Use type "USED_SKILL".
+## Relationships
+
+For each skill mentioned in the context of a work_experience, project, education,
+publication, patent, award, or outreach entry, include a relationship entry linking
+the source node (by its index in the nodes array) to the skill node (by its index).
+Use type "USED_SKILL".
+
+## Output Format
 
 You MUST return valid JSON in exactly this format:
 {
-  "cv_owner_name": "Full Name of the person whose CV this is",
+  "cv_owner_name": "Full Name",
+  "headline": "Professional Title @ Company",
+  "location": "City, Country",
+  "email": "user@example.com",
+  "phone": "+1234567890",
+  "linkedin_url": "https://linkedin.com/in/...",
+  "github_url": "https://github.com/...",
+  "website_url": "https://...",
+  "scholar_url": "https://scholar.google.com/...",
+  "orcid_url": "https://orcid.org/...",
   "nodes": [
     {"node_type": "work_experience", "properties": {"company": "...", "title": "...", ...}},
     {"node_type": "skill", "properties": {"name": "Python", "category": "Programming"}},
@@ -95,6 +134,7 @@ You MUST return valid JSON in exactly this format:
   ]
 }
 
+Omit profile fields that are not found in the CV (do not include null values for missing fields).
 Return ONLY valid JSON. No markdown, no explanation, no code blocks."""
 
 
@@ -179,6 +219,7 @@ class ClassificationResult:
     relationships: list[ExtractedRelationship] = field(default_factory=list)
     truncated: bool = False
     cv_owner_name: str | None = None
+    profile: dict | None = None
 
 
 MAX_RETRIES = 2
@@ -362,6 +403,21 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
     unmatched = parsed.get("unmatched", [])
     raw_rels = parsed.get("relationships", [])
 
+    # Extract person profile fields
+    profile_keys = [
+        "headline",
+        "location",
+        "email",
+        "phone",
+        "linkedin_url",
+        "github_url",
+        "website_url",
+        "scholar_url",
+        "orcid_url",
+    ]
+    profile = {k: parsed[k] for k in profile_keys if parsed.get(k)}
+    profile = profile if profile else None
+
     # Validate nodes — track original-to-filtered index mapping for relationships
     nodes: list[ExtractedNode] = []
     skipped: list[SkippedNode] = []
@@ -444,4 +500,5 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
         skipped=skipped,
         relationships=relationships,
         cv_owner_name=cv_owner_name,
+        profile=profile,
     )

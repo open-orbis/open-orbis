@@ -13,7 +13,7 @@ from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
 from app.cv.progress import CVStep
 from app.dependencies import get_current_user, get_db
-from app.graph.encryption import encrypt_properties
+from app.graph.encryption import encrypt_properties, encrypt_value
 from app.graph.queries import (
     ADD_NODE,
     DELETE_USER_GRAPH,
@@ -109,6 +109,12 @@ async def upload_cv(
 
         progress.set_progress(user_id, CVStep.DONE)
 
+        from app.cv.models import ExtractedProfile
+
+        extracted_profile = None
+        if result.profile:
+            extracted_profile = ExtractedProfile(**result.profile)
+
         return ExtractedData(
             nodes=result.nodes,
             unmatched=result.unmatched,
@@ -116,6 +122,7 @@ async def upload_cv(
             relationships=result.relationships,
             truncated=result.truncated,
             cv_owner_name=result.cv_owner_name,
+            profile=extracted_profile,
         )
 
     except HTTPException:
@@ -179,6 +186,20 @@ async def get_cv_progress(
     }
 
 
+def _build_person_updates(data: ConfirmRequest) -> dict:
+    """Build Person node property updates from CV extraction results."""
+    updates: dict[str, str] = {}
+    if data.cv_owner_name:
+        updates["cv_display_name"] = data.cv_owner_name
+    if data.profile:
+        profile_dict = data.profile.model_dump(exclude_none=True)
+        for pii_field in ("email", "phone"):
+            if pii_field in profile_dict:
+                profile_dict[pii_field] = encrypt_value(profile_dict[pii_field])
+        updates.update(profile_dict)
+    return updates
+
+
 @router.post("/confirm")
 async def confirm_cv(
     data: ConfirmRequest,
@@ -193,12 +214,13 @@ async def confirm_cv(
         # Wipe existing graph nodes (keep Person) so CV import replaces, not merges
         await session.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
 
-        # Store CV owner name separately (Person.name stays from OAuth provider)
-        if data.cv_owner_name:
+        # Store CV owner name and extracted profile on the Person node
+        person_updates = _build_person_updates(data)
+        if person_updates:
             await session.run(
                 UPDATE_PERSON,
                 user_id=current_user["user_id"],
-                properties={"cv_display_name": data.cv_owner_name},
+                properties=person_updates,
             )
         for node in data.nodes:
             if node.node_type not in NODE_TYPE_LABELS:
