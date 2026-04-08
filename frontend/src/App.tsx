@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import LandingPage from './pages/LandingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
@@ -12,45 +11,41 @@ import CvExportPage from './pages/CvExportPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ToastContainer from './components/ToastContainer';
 
-const pageVariants = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
-};
+const scrollPositions: Record<string, number> = {};
 
-const pageTransition = { duration: 0.4, ease: 'easeInOut' };
+function ScrollManager() {
+  const { pathname } = useLocation();
+  const navType = useNavigationType();
+  const prevPathname = useRef(pathname);
 
-function PageWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageTransition}
-      className="min-h-screen bg-black"
-    >
-      {children}
-    </motion.div>
-  );
+  useEffect(() => {
+    if (prevPathname.current !== pathname) {
+      scrollPositions[prevPathname.current] = window.scrollY;
+      prevPathname.current = pathname;
+    }
+
+    if (navType === 'POP' && scrollPositions[pathname] != null) {
+      window.scrollTo(0, scrollPositions[pathname]);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, navType]);
+
+  return null;
 }
 
-function AnimatedRoutes() {
-  const location = useLocation();
-
+function AppRoutes() {
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />
-        <Route path="/create" element={<PageWrapper><CreateOrbPage /></PageWrapper>} />
-        <Route path="/myorbis" element={<PageWrapper><OrbViewPage /></PageWrapper>} />
-        <Route path="/cv-export" element={<CvExportPage />} />
-        <Route path="/privacy" element={<PageWrapper><PrivacyPolicyPage /></PageWrapper>} />
-        <Route path="/:orbId" element={<PageWrapper><SharedOrbPage /></PageWrapper>} />
-      </Routes>
-    </AnimatePresence>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/create" element={<CreateOrbPage />} />
+      <Route path="/myorbis" element={<OrbViewPage />} />
+      <Route path="/cv-export" element={<CvExportPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/:orbId" element={<SharedOrbPage />} />
+    </Routes>
   );
 }
 
@@ -63,7 +58,8 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AnimatedRoutes />
+      <ScrollManager />
+      <AppRoutes />
       <ToastContainer />
     </BrowserRouter>
   );

@@ -134,8 +134,8 @@ export default function LandingPage() {
           transition={{ delay: 0.5, duration: 0.8 }}
           className="text-white/40 text-lg sm:text-xl mb-10 z-10 max-w-lg text-center leading-relaxed"
         >
-          Build a living knowledge graph from your career.
-          Share it with recruiters, AI agents, and the world.
+          Your career as a knowledge graph.<br />
+          Reimagined for the AI era.
         </motion.p>
 
         {/* Tagline */}

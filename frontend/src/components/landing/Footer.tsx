@@ -36,7 +36,7 @@ export default function Footer() {
             </div>
             <span className="text-white font-bold text-lg tracking-tight">{brand.name}</span>
           </div>
-          <p className="text-white/40 text-sm max-w-xs">{brand.tagline}</p>
+          <p className="text-white/40 text-sm max-w-xs whitespace-pre-line">{brand.tagline}</p>
         </motion.div>
 
         {/* Links Sections */}

@@ -6,7 +6,7 @@
 export const FOOTER_CONTENT = {
   brand: {
     name: "OpenOrbis",
-    tagline: "Your career as a knowledge graph. Reimagined for the AI era.",
+    tagline: "Your career as a knowledge graph.\nReimagined for the AI era.",
     copyrightOwner: "Open Orbis",
   },
   sections: [
@@ -20,7 +20,7 @@ export const FOOTER_CONTENT = {
     {
       title: "Contact",
       links: [
-        { label: "Email", href: "mailto:hello@open-orbis.com" },
+        { label: "Email", href: "mailto:team@open-orbis.com" },
         {
           label: "GitHub",
           href: "https://github.com/Brotherhood94/orb_project",

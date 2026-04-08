@@ -33,8 +33,8 @@ export default function AboutPage() {
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          onClick={() => navigate('/')}
-          className="text-gray-500 hover:text-gray-300 text-sm mb-12 block transition-colors"
+          onClick={() => navigate(-1)}
+          className="text-gray-500 hover:text-gray-300 text-sm mb-12 block transition-colors cursor-pointer"
         >
           &larr; Back
         </motion.button>

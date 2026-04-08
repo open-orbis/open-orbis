@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <button
-          onClick={() => navigate('/create')}
+          onClick={() => navigate(-1)}
           className="text-white/30 hover:text-white/60 text-sm mb-8 flex items-center gap-1 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
