@@ -22,29 +22,39 @@ const SUGGESTED_ORDER = [
 
 // ── Path selector card ──
 
-function PathCard({ title, description, icon, onClick, color }: {
+function PathCard({ title, description, icon, onClick, color, recommended }: {
   title: string;
   description: string;
   icon: React.ReactNode;
   onClick: () => void;
   color: string;
+  recommended?: boolean;
 }) {
   return (
-    <motion.button
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-4 sm:p-6 text-left hover:border-white/15 hover:bg-white/[0.06] transition-all group w-full"
-    >
-      <div
-        className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
-        style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
+    <div className="flex flex-col items-center">
+      <motion.button
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        className={`bg-white/[0.03] rounded-2xl p-4 sm:p-6 text-left hover:bg-white/[0.06] transition-all group w-full ${
+          recommended
+            ? 'border-2 border-amber-500/50 hover:border-amber-400/70'
+            : 'border border-white/[0.08] hover:border-white/15'
+        }`}
       >
-        {icon}
-      </div>
-      <h3 className="text-white text-base font-semibold mb-1.5">{title}</h3>
-      <p className="text-white/35 text-sm leading-relaxed">{description}</p>
-    </motion.button>
+        <div
+          className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
+          style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
+        >
+          {icon}
+        </div>
+        <h3 className="text-white text-base font-semibold mb-1.5">{title}</h3>
+        <p className="text-white/35 text-sm leading-relaxed">{description}</p>
+      </motion.button>
+      {recommended && (
+        <span className="mt-2 text-xs font-medium text-amber-400/80 uppercase tracking-widest">recommended</span>
+      )}
+    </div>
   );
 }
 
@@ -114,7 +124,8 @@ export default function CreateOrbPage() {
           className="text-center mb-10"
         >
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
-            How do you want to build your orbis?
+            How do you want to build your{' '}
+            <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">orbis</span>?
           </h1>
           <p className="text-white/35 text-base max-w-md mx-auto">
             Choose how you'd like to add your professional information. You can always add more later.
@@ -128,9 +139,10 @@ export default function CreateOrbPage() {
           className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl"
         >
           <PathCard
-            title="Import from your CV"
+            title="Build from your CV"
             description="Upload a PDF file. We'll parse it and extract your experiences, skills, and education."
             color="#3b82f6"
+            recommended
             onClick={() => setSelectedPath('upload')}
             icon={
               <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
