@@ -20,28 +20,34 @@ function OrbSphere() {
 
   return (
     <group>
-      {/* Inner glow sphere */}
+      {/* Outer glow sphere — dark purple ring */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[2.2, 32, 32]} />
-        <meshBasicMaterial color="#7c3aed" transparent opacity={0.08} />
+        <meshBasicMaterial color="#7c3aed" transparent opacity={0.12} />
       </mesh>
 
-      {/* Main orb */}
+      {/* Main orb — bright vibrant purple core */}
       <mesh ref={meshRef}>
         <sphereGeometry args={[1.8, 64, 64]} />
         <meshStandardMaterial
-          color="#6d28d9"
-          emissive="#7c3aed"
-          emissiveIntensity={0.6}
-          roughness={0.3}
-          metalness={0.8}
+          color="#a855f6"
+          emissive="#a855f6"
+          emissiveIntensity={0.8}
+          roughness={0.2}
+          metalness={0.6}
         />
+      </mesh>
+
+      {/* Inner bright core */}
+      <mesh>
+        <sphereGeometry args={[1.0, 32, 32]} />
+        <meshBasicMaterial color="#c084fc" transparent opacity={0.4} />
       </mesh>
 
       {/* Highlight ring */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[2.0, 0.015, 16, 100]} />
-        <meshBasicMaterial color="#a78bfa" transparent opacity={0.5} />
+        <meshBasicMaterial color="#c084fc" transparent opacity={0.4} />
       </mesh>
     </group>
   );
@@ -146,8 +152,8 @@ export default function HeroOrb() {
         style={{ background: 'transparent' }}
       >
         <ambientLight intensity={0.3} />
-        <pointLight position={[5, 5, 5]} intensity={1} color="#a78bfa" />
-        <pointLight position={[-5, -3, 3]} intensity={0.5} color="#6d28d9" />
+        <pointLight position={[5, 5, 5]} intensity={1} color="#a855f6" />
+        <pointLight position={[-5, -3, 3]} intensity={0.5} color="#7c3aed" />
 
         <OrbSphere />
         <Particles />
