@@ -10,6 +10,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.router import router as cv_router
+from app.drafts.router import router as drafts_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
 from app.notes.router import router as notes_router
@@ -58,6 +59,7 @@ app.include_router(orbs_router)
 app.include_router(cv_router)
 app.include_router(export_router)
 app.include_router(notes_router)
+app.include_router(drafts_router)
 app.include_router(search_router)
 
 

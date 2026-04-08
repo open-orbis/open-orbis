@@ -15,7 +15,7 @@ import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import type { DraftNote } from '../components/drafts/DraftNotes';
-import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
+import { loadDraftNotes, loadDraftNotesAsync, saveDraftNotes } from '../components/drafts/DraftNotes';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
@@ -505,21 +505,27 @@ export default function OrbViewPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showInput, showProfile, showShare, showDrafts]);
 
-  // Load drafts when userId becomes available (async auth)
+  // Load drafts when userId becomes available — try API first, fall back to localStorage
   useEffect(() => {
     if (!userId) return;
-    const stored = loadDraftNotes(userId);
-    if (stored.length > 0) {
-      setDraftNotes(stored);
-    } else {
-      // Seed a sample note for first-time users
-      setDraftNotes([{
-        id: 'sample-1',
-        text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
-        createdAt: Date.now(),
-      }]);
-    }
-    setDraftsLoaded(true);
+    // Show localStorage drafts immediately for fast render
+    const local = loadDraftNotes(userId);
+    if (local.length > 0) setDraftNotes(local);
+
+    // Then load from API (includes migration of localStorage → server)
+    loadDraftNotesAsync(userId).then((notes) => {
+      if (notes.length > 0) {
+        setDraftNotes(notes);
+      } else if (local.length === 0) {
+        // Seed a sample note for first-time users
+        setDraftNotes([{
+          id: 'sample-1',
+          text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
+          createdAt: Date.now(),
+        }]);
+      }
+      setDraftsLoaded(true);
+    });
   }, [userId]);
 
   // Persist drafts to localStorage (user-scoped) — only after initial load
