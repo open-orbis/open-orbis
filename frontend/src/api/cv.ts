@@ -42,6 +42,19 @@ export async function confirmCV(
 }
 
 
+export async function downloadCV(): Promise<void> {
+  const response = await client.get('/cv/download', { responseType: 'blob' });
+  const disposition = response.headers['content-disposition'] || '';
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const filename = match ? match[1] : 'cv.pdf';
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function getProcessingCount(): Promise<number> {
   const { data } = await client.get('/cv/processing-count');
   return data.count;
