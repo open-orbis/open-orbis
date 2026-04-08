@@ -28,7 +28,7 @@ export async function uploadCV(file: File): Promise<ExtractedData> {
   formData.append('file', file);
   const { data } = await client.post('/cv/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 600000, // 10 min timeout for Docling + Claude CLI
+    timeout: 1800000, // 30 min timeout for Docling + Claude CLI
   });
   return data;
 }
@@ -40,6 +40,7 @@ export async function confirmCV(
 ): Promise<void> {
   await client.post('/cv/confirm', { nodes, relationships: relationships || [], cv_owner_name: cv_owner_name || null });
 }
+
 
 export async function getProcessingCount(): Promise<number> {
   const { data } = await client.get('/cv/processing-count');

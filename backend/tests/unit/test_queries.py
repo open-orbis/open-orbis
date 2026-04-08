@@ -79,8 +79,9 @@ class TestNodeTypeMappings:
             "publication",
             "project",
             "skill",
-            "collaborator",
             "patent",
+            "award",
+            "outreach",
         }
         assert set(NODE_TYPE_LABELS.keys()) == expected
 
@@ -88,7 +89,6 @@ class TestNodeTypeMappings:
         assert NODE_TYPE_LABELS["skill"] == "Skill"
         assert NODE_TYPE_LABELS["work_experience"] == "WorkExperience"
         assert NODE_TYPE_RELATIONSHIPS["language"] == "SPEAKS"
-        assert NODE_TYPE_RELATIONSHIPS["collaborator"] == "COLLABORATED_WITH"
         assert NODE_TYPE_MERGE_KEYS["skill"] == ["name"]
         assert NODE_TYPE_MERGE_KEYS["work_experience"] == ["company", "title"]
 

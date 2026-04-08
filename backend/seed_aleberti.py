@@ -1,4 +1,4 @@
-"""Seed Neo4j with Alessandro Berti's CV knowledge graph."""
+"""Seed Neo4j with mock Alessandro Berti data under orb_id 'aleberti'."""
 
 import asyncio
 import uuid
@@ -9,8 +9,8 @@ NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"
 NEO4J_PASSWORD = "orbis_dev_password"
 
-TEST_USER_ID = "seed-alessandro-berti"
-TEST_ORB_ID = "alessandro"
+TEST_USER_ID = "seed-aleberti"
+TEST_ORB_ID = "aleberti"
 
 
 def uid():
@@ -624,7 +624,7 @@ async def main():  # noqa: C901
     print("Knowledge graph seeded successfully!")
     print(f"  User ID:  {TEST_USER_ID}")
     print(f"  Orb ID:   {TEST_ORB_ID}")
-    print(f"  View at:  http://localhost:5174/orb/{TEST_ORB_ID}")
+    print(f"  View at:  http://localhost:5173/orb/{TEST_ORB_ID}")
 
 
 if __name__ == "__main__":

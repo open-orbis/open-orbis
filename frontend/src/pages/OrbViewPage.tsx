@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
-import { claimOrbId, updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
+import { updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -16,8 +16,10 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import type { DraftNote } from '../components/drafts/DraftNotes';
 import { loadDraftNotes, saveDraftNotes } from '../components/drafts/DraftNotes';
-import Inbox from '../components/inbox/Inbox';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
+import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
+import UserMenu from '../components/UserMenu';
+import { useToastStore } from '../stores/toastStore';
 
 // ── Modals ──
 
@@ -134,277 +136,6 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
   );
 }
 
-function SettingsPanel({ orbId, onClose, onOrbIdChanged }: { orbId: string; onClose: () => void; onOrbIdChanged: () => void }) {
-  const [activeTab, setActiveTab] = useState<'orb-id' | 'filters' | 'account'>('orb-id');
-  const [customId, setCustomId] = useState(orbId);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [newKeyword, setNewKeyword] = useState('');
-  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
-  const { logout } = useAuthStore();
-  const navigate = useNavigate();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleSave = async () => {
-    const trimmed = customId.trim().toLowerCase();
-    if (!trimmed) return;
-    if (trimmed === orbId) { onClose(); return; }
-    if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(trimmed)) { setError('Only lowercase letters, numbers, and hyphens allowed.'); return; }
-    if (trimmed.length < 3) { setError('Must be at least 3 characters.'); return; }
-    setSaving(true); setError('');
-    try {
-      await claimOrbId(trimmed);
-      setSuccess(true); onOrbIdChanged();
-      setTimeout(() => onClose(), 1200);
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Failed to claim this ID. It may already be taken.');
-    } finally { setSaving(false); }
-  };
-
-  const handleAddKeyword = () => {
-    const trimmed = newKeyword.trim();
-    if (!trimmed) return;
-    addKeyword(trimmed);
-    setNewKeyword('');
-  };
-
-  const handleDeleteAccount = async () => {
-    setDeleting(true);
-    try {
-      const { deleteAccount } = await import('../api/auth');
-      await deleteAccount();
-      logout();
-      navigate('/');
-    } catch {
-      setError('Failed to delete account. Please try again.');
-      setDeleting(false);
-    }
-  };
-
-  const TABS = [
-    { id: 'orb-id' as const, label: 'Orbis ID' },
-    { id: 'filters' as const, label: 'Filters' },
-    { id: 'account' as const, label: 'Account' },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 24 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: 24 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[520px] max-h-[90vh] overflow-hidden flex flex-col"
-      >
-        <div className="p-4 sm:p-6 pb-0">
-          <h2 className="text-white text-lg font-semibold mb-1">Settings</h2>
-          <p className="text-gray-400 text-sm mb-4">Customize your orbis identity and visibility.</p>
-        </div>
-
-        <div className="flex flex-1 min-h-0">
-          {/* Tabs sidebar */}
-          <div className="w-32 sm:w-40 border-r border-gray-700 p-2 flex flex-col gap-0.5">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setError(''); setSuccess(false); }}
-                className={`text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-gray-800 text-white font-medium'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div className="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col min-h-0">
-            <AnimatePresence mode="wait">
-            {/* ── Orb ID tab ── */}
-            {activeTab === 'orb-id' && (
-              <motion.div
-                key="orb-id"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
-                className="flex flex-col justify-between h-full"
-              >
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Custom Orbis ID</label>
-                  <p className="text-[11px] text-gray-500 mt-1 mb-5">Choose a memorable ID for your orbis. This will be your public URL and MCP identifier.</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500 text-sm">{window.location.origin}/</span>
-                    <input value={customId} onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }} placeholder="your-name" className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" />
-                  </div>
-                  {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-                  {success && <p className="text-green-400 text-xs mt-2">Orbis ID updated!</p>}
-                </div>
-
-                <div className="flex gap-3">
-                  <button onClick={handleSave} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">{saving ? 'Saving...' : 'Save'}</button>
-                  <button onClick={onClose} className="flex-1 border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Cancel</button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Filters tab ── */}
-            {activeTab === 'filters' && (
-              <motion.div
-                key="filters"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
-                className="flex flex-col h-full"
-              >
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility Filters</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">
-                  Add keywords to filter nodes. When a filter is active, nodes containing that keyword become transparent. Filtered nodes are excluded from shared links and CV exports.
-                </p>
-
-                <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                  <input
-                    value={newKeyword}
-                    onChange={(e) => setNewKeyword(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
-                    placeholder="e.g. confidential, private, salary..."
-                    className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleAddKeyword}
-                    className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  {keywords.length === 0 ? (
-                    <p className="text-gray-600 text-xs italic">No filter keywords configured yet.</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {keywords.map((kw) => {
-                        const isActive = activeKeywords.includes(kw);
-                        return (
-                          <div
-                            key={kw}
-                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border transition-all ${
-                              isActive
-                                ? 'bg-amber-600/15 border-amber-500/40'
-                                : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600'
-                            }`}
-                          >
-                            <span className="text-white text-sm font-mono truncate">{kw}</span>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              <button
-                                onClick={() => toggleKeyword(kw)}
-                                className={`text-[10px] font-medium px-2 py-1 rounded transition-colors ${
-                                  isActive
-                                    ? 'bg-amber-500 text-white'
-                                    : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
-                                }`}
-                              >
-                                {isActive ? 'Active' : 'Activate'}
-                              </button>
-                              <button
-                                onClick={() => removeKeyword(kw)}
-                                className="text-gray-500 hover:text-red-400 transition-colors"
-                                title="Remove"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {activeKeywords.length > 0 && (
-                  <p className="text-amber-400/70 text-[11px] mt-2 flex-shrink-0">
-                    {activeKeywords.length === 1 ? 'Filter' : 'Filters'} {activeKeywords.map((kw, i) => (
-                      <span key={kw}>{i > 0 && ', '}"<span className="font-semibold">{kw}</span>"</span>
-                    ))} active. Matching nodes are transparent.
-                  </p>
-                )}
-              </motion.div>
-            )}
-
-            {/* ── Account tab ── */}
-            {activeTab === 'account' && (
-              <motion.div
-                key="account"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15, ease: 'easeInOut' }}
-              >
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Manage your account and data.</p>
-
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                  <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
-                  <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                    Permanently delete your account, your orbis, and all associated data. After requesting deletion, your data will be retained for 30 days in case you change your mind, then permanently erased. This action cannot be undone.
-                  </p>
-
-                  {!showDeleteConfirm ? (
-                    <button
-                      onClick={() => setShowDeleteConfirm(true)}
-                      className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                    >
-                      Delete my account
-                    </button>
-                  ) : (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
-                      <p className="text-red-300 text-xs font-medium mb-3">
-                        Are you sure? Your orbis and all data will be permanently deleted after 30 days.
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setShowDeleteConfirm(false)}
-                          className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleDeleteAccount}
-                          disabled={deleting}
-                          className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors"
-                        >
-                          {deleting ? 'Deleting...' : 'Yes, delete my account'}
-                        </button>
-                      </div>
-                      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
 // ── Social accounts config ──
 
 const SOCIAL_ACCOUNTS = [
@@ -414,6 +145,7 @@ const SOCIAL_ACCOUNTS = [
   { key: 'instagram_url', label: 'Instagram', icon: 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z', color: '#E4405F' },
   { key: 'website_url', label: 'Website', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z', color: '#60a5fa' },
   { key: 'scholar_url', label: 'Google Scholar', icon: 'M5.242 13.769L0 9.5 12 0l12 9.5-5.242 4.269C17.548 11.249 14.978 9.5 12 9.5c-2.977 0-5.548 1.748-6.758 4.269zM12 10a7 7 0 100 14 7 7 0 000-14z', color: '#4285F4' },
+  { key: 'orcid_url', label: 'ORCID', icon: 'M12 0C5.372 0 0 5.372 0 12s5.372 12 12 12 12-5.372 12-12S18.628 0 12 0zM7.369 4.378a.869.869 0 110 1.738.869.869 0 010-1.738zm-.78 3.451h1.56v11.561H6.59V7.829zm3.921 0h4.21c4.518 0 6.758 2.906 6.758 5.78 0 3.12-2.602 5.78-6.758 5.78h-4.21V7.83zm1.56 1.387v8.787h2.65c3.483 0 5.198-2.263 5.198-4.393 0-2.39-1.86-4.394-5.197-4.394h-2.65z', color: '#A6CE39' },
 ];
 
 function ProfilePanel({ person, onClose, onSaved }: {
@@ -421,6 +153,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const addToast = useToastStore((s) => s.addToast);
   const [values, setValues] = useState<Record<string, string>>(() => {
     const v: Record<string, string> = {};
     for (const acc of SOCIAL_ACCOUNTS) {
@@ -452,17 +185,22 @@ function ProfilePanel({ person, onClose, onSaved }: {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) return;
+    if (!file.type.startsWith('image/')) {
+      addToast('Please select an image file', 'error');
+      return;
+    }
     if (file.size > 2 * 1024 * 1024) {
-      alert('Image too large (max 2MB)');
+      addToast('Image too large (max 2MB)', 'error');
       return;
     }
     setUploadingImage(true);
     try {
       await uploadProfileImage(file);
+      addToast('Profile picture updated', 'success');
       onSaved();
-    } catch { /* toast handles */ }
-    finally { setUploadingImage(false); }
+    } catch {
+      addToast('Failed to upload profile picture', 'error');
+    } finally { setUploadingImage(false); }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -470,9 +208,11 @@ function ProfilePanel({ person, onClose, onSaved }: {
     setUploadingImage(true);
     try {
       await deleteProfileImage();
+      addToast('Profile picture removed', 'info');
       onSaved();
-    } catch { /* toast handles */ }
-    finally { setUploadingImage(false); setShowDeleteConfirmPhoto(false); }
+    } catch {
+      addToast('Failed to remove profile picture', 'error');
+    } finally { setUploadingImage(false); setShowDeleteConfirmPhoto(false); }
   };
 
   const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
@@ -485,10 +225,12 @@ function ProfilePanel({ person, onClose, onSaved }: {
         props[k] = v.trim();
       }
       await updateProfile(props);
+      addToast('Profile updated', 'success');
       onSaved();
       setEditing(false);
-    } catch { /* toast handles */ }
-    finally { setSaving(false); }
+    } catch {
+      addToast('Failed to update profile', 'error');
+    } finally { setSaving(false); }
   };
 
   return (
@@ -558,73 +300,86 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
         {editing ? (
           /* ── Edit mode ── */
-          <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+          <div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+            {/* Photo actions */}
             {profileImage && (
-              showDeleteConfirmPhoto ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-red-400">Remove photo?</span>
-                  <button
-                    onClick={handleImageDelete}
-                    disabled={uploadingImage}
-                    className="text-[10px] font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
-                  >
-                    {uploadingImage ? 'Removing...' : 'Yes, remove'}
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirmPhoto(false)}
-                    className="text-[10px] font-medium text-white/40 hover:text-white/60 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setShowDeleteConfirmPhoto(true)}
-                  className="text-[10px] font-medium text-red-400/70 hover:text-red-400 transition-colors"
-                >
-                  Remove profile photo
-                </button>
-              )
-            )}
-            <div>
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Headline</label>
-              <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
-                placeholder="e.g. Senior Software Engineer"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1">Location</label>
-              <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
-                placeholder="e.g. San Francisco, CA"
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-            </div>
-
-            <div className="border-t border-white/5 pt-3 mt-3">
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-2">Social Accounts</label>
-              {SOCIAL_ACCOUNTS.map((acc) => (
-                <div key={acc.key} className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
-                      <path d={acc.icon} />
-                    </svg>
+              <div className="mb-4">
+                {showDeleteConfirmPhoto ? (
+                  <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
+                    <span className="text-xs text-red-400">Remove photo?</span>
+                    <button onClick={handleImageDelete} disabled={uploadingImage}
+                      className="text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors cursor-pointer">
+                      {uploadingImage ? 'Removing...' : 'Yes'}
+                    </button>
+                    <button onClick={() => setShowDeleteConfirmPhoto(false)}
+                      className="text-xs font-medium text-white/40 hover:text-white/60 transition-colors cursor-pointer">
+                      Cancel
+                    </button>
                   </div>
-                  <input
-                    value={values[acc.key]}
-                    onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
-                    placeholder={`${acc.label} URL`}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
-                  />
-                </div>
-              ))}
+                ) : (
+                  <button onClick={() => setShowDeleteConfirmPhoto(true)}
+                    className="text-xs font-medium text-red-400/60 hover:text-red-400 transition-colors cursor-pointer">
+                    Remove profile photo
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Profile fields */}
+            <div className="space-y-4 mb-5">
+              <div>
+                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Headline</label>
+                <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
+                  placeholder="e.g. Senior Software Engineer"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Location</label>
+                <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
+                  placeholder="e.g. San Francisco, CA"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            {/* Social accounts */}
+            <div className="border-t border-white/5 pt-4">
+              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-3">Social Accounts</label>
+              <div className="space-y-2">
+                {SOCIAL_ACCOUNTS.map((acc) => (
+                  <div key={acc.key} className="flex items-center gap-2.5 bg-white/[0.02] rounded-lg px-2 py-1 hover:bg-white/[0.04] transition-colors">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${acc.color}15` }}>
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
+                        <path d={acc.icon} />
+                      </svg>
+                    </div>
+                    <input
+                      value={values[acc.key]}
+                      onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
+                      placeholder={`${acc.label} URL`}
+                      className="flex-1 bg-transparent border-none text-white text-xs placeholder:text-white/20 focus:outline-none min-w-0"
+                    />
+                    {values[acc.key]?.trim() && (
+                      <button onClick={() => setValues({ ...values, [acc.key]: '' })}
+                        className="text-white/15 hover:text-white/40 transition-colors flex-shrink-0 cursor-pointer">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-5 sticky bottom-0 bg-gray-950 pb-1">
               <button onClick={handleSave} disabled={saving}
-                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm">
+                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
                 {saving ? 'Saving...' : 'Save'}
               </button>
               <button onClick={() => setEditing(false)}
-                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2 rounded-lg transition-colors text-sm">
+                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
                 Cancel
               </button>
             </div>
@@ -680,15 +435,6 @@ function ProfilePanel({ person, onClose, onSaved }: {
 
 // ── Icon components ──
 
-function IconSettings() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  );
-}
-
 function IconNotes() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -701,14 +447,6 @@ function IconDownload() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3" />
-    </svg>
-  );
-}
-
-function IconInbox() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>
   );
 }
@@ -732,16 +470,12 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 // ── Page ──
 
 export default function OrbViewPage() {
-  const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
-  const [showInbox, setShowInbox] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [editNode, setEditNode] = useState<{ type: string; values: Record<string, unknown> } | null>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
@@ -751,6 +485,7 @@ export default function OrbViewPage() {
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
+  const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
 
   // ESC key closes any open panel/modal
@@ -759,14 +494,12 @@ export default function OrbViewPage() {
       if (e.key !== 'Escape') return;
       if (showInput) { setShowInput(false); setEditNode(null); return; }
       if (showProfile) { setShowProfile(false); return; }
-      if (showSettings) { setShowSettings(false); return; }
       if (showShare) { setShowShare(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
-      if (showInbox) { setShowInbox(false); return; }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, showProfile, showSettings, showShare, showDrafts, showInbox]);
+  }, [showInput, showProfile, showShare, showDrafts]);
 
   // Load drafts when userId becomes available (async auth)
   useEffect(() => {
@@ -792,6 +525,18 @@ export default function OrbViewPage() {
 
   useEffect(() => { fetchOrb(); }, [fetchOrb]);
 
+  // If the orb is empty (only Person node, no career entries), redirect to the
+  // create flow — UNLESS the user explicitly chose "Build from scratch" (in which
+  // case they passed `state.allowEmpty` and we let them stay on the empty view).
+  const navigate = useNavigate();
+  const location = useLocation();
+  const allowEmpty = (location.state as { allowEmpty?: boolean } | null)?.allowEmpty === true;
+  useEffect(() => {
+    if (!loading && data && data.nodes.length === 0 && !allowEmpty) {
+      navigate('/create', { replace: true });
+    }
+  }, [loading, data, allowEmpty, navigate]);
+
 
   useEffect(() => {
     const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -809,7 +554,7 @@ export default function OrbViewPage() {
     const typeMap: Record<string, string> = {
       Education: 'education', WorkExperience: 'work_experience', Certification: 'certification',
       Language: 'language', Publication: 'publication', Project: 'project',
-      Skill: 'skill', Collaborator: 'collaborator', Patent: 'patent',
+      Skill: 'skill', Patent: 'patent',
     };
     setEditNode({ type: typeMap[labels[0]] || 'skill', values: node });
     setShowInput(true);
@@ -834,12 +579,23 @@ export default function OrbViewPage() {
       setDraftNotes((prev) => prev.filter((n) => n.id !== pendingDraftNoteId));
       setPendingDraftNoteId(null);
     }
+    setPendingDraftRawText('');
     setPendingSkillLinks([]);
     setShowInput(false);
     setEditNode(null);
   };
 
   const handleDraftToGraph = (note: DraftNote) => {
+    setPendingDraftNoteId(note.id);
+    // If the draft has been enhanced, jump straight into the form with the
+    // enhanced state so the user only has to confirm before creating the node.
+    if (note.enhanced) {
+      setPendingSkillLinks(note.enhanced.suggestedSkillUids);
+      setEditNode({ type: note.enhanced.nodeType, values: note.enhanced.properties });
+      setShowInput(true);
+      setShowDrafts(false);
+      return;
+    }
     const text = note.text.toLowerCase();
     const detect: [RegExp, string][] = [
       [/\b(python|javascript|typescript|react|angular|vue|java|c\+\+|node\.?js|sql|docker|kubernetes|aws|git|html|css|figma|photoshop|agile|scrum|machine learning|data science|deep learning|tensorflow|pytorch)\b/i, 'skill'],
@@ -849,19 +605,29 @@ export default function OrbViewPage() {
       [/\b(published|paper|article|journal|conference|proceedings|co-author|isbn|doi)\b/i, 'publication'],
       [/\b(project|built|developed|created|launched|side project|open.?source|hackathon|prototype|app|website)\b/i, 'project'],
       [/\b(patent|invention|filed|provisional|granted patent|patent number)\b/i, 'patent'],
-      [/\b(worked with|colleague|collaborator|team.?mate|mentor|manager|co.?founder|partner)\b/i, 'collaborator'],
     ];
     let type = 'work_experience';
     for (const [regex, nodeType] of detect) {
       if (regex.test(text)) { type = nodeType; break; }
     }
-    setPendingDraftNoteId(note.id);
     setEditNode({ type, values: { description: note.text } });
     setShowInput(true);
     setShowDrafts(false);
   };
 
   const handleDraftEnhance = async (note: DraftNote, targetLang: string) => {
+    // Already enhanced: re-open the form with the saved structured data so
+    // the user can keep refining without spending another LLM call.
+    if (note.enhanced) {
+      setPendingDraftNoteId(note.id);
+      setPendingDraftRawText(note.text);
+      setPendingSkillLinks(note.enhanced.suggestedSkillUids);
+      setEditNode({ type: note.enhanced.nodeType, values: note.enhanced.properties });
+      setShowInput(true);
+      setShowDrafts(false);
+      return;
+    }
+
     const existingSkills = (data?.nodes || [])
       .filter((n) => n._labels?.[0] === 'Skill' && n.name)
       .map((n) => ({ uid: n.uid, name: n.name as string }));
@@ -869,10 +635,44 @@ export default function OrbViewPage() {
     const result = await enhanceNote(note.text, targetLang, existingSkills);
 
     setPendingDraftNoteId(note.id);
+    setPendingDraftRawText(note.text);
     setPendingSkillLinks(result.suggested_skill_uids);
     setEditNode({ type: result.node_type, values: result.properties });
     setShowInput(true);
     setShowDrafts(false);
+  };
+
+  const handleSaveDraftEnhanced = (nodeType: string, properties: Record<string, unknown>) => {
+    if (!pendingDraftNoteId) return;
+    const draftId = pendingDraftNoteId;
+    const rawText = pendingDraftRawText;
+    const skillUids = pendingSkillLinks;
+    setDraftNotes((prev) => {
+      const existing = prev.find((n) => n.id === draftId);
+      if (existing) {
+        return prev.map((n) =>
+          n.id === draftId
+            ? { ...n, enhanced: { nodeType, properties, suggestedSkillUids: skillUids, updatedAt: Date.now() } }
+            : n,
+        );
+      }
+      // The draft was created on the fly from the input field — persist it now.
+      return [
+        {
+          id: draftId,
+          text: rawText,
+          createdAt: Date.now(),
+          enhanced: { nodeType, properties, suggestedSkillUids: skillUids, updatedAt: Date.now() },
+        },
+        ...prev,
+      ];
+    });
+    setPendingDraftNoteId(null);
+    setPendingDraftRawText('');
+    setPendingSkillLinks([]);
+    setShowInput(false);
+    setEditNode(null);
+    setShowDrafts(true);
   };
 
   const orbId = (data?.person?.orb_id as string) || '';
@@ -913,23 +713,18 @@ export default function OrbViewPage() {
   }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
-  const handleToggleNodeType = useCallback((type: string) => {
-    setHiddenNodeTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
-  }, []);
+  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
 
   const handleShowAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set());
   }, []);
 
-  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Collaborator', 'Patent'];
-
   const handleHideAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES));
+  }, []);
+
+  const handleSetVisibleNodeTypes = useCallback((visibleTypes: Set<string>) => {
+    setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
   if (loading || !data) {
@@ -945,64 +740,40 @@ export default function OrbViewPage() {
       {/* ── Header ── */}
       <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3">
         <div className="flex items-center justify-between">
-          {/* Left: identity — click avatar to open settings */}
+          {/* Left: identity + view/filter/export */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={() => setShowSettings(true)}
-              className="relative w-12 h-12 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center hover:bg-purple-600/50 hover:border-purple-400/60 transition-all group overflow-hidden"
-              title="Settings"
-            >
-              {(data.person.profile_image as string) ? (
-                <>
-                  <img src={data.person.profile_image as string} alt="" className="w-full h-full object-cover rounded-full group-hover:opacity-30 transition-opacity" />
-                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <IconSettings />
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-purple-300 text-xs font-bold group-hover:opacity-0 transition-opacity">
-                    {((data.person.name as string) || user?.name || 'O').charAt(0).toUpperCase()}
-                  </span>
-                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <IconSettings />
-                  </span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+                <div className="w-3 h-3 rounded-full bg-purple-400" />
+              </div>
+              <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
+            </div>
+            <div className="hidden sm:block w-px h-5 bg-white/10" />
             <div>
-              <span className="text-white text-xs sm:text-sm font-semibold">{(data.person.name as string) || user?.name || 'My Orbis'}</span>
-              <span className="text-white/20 text-xs ml-2 hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
-              {activeKeywords.length > 0 && (
-                <span className="text-amber-400/70 text-[10px] ml-2 hidden sm:inline-flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  {activeKeywords.join(', ')}
-                </span>
-              )}
+              <span className="text-white/20 text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
+            </div>
+            <div className="hidden sm:block w-px h-5 bg-white/10" />
+            <div className="flex items-center gap-1">
+              <NodeTypeFilter
+                hiddenTypes={hiddenNodeTypes}
+                onShowAll={handleShowAllNodeTypes}
+                onHideAll={handleHideAllNodeTypes}
+                onSetVisible={handleSetVisibleNodeTypes}
+              />
+              <KeywordFilterDropdown />
+              <button
+                onClick={() => window.open('/cv-export', '_blank')}
+                className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
+              >
+                <IconDownload />
+                <span className="hidden sm:inline">Export CV</span>
+              </button>
             </div>
           </div>
 
-          {/* Right: secondary actions */}
+          {/* Right: inbox, notes, user menu */}
           <div className="flex items-center gap-1">
             <ProcessingCounter />
-            <NodeTypeFilter
-              hiddenTypes={hiddenNodeTypes}
-              onToggleType={handleToggleNodeType}
-              onShowAll={handleShowAllNodeTypes}
-              onHideAll={handleHideAllNodeTypes}
-            />
-            <div className="w-px h-5 bg-white/10 mx-1" />
-            <HeaderBtn onClick={() => setShowInbox(true)} variant="outline">
-              <IconInbox />
-              <span className="hidden sm:inline">Inbox</span>
-              {unreadCount > 0 && (
-                <span className="bg-green-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </HeaderBtn>
             <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
               <IconNotes />
               <span className="hidden sm:inline">Notes</span>
@@ -1012,19 +783,8 @@ export default function OrbViewPage() {
                 </span>
               )}
             </HeaderBtn>
-            <button
-              onClick={() => window.open('/cv-export', '_blank')}
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all"
-            >
-              <IconDownload />
-              <span className="hidden sm:inline">Export CV</span>
-            </button>
-            <button
-              onClick={() => { logout(); navigate('/'); }}
-              className="text-white/30 text-xs font-medium py-1.5 px-2 sm:px-3 rounded-lg hover:text-red-400 hover:bg-red-500/10 transition-all"
-            >
-              Logout
-            </button>
+            <div className="w-px h-5 bg-white/10 mx-1" />
+            <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
           </div>
         </div>
       </div>
@@ -1081,7 +841,7 @@ export default function OrbViewPage() {
         open={showInput}
         editNode={editNode}
         onSubmit={handleSubmit}
-        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); }}
+        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); setPendingDraftRawText(''); }}
         onDelete={async (uid) => {
           await deleteNode(uid);
           setShowInput(false);
@@ -1096,6 +856,7 @@ export default function OrbViewPage() {
           setPendingSkillLinks(result.suggested_skill_uids);
           return { node_type: result.node_type, properties: result.properties };
         }}
+        onSaveDraft={pendingDraftNoteId ? handleSaveDraftEnhanced : undefined}
       />
 
       {/* ── Chat Box ── */}
@@ -1106,13 +867,6 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
-      />
-
-      {/* ── Inbox ── */}
-      <Inbox
-        open={showInbox}
-        onClose={() => setShowInbox(false)}
-        onUnreadCountChange={setUnreadCount}
       />
 
       {/* ── Draft Notes ── */}
@@ -1128,9 +882,6 @@ export default function OrbViewPage() {
       {/* ── Animated Panels ── */}
       <AnimatePresence>
         {showShare && <SharePanel key="share" orbId={orbId} onClose={() => setShowShare(false)} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {showSettings && <SettingsPanel key="settings" orbId={orbId} onClose={() => setShowSettings(false)} onOrbIdChanged={fetchOrb} />}
       </AnimatePresence>
       <AnimatePresence>
         {showProfile && <ProfilePanel key="profile" person={data.person} onClose={() => setShowProfile(false)} onSaved={fetchOrb} />}

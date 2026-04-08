@@ -5,7 +5,6 @@ CREATE CONSTRAINT person_orb_id IF NOT EXISTS FOR (p:Person) REQUIRE p.orb_id IS
 // Indexes
 CREATE INDEX person_email IF NOT EXISTS FOR (p:Person) ON (p.email);
 CREATE INDEX skill_name IF NOT EXISTS FOR (s:Skill) ON (s.name);
-CREATE INDEX collaborator_name IF NOT EXISTS FOR (c:Collaborator) ON (c.name);
 
 // Vector indexes for semantic search
 CREATE VECTOR INDEX education_embedding IF NOT EXISTS

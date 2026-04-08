@@ -82,7 +82,7 @@ function nodeIsInRange(
  * Logic:
  * 1. If range is null, return empty set (no filtering).
  * 2. Dated nodes outside the range → filtered.
- * 3. Dateless nodes (Skill, Language, Collaborator) are always visible.
+ * 3. Dateless nodes (Skill, Language) are always visible.
  * 4. Person node is never filtered.
  */
 export function computeDateFilteredNodeIds(

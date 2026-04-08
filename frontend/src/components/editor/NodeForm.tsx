@@ -17,6 +17,7 @@ interface NodeFormProps {
   onTypeChange?: (nodeType: string) => void;
   onDelete?: () => void;
   onEnhance?: (text: string) => Promise<EnhanceResult | null>;
+  onSaveDraft?: (nodeType: string, properties: Record<string, unknown>) => void;
 }
 
 // Layout config per type: which fields go where
@@ -59,13 +60,22 @@ const LAYOUT_CONFIG: Record<string, {
     main: ['title', 'patent_number', 'inventors'],
     extra: ['description', 'url'],
   },
+  award: {
+    left: ['date'],
+    main: ['name', 'issuing_organization'],
+    extra: ['description', 'url'],
+  },
+  outreach: {
+    left: ['date'],
+    main: ['title', 'type', 'venue', 'role'],
+    extra: ['description', 'url'],
+  },
 };
 
 // Simple layout types (no 3-column)
 const SIMPLE_FIELDS: Record<string, string[]> = {
   skill: ['name', 'category', 'proficiency'],
   language: ['name', 'proficiency'],
-  collaborator: ['name', 'email'],
 };
 
 function FieldInput({
@@ -120,7 +130,7 @@ function FieldInput({
   );
 }
 
-export default function NodeForm({ initialType, initialValues, onSubmit, onCancel, onTypeChange, onDelete, onEnhance }: NodeFormProps) {
+export default function NodeForm({ initialType, initialValues, onSubmit, onCancel, onTypeChange, onDelete, onEnhance, onSaveDraft }: NodeFormProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [nodeType, setNodeType] = useState(initialType || 'skill');
   const [enhancing, setEnhancing] = useState(false);
@@ -152,6 +162,18 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       delete filtered.expiry_date;
     }
     onSubmit(nodeType, filtered);
+  };
+
+  const handleSaveDraftClick = () => {
+    if (!onSaveDraft) return;
+    const filtered = Object.fromEntries(
+      Object.entries(values).filter(([, v]) => v !== '')
+    );
+    if (isCurrent) {
+      delete filtered.end_date;
+      delete filtered.expiry_date;
+    }
+    onSaveDraft(nodeType, filtered);
   };
 
   const handleEnhanceClick = async () => {
@@ -217,6 +239,24 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
               Enhance
             </>
           )}
+        </button>
+      )}
+      {onSaveDraft && !initialValues?.uid && (
+        <button
+          type="button"
+          onClick={handleSaveDraftClick}
+          disabled={!hasAnyText}
+          className={`flex items-center gap-1.5 font-medium py-2.5 px-4 rounded-lg transition-all text-sm border ${
+            hasAnyText
+              ? 'border-purple-500/30 text-purple-300 hover:border-purple-500/50 hover:bg-purple-500/10'
+              : 'border-white/5 text-white/15 cursor-not-allowed'
+          }`}
+          title="Save as draft to keep refining later"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          </svg>
+          Save Draft
         </button>
       )}
       <button

@@ -23,6 +23,15 @@ export async function getMyOrb(): Promise<OrbData> {
   return data;
 }
 
+export async function hasOrbContent(): Promise<boolean> {
+  try {
+    const data = await getMyOrb();
+    return data.nodes.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function getPublicOrb(orbId: string, filterToken?: string): Promise<OrbData> {
   const params = filterToken ? { filter_token: filterToken } : {};
   const { data } = await client.get(`/orbs/${orbId}`, { params });
@@ -107,40 +116,4 @@ export async function enhanceNote(
   return data;
 }
 
-// ── Messages / Inbox ──
 
-export interface MessageReply {
-  uid: string;
-  body: string;
-  created_at: string;
-  from_owner: boolean;
-}
-
-export interface Message {
-  uid: string;
-  sender_name: string;
-  sender_email: string;
-  subject: string;
-  body: string;
-  created_at: string;
-  read: boolean;
-  replies: MessageReply[];
-}
-
-export async function getMessages(): Promise<Message[]> {
-  const { data } = await client.get('/messages/me');
-  return data;
-}
-
-export async function replyToMessage(messageId: string, body: string): Promise<MessageReply> {
-  const { data } = await client.post(`/messages/me/${messageId}/reply`, { body });
-  return data;
-}
-
-export async function markMessageRead(messageId: string): Promise<void> {
-  await client.put(`/messages/me/${messageId}/read`);
-}
-
-export async function deleteMessage(messageId: string): Promise<void> {
-  await client.delete(`/messages/me/${messageId}`);
-}

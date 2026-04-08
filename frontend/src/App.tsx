@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { useToastStore } from './stores/toastStore';
 import LandingPage from './pages/LandingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
+import LinkedInCallbackPage from './pages/LinkedInCallbackPage';
 import CreateOrbPage from './pages/CreateOrbPage';
 import AboutPage from './pages/AboutPage';
 import OrbViewPage from './pages/OrbViewPage';
@@ -10,6 +12,7 @@ import SharedOrbPage from './pages/SharedOrbPage';
 import CvExportPage from './pages/CvExportPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ToastContainer from './components/ToastContainer';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const scrollPositions: Record<string, number> = {};
 

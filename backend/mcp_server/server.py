@@ -68,46 +68,5 @@ async def orbis_get_skills_for_experience(
     return await get_skills_for_experience(driver, orb_id, experience_uid)
 
 
-@mcp.tool()
-async def orbis_send_message(
-    orb_id: str,
-    sender_name: str,
-    sender_email: str,
-    subject: str,
-    body: str,
-) -> dict:
-    """Send a message to an orb owner. Use this to contact a professional whose orb you've been exploring. The message will appear in their inbox."""
-    import uuid
-
-    driver = await _get_driver()
-    message_uid = str(uuid.uuid4())
-    async with driver.session() as session:
-        result = await session.run(
-            """
-            MATCH (p:Person {orb_id: $orb_id})
-            CREATE (p)-[:HAS_MESSAGE]->(m:Message {
-                uid: $uid,
-                sender_name: $sender_name,
-                sender_email: $sender_email,
-                subject: $subject,
-                body: $body,
-                created_at: datetime(),
-                read: false
-            })
-            RETURN m.uid AS uid
-            """,
-            orb_id=orb_id,
-            uid=message_uid,
-            sender_name=sender_name,
-            sender_email=sender_email,
-            subject=subject,
-            body=body,
-        )
-        record = await result.single()
-        if record is None:
-            return {"error": f"Orb '{orb_id}' not found"}
-    return {"uid": message_uid, "detail": "Message sent successfully"}
-
-
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

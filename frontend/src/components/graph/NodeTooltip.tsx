@@ -15,7 +15,6 @@ const TITLE_FIELD: Record<string, string> = {
   Certification: 'name',
   Publication: 'title',
   Project: 'name',
-  Collaborator: 'name',
   Patent: 'title',
 };
 
@@ -41,7 +40,6 @@ const DISPLAY_LABELS: Record<string, string> = {
   Certification: 'Certification',
   Publication: 'Publication',
   Project: 'Project',
-  Collaborator: 'Collaborator',
   Patent: 'Patent',
 };
 
@@ -54,7 +52,6 @@ const LABEL_TO_TYPE: Record<string, string> = {
   Certification: 'certification',
   Publication: 'publication',
   Project: 'project',
-  Collaborator: 'collaborator',
   Patent: 'patent',
 };
 
@@ -67,7 +64,6 @@ const DETAIL_FIELDS: Record<string, string[]> = {
   Project: ['start_date', 'end_date'],
   Skill: ['proficiency', 'category'],
   Person: ['headline', 'location', 'email', 'orb_id'],
-  Collaborator: ['email'],
   Patent: ['patent_number', 'filing_date', 'grant_date', 'inventors'],
   Language: ['proficiency'],
 };

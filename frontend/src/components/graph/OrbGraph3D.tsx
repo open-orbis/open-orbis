@@ -20,7 +20,7 @@ interface OrbGraph3DProps {
 
 function getNodeName(node: any): string {
   const label = node._labels?.[0];
-  if (label === 'Person') return node.name || 'You';
+  if (label === 'Person') return node.cv_display_name || node.name || 'You';
   return node.name || node.title || node.company || node.institution || '';
 }
 

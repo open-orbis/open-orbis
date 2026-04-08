@@ -8,11 +8,14 @@ CREATE (p:Person {
     email: $email,
     name: $name,
     orb_id: $orb_id,
+    picture: $picture,
+    provider: $provider,
     headline: '',
     location: '',
     linkedin_url: '',
     scholar_url: '',
     website_url: '',
+    orcid_url: '',
     open_to_work: false,
     created_at: datetime(),
     updated_at: datetime()
@@ -52,6 +55,7 @@ RETURN p
 GET_FULL_ORB = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
+
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
 WITH p, connections,
@@ -63,6 +67,7 @@ RETURN p, connections, cross_links, cross_skill_nodes
 GET_FULL_ORB_PUBLIC = """
 MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
+
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
 WITH p, connections,
@@ -81,8 +86,9 @@ NODE_TYPE_LABELS = {
     "publication": "Publication",
     "project": "Project",
     "skill": "Skill",
-    "collaborator": "Collaborator",
     "patent": "Patent",
+    "award": "Award",
+    "outreach": "Outreach",
 }
 
 NODE_TYPE_RELATIONSHIPS = {
@@ -93,8 +99,9 @@ NODE_TYPE_RELATIONSHIPS = {
     "publication": "HAS_PUBLICATION",
     "project": "HAS_PROJECT",
     "skill": "HAS_SKILL",
-    "collaborator": "COLLABORATED_WITH",
     "patent": "HAS_PATENT",
+    "award": "HAS_AWARD",
+    "outreach": "HAS_OUTREACH",
 }
 
 # ── Generic Node CRUD ──
@@ -128,7 +135,8 @@ NODE_TYPE_MERGE_KEYS: dict[str, list[str]] = {
     "publication": ["title"],
     "project": ["name"],
     "patent": ["title"],
-    "collaborator": ["name"],
+    "award": ["name"],
+    "outreach": ["title", "venue"],
 }
 
 # ── Cross-node relationships ──

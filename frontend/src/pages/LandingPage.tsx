@@ -1,9 +1,31 @@
 import { motion, useInView } from 'framer-motion';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../stores/authStore';
+import { hasOrbContent } from '../api/orbs';
 import HeroOrb from '../components/landing/HeroOrb';
 import Footer from '../components/landing/Footer';
+
+// ── LinkedIn OAuth helpers ──
+function generateState() {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function redirectToLinkedIn() {
+  const state = generateState();
+  sessionStorage.setItem('linkedin_oauth_state', state);
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: import.meta.env.VITE_LINKEDIN_CLIENT_ID,
+    redirect_uri: `${window.location.origin}/auth/linkedin/callback`,
+    scope: 'openid profile email',
+    state,
+  });
+  window.location.href = `https://www.linkedin.com/oauth/v2/authorization?${params}`;
+}
 
 // ── Animated section wrapper ──
 function FadeIn({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
@@ -49,19 +71,58 @@ function FeatureCard({ title, description, icon, color }: { title: string; descr
   );
 }
 
+// ── Sign-in buttons ──
+function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogleLogin: () => void; signingInProvider: 'google' | 'linkedin' | null; disabled?: boolean }) {
+  const busy = signingInProvider !== null || disabled;
+  return (
+    <div className="flex flex-col gap-3 w-full max-w-xs">
+      <button
+        onClick={onGoogleLogin}
+        disabled={busy}
+        className="flex items-center justify-center gap-3 bg-white hover:bg-gray-100 disabled:opacity-50 text-gray-700 font-medium py-3 px-6 rounded-xl transition-all shadow-lg text-sm w-full cursor-pointer"
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        {signingInProvider === 'google' ? 'Signing in...' : 'Sign in with Google'}
+      </button>
+      <button
+        onClick={() => { if (!busy) redirectToLinkedIn(); }}
+        disabled={busy}
+        className="flex items-center justify-center gap-3 bg-[#0A66C2] hover:bg-[#004182] disabled:opacity-50 text-white font-medium py-3 px-6 rounded-xl transition-all shadow-lg text-sm w-full cursor-pointer"
+      >
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+        </svg>
+        {signingInProvider === 'linkedin' ? 'Signing in...' : 'Sign in with LinkedIn'}
+      </button>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { user, loginDev, loading } = useAuthStore();
+  const { user, loginGoogle, loading } = useAuthStore();
 
-  const [signingIn, setSigningIn] = useState(false);
+  const [signingInProvider, setSigningInProvider] = useState<'google' | 'linkedin' | null>(null);
 
-  const handleGetStarted = async () => {
-    setSigningIn(true);
-    await loginDev();
-    // Navigate only after login completes — the signingIn flag prevents
-    // the landing page from flashing the logged-in state during transition
-    navigate('/create');
-  };
+  const handleGoogleLogin = useGoogleLogin({
+    flow: 'auth-code',
+    onSuccess: async (response) => {
+      setSigningInProvider('google');
+      try {
+        await loginGoogle(response.code);
+        const hasContent = await hasOrbContent();
+        navigate(hasContent ? '/myorbis' : '/create');
+      } catch {
+        setSigningInProvider(null);
+      }
+    },
+    onError: () => setSigningInProvider(null),
+  });
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
@@ -79,22 +140,14 @@ export default function LandingPage() {
             </div>
             <span className="text-white font-bold text-lg tracking-tight">OpenOrbis</span>
           </div>
-          {user && !signingIn ? (
+          {user && !signingInProvider ? (
             <button
               onClick={() => navigate('/myorbis')}
               className="text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors"
             >
-              Go to My Orbisis &rarr;
+              Go to My Orbis &rarr;
             </button>
-          ) : (
-            <button
-              onClick={handleGetStarted}
-              disabled={loading}
-              className="text-sm text-white/50 hover:text-white/80 font-medium transition-colors"
-            >
-              Sign in
-            </button>
-          )}
+          ) : null}
         </div>
       </motion.header>
 
@@ -155,9 +208,9 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9, duration: 0.8 }}
-          className="flex flex-col sm:flex-row gap-3 z-10"
+          className="flex flex-col items-center gap-3 z-10"
         >
-          {user && !signingIn ? (
+          {user && !signingInProvider ? (
             <>
               <button
                 onClick={() => navigate('/myorbis')}
@@ -171,24 +224,7 @@ export default function LandingPage() {
               </div>
             </>
           ) : (
-            <>
-              <button
-                onClick={handleGetStarted}
-                disabled={loading || signingIn}
-                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3.5 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base flex items-center gap-2"
-              >
-                {loading || signingIn ? 'Signing in...' : 'Create Your Orbis'}
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </button>
-              <button
-                onClick={() => document.getElementById('orbis-difference')?.scrollIntoView({ behavior: 'smooth' })}
-                className="border border-white/10 hover:border-white/20 text-white/50 hover:text-white/70 font-medium py-3.5 px-8 rounded-xl transition-all text-base"
-              >
-                Learn more
-              </button>
-            </>
+            <SignInButtons onGoogleLogin={handleGoogleLogin} signingInProvider={signingInProvider} disabled={loading} />
           )}
         </motion.div>
 
@@ -391,22 +427,18 @@ export default function LandingPage() {
             <p className="text-white/30 text-base mb-8 max-w-md mx-auto">
               It takes less than five minutes. No templates, no formatting, no PDFs — just you and your graph.
             </p>
-            {user && !signingIn ? (
-              <button
-                onClick={() => navigate('/myorbis')}
-                className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
-              >
-                Go to My Orbis
-              </button>
-            ) : (
-              <button
-                onClick={handleGetStarted}
-                disabled={loading || signingIn}
-                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
-              >
-                {loading || signingIn ? 'Signing in...' : 'Get Started — Free'}
-              </button>
-            )}
+            <div className="flex justify-center">
+              {user && !signingInProvider ? (
+                <button
+                  onClick={() => navigate('/myorbis')}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3.5 px-10 rounded-xl transition-all shadow-xl shadow-purple-600/20 hover:shadow-purple-500/30 hover:scale-[1.02] text-base"
+                >
+                  Go to My Orbis
+                </button>
+              ) : (
+                <SignInButtons onGoogleLogin={handleGoogleLogin} signingInProvider={signingInProvider} disabled={loading} />
+              )}
+            </div>
           </FadeIn>
         </div>
       </section>

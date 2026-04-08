@@ -99,6 +99,8 @@ def _generate_pdf(  # noqa: C901
         ("Certification", "Certifications"),
         ("Publication", "Publications"),
         ("Patent", "Patents"),
+        ("Award", "Awards"),
+        ("Outreach", "Outreach"),
         ("Skill", "Skills"),
         ("Language", "Languages"),
     ]
@@ -291,6 +293,8 @@ async def export_orb(
             "Publication": "ScholarlyArticle",
             "Project": "Project",
             "Language": "Language",
+            "Award": "MonetaryGrant",
+            "Outreach": "Event",
         }
 
         for node in nodes:

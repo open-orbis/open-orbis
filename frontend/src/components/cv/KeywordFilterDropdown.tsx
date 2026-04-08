@@ -1,0 +1,153 @@
+import { useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useFilterStore } from '../../stores/filterStore';
+
+export default function KeywordFilterDropdown() {
+  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
+  const [open, setOpen] = useState(false);
+  const [newKeyword, setNewKeyword] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  // Close on ESC
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const handleAdd = () => {
+    const trimmed = newKeyword.trim();
+    if (!trimmed) return;
+    addKeyword(trimmed);
+    setNewKeyword('');
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
+          activeKeywords.length > 0
+            ? 'text-amber-400 bg-amber-500/10'
+            : 'text-white/40 hover:text-white hover:bg-white/5'
+        }`}
+        title="Keyword filters"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        <span className="hidden sm:inline">Filters</span>
+        {activeKeywords.length > 0 && (
+          <span className="bg-amber-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+            {activeKeywords.length}
+          </span>
+        )}
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 mt-2 w-72 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+          >
+            <div className="px-4 py-3 border-b border-white/5">
+              <h3 className="text-white text-sm font-semibold">Keyword Filters</h3>
+              <p className="text-white/40 text-[11px] mt-0.5">
+                Nodes matching active filters become transparent and are excluded from shares and exports.
+              </p>
+            </div>
+
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  value={newKeyword}
+                  onChange={(e) => setNewKeyword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                  placeholder="e.g. confidential, private..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
+                />
+                <button
+                  onClick={handleAdd}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Add
+                </button>
+              </div>
+
+              {keywords.length === 0 ? (
+                <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
+              ) : (
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {keywords.map((kw) => {
+                    const isActive = activeKeywords.includes(kw);
+                    return (
+                      <div
+                        key={kw}
+                        className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                          isActive
+                            ? 'bg-amber-600/15 border-amber-500/40'
+                            : 'bg-white/5 border-white/5 hover:border-white/10'
+                        }`}
+                      >
+                        <span className="text-white text-xs font-mono truncate">{kw}</span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => toggleKeyword(kw)}
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                              isActive
+                                ? 'bg-amber-500 text-white'
+                                : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
+                            }`}
+                          >
+                            {isActive ? 'Active' : 'Activate'}
+                          </button>
+                          <button
+                            onClick={() => removeKeyword(kw)}
+                            className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
+                            title="Remove"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {activeKeywords.length > 0 && (
+                <p className="text-amber-400/70 text-[11px] mt-2">
+                  {activeKeywords.length === 1 ? 'Filter' : 'Filters'}{' '}
+                  {activeKeywords.map((kw, i) => (
+                    <span key={kw}>
+                      {i > 0 && ', '}"<span className="font-semibold">{kw}</span>"
+                    </span>
+                  ))}{' '}
+                  active.
+                </p>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

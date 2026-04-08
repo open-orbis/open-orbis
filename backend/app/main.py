@@ -12,7 +12,6 @@ from app.config import settings
 from app.cv.router import router as cv_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
-from app.messages.router import router as messages_router
 from app.notes.router import router as notes_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
@@ -58,7 +57,6 @@ app.include_router(auth_router)
 app.include_router(orbs_router)
 app.include_router(cv_router)
 app.include_router(export_router)
-app.include_router(messages_router)
 app.include_router(notes_router)
 app.include_router(search_router)
 

@@ -19,12 +19,21 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # LLM provider: "ollama" (local) or "claude" (Claude Code CLI subscription)
-    llm_provider: str = "ollama"
+    llm_provider: str = "claude"
     claude_model: str = "claude-opus-4-6"
 
     # Ollama (local LLM)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
+
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+
+    # LinkedIn OAuth (login app — "Sign In with LinkedIn using OpenID Connect")
+    linkedin_client_id: str = ""
+    linkedin_client_secret: str = ""
+    linkedin_redirect_uri: str = "http://localhost:5173/auth/linkedin/callback"
 
     # URLs
     frontend_url: str = "http://localhost:5173"

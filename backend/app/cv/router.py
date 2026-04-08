@@ -6,6 +6,7 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from neo4j import AsyncDriver
 
+from app.config import settings
 from app.cv import counter
 from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
@@ -69,7 +70,11 @@ async def upload_cv(
             )
 
         # Step 2: Classify entries via LLM
-        logger.info("Classifying entries with Ollama (%d chars)", len(raw_text))
+        logger.info(
+            "Classifying entries with %s (%d chars)",
+            settings.llm_provider,
+            len(raw_text),
+        )
         result = await classify_entries(raw_text)
 
         if not result.nodes and not result.unmatched:
@@ -124,12 +129,12 @@ async def confirm_cv(
         # Wipe existing graph nodes (keep Person) so CV import replaces, not merges
         await session.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
 
-        # Update Person node name from CV owner if provided
+        # Store CV owner name separately (Person.name stays from OAuth provider)
         if data.cv_owner_name:
             await session.run(
                 UPDATE_PERSON,
                 user_id=current_user["user_id"],
-                properties={"name": data.cv_owner_name},
+                properties={"cv_display_name": data.cv_owner_name},
             )
         for node in data.nodes:
             if node.node_type not in NODE_TYPE_LABELS:

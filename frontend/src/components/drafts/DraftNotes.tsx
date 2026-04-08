@@ -1,10 +1,43 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { NODE_TYPE_LABELS, NODE_TYPE_COLORS } from '../graph/NodeColors';
+
+// Per node type, the field that best summarizes the entry as a heading.
+const HEADING_FIELDS: Record<string, string[]> = {
+  work_experience: ['title', 'company'],
+  education: ['degree', 'institution', 'field_of_study'],
+  project: ['name', 'role'],
+  certification: ['name', 'issuing_organization'],
+  publication: ['title', 'venue'],
+  patent: ['title', 'patent_number'],
+  award: ['name', 'issuing_organization'],
+  outreach: ['title', 'venue'],
+  skill: ['name', 'category'],
+  language: ['name', 'proficiency'],
+};
+
+function pickHeading(nodeType: string, properties: Record<string, unknown>): string {
+  const fields = HEADING_FIELDS[nodeType] || [];
+  const parts: string[] = [];
+  for (const f of fields) {
+    const v = properties[f];
+    if (typeof v === 'string' && v.trim()) parts.push(v.trim());
+  }
+  return parts.join(' · ');
+}
+
+export interface EnhancedDraftState {
+  nodeType: string;
+  properties: Record<string, unknown>;
+  suggestedSkillUids: string[];
+  updatedAt: number;
+}
 
 export interface DraftNote {
   id: string;
   text: string;
   createdAt: number;
+  enhanced?: EnhancedDraftState;
 }
 
 // ── Shared localStorage helpers (user-scoped, with migration) ──
@@ -46,6 +79,11 @@ export function loadDraftNotes(userId: string): DraftNote[] {
 /** Persist drafts for a user. */
 export function saveDraftNotes(userId: string, notes: DraftNote[]) {
   localStorage.setItem(userDraftsKey(userId), JSON.stringify(notes));
+}
+
+/** Remove all draft notes for a user (used on account delete). */
+export function clearDraftNotes(userId: string) {
+  localStorage.removeItem(userDraftsKey(userId));
 }
 
 const TARGET_LANGUAGES = [
@@ -360,7 +398,41 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                 ) : (
                   /* ── Normal display ── */
                   <>
-                    <p className="text-white/80 text-sm leading-relaxed">{note.text}</p>
+                    {note.enhanced ? (
+                      (() => {
+                        const typeColor = NODE_TYPE_COLORS[note.enhanced.nodeType] || '#8b5cf6';
+                        const typeLabel = NODE_TYPE_LABELS[note.enhanced.nodeType] || note.enhanced.nodeType;
+                        const heading = pickHeading(note.enhanced.nodeType, note.enhanced.properties);
+                        return (
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <span
+                                className="text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                                style={{
+                                  color: typeColor,
+                                  borderColor: `${typeColor}40`,
+                                  backgroundColor: `${typeColor}15`,
+                                }}
+                              >
+                                {typeLabel}
+                              </span>
+                              <span className="text-[10px] text-purple-300/70 flex items-center gap-0.5">
+                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                </svg>
+                                Enhanced
+                              </span>
+                            </div>
+                            {heading && (
+                              <p className="text-white/90 text-sm font-medium leading-snug">{heading}</p>
+                            )}
+                            <p className="text-white/40 text-xs leading-relaxed mt-1 line-clamp-2">{note.text}</p>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-white/80 text-sm leading-relaxed">{note.text}</p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-2">
                         <span className="text-white/20 text-[10px]">{formatTime(note.createdAt)}</span>
@@ -398,7 +470,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                                 </svg>
-                                Enhance
+                                {note.enhanced ? 'Refine' : 'Enhance'}
                               </>
                             )}
                           </button>
