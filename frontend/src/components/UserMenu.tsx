@@ -60,13 +60,13 @@ export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps
         onClick={() => setOpen((o) => !o)}
         className={
           label
-            ? 'flex items-center gap-2 bg-white/5 border border-white/10 rounded-full pl-3 pr-1 py-1 hover:bg-white/10 hover:border-white/15 transition-all cursor-pointer'
+            ? 'h-8 flex items-center gap-2 leading-none bg-white/5 border border-white/10 rounded-full pl-2.5 pr-1 hover:bg-white/10 hover:border-white/15 transition-all cursor-pointer'
             : 'relative w-10 h-10 rounded-full bg-purple-600/30 border border-purple-500/40 hover:bg-purple-600/50 hover:border-purple-400/60 transition-all overflow-hidden cursor-pointer flex items-center justify-center'
         }
         title="Account menu"
       >
-        {label && <span className="text-white/80 text-xs font-medium">{label}</span>}
-        <div className={`rounded-full bg-purple-600/30 border border-purple-500/40 overflow-hidden flex items-center justify-center flex-shrink-0 ${label ? 'w-8 h-8' : 'w-10 h-10'}`}>
+        {label && <span className="text-white/80 text-xs font-medium leading-none">{label}</span>}
+        <div className={`rounded-full bg-purple-600/30 border border-purple-500/40 overflow-hidden flex items-center justify-center flex-shrink-0 ${label ? 'w-7 h-7' : 'w-10 h-10'}`}>
           {avatarSrc ? (
             <img src={avatarSrc} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
           ) : (

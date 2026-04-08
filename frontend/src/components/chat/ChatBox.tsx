@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
@@ -7,10 +7,12 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   matchedNodes?: OrbNode[];
+  selectedNodeUid?: string;
 }
 
 interface ChatBoxProps {
   onHighlight: (nodeIds: Set<string>) => void;
+  highlightedNodeIds?: Set<string>;
   messages: ChatMessage[];
   onMessagesChange: (msgs: ChatMessage[]) => void;
   onAdd?: () => void;
@@ -18,6 +20,7 @@ interface ChatBoxProps {
   highlightAdd?: boolean;
   placeholder?: string;
   searchFn?: (query: string) => Promise<OrbNode[]>;
+  interactionHint?: string;
 }
 
 export type { ChatMessage };
@@ -58,9 +61,34 @@ function getNodeSubtitle(node: OrbNode): string {
   return '';
 }
 
-export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd, onShare, highlightAdd, placeholder = 'Query your orbis...', searchFn = textSearch }: ChatBoxProps) {
+function getNodeScore(node: OrbNode): number {
+  const raw = node.score ?? (node._score as number | undefined);
+  if (typeof raw !== 'number' || Number.isNaN(raw)) return 0;
+  return Math.max(0, Math.min(1, raw));
+}
+
+function getScoreStyle(score: number): { dot: string; text: string } {
+  if (score >= 0.8) return { dot: '#34d399', text: '#86efac' };
+  if (score >= 0.6) return { dot: '#facc15', text: '#fde68a' };
+  return { dot: '#f87171', text: '#fca5a5' };
+}
+
+export default function ChatBox({
+  onHighlight,
+  highlightedNodeIds,
+  messages,
+  onMessagesChange,
+  onAdd,
+  onShare,
+  highlightAdd,
+  placeholder = 'Query your orbis...',
+  searchFn = textSearch,
+  interactionHint = 'Zoom: mouse wheel · Pan: right-drag · Rotate: left-drag',
+}: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [activeResultIndex, setActiveResultIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const setMessages = (updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
     if (typeof updater === 'function') {
@@ -69,12 +97,49 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
       onMessagesChange(updater);
     }
   };
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasMessages = messages.length > 0;
+  const { resultMessageIndex, resultMessage, resultNodes } = useMemo(() => {
+    const index = messages.findIndex((msg) => msg.role === 'assistant' && (msg.matchedNodes?.length ?? 0) > 0);
+    const message = index >= 0 ? messages[index] : null;
+    return {
+      resultMessageIndex: index,
+      resultMessage: message,
+      resultNodes: message?.matchedNodes ?? [],
+    };
+  }, [messages]);
+  const latestQuery = useMemo(
+    () => [...messages].reverse().find((msg) => msg.role === 'user')?.text ?? '',
+    [messages],
+  );
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (resultNodes.length === 0) {
+      setActiveResultIndex(-1);
+      return;
+    }
+    const highlightedUid = highlightedNodeIds && highlightedNodeIds.size === 1
+      ? Array.from(highlightedNodeIds)[0]
+      : resultMessage?.selectedNodeUid;
+    const index = highlightedUid ? resultNodes.findIndex((node) => node.uid === highlightedUid) : 0;
+    setActiveResultIndex(index >= 0 ? index : 0);
+  }, [highlightedNodeIds, resultMessage?.selectedNodeUid, resultNodes]);
+
+  useEffect(() => {
+    if (!hasMessages) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target || !containerRef.current) return;
+      if (!containerRef.current.contains(target)) {
+        onMessagesChange([]);
+        onHighlight(new Set());
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [hasMessages, onHighlight, onMessagesChange]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,34 +147,35 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
     if (!query || loading) return;
 
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', text: query }]);
+    setMessages([{ role: 'user', text: query }]);
     setLoading(true);
 
     try {
       const results = await searchFn(query);
+      const sortedResults = [...results].sort((a, b) => getNodeScore(b) - getNodeScore(a));
 
-      if (results.length === 0) {
-        setMessages((prev) => [
-          ...prev,
+      if (sortedResults.length === 0) {
+        setMessages([
+          { role: 'user', text: query },
           { role: 'assistant', text: `No matches found for "${query}". This information isn't in your orbis yet.` },
         ]);
         onHighlight(new Set());
       } else {
-        const nodeIds = new Set(results.map((n) => n.uid));
-        onHighlight(nodeIds);
+        const selectedNodeUid = sortedResults[0].uid;
+        onHighlight(new Set([selectedNodeUid]));
 
-        const summary = results.length === 1
-          ? `Found 1 matching node — highlighted in your graph.`
-          : `Found ${results.length} matching nodes — highlighted in your graph.`;
+        const summary = sortedResults.length === 1
+          ? 'Found 1 matching node — highlighted in your graph.'
+          : `Found ${sortedResults.length} matching nodes — click one to highlight it in your graph.`;
 
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', text: summary, matchedNodes: results },
+        setMessages([
+          { role: 'user', text: query },
+          { role: 'assistant', text: summary, matchedNodes: sortedResults, selectedNodeUid },
         ]);
       }
     } catch {
-      setMessages((prev) => [
-        ...prev,
+      setMessages([
+        { role: 'user', text: query },
         { role: 'assistant', text: 'Something went wrong. Please try again.' },
       ]);
       onHighlight(new Set());
@@ -118,10 +184,56 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
     }
   };
 
-  const hasMessages = messages.length > 0;
+  const handleResultClick = (messageIndex: number, nodeUid: string) => {
+    onHighlight(new Set([nodeUid]));
+    setMessages((prev) => prev.map((msg, idx) => {
+      if (idx !== messageIndex || !msg.matchedNodes) return msg;
+      return { ...msg, selectedNodeUid: nodeUid };
+    }));
+  };
+
+  const handleClearResults = () => {
+    onMessagesChange([]);
+    onHighlight(new Set());
+    setActiveResultIndex(-1);
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape' && hasMessages) {
+      e.preventDefault();
+      handleClearResults();
+      return;
+    }
+
+    if (resultNodes.length === 0 || resultMessageIndex < 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = activeResultIndex < 0 ? 0 : (activeResultIndex + 1) % resultNodes.length;
+      setActiveResultIndex(next);
+      handleResultClick(resultMessageIndex, resultNodes[next].uid);
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const next = activeResultIndex < 0
+        ? resultNodes.length - 1
+        : (activeResultIndex - 1 + resultNodes.length) % resultNodes.length;
+      setActiveResultIndex(next);
+      handleResultClick(resultMessageIndex, resultNodes[next].uid);
+      return;
+    }
+
+    if (e.key === 'Enter' && !input.trim() && activeResultIndex >= 0) {
+      e.preventDefault();
+      handleResultClick(resultMessageIndex, resultNodes[activeResultIndex].uid);
+    }
+  };
 
   return (
     <div
+      ref={containerRef}
       className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-[90vw] sm:max-w-xl px-2 sm:px-4 pb-6 sm:pb-10"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
@@ -147,7 +259,7 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
                   </div>
                 ) : (
                   <div className="flex justify-start">
-                    <div className="space-y-2 max-w-[90%]">
+                    <div className="space-y-2 max-w-[95%]">
                       <div
                         className="text-white/90 text-sm px-4 py-2 rounded-2xl rounded-bl-sm"
                         style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
@@ -155,17 +267,74 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
                         {msg.text}
                       </div>
                       {msg.matchedNodes && msg.matchedNodes.length > 0 && (
-                        <div className="space-y-1.5 pl-1">
+                        <div
+                          className="rounded-xl border border-white/10 bg-black/20 p-2.5 sm:p-3"
+                          style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}
+                        >
+                          <div className="flex items-center justify-between gap-3 mb-2">
+                            <div className="min-w-0">
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-white/40">
+                                Search Results
+                              </p>
+                              <p className="text-xs text-white/75 truncate">
+                                {msg.matchedNodes.length} {msg.matchedNodes.length === 1 ? 'match' : 'matches'} for "{latestQuery}"
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleClearResults}
+                              className="text-[11px] px-2 py-1 rounded-md border border-white/15 text-white/55 hover:text-white/85 hover:border-white/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70"
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2 pl-0.5" role="listbox" id="chat-search-results-list" aria-label="Search matches">
                           {msg.matchedNodes.map((node, j) => {
                             const label = node._labels?.[0] || '';
                             const typeKey = LABEL_TO_TYPE[label] || '';
                             const color = NODE_TYPE_COLORS[typeKey] || '#8b5cf6';
+                            const score = getNodeScore(node);
+                            const scorePercent = Math.round(score * 100);
+                            const scoreStyle = getScoreStyle(score);
+                            const isSelected = highlightedNodeIds?.has(node.uid) ?? (msg.selectedNodeUid === node.uid);
+                            const isActive = j === activeResultIndex;
                             return (
-                              <div
+                              <button
                                 key={j}
-                                className="flex items-center gap-2 rounded-lg px-3 py-1.5 backdrop-blur-sm"
-                                style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)' }}
+                                type="button"
+                                onClick={() => handleResultClick(i, node.uid)}
+                                onMouseEnter={() => setActiveResultIndex(j)}
+                                role="option"
+                                aria-selected={isSelected}
+                                className="w-full flex items-center gap-2 rounded-lg px-3 py-2 sm:py-2.5 backdrop-blur-sm text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70"
+                                style={{
+                                  backgroundColor: isSelected
+                                    ? 'rgba(139,92,246,0.18)'
+                                    : isActive
+                                      ? 'rgba(255,255,255,0.13)'
+                                      : 'rgba(255,255,255,0.08)',
+                                  border: isSelected
+                                    ? '1px solid rgba(167,139,250,0.65)'
+                                    : '1px solid rgba(255,255,255,0.1)',
+                                }}
                               >
+                                <div className="flex flex-col items-center gap-1.5 flex-shrink-0 min-w-[40px]">
+                                  <div className="flex items-center gap-1.5">
+                                    <div
+                                      className="w-2.5 h-2.5 rounded-full"
+                                      style={{ backgroundColor: scoreStyle.dot, boxShadow: `0 0 6px ${scoreStyle.dot}` }}
+                                    />
+                                    <span className="text-[10px] font-semibold" style={{ color: scoreStyle.text }}>
+                                      {scorePercent}%
+                                    </span>
+                                  </div>
+                                  <div className="w-10 h-1 rounded-full bg-white/10 overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full"
+                                      style={{ width: `${scorePercent}%`, backgroundColor: scoreStyle.dot }}
+                                    />
+                                  </div>
+                                </div>
                                 <div
                                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }}
@@ -186,9 +355,10 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
                                 >
                                   {DISPLAY_LABELS[label] || label}
                                 </span>
-                              </div>
+                              </button>
                             );
                           })}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -210,7 +380,6 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
                 </div>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
         </div>
       )}
@@ -233,8 +402,11 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleInputKeyDown}
               placeholder={placeholder}
               className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
+              aria-controls={resultNodes.length > 0 ? 'chat-search-results-list' : undefined}
+              aria-expanded={resultNodes.length > 0}
             />
             {input.trim() && (
               <button
@@ -278,6 +450,9 @@ export default function ChatBox({ onHighlight, messages, onMessagesChange, onAdd
           </div>
         )}
       </div>
+      <p className="mt-2 text-center text-[11px] text-white/35">
+        {interactionHint}
+      </p>
     </div>
   );
 }

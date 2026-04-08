@@ -39,7 +39,7 @@ export default function KeywordFilterDropdown() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
+        className={`h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
           activeKeywords.length > 0
             ? 'text-amber-400 bg-amber-500/10'
             : 'text-white/40 hover:text-white hover:bg-white/5'
