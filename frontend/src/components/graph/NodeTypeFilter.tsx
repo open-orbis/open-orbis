@@ -73,18 +73,18 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
     <div ref={ref} className="relative z-30 select-none">
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
+        className={`h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
           filterActive
             ? 'text-purple-400 bg-purple-500/10'
             : 'text-white/40 hover:text-white/80 hover:bg-white/5'
         }`}
-        aria-label="Toggle node type visibility"
+        aria-label="Toggle node types visibility"
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
         </svg>
-        <span className="hidden sm:inline">Legend</span>
+        <span className="hidden sm:inline">Node types</span>
         {filterActive && (
           <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
             {ALL_TYPES.length - hiddenTypes.size}
@@ -93,8 +93,8 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl p-3 w-52">
-          <div className="flex items-center justify-between mb-2">
+        <div className="absolute top-full left-0 mt-1 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl p-3 w-56">
+          <div className="flex items-center justify-between mb-1.5">
             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">
               Node Types
             </span>
@@ -108,8 +108,11 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
               </svg>
             </button>
           </div>
+          <p className="text-[10px] text-white/40 mb-2">
+            First click isolates one type. Click more to include/exclude.
+          </p>
 
-          <div className="flex items-center gap-1.5 mb-2">
+          <div className="sticky top-0 z-10 bg-gray-900/95 py-1 flex items-center gap-1.5 mb-2 border-b border-white/5">
             <button
               onClick={handleShowAll}
               disabled={allVisible}
@@ -137,7 +140,11 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
                 <li key={type}>
                   <button
                     onClick={() => handleClickType(type)}
-                    className="flex items-center gap-2 py-1 px-1 w-full rounded-md hover:bg-white/5 transition-colors group cursor-pointer"
+                    className={`flex items-center gap-2 py-1.5 px-1.5 w-full rounded-md transition-colors group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 ${
+                      isVisible
+                        ? 'bg-white/[0.04] hover:bg-white/[0.08]'
+                        : 'bg-white/[0.01] hover:bg-white/[0.04]'
+                    }`}
                   >
                     <span
                       className="w-3 h-3 rounded-sm flex-shrink-0 transition-opacity"
@@ -149,7 +156,7 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
                     />
                     <span
                       className="text-xs flex-1 text-left transition-opacity"
-                      style={{ color: isVisible ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.2)' }}
+                      style={{ color: isVisible ? 'rgba(255,255,255,0.78)' : 'rgba(255,255,255,0.28)' }}
                     >
                       {label}
                     </span>

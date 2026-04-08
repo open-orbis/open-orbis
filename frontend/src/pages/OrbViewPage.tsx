@@ -459,7 +459,7 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
   children: React.ReactNode;
   variant?: 'ghost' | 'outline' | 'primary';
 }) {
-  const base = 'flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all';
+  const base = 'h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all';
   const styles = {
     ghost: `${base} text-white/40 hover:text-white/70 hover:bg-white/5`,
     outline: `${base} text-white/70 hover:text-white border border-white/10 hover:border-white/20 hover:bg-white/5`,
@@ -471,12 +471,14 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 // ── Constants ──
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
+const MY_ORBIS_CAMERA_DISTANCE = 200;
 
 // ── Page ──
 
 export default function OrbViewPage() {
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
   const { user } = useAuthStore();
+  const addToast = useToastStore((s) => s.addToast);
   const isPendingDeletion = user?.deletion_days_remaining != null;
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -493,6 +495,8 @@ export default function OrbViewPage() {
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
   const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const toolsMenuRef = useRef<HTMLDivElement>(null);
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState('');
   const [extractedImport, setExtractedImport] = useState<{
@@ -509,6 +513,7 @@ export default function OrbViewPage() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (showToolsMenu) { setShowToolsMenu(false); return; }
       if (showInput) { setShowInput(false); setEditNode(null); return; }
       if (showProfile) { setShowProfile(false); return; }
       if (showShare) { setShowShare(false); return; }
@@ -516,7 +521,18 @@ export default function OrbViewPage() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, showProfile, showShare, showDrafts]);
+  }, [showInput, showProfile, showShare, showDrafts, showToolsMenu]);
+
+  useEffect(() => {
+    if (!showToolsMenu) return;
+    const handleOutside = (e: PointerEvent) => {
+      if (toolsMenuRef.current && !toolsMenuRef.current.contains(e.target as Node)) {
+        setShowToolsMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handleOutside);
+    return () => document.removeEventListener('pointerdown', handleOutside);
+  }, [showToolsMenu]);
 
   // Load drafts when userId becomes available — try API first, fall back to localStorage
   useEffect(() => {
@@ -718,22 +734,26 @@ export default function OrbViewPage() {
   // Reset date filter when switching to a different orb (not on node edits)
   useEffect(() => { resetRange(); }, [orbId, resetRange]);
 
-  // Compute which nodes match any active visibility filter (keyword + date)
-  const filteredNodeIds = useMemo(() => {
-    const keywordFiltered = computeFilteredNodeIds(data?.nodes ?? [], activeKeywords);
-    const dateFiltered = computeDateFilteredNodeIds(
+  const dateFilteredNodeIds = useMemo(
+    () => computeDateFilteredNodeIds(
       data?.nodes ?? [],
       data?.links ?? [],
       rangeStart,
       rangeEnd,
       dateBounds?.min,
       dateBounds?.max,
-    );
+    ),
+    [data?.nodes, data?.links, rangeStart, rangeEnd, dateBounds],
+  );
+
+  // Compute which nodes match any active visibility filter (keyword + date)
+  const filteredNodeIds = useMemo(() => {
+    const keywordFiltered = computeFilteredNodeIds(data?.nodes ?? [], activeKeywords);
     // Union of both sets
     const merged = new Set(keywordFiltered);
-    for (const id of dateFiltered) merged.add(id);
+    for (const id of dateFilteredNodeIds) merged.add(id);
     return merged;
-  }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
+  }, [data?.nodes, activeKeywords, dateFilteredNodeIds]);
 
   // Node type filter handlers
   const handleShowAllNodeTypes = useCallback(() => {
@@ -747,6 +767,52 @@ export default function OrbViewPage() {
   const handleSetVisibleNodeTypes = useCallback((visibleTypes: Set<string>) => {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
+
+  const handleImportFile = useCallback(async (file: File) => {
+    setImporting(true);
+    setImportStatus('Reading file...');
+    const pollId = setInterval(async () => {
+      try {
+        const { getCVProgress } = await import('../api/cv');
+        const p = await getCVProgress();
+        if (p.active && p.message) {
+          setImportStatus(p.detail || p.message);
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+
+    try {
+      const { importDocument } = await import('../api/cv');
+      const result = await importDocument(file);
+      clearInterval(pollId);
+      if (result.nodes.length > 0) {
+        setExtractedImport({
+          nodes: result.nodes,
+          relationships: result.relationships || [],
+          cvOwnerName: result.cv_owner_name || null,
+          unmatchedCount: result.unmatched?.length || 0,
+          skippedCount: result.skipped_nodes?.length || 0,
+          file,
+          replaceCV: false,
+        });
+      } else {
+        addToast('Error processing document. Please try again.', 'error');
+      }
+    } catch {
+      clearInterval(pollId);
+      addToast('Failed to import document', 'error');
+    } finally {
+      setImporting(false);
+      setImportStatus('');
+    }
+  }, [addToast]);
+
+  const handleImportInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleImportFile(file);
+    e.target.value = '';
+  }, [handleImportFile]);
 
   if (loading || !data) {
     return (
@@ -769,124 +835,159 @@ export default function OrbViewPage() {
 
       {/* ── Header ── */}
       <div className={`absolute left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3 ${isPendingDeletion ? 'top-8' : 'top-0'}`}>
-        <div className="flex items-center justify-between">
-          {/* Left: identity + view/filter/export */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
-                <div className="w-3 h-3 rounded-full bg-purple-400" />
+        <div className="rounded-xl border border-white/10 bg-black/45 backdrop-blur-md shadow-lg shadow-black/30">
+          <div className="flex items-center justify-between gap-2 px-2.5 sm:px-3 py-2 min-h-[44px]">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-purple-600/30 border border-purple-500/40 flex items-center justify-center">
+                  <div className="w-3 h-3 rounded-full bg-purple-400" />
+                </div>
+                <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
               </div>
-              <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
-            </div>
-            <div className="hidden sm:block w-px h-5 bg-white/10" />
-            <div>
-              <span className="text-white/20 text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
-            </div>
-            <div className="hidden sm:block w-px h-5 bg-white/10" />
-            {!isPendingDeletion && (
-              <div className="flex items-center gap-1">
-                <NodeTypeFilter
-                  hiddenTypes={hiddenNodeTypes}
-                  onShowAll={handleShowAllNodeTypes}
-                  onHideAll={handleHideAllNodeTypes}
-                  onSetVisible={handleSetVisibleNodeTypes}
-                />
-                <KeywordFilterDropdown />
-                <button
-                  onClick={() => window.open('/cv-export', '_blank')}
-                  className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
-                >
-                  <IconDownload />
-                  <span className="hidden sm:inline">Export Orbis</span>
-                </button>
-                <label
-                  className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all ${
-                    importing
-                      ? 'text-purple-400 bg-purple-500/10 cursor-wait'
-                      : 'text-white/40 hover:text-purple-400 hover:bg-purple-500/10 cursor-pointer'
-                  }`}
-                  title="Import a document (PDF, DOCX, TXT) to enrich your orbis"
-                >
-                  {importing ? (
-                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                  )}
-                  <span className="hidden sm:inline">{importing ? 'Processing...' : 'Import new data'}</span>
-                  {importing && importStatus && (
-                    <span className="hidden sm:inline text-white/25 text-[10px] ml-1">{importStatus}</span>
-                  )}
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.txt"
-                    className="hidden"
-                    disabled={importing}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setImporting(true);
-                      setImportStatus('Reading file...');
-                      // Poll progress while importing
-                      const pollId = setInterval(async () => {
-                        try {
-                          const { getCVProgress } = await import('../api/cv');
-                          const p = await getCVProgress();
-                          if (p.active && p.message) {
-                            setImportStatus(p.detail || p.message);
-                          }
-                        } catch { /* ignore */ }
-                      }, 2000);
-                      try {
-                        const { importDocument } = await import('../api/cv');
-                        const result = await importDocument(file);
-                        clearInterval(pollId);
-                        if (result.nodes.length > 0) {
-                          setExtractedImport({
-                            nodes: result.nodes,
-                            relationships: result.relationships || [],
-                            cvOwnerName: result.cv_owner_name || null,
-                            unmatchedCount: result.unmatched?.length || 0,
-                            skippedCount: result.skipped_nodes?.length || 0,
-                            file,
-                            replaceCV: false,
-                          });
-                        } else {
-                          const { useToastStore } = await import('../stores/toastStore');
-                          useToastStore.getState().addToast('Error processing document. Please try again.', 'error');
-                        }
-                      } catch {
-                        clearInterval(pollId);
-                        const { useToastStore } = await import('../stores/toastStore');
-                        useToastStore.getState().addToast('Failed to import document', 'error');
-                      } finally {
-                        setImporting(false);
-                        setImportStatus('');
-                      }
-                      e.target.value = '';
-                    }}
+              <div className="hidden sm:block w-px h-5 bg-white/10" />
+              <span className="text-white/25 text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
+
+              {!isPendingDeletion && (
+                <div className="hidden sm:flex items-center gap-1.5 ml-2">
+                  <NodeTypeFilter
+                    hiddenTypes={hiddenNodeTypes}
+                    onShowAll={handleShowAllNodeTypes}
+                    onHideAll={handleHideAllNodeTypes}
+                    onSetVisible={handleSetVisibleNodeTypes}
                   />
-                </label>
-              </div>
-            )}
+                  <KeywordFilterDropdown />
+                  <button
+                    onClick={() => window.open('/cv-export', '_blank')}
+                    className="h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
+                  >
+                    <IconDownload />
+                    <span>Export</span>
+                  </button>
+                  <label
+                    className={`h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all ${
+                      importing
+                        ? 'text-purple-300 bg-purple-500/15 cursor-wait'
+                      : 'text-white/40 hover:text-purple-300 hover:bg-purple-500/10 cursor-pointer'
+                    }`}
+                    title="Import a document (PDF, DOCX, TXT) to enrich your orbis"
+                  >
+                    {importing ? (
+                      <div className="w-4 h-4 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    )}
+                    <span>{importing ? 'Processing...' : 'Import'}</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.txt"
+                      className="hidden"
+                      disabled={importing}
+                      onChange={handleImportInputChange}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            <div className="h-8 flex items-center gap-1">
+              <ProcessingCounter />
+              <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
+                <IconNotes />
+                <span className="hidden sm:inline">Notes</span>
+                {draftNotes.length > 0 && (
+                  <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
+                    {draftNotes.length}
+                  </span>
+                )}
+              </HeaderBtn>
+
+              {!isPendingDeletion && (
+                <div className="relative sm:hidden" ref={toolsMenuRef}>
+                  <button
+                    onClick={() => setShowToolsMenu((v) => !v)}
+                    className="h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Tools
+                  </button>
+
+                  {showToolsMenu && (
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-3 space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs text-white/65">Node types</span>
+                        <NodeTypeFilter
+                          hiddenTypes={hiddenNodeTypes}
+                          onShowAll={handleShowAllNodeTypes}
+                          onHideAll={handleHideAllNodeTypes}
+                          onSetVisible={handleSetVisibleNodeTypes}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs text-white/65">Keywords</span>
+                        <KeywordFilterDropdown />
+                      </div>
+                      <button
+                        onClick={() => window.open('/cv-export', '_blank')}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
+                      >
+                        <IconDownload />
+                        Export Orbis
+                      </button>
+                      <label
+                        className={`w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                          importing
+                            ? 'border-purple-400/30 text-purple-300 bg-purple-500/15 cursor-wait'
+                            : 'border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 cursor-pointer'
+                        }`}
+                      >
+                        {importing ? (
+                          <div className="w-3.5 h-3.5 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                        )}
+                        {importing ? 'Processing...' : 'Import data'}
+                        <input
+                          type="file"
+                          accept=".pdf,.docx,.txt"
+                          className="hidden"
+                          disabled={importing}
+                          onChange={handleImportInputChange}
+                        />
+                      </label>
+                      {importing && importStatus && (
+                        <p className="text-[11px] text-purple-200/80 px-1">{importStatus}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
+              <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
+            </div>
           </div>
 
-          {/* Right: inbox, notes, user menu */}
-          <div className="flex items-center gap-1">
-            <ProcessingCounter />
-            <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
-              <IconNotes />
-              <span className="hidden sm:inline">Notes</span>
-              {draftNotes.length > 0 && (
-                <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {draftNotes.length}
+          {!isPendingDeletion && (
+            <div className="flex flex-wrap items-center gap-1.5 px-2.5 sm:px-3 pb-2">
+              {activeKeywords.length > 0 && (
+                <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-amber-500/12 border border-amber-500/30 text-amber-200">
+                  Filters: {activeKeywords.length}
                 </span>
               )}
-            </HeaderBtn>
-            <div className="w-px h-5 bg-white/10 mx-1" />
-            <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
-          </div>
+              {importing && (
+                <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-purple-500/12 border border-purple-500/30 text-purple-200">
+                  Importing...
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -915,7 +1016,12 @@ export default function OrbViewPage() {
 
       {/* ── Date Range Slider ── */}
       {dateBounds && !isPendingDeletion && (
-        <DateRangeSlider minDate={dateBounds.min} maxDate={dateBounds.max} />
+        <DateRangeSlider
+          minDate={dateBounds.min}
+          maxDate={dateBounds.max}
+          filteredCount={dateFilteredNodeIds.size}
+          totalCount={data.nodes.length}
+        />
       )}
 
       {/* ── 3D Graph ── */}
@@ -931,6 +1037,7 @@ export default function OrbViewPage() {
           hiddenNodeTypes={hiddenNodeTypes}
           width={dimensions.width}
           height={dimensions.height}
+          cameraDistance={MY_ORBIS_CAMERA_DISTANCE}
         />
       </div>
 
