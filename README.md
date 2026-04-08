@@ -7,7 +7,7 @@
 </h1>
 
 <p align="center">
-  <em>Your professional identity as a knowledge graph.<br>Shareable, queryable, and always up to date.</em>
+  <em>Beyond the CV.<br>Your career as a knowledge graph — queryable, shareable, portable.</em>
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ## What is OpenOrbis?
 
-OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Instead of a static PDF, your professional identity — skills, experience, education, projects, publications, and more — becomes a queryable data structure that both humans and AI agents can explore.
+OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Instead of a static PDF, your professional identity — skills, experience, education, projects, publications, awards, outreach, and more — becomes a queryable data structure that both humans and AI agents can explore.
 
 🌐 **Share it** — every orbis gets a unique URL and QR code, ready to send to recruiters or embed in your portfolio
 
@@ -41,7 +41,6 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 - Export to PDF with page-break preview
 - Shareable URL with QR code
 - Draft notes with LLM enhancement
-- Inbox for recruiters & AI agents
 - Date range slider for temporal filtering
 - Privacy-aware sharing via filter tokens
 - Fuzzy + semantic vector search
@@ -57,7 +56,6 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 - `orbis_get_nodes_by_type`
 - `orbis_get_connections`
 - `orbis_get_skills_for_experience`
-- `orbis_send_message`
 - Structured JSON responses
 - Filter token access control
 
@@ -85,7 +83,7 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 <tr><td><strong>Backend</strong></td><td>FastAPI · Python 3.10+ · Uvicorn</td></tr>
 <tr><td><strong>Database</strong></td><td>Neo4j 5 (graph database with vector indexes)</td></tr>
 <tr><td><strong>AI / LLM</strong></td><td>Anthropic Claude (via CLI) · Ollama (llama3.2:3b local fallback)</td></tr>
-<tr><td><strong>Auth</strong></td><td>JWT (HS256) · Google OAuth (scaffolded)</td></tr>
+<tr><td><strong>Auth</strong></td><td>JWT (HS256) · Google OAuth · LinkedIn OAuth</td></tr>
 <tr><td><strong>Encryption</strong></td><td>Fernet (cryptography)</td></tr>
 <tr><td><strong>Agent Protocol</strong></td><td>MCP (Model Context Protocol)</td></tr>
 <tr><td><strong>PDF</strong></td><td>PyMuPDF (extraction) · fpdf2 (generation)</td></tr>
@@ -102,18 +100,17 @@ orb_project/
 ├── frontend/                  # React + TypeScript app
 │   └── src/
 │       ├── pages/             # Landing, Create, View, Shared, Export, About, Privacy
-│       ├── components/        # Graph, Editor, Chat, Inbox, CV, Drafts, Onboarding
+│       ├── components/        # Graph, Editor, Chat, CV, Drafts, Onboarding, Landing
 │       ├── stores/            # Zustand (auth, orb, filter, dateFilter, toast)
 │       └── api/               # Axios clients
 ├── backend/                   # FastAPI app
 │   ├── app/
-│   │   ├── auth/              # JWT auth, dev-login, GDPR, account lifecycle
+│   │   ├── auth/              # JWT auth, Google/LinkedIn OAuth, GDPR, account lifecycle
 │   │   ├── cv/                # PDF parsing, LLM classification, rule-based fallback
 │   │   ├── graph/             # Neo4j client, Cypher queries, encryption, embeddings
 │   │   ├── orbs/              # Graph CRUD, profile, filter tokens
 │   │   ├── export/            # PDF / JSON / JSON-LD export
 │   │   ├── search/            # Semantic vector + fuzzy text search
-│   │   ├── messages/          # Inbox & messaging
 │   │   ├── notes/             # Draft notes with LLM enhancement
 │   │   └── main.py            # App entry, middleware, CORS
 │   ├── mcp_server/            # MCP tools for AI agents
@@ -122,7 +119,6 @@ orb_project/
 ├── infra/                     # Neo4j init scripts (constraints, indexes)
 ├── docker-compose.yml         # Neo4j + Ollama services
 ├── .env.example               # Environment variable template
-├── ontology.md                # Knowledge graph schema reference
 ├── CLAUDE.md                  # AI session project guide
 └── LICENSE                    # GNU AGPL v3
 ```
@@ -180,7 +176,7 @@ docker exec orbis-ollama ollama pull llama3.2:3b
 
 ### 6. Open the app
 
-Navigate to http://localhost:5173, click login (dev mode), and choose **"Upload CV"** or **"Manual Entry"** to build your orb.
+Navigate to http://localhost:5173 and sign in with Google or LinkedIn to start building your orbis.
 
 ---
 
@@ -197,11 +193,12 @@ Navigate to http://localhost:5173, click login (dev mode), and choose **"Upload 
 | `BACKEND_URL` | Backend URL | Yes |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID | Prod |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Prod |
+| `LINKEDIN_CLIENT_ID` | LinkedIn OAuth client ID | Prod |
+| `LINKEDIN_CLIENT_SECRET` | LinkedIn OAuth client secret | Prod |
 | `ANTHROPIC_API_KEY` | Claude API key | — |
 | `OLLAMA_BASE_URL` | Ollama endpoint (default: `http://localhost:11434`) | — |
 | `OLLAMA_MODEL` | Ollama model name (default: `llama3.2:3b`) | — |
-| `JWT_ALGORITHM` | JWT signing algorithm (default: `HS256`) | — |
-| `JWT_EXPIRE_MINUTES` | JWT token TTL in minutes (default: `1440`) | — |
+| `LLM_PROVIDER` | LLM provider: `claude` or `ollama` (default: `claude`) | — |
 
 > See [`.env.example`](.env.example) for the full template.
 
@@ -238,7 +235,6 @@ OpenOrbis includes an MCP server that exposes your knowledge graph to AI agents:
 | `orbis_get_nodes_by_type` | Filter nodes by type (education, skill, etc.) |
 | `orbis_get_connections` | All relationships of a specific node |
 | `orbis_get_skills_for_experience` | Skills linked to a work experience or project |
-| `orbis_send_message` | Send a message to the orb owner |
 
 ```bash
 cd backend
@@ -260,12 +256,13 @@ Person ──HAS_EDUCATION──────────► Education
        ──HAS_PUBLICATION───────► Publication
        ──HAS_PROJECT───────────► Project
        ──HAS_PATENT────────────► Patent
-       ──COLLABORATED_WITH─────► Collaborator
+       ──HAS_AWARD─────────────► Award
+       ──HAS_OUTREACH──────────► Outreach
 ```
 
 The key graph feature is **`USED_SKILL`** — a cross-link between experience nodes and Skill nodes, enabling queries like *"which skills were used at company X?"*
 
-> See [`ontology.md`](ontology.md) for the full schema and [`docs/database.md`](docs/database.md) for query patterns and indexes.
+> See [`docs/database.md`](docs/database.md) for query patterns and indexes.
 
 ---
 

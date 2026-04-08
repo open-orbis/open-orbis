@@ -4,23 +4,19 @@ import { useNavigate } from 'react-router-dom';
 const FEATURES = [
   {
     title: 'One graph, zero templates',
-    description: 'Stop wasting time choosing CV templates and rewriting your resume. Create your knowledge graph once — it works everywhere.',
+    description: 'Stop choosing templates and reformatting for every application. Build your knowledge graph once — export it as a PDF, embed it in your website, or just share the link. It adapts to every context.',
   },
   {
     title: 'Portable & machine-readable',
-    description: 'Your orbis has a unique link (e.g. orbis.io/alessandro-berti). Pass it to any LLM, agent, or tool and it gets perfectly structured data.',
+    description: 'Your orbis has a unique URL and QR code. Pass it to any LLM, embed it in your portfolio, or add it to your email signature. Humans see a 3D graph — AI agents get structured data via MCP.',
   },
   {
     title: 'Always up to date',
-    description: 'Update your orbis in one place. Generated CVs, websites, and profiles update downstream. Single source of truth.',
+    description: 'Update your orbis in one place. Every generated CV, shared link, and agent query reflects the latest version instantly. No more outdated PDFs floating around.',
   },
   {
     title: 'You control access',
-    description: 'Granular permissions let you decide what each agent or recruiter can see. Your data, encrypted by default.',
-  },
-  {
-    title: 'Connected network',
-    description: 'When collaborators join OpenOrbis, your orbis link together — forming a professional knowledge graph that recruiters can explore.',
+    description: 'Your data is encrypted end-to-end. Decide what each recruiter or AI agent can see with keyword-based filters. Your professional identity, your rules.',
   },
 ];
 
@@ -45,7 +41,7 @@ export default function AboutPage() {
           transition={{ duration: 0.6 }}
           className="text-5xl font-bold mb-4"
         >
-          What is an Orbis?
+          Beyond the CV.
         </motion.h1>
 
         <motion.p
@@ -54,9 +50,9 @@ export default function AboutPage() {
           transition={{ delay: 0.15, duration: 0.6 }}
           className="text-gray-400 text-lg mb-16"
         >
-          An orbis is a portable, structured knowledge graph of your professional identity.
-          It replaces your CV, your landing page, and your LinkedIn profile — with something
-          that both humans and machines can understand.
+          An orbis is your career as a knowledge graph — queryable, shareable, portable.
+          It replaces static CVs and disconnected profiles with a living, interactive
+          representation that both humans and AI agents can understand.
         </motion.p>
 
         <div className="space-y-10">
@@ -81,7 +77,7 @@ export default function AboutPage() {
         >
           <button
             onClick={() => navigate('/')}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-lg shadow-purple-600/25"
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors shadow-lg shadow-purple-600/25 cursor-pointer"
           >
             Create Your Orbis
           </button>
