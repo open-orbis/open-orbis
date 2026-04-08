@@ -123,6 +123,8 @@ async def get_me(
             raise HTTPException(status_code=404, detail="User not found")
 
         person = dict(record["p"])
+        deletion_at = person.get("deletion_requested_at")
+        days_left = _days_remaining(str(deletion_at)) if deletion_at else None
         return UserInfo(
             user_id=person["user_id"],
             email=current_user["email"],
@@ -130,6 +132,8 @@ async def get_me(
             picture=person.get("picture", ""),
             profile_image=person.get("profile_image", ""),
             gdpr_consent=bool(person.get("gdpr_consent", False)),
+            deletion_requested_at=str(deletion_at) if deletion_at else None,
+            deletion_days_remaining=days_left,
         )
 
 
@@ -149,29 +153,58 @@ async def grant_gdpr_consent(
     return {"status": "ok"}
 
 
+GRACE_PERIOD_DAYS = 30
+
+
+def _days_remaining(deletion_requested_at: str) -> int:
+    """Calculate days remaining before permanent deletion."""
+    requested = datetime.fromisoformat(deletion_requested_at)
+    if requested.tzinfo is None:
+        requested = requested.replace(tzinfo=timezone.utc)
+    deadline = requested + __import__("datetime").timedelta(days=GRACE_PERIOD_DAYS)
+    remaining = (deadline - datetime.now(timezone.utc)).days
+    return max(0, remaining)
+
+
 @router.delete("/me")
 async def delete_me(
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Permanently delete the current user: Person node and the entire subgraph reachable from it.
-
-    Uses a variable-length path so nested nodes like Replies (Message → Reply)
-    are removed too, not just direct children of Person.
-    """
+    """Schedule account for deletion. Data is permanently removed after 30 days."""
+    now = datetime.now(timezone.utc).isoformat()
     async with db.session() as session:
-        # Remove every node reachable from the Person via any outgoing path (any depth).
         await session.run(
-            """
-            MATCH (p:Person {user_id: $user_id})-[*1..]->(n)
-            WITH DISTINCT n
-            DETACH DELETE n
-            """,
+            "MATCH (p:Person {user_id: $user_id}) SET p.deletion_requested_at = $now",
+            user_id=current_user["user_id"],
+            now=now,
+        )
+    return {
+        "status": "scheduled",
+        "message": f"Account scheduled for deletion. You have {GRACE_PERIOD_DAYS} days to recover it.",
+    }
+
+
+@router.post("/me/recover")
+async def recover_account(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Cancel a pending account deletion and restore the account."""
+    async with db.session() as session:
+        result = await session.run(
+            GET_PERSON_BY_USER_ID, user_id=current_user["user_id"]
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        person = dict(record["p"])
+        if not person.get("deletion_requested_at"):
+            return {"status": "ok", "message": "Account is not scheduled for deletion."}
+
+        await session.run(
+            "MATCH (p:Person {user_id: $user_id}) REMOVE p.deletion_requested_at",
             user_id=current_user["user_id"],
         )
-        # Remove the Person node itself
-        await session.run(
-            "MATCH (p:Person {user_id: $user_id}) DETACH DELETE p",
-            user_id=current_user["user_id"],
-        )
-    return {"status": "deleted"}
+    return {"status": "recovered", "message": "Account restored successfully."}

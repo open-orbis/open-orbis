@@ -5,7 +5,6 @@ import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
 import { claimOrbId } from '../api/orbs';
-import { clearDraftNotes } from './drafts/DraftNotes';
 
 interface UserMenuProps {
   orbId?: string;
@@ -181,17 +180,32 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
     } finally { setSaving(false); }
   };
 
+  const [recovering, setRecovering] = useState(false);
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     try {
       await deleteAccount();
-      if (user?.user_id) clearDraftNotes(user.user_id);
       logout();
-      addToast('Your account has been deleted', 'info');
+      addToast('Account scheduled for deletion. You have 30 days to recover it.', 'info');
       navigate('/', { replace: true });
     } catch {
       setError('Failed to delete account. Please try again.');
       setDeleting(false);
+    }
+  };
+
+  const handleRecoverAccount = async () => {
+    setRecovering(true);
+    try {
+      const { recoverAccount } = await import('../api/auth');
+      await recoverAccount();
+      addToast('Account restored successfully!', 'success');
+      onClose();
+      window.location.reload();
+    } catch {
+      setError('Failed to recover account. Please try again.');
+      setRecovering(false);
     }
   };
 
@@ -298,43 +312,68 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
                   <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Account</label>
                   <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Manage your account and data.</p>
 
-                  <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                    <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
-                    <p className="text-gray-400 text-xs leading-relaxed mb-4">
-                      Permanently delete your account, your orbis, and all associated data. This action is immediate and cannot be undone.
-                    </p>
-
-                    {!showDeleteConfirm ? (
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
-                      >
-                        Delete my account
-                      </button>
-                    ) : (
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
-                        <p className="text-red-300 text-xs font-medium mb-3">
-                          Are you sure? Your orbis and all data will be permanently deleted immediately.
-                        </p>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setShowDeleteConfirm(false)}
-                            className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={handleDeleteAccount}
-                            disabled={deleting}
-                            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
-                          >
-                            {deleting ? 'Deleting...' : 'Yes, delete my account'}
-                          </button>
-                        </div>
-                        {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                  {user?.deletion_days_remaining != null ? (
+                    /* ── Account pending deletion — show recovery ── */
+                    <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+                      <h3 className="text-amber-400 text-sm font-semibold mb-2">Account Scheduled for Deletion</h3>
+                      <p className="text-gray-400 text-xs leading-relaxed mb-2">
+                        Your account will be permanently deleted in{' '}
+                        <span className="text-amber-300 font-semibold">{user.deletion_days_remaining} day{user.deletion_days_remaining !== 1 ? 's' : ''}</span>.
+                      </p>
+                      <p className="text-gray-500 text-xs leading-relaxed mb-4">
+                        All your data, orbis, and profile will be removed. You can recover your account before then.
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleRecoverAccount}
+                          disabled={recovering}
+                          className="bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                        >
+                          {recovering ? 'Recovering...' : 'Recover my account'}
+                        </button>
                       </div>
-                    )}
-                  </div>
+                      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                    </div>
+                  ) : (
+                    /* ── Normal state — show delete option ── */
+                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
+                      <h3 className="text-red-400 text-sm font-semibold mb-2">Delete Account</h3>
+                      <p className="text-gray-400 text-xs leading-relaxed mb-4">
+                        Your account will be scheduled for deletion. You have 30 days to recover it before all data is permanently removed.
+                      </p>
+
+                      {!showDeleteConfirm ? (
+                        <button
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Delete my account
+                        </button>
+                      ) : (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mt-2">
+                          <p className="text-red-300 text-xs font-medium mb-3">
+                            Are you sure? You'll have 30 days to recover your account before permanent deletion.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setShowDeleteConfirm(false)}
+                              className="border border-gray-600 text-gray-300 hover:bg-gray-800 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleDeleteAccount}
+                              disabled={deleting}
+                              className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                            >
+                              {deleting ? 'Scheduling...' : 'Yes, delete my account'}
+                            </button>
+                          </div>
+                          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
