@@ -40,7 +40,9 @@ export interface DraftNote {
   enhanced?: EnhancedDraftState;
 }
 
-// ── Shared localStorage helpers (user-scoped, with migration) ──
+// ── Draft persistence helpers (API-backed with localStorage fallback) ──
+
+import { listDrafts, createDraft, deleteDraft as apiDeleteDraft } from '../../api/drafts';
 
 const LEGACY_KEYS = ['orbis_drafts', 'orbis-draft-notes'];
 
@@ -48,13 +50,52 @@ function userDraftsKey(userId: string) {
   return `orbis_drafts_${userId}`;
 }
 
-/** Load drafts for a user, migrating any legacy (non-scoped) entries once. */
+/** Load drafts from API, falling back to localStorage. Also migrates localStorage → API. */
+export async function loadDraftNotesAsync(userId: string): Promise<DraftNote[]> {
+  try {
+    // Try API first
+    const serverDrafts = await listDrafts();
+    const notes: DraftNote[] = serverDrafts.map((d) => ({
+      id: d.uid,
+      text: d.text,
+      createdAt: new Date(d.created_at).getTime(),
+    }));
+
+    // Migrate any localStorage drafts to the API
+    const localNotes = _loadFromLocalStorage(userId);
+    if (localNotes.length > 0) {
+      const serverIds = new Set(notes.map((n) => n.id));
+      for (const note of localNotes) {
+        if (!serverIds.has(note.id)) {
+          try {
+            const created = await createDraft(note.text);
+            notes.push({ id: created.uid, text: created.text, createdAt: new Date(created.created_at).getTime() });
+          } catch { /* ignore migration errors */ }
+        }
+      }
+      // Clear localStorage after migration
+      localStorage.removeItem(userDraftsKey(userId));
+      for (const key of LEGACY_KEYS) localStorage.removeItem(key);
+    }
+
+    return notes;
+  } catch {
+    // API unavailable — fall back to localStorage
+    return _loadFromLocalStorage(userId);
+  }
+}
+
+/** Synchronous load from localStorage (used as fallback and for initial render). */
 export function loadDraftNotes(userId: string): DraftNote[] {
+  return _loadFromLocalStorage(userId);
+}
+
+function _loadFromLocalStorage(userId: string): DraftNote[] {
   const key = userDraftsKey(userId);
   let notes: DraftNote[] = [];
   try { notes = JSON.parse(localStorage.getItem(key) || '[]'); } catch { /* ignore */ }
 
-  // One-time migration: merge legacy keys into the user-scoped key
+  // One-time migration: merge legacy keys
   let migrated = false;
   for (const legacyKey of LEGACY_KEYS) {
     try {
@@ -76,9 +117,32 @@ export function loadDraftNotes(userId: string): DraftNote[] {
   return notes;
 }
 
-/** Persist drafts for a user. */
+/** Save a draft — persists to API, falls back to localStorage. */
+export async function saveDraftNote(text: string): Promise<DraftNote> {
+  try {
+    const created = await createDraft(text);
+    return { id: created.uid, text: created.text, createdAt: new Date(created.created_at).getTime() };
+  } catch {
+    // Fallback: save locally
+    const note: DraftNote = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text, createdAt: Date.now() };
+    return note;
+  }
+}
+
+/** Persist full draft list to localStorage (backward compat for callers that batch-save). */
 export function saveDraftNotes(userId: string, notes: DraftNote[]) {
   localStorage.setItem(userDraftsKey(userId), JSON.stringify(notes));
+}
+
+/** Delete a draft from API and localStorage. */
+export async function deleteDraftNote(uid: string, userId: string): Promise<void> {
+  try { await apiDeleteDraft(uid); } catch { /* ignore */ }
+  // Also remove from localStorage if present
+  const notes = _loadFromLocalStorage(userId);
+  const filtered = notes.filter((n) => n.id !== uid);
+  if (filtered.length !== notes.length) {
+    localStorage.setItem(userDraftsKey(userId), JSON.stringify(filtered));
+  }
 }
 
 /** Remove all draft notes for a user (used on account delete). */
