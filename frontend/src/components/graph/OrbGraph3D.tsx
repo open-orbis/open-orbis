@@ -50,6 +50,7 @@ const SHARED_GEO = {
 export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, hiddenNodeTypes, width, height, enableZoom = true, enablePan = true, cameraDistance = 400 }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
+  const hoveredNodeRef = useRef<Record<string, unknown> | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const highlightRingsRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const nodeObjectCacheRef = useRef<Map<string, THREE.Group>>(new Map());
@@ -206,8 +207,8 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
           particles.rotation.x += 0.00003;
         }
 
-        // Auto-rotate graph when not hovering
-        if (!isHoveringRef.current && scene) {
+        // Auto-rotate graph when no node is hovered
+        if (!hoveredNodeRef.current && scene) {
           scene.rotation.y += 0.0012;
         }
 
@@ -272,6 +273,7 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
 
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node || null);
+    hoveredNodeRef.current = node || null;
     const el = document.querySelector('canvas');
     if (el) el.style.cursor = node ? 'pointer' : 'default';
   }, []);
