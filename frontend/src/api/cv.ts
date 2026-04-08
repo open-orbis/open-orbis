@@ -46,3 +46,17 @@ export async function getProcessingCount(): Promise<number> {
   const { data } = await client.get('/cv/processing-count');
   return data.count;
 }
+
+export interface CVProgressData {
+  active: boolean;
+  step: string | null;
+  percent: number;
+  message: string | null;
+  detail: string | null;
+  elapsed_seconds: number;
+}
+
+export async function getCVProgress(): Promise<CVProgressData> {
+  const { data } = await client.get('/cv/progress');
+  return data;
+}

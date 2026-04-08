@@ -102,17 +102,17 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
   const busy = signingInProvider !== null || disabled;
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="text-white/30 text-xs uppercase tracking-widest">Sign in with</p>
+      <p className="text-white text-xs uppercase tracking-widest">Sign in with</p>
       <div className="flex items-center gap-3">
         {/* Google */}
         <div className="group relative flex flex-col items-center">
           <button
             onClick={onGoogleLogin}
             disabled={busy}
-            className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] disabled:opacity-40 transition-all duration-300 flex items-center justify-center cursor-pointer"
+            className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/40 hover:bg-white/[0.12] disabled:opacity-40 transition-all duration-300 flex items-center justify-center cursor-pointer"
             style={{ boxShadow: 'none' }}
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 20px rgba(66,133,244,0.3)'; e.currentTarget.style.borderColor = 'rgba(66,133,244,0.4)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}
           >
             {signingInProvider === 'google' ? (
               <div className="w-4 h-4 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
@@ -135,10 +135,10 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
           <button
             onClick={() => { if (!busy) redirectToLinkedIn(); }}
             disabled={busy}
-            className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] disabled:opacity-40 transition-all duration-300 flex items-center justify-center cursor-pointer"
+            className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/40 hover:bg-white/[0.12] disabled:opacity-40 transition-all duration-300 flex items-center justify-center cursor-pointer"
             style={{ boxShadow: 'none' }}
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 20px rgba(10,102,194,0.3)'; e.currentTarget.style.borderColor = 'rgba(10,102,194,0.4)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)'; }}
           >
             {signingInProvider === 'linkedin' ? (
               <div className="w-4 h-4 border-2 border-white/40 border-t-transparent rounded-full animate-spin" />
@@ -157,7 +157,7 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
         <div className="group relative flex flex-col items-center">
           <button
             disabled={true}
-            className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/[0.12] opacity-30 transition-all duration-300 flex items-center justify-center cursor-not-allowed"
+            className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/40 opacity-30 transition-all duration-300 flex items-center justify-center cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="white">
               <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -340,8 +340,8 @@ export default function LandingPage() {
             transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             className="text-amber-400/60"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
           </motion.div>
         </motion.div>
