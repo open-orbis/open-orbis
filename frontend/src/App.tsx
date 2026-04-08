@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuthStore } from './stores/authStore';
 import { useToastStore } from './stores/toastStore';
 import LandingPage from './pages/LandingPage';
@@ -38,14 +39,30 @@ function ScrollManager() {
 }
 
 function AppRoutes() {
+  const navigate = useNavigate();
+  const { logout } = useAuthStore();
+  const addToast = useToastStore((s) => s.addToast);
+
+  // Handle global session-expired events from the API client
+  useEffect(() => {
+    const handler = () => {
+      logout();
+      addToast('Your session has expired. Please sign in again.', 'info');
+      navigate('/', { replace: true });
+    };
+    window.addEventListener('orbis:session-expired', handler);
+    return () => window.removeEventListener('orbis:session-expired', handler);
+  }, [logout, addToast, navigate]);
+
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/auth/linkedin/callback" element={<LinkedInCallbackPage />} />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/create" element={<CreateOrbPage />} />
-      <Route path="/myorbis" element={<OrbViewPage />} />
-      <Route path="/cv-export" element={<CvExportPage />} />
+      <Route path="/create" element={<ProtectedRoute><CreateOrbPage /></ProtectedRoute>} />
+      <Route path="/myorbis" element={<ProtectedRoute><OrbViewPage /></ProtectedRoute>} />
+      <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/:orbId" element={<SharedOrbPage />} />
     </Routes>
@@ -60,11 +77,13 @@ function App() {
   }, [token, fetchUser]);
 
   return (
-    <BrowserRouter>
-      <ScrollManager />
-      <AppRoutes />
-      <ToastContainer />
-    </BrowserRouter>
+    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
+      <BrowserRouter>
+        <ScrollManager />
+        <AppRoutes />
+        <ToastContainer />
+      </BrowserRouter>
+    </GoogleOAuthProvider>
   );
 }
 
