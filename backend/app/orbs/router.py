@@ -364,6 +364,11 @@ async def get_public_orb(
             )
             raise HTTPException(status_code=404, detail="Orb not found")
 
+    # Block access to accounts pending deletion
+    person = dict(record["p"])
+    if person.get("deletion_requested_at"):
+        raise HTTPException(status_code=404, detail="Orb not found")
+
     orb_data = _serialize_orb(record)
 
     # Apply filter if a valid filter token is provided

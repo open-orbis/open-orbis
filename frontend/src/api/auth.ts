@@ -7,6 +7,8 @@ export interface UserInfo {
   picture?: string;
   profile_image?: string;
   gdpr_consent: boolean;
+  deletion_requested_at?: string | null;
+  deletion_days_remaining?: number | null;
 }
 
 export async function getMe(): Promise<UserInfo> {
@@ -30,4 +32,8 @@ export async function linkedinLogin(code: string): Promise<{ access_token: strin
 
 export async function grantGdprConsent(): Promise<void> {
   await client.post('/auth/gdpr-consent');
+}
+
+export async function recoverAccount(): Promise<void> {
+  await client.post('/auth/me/recover');
 }

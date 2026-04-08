@@ -476,6 +476,7 @@ const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'L
 export default function OrbViewPage() {
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
   const { user } = useAuthStore();
+  const isPendingDeletion = user?.deletion_days_remaining != null;
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -745,8 +746,17 @@ export default function OrbViewPage() {
 
   return (
     <div className="min-h-screen bg-black relative">
+      {/* ── Deletion countdown banner ── */}
+      {isPendingDeletion && (
+        <div className="absolute top-0 left-0 right-0 z-40 bg-amber-600/90 text-white text-center py-1.5 px-4 text-xs font-medium">
+          Your account is scheduled for deletion in{' '}
+          <span className="font-bold">{user.deletion_days_remaining} day{user.deletion_days_remaining !== 1 ? 's' : ''}</span>.
+          Go to Account Settings to recover it.
+        </div>
+      )}
+
       {/* ── Header ── */}
-      <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3">
+      <div className={`absolute left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3 ${isPendingDeletion ? 'top-8' : 'top-0'}`}>
         <div className="flex items-center justify-between">
           {/* Left: identity + view/filter/export */}
           <div className="flex items-center gap-2 sm:gap-3">
@@ -761,22 +771,24 @@ export default function OrbViewPage() {
               <span className="text-white/20 text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
             </div>
             <div className="hidden sm:block w-px h-5 bg-white/10" />
-            <div className="flex items-center gap-1">
-              <NodeTypeFilter
-                hiddenTypes={hiddenNodeTypes}
-                onShowAll={handleShowAllNodeTypes}
-                onHideAll={handleHideAllNodeTypes}
-                onSetVisible={handleSetVisibleNodeTypes}
-              />
-              <KeywordFilterDropdown />
-              <button
-                onClick={() => window.open('/cv-export', '_blank')}
-                className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
-              >
-                <IconDownload />
-                <span className="hidden sm:inline">Export CV</span>
-              </button>
-            </div>
+            {!isPendingDeletion && (
+              <div className="flex items-center gap-1">
+                <NodeTypeFilter
+                  hiddenTypes={hiddenNodeTypes}
+                  onShowAll={handleShowAllNodeTypes}
+                  onHideAll={handleHideAllNodeTypes}
+                  onSetVisible={handleSetVisibleNodeTypes}
+                />
+                <KeywordFilterDropdown />
+                <button
+                  onClick={() => window.open('/cv-export', '_blank')}
+                  className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
+                >
+                  <IconDownload />
+                  <span className="hidden sm:inline">Export CV</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right: inbox, notes, user menu */}
@@ -821,31 +833,33 @@ export default function OrbViewPage() {
       )}
 
       {/* ── Date Range Slider ── */}
-      {dateBounds && (
+      {dateBounds && !isPendingDeletion && (
         <DateRangeSlider minDate={dateBounds.min} maxDate={dateBounds.max} />
       )}
 
       {/* ── 3D Graph ── */}
-      <OrbGraph3D
-        data={data}
-        onNodeClick={handleNodeClick}
-        onBackgroundClick={() => {
-          if (chatMessages.length > 0) {
-            setChatMessages([]);
-            setHighlightedNodeIds(new Set());
-          }
-        }}
-        highlightedNodeIds={highlightedNodeIds}
-        filteredNodeIds={filteredNodeIds}
-        hiddenNodeTypes={hiddenNodeTypes}
-        width={dimensions.width}
-        height={dimensions.height}
-      />
+      <div className={isPendingDeletion ? 'opacity-60 grayscale pointer-events-none' : ''}>
+        <OrbGraph3D
+          data={data}
+          onNodeClick={isPendingDeletion ? undefined : handleNodeClick}
+          onBackgroundClick={isPendingDeletion ? undefined : () => {
+            if (chatMessages.length > 0) {
+              setChatMessages([]);
+              setHighlightedNodeIds(new Set());
+            }
+          }}
+          highlightedNodeIds={highlightedNodeIds}
+          filteredNodeIds={filteredNodeIds}
+          hiddenNodeTypes={hiddenNodeTypes}
+          width={dimensions.width}
+          height={dimensions.height}
+        />
+      </div>
 
       {/* NodeTypeFilter moved to header bar */}
 
       {/* ── Floating Input ── */}
-      <FloatingInput
+      {!isPendingDeletion && <FloatingInput
         open={showInput}
         editNode={editNode}
         onSubmit={handleSubmit}
@@ -865,17 +879,17 @@ export default function OrbViewPage() {
           return { node_type: result.node_type, properties: result.properties };
         }}
         onSaveDraft={pendingDraftNoteId ? handleSaveDraftEnhanced : undefined}
-      />
+      />}
 
       {/* ── Chat Box ── */}
-      <ChatBox
+      {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
         onAdd={() => { setEditNode(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
-      />
+      />}
 
       {/* ── Draft Notes ── */}
       <DraftNotes

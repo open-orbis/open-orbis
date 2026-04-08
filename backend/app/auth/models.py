@@ -8,6 +8,8 @@ class UserInfo(BaseModel):
     picture: str = ""
     profile_image: str = ""
     gdpr_consent: bool = False
+    deletion_requested_at: str | None = None
+    deletion_days_remaining: int | None = None
 
 
 class TokenResponse(BaseModel):

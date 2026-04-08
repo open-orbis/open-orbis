@@ -21,12 +21,48 @@ from app.search.router import router as search_router
 logging.basicConfig(level=logging.INFO)
 
 
+async def _cleanup_expired_accounts(driver):
+    """Permanently delete accounts past the 30-day grace period."""
+    async with driver.session() as session:
+        # Find expired accounts
+        result = await session.run(
+            """
+            MATCH (p:Person)
+            WHERE p.deletion_requested_at IS NOT NULL
+            AND datetime(p.deletion_requested_at) < datetime() - duration('P30D')
+            RETURN p.user_id AS user_id
+            """
+        )
+        expired = [record["user_id"] async for record in result]
+
+        for user_id in expired:
+            await session.run(
+                "MATCH (p:Person {user_id: $uid})-[*1..]->(n) "
+                "WITH DISTINCT n DETACH DELETE n",
+                uid=user_id,
+            )
+            await session.run(
+                "MATCH (p:Person {user_id: $uid}) DETACH DELETE p",
+                uid=user_id,
+            )
+            logging.getLogger(__name__).info(
+                "Permanently deleted expired account: %s", user_id
+            )
+
+    if expired:
+        logging.getLogger(__name__).info(
+            "Cleaned up %d expired account(s)", len(expired)
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: verify Neo4j connection
     driver = await get_driver()
     async with driver.session() as session:
         await session.run("RETURN 1")
+    # Clean up expired accounts on startup
+    await _cleanup_expired_accounts(driver)
     yield
     # Shutdown
     await close_driver()
