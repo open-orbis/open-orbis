@@ -72,6 +72,55 @@ const LAYOUT_CONFIG: Record<string, {
   },
 };
 
+// Date pair validation rules per node type
+const DATE_PAIRS: Record<string, [string, string, string][]> = {
+  work_experience: [['start_date', 'end_date', 'Start date must be before end date']],
+  education: [['start_date', 'end_date', 'Start date must be before end date']],
+  project: [['start_date', 'end_date', 'Start date must be before end date']],
+  certification: [['issue_date', 'expiry_date', 'Issue date must be before expiry date']],
+  patent: [['filing_date', 'grant_date', 'Filing date must be before grant date']],
+};
+
+// Accept: MM/YYYY or DD/MM/YYYY
+const DATE_FORMAT_RE = /^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
+
+/** Convert DD/MM/YYYY or MM/YYYY to sortable YYYY-MM-DD or YYYY-MM for comparison. */
+function toSortable(dateStr: string): string {
+  const parts = dateStr.split('/');
+  if (parts.length === 2) return `${parts[1]}-${parts[0]}`; // MM/YYYY → YYYY-MM
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`; // DD/MM/YYYY → YYYY-MM-DD
+  return dateStr;
+}
+
+function validateDates(nodeType: string, values: Record<string, string>, isCurrent: boolean): string | null {
+  // Check format of all date fields
+  for (const [key, val] of Object.entries(values)) {
+    if (!key.includes('date') || !val.trim()) continue;
+    if (!DATE_FORMAT_RE.test(val.trim())) {
+      return `Invalid date format for ${key.replace(/_/g, ' ')}. Use MM/YYYY or DD/MM/YYYY.`;
+    }
+  }
+
+  // Check date pairs (start ≤ end)
+  const pairs = DATE_PAIRS[nodeType];
+  if (!pairs) return null;
+
+  for (const [startField, endField, message] of pairs) {
+    const start = values[startField];
+    const end = values[endField];
+    if (!start || !end) continue;
+    if (isCurrent && (endField === 'end_date' || endField === 'expiry_date')) continue;
+    // Ensure matching formats (both MM/YYYY or both DD/MM/YYYY)
+    const startParts = start.split('/').length;
+    const endParts = end.split('/').length;
+    if (startParts !== endParts) {
+      return `${startField.replace(/_/g, ' ')} and ${endField.replace(/_/g, ' ')} must use the same format`;
+    }
+    if (toSortable(start) > toSortable(end)) return message;
+  }
+  return null;
+}
+
 // Simple layout types (no 3-column)
 const SIMPLE_FIELDS: Record<string, string[]> = {
   skill: ['name', 'category', 'proficiency'],
@@ -94,6 +143,7 @@ function FieldInput({
   const isUrl = field.includes('url');
   const isTextarea = field === 'description' || field === 'abstract';
   const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
+  const showDateHint = isDate && value.trim() !== '' && !/^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/.test(value.trim());
 
   const baseClass = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors';
 
@@ -113,10 +163,10 @@ function FieldInput({
         />
       ) : (
         <input
-          type={isDate ? 'date' : 'text'}
+          type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={isDate ? '' : label}
+          placeholder={isDate ? 'MM/YYYY or DD/MM/YYYY' : label}
           className={baseClass}
           style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
         />
@@ -124,6 +174,11 @@ function FieldInput({
       {showUrlHint && (
         <p className="text-[10px] text-amber-400/60 mt-1">
           This doesn't look like a valid URL (e.g. example.com)
+        </p>
+      )}
+      {showDateHint && (
+        <p className="text-[10px] text-amber-400/60 mt-1">
+          Use format MM/YYYY or DD/MM/YYYY
         </p>
       )}
     </div>
@@ -134,6 +189,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [nodeType, setNodeType] = useState(initialType || 'skill');
   const [enhancing, setEnhancing] = useState(false);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   useEffect(() => {
     onTypeChange?.(nodeType);
@@ -150,10 +206,19 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
     return layout.extra.some((f) => initialValues[f]);
   });
 
-  const set = (field: string, v: string) => setValues({ ...values, [field]: v });
+  const set = (field: string, v: string) => {
+    setValues({ ...values, [field]: v });
+    if (dateError) setDateError(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const error = validateDates(nodeType, values, isCurrent);
+    if (error) {
+      setDateError(error);
+      return;
+    }
+    setDateError(null);
     const filtered = Object.fromEntries(
       Object.entries(values).filter(([, v]) => v !== '')
     );
@@ -208,7 +273,16 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const simple = SIMPLE_FIELDS[nodeType];
 
   const actionButtons = (
-    <div className="flex gap-2 mt-5">
+    <div className="mt-5">
+      {dateError && (
+        <p className="text-red-400 text-xs mb-2 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          {dateError}
+        </p>
+      )}
+    <div className="flex gap-2">
       {onEnhance && (
         <button
           type="button"
@@ -295,6 +369,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
           </button>
         )
       )}
+    </div>
     </div>
   );
 
