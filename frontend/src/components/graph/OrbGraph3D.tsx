@@ -16,6 +16,9 @@ interface OrbGraph3DProps {
   hiddenNodeTypes?: Set<string>;
   width?: number;
   height?: number;
+  enableZoom?: boolean;
+  enablePan?: boolean;
+  cameraDistance?: number;
 }
 
 function getNodeName(node: any): string {
@@ -44,7 +47,7 @@ const SHARED_GEO = {
   highlightRing: new THREE.RingGeometry(5.1, 6.0, 24),
 };
 
-export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, hiddenNodeTypes, width, height }: OrbGraph3DProps) {
+export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, hiddenNodeTypes, width, height, enableZoom = true, enablePan = true, cameraDistance = 400 }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
@@ -76,9 +79,35 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
     orbitRing2Ref.current = null;
     // Start camera closer to the graph
     if (fgRef.current) {
-      fgRef.current.cameraPosition({ x: 0, y: 0, z: 400 });
+      fgRef.current.cameraPosition({ x: 0, y: 0, z: cameraDistance });
     }
-  }, [data]);
+  }, [data, cameraDistance]);
+
+  // Disable zoom/pan — intercept at capture phase on the graph's own DOM element
+  useEffect(() => {
+    if (enableZoom && enablePan) return;
+    const fg = fgRef.current;
+    if (!fg) return;
+    // The renderer's DOM element is where Three.js attaches its listeners
+    const renderer = fg.renderer();
+    const el = renderer?.domElement as HTMLElement | undefined;
+    if (!el) return;
+
+    const blockWheel = (e: Event) => { if (!enableZoom) { e.stopPropagation(); } };
+    const blockRightMouse = (e: Event) => {
+      const me = e as MouseEvent;
+      if (!enablePan && (me.button === 1 || me.button === 2)) { e.stopPropagation(); e.preventDefault(); }
+    };
+
+    el.addEventListener('wheel', blockWheel, { capture: true, passive: false });
+    el.addEventListener('mousedown', blockRightMouse, { capture: true });
+    el.addEventListener('contextmenu', (e) => { if (!enablePan) e.preventDefault(); });
+
+    return () => {
+      el.removeEventListener('wheel', blockWheel, { capture: true } as EventListenerOptions);
+      el.removeEventListener('mousedown', blockRightMouse, { capture: true } as EventListenerOptions);
+    };
+  }, [enableZoom, enablePan, data]);
 
   const graphData = useMemo(() => {
     const personId = (data.person.user_id || data.person.orb_id) as string;
@@ -520,6 +549,7 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
         width={width}
         height={height}
         backgroundColor="#000000"
+        showNavInfo={false}
         nodeThreeObject={nodeThreeObject}
         nodeThreeObjectExtend={false}
         nodeLabel={() => ''}

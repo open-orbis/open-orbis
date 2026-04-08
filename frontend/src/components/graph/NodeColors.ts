@@ -11,7 +11,7 @@ export const NODE_COLORS: Record<string, string> = {
   Skill: '#648FFF',        // Periwinkle (IBM)
   Patent: '#DC267F',       // Magenta (IBM)
   Award: '#FFB000',        // Gold (IBM)
-  Outreach: '#FE6100',     // Orange-Red (IBM)
+  Outreach: '#20B2AA',     // Light Sea Green — distinct from Project vermillion
 };
 
 export function getNodeColor(labels: string[]): string {
@@ -31,7 +31,7 @@ export const NODE_TYPE_COLORS: Record<string, string> = {
   skill: '#648FFF',
   patent: '#DC267F',
   award: '#FFB000',
-  outreach: '#FE6100',
+  outreach: '#20B2AA',
 };
 
 export const NODE_TYPE_LABELS: Record<string, string> = {
