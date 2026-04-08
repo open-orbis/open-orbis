@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# E2E auth state (may contain tokens/credentials)
+e2e/.auth/
+
+# Test artifacts
+test-results/

@@ -5,6 +5,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
 import HeroOrb from '../components/landing/HeroOrb';
+import Footer from '../components/landing/Footer';
 
 // ── LinkedIn OAuth helpers ──
 function generateState() {
@@ -130,7 +131,7 @@ export default function LandingPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="fixed top-0 left-0 right-0 z-50 px-6 py-4"
+        className="fixed top-0 left-0 right-0 z-50 px-6 py-4 bg-black"
       >
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -186,8 +187,8 @@ export default function LandingPage() {
           transition={{ delay: 0.5, duration: 0.8 }}
           className="text-white/40 text-lg sm:text-xl mb-10 z-10 max-w-lg text-center leading-relaxed"
         >
-          Build a living knowledge graph from your career.
-          Share it with recruiters, AI agents, and the world.
+          Your career as a knowledge graph.<br />
+          Reimagined for the AI era.
         </motion.p>
 
         {/* Tagline */}
@@ -442,18 +443,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="border-t border-white/[0.05] py-8 px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-full bg-purple-600/30 border border-purple-500/30 flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-purple-400" />
-            </div>
-            <span className="text-white/30 text-sm font-medium">OpenOrbis</span>
-          </div>
-          <p className="text-white/15 text-xs">Your career as a knowledge graph.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

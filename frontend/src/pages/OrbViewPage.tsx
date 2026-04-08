@@ -467,6 +467,10 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
   return <button onClick={onClick} className={styles[variant]}>{children}</button>;
 }
 
+// ── Constants ──
+
+const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
+
 // ── Page ──
 
 export default function OrbViewPage() {
@@ -713,8 +717,6 @@ export default function OrbViewPage() {
   }, [data?.nodes, data?.links, activeKeywords, rangeStart, rangeEnd, dateBounds]);
 
   // Node type filter handlers
-  const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
-
   const handleShowAllNodeTypes = useCallback(() => {
     setHiddenNodeTypes(new Set());
   }, []);

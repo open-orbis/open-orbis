@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuthStore } from './stores/authStore';
 import { useToastStore } from './stores/toastStore';
@@ -16,31 +15,30 @@ import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 
-const pageVariants = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1 },
-  exit: { opacity: 0 },
-};
+const scrollPositions: Record<string, number> = {};
 
-const pageTransition = { duration: 0.4, ease: 'easeInOut' };
+function ScrollManager() {
+  const { pathname } = useLocation();
+  const navType = useNavigationType();
+  const prevPathname = useRef(pathname);
 
-function PageWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      variants={pageVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      transition={pageTransition}
-      className="min-h-screen bg-black"
-    >
-      {children}
-    </motion.div>
-  );
+  useEffect(() => {
+    if (prevPathname.current !== pathname) {
+      scrollPositions[prevPathname.current] = window.scrollY;
+      prevPathname.current = pathname;
+    }
+
+    if (navType === 'POP' && scrollPositions[pathname] != null) {
+      window.scrollTo(0, scrollPositions[pathname]);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname, navType]);
+
+  return null;
 }
 
-function AnimatedRoutes() {
-  const location = useLocation();
+function AppRoutes() {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
@@ -57,19 +55,17 @@ function AnimatedRoutes() {
   }, [logout, addToast, navigate]);
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
-        <Route path="/auth/linkedin/callback" element={<LinkedInCallbackPage />} />
-        <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />
-        <Route path="/create" element={<ProtectedRoute><PageWrapper><CreateOrbPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/myorbis" element={<ProtectedRoute><PageWrapper><OrbViewPage /></PageWrapper></ProtectedRoute>} />
-        <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />
-        <Route path="/privacy" element={<PageWrapper><PrivacyPolicyPage /></PageWrapper>} />
-        <Route path="/:orbId" element={<PageWrapper><SharedOrbPage /></PageWrapper>} />
-      </Routes>
-    </AnimatePresence>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/auth/linkedin/callback" element={<LinkedInCallbackPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/create" element={<ProtectedRoute><CreateOrbPage /></ProtectedRoute>} />
+      <Route path="/myorbis" element={<ProtectedRoute><OrbViewPage /></ProtectedRoute>} />
+      <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/:orbId" element={<SharedOrbPage />} />
+    </Routes>
   );
 }
 
@@ -83,7 +79,8 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
       <BrowserRouter>
-        <AnimatedRoutes />
+        <ScrollManager />
+        <AppRoutes />
         <ToastContainer />
       </BrowserRouter>
     </GoogleOAuthProvider>
