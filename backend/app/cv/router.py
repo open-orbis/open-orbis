@@ -4,6 +4,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
 from neo4j import AsyncDriver
 
 from app.config import settings
@@ -12,6 +13,9 @@ from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
 from app.cv.progress import CVStep
+from app.cv_storage.db import get_metadata as get_cv_metadata
+from app.cv_storage.storage import load_cv
+from app.cv_storage.storage import save_cv as store_cv_file
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties, encrypt_value
 from app.graph.queries import (
@@ -60,6 +64,18 @@ async def upload_cv(
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
     user_id = current_user.get("user_id", "")
+
+    # Best-effort: store the original PDF encrypted for future recovery
+    try:
+        import fitz
+
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        pc = len(doc)
+        doc.close()
+        store_cv_file(user_id, pdf_bytes, file.filename or "upload.pdf", pc)
+    except Exception as e:
+        logger.warning("Failed to store CV file: %s", e)
+
     counter.increment()
     try:
         # Step 1: Read PDF
@@ -150,6 +166,28 @@ async def upload_cv(
             progress.clear_progress(user_id)
 
         asyncio.create_task(_cleanup())
+
+
+@router.get("/download")
+async def download_cv(
+    current_user: dict = Depends(get_current_user),
+):
+    """Download the latest uploaded CV (decrypted)."""
+    user_id = current_user["user_id"]
+    meta = get_cv_metadata(user_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="No CV stored")
+
+    pdf_bytes = load_cv(user_id)
+    if pdf_bytes is None:
+        raise HTTPException(status_code=404, detail="CV file not found")
+
+    filename = meta.get("original_filename", "cv.pdf")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("/processing-count")

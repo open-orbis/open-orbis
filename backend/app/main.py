@@ -10,6 +10,8 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.router import router as cv_router
+from app.cv_storage.storage import delete_cv as delete_stored_cv
+from app.drafts.db import delete_all_for_user as delete_user_drafts
 from app.drafts.router import router as drafts_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
@@ -48,6 +50,19 @@ async def _cleanup_expired_accounts(driver):
             logging.getLogger(__name__).info(
                 "Permanently deleted expired account: %s", user_id
             )
+            # Clean up secondary databases
+            try:
+                delete_stored_cv(user_id)
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    "Failed to delete CV for %s: %s", user_id, e
+                )
+            try:
+                delete_user_drafts(user_id)
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    "Failed to delete drafts for %s: %s", user_id, e
+                )
 
     if expired:
         logging.getLogger(__name__).info(
