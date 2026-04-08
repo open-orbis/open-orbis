@@ -14,6 +14,7 @@ import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
+import ExtractedDataReview from '../components/onboarding/ExtractedDataReview';
 import type { DraftNote } from '../components/drafts/DraftNotes';
 import { loadDraftNotes, loadDraftNotesAsync, saveDraftNotes } from '../components/drafts/DraftNotes';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
@@ -492,6 +493,17 @@ export default function OrbViewPage() {
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
   const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState('');
+  const [extractedImport, setExtractedImport] = useState<{
+    nodes: Array<{ node_type: string; properties: Record<string, unknown> }>;
+    relationships: Array<{ from_index: number; to_index: number; type: string }>;
+    cvOwnerName: string | null;
+    unmatchedCount: number;
+    skippedCount: number;
+    file: File;
+    replaceCV: boolean;
+  } | null>(null);
 
   // ESC key closes any open panel/modal
   useEffect(() => {
@@ -785,8 +797,77 @@ export default function OrbViewPage() {
                   className="flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
                 >
                   <IconDownload />
-                  <span className="hidden sm:inline">Export CV</span>
+                  <span className="hidden sm:inline">Export Orbis</span>
                 </button>
+                <label
+                  className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all ${
+                    importing
+                      ? 'text-purple-400 bg-purple-500/10 cursor-wait'
+                      : 'text-white/40 hover:text-purple-400 hover:bg-purple-500/10 cursor-pointer'
+                  }`}
+                  title="Import a document (PDF, DOCX, TXT) to enrich your orbis"
+                >
+                  {importing ? (
+                    <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                  )}
+                  <span className="hidden sm:inline">{importing ? 'Processing...' : 'Import new data'}</span>
+                  {importing && importStatus && (
+                    <span className="hidden sm:inline text-white/25 text-[10px] ml-1">{importStatus}</span>
+                  )}
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.txt"
+                    className="hidden"
+                    disabled={importing}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setImporting(true);
+                      setImportStatus('Reading file...');
+                      // Poll progress while importing
+                      const pollId = setInterval(async () => {
+                        try {
+                          const { getCVProgress } = await import('../api/cv');
+                          const p = await getCVProgress();
+                          if (p.active && p.message) {
+                            setImportStatus(p.detail || p.message);
+                          }
+                        } catch { /* ignore */ }
+                      }, 2000);
+                      try {
+                        const { importDocument } = await import('../api/cv');
+                        const result = await importDocument(file);
+                        clearInterval(pollId);
+                        if (result.nodes.length > 0) {
+                          setExtractedImport({
+                            nodes: result.nodes,
+                            relationships: result.relationships || [],
+                            cvOwnerName: result.cv_owner_name || null,
+                            unmatchedCount: result.unmatched?.length || 0,
+                            skippedCount: result.skipped_nodes?.length || 0,
+                            file,
+                            replaceCV: false,
+                          });
+                        } else {
+                          const { useToastStore } = await import('../stores/toastStore');
+                          useToastStore.getState().addToast('Error processing document. Please try again.', 'error');
+                        }
+                      } catch {
+                        clearInterval(pollId);
+                        const { useToastStore } = await import('../stores/toastStore');
+                        useToastStore.getState().addToast('Failed to import document', 'error');
+                      } finally {
+                        setImporting(false);
+                        setImportStatus('');
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
               </div>
             )}
           </div>
@@ -908,6 +989,48 @@ export default function OrbViewPage() {
       <AnimatePresence>
         {showProfile && <ProfilePanel key="profile" person={data.person} onClose={() => setShowProfile(false)} onSaved={fetchOrb} />}
       </AnimatePresence>
+
+      {/* ── Import review overlay ── */}
+      {extractedImport && (
+        <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
+          <ExtractedDataReview
+            initialNodes={extractedImport.nodes}
+            initialRelationships={extractedImport.relationships}
+            cvOwnerName={extractedImport.cvOwnerName}
+            unmatchedCount={extractedImport.unmatchedCount}
+            skippedCount={extractedImport.skippedCount}
+            truncated={false}
+            onReset={() => setExtractedImport(null)}
+            resetLabel="Cancel import"
+            onConfirm={async (nodes, rels, name) => {
+              const { confirmImport } = await import('../api/cv');
+              await confirmImport(nodes, rels, name);
+              if (extractedImport.replaceCV) {
+                try {
+                  const { storeFile } = await import('../api/cv');
+                  await storeFile(extractedImport.file);
+                } catch { /* best effort */ }
+              }
+            }}
+          >
+            <div className="flex justify-center mt-4 mb-2">
+              <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={extractedImport.replaceCV}
+                    onChange={(e) => setExtractedImport({ ...extractedImport, replaceCV: e.target.checked })}
+                    className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 focus:ring-1"
+                  />
+                  <span className="text-amber-400 text-sm leading-relaxed font-semibold">
+                    Replace my latest uploaded CV with this document
+                  </span>
+                </label>
+              </div>
+            </div>
+          </ExtractedDataReview>
+        </div>
+      )}
     </div>
   );
 }

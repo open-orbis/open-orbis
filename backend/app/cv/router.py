@@ -13,6 +13,7 @@ from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
 from app.cv.progress import CVStep
+from app.cv.text_extractor import extract_text as multi_extract
 from app.cv_storage.db import get_metadata as get_cv_metadata
 from app.cv_storage.storage import load_cv
 from app.cv_storage.storage import save_cv as store_cv_file
@@ -190,6 +191,117 @@ async def download_cv(
     )
 
 
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
+
+
+@router.post("/store-file")
+async def store_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Store a file as the user's downloadable CV (replaces previous)."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+    file_bytes = await file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+    user_id = current_user["user_id"]
+    try:
+        import fitz
+
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        pc = len(doc)
+        doc.close()
+    except Exception:
+        pc = 1
+    store_cv_file(user_id, file_bytes, file.filename or "upload", pc)
+    return {"status": "stored"}
+
+
+@router.post("/import", response_model=ExtractedData)
+async def import_document(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Import a supplementary document (PDF, DOCX, TXT) to enrich the orb."""
+    await _require_consent(current_user, db)
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    from pathlib import Path as P
+
+    ext = P(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    user_id = current_user.get("user_id", "")
+    try:
+        progress.set_progress(user_id, CVStep.EXTRACTING_TEXT, file.filename)
+        raw_text = await multi_extract(file_bytes, file.filename)
+
+        if not raw_text.strip():
+            raise HTTPException(
+                status_code=400, detail="Could not extract text from file"
+            )
+
+        progress.set_progress(
+            user_id,
+            CVStep.CLASSIFYING,
+            f"Analyzing {len(raw_text):,} characters",
+        )
+        result = await classify_entries(raw_text)
+
+        if not result.nodes and not result.unmatched:
+            raise HTTPException(
+                status_code=400,
+                detail="No entries could be extracted from the document.",
+            )
+
+        progress.set_progress(user_id, CVStep.DONE)
+
+        from app.cv.models import ExtractedProfile
+
+        extracted_profile = None
+        if result.profile:
+            extracted_profile = ExtractedProfile(**result.profile)
+
+        return ExtractedData(
+            nodes=result.nodes,
+            unmatched=result.unmatched,
+            skipped_nodes=result.skipped,
+            relationships=result.relationships,
+            truncated=result.truncated,
+            cv_owner_name=result.cv_owner_name,
+            profile=extracted_profile,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Document import error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to process document: {e!s}"
+        ) from None
+
+
+@router.post("/import-confirm")
+async def import_confirm(
+    data: ConfirmRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Merge imported nodes into existing orb (no deletion of existing data)."""
+    await _require_consent(current_user, db)
+    return await _persist_nodes(data, current_user, db, wipe_existing=False)
+
+
 @router.get("/processing-count")
 async def get_processing_count():
     """Return the number of PDFs currently being processed."""
@@ -224,6 +336,99 @@ async def get_cv_progress(
     }
 
 
+async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noqa: C901
+    """Shared logic for confirm_cv and import_confirm."""
+    created: list[str | None] = []
+    async with db.session() as session:
+        if wipe_existing:
+            await session.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
+
+        person_updates = _build_person_updates(data)
+        if person_updates:
+            await session.run(
+                UPDATE_PERSON,
+                user_id=current_user["user_id"],
+                properties=person_updates,
+            )
+
+        for node in data.nodes:
+            if node.node_type not in NODE_TYPE_LABELS:
+                created.append(None)
+                continue
+            label = NODE_TYPE_LABELS[node.node_type]
+            rel_type = NODE_TYPE_RELATIONSHIPS[node.node_type]
+            uid = str(uuid.uuid4())
+            properties = encrypt_properties(node.properties)
+
+            merge_keys = NODE_TYPE_MERGE_KEYS.get(node.node_type)
+            if merge_keys:
+                merge_key_values = {k: properties.get(k, "") for k in merge_keys}
+                has_all = all(merge_key_values.values())
+                if has_all:
+                    merge_match = ", ".join(f"{k}: $merge_{k}" for k in merge_keys)
+                    query = (
+                        f"MATCH (p:Person {{user_id: $user_id}}) "
+                        f"MERGE (p)-[:{rel_type}]->(n:{label} {{{merge_match}}}) "
+                        f"ON CREATE SET n += $properties, n.uid = $uid "
+                        f"ON MATCH SET n += $properties "
+                        f"RETURN n"
+                    )
+                    params = {
+                        "user_id": current_user["user_id"],
+                        "properties": properties,
+                        "uid": uid,
+                    }
+                    for k, v in merge_key_values.items():
+                        params[f"merge_{k}"] = v
+                    result = await session.run(query, **params)
+                else:
+                    query = ADD_NODE.replace("{label}", label).replace(
+                        "{rel_type}", rel_type
+                    )
+                    result = await session.run(
+                        query,
+                        user_id=current_user["user_id"],
+                        properties=properties,
+                        uid=uid,
+                    )
+            else:
+                query = ADD_NODE.replace("{label}", label).replace(
+                    "{rel_type}", rel_type
+                )
+                result = await session.run(
+                    query,
+                    user_id=current_user["user_id"],
+                    properties=properties,
+                    uid=uid,
+                )
+
+            record = await result.single()
+            if record:
+                actual_uid = dict(record["n"]).get("uid", uid)
+                created.append(actual_uid)
+            else:
+                created.append(None)
+
+        for rel in data.relationships:
+            if rel.type != "USED_SKILL":
+                continue
+            if 0 <= rel.from_index < len(created) and 0 <= rel.to_index < len(created):
+                from_uid = created[rel.from_index]
+                to_uid = created[rel.to_index]
+                if from_uid and to_uid:
+                    try:
+                        await session.run(
+                            LINK_SKILL, node_uid=from_uid, skill_uid=to_uid
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Failed to link %s -> %s: %s", from_uid, to_uid, e
+                        )
+
+    valid_ids = [uid for uid in created if uid is not None]
+    return {"created": len(valid_ids), "node_ids": valid_ids}
+
+
 def _build_person_updates(data: ConfirmRequest) -> dict:
     """Build Person node property updates from CV extraction results."""
     updates: dict[str, str] = {}
@@ -246,93 +451,4 @@ async def confirm_cv(
 ):
     """Persist confirmed CV nodes to Neo4j with dedup and cross-entity linking."""
     await _require_consent(current_user, db)
-    created: list[str | None] = []
-
-    async with db.session() as session:
-        # Wipe existing graph nodes (keep Person) so CV import replaces, not merges
-        await session.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
-
-        # Store CV owner name and extracted profile on the Person node
-        person_updates = _build_person_updates(data)
-        if person_updates:
-            await session.run(
-                UPDATE_PERSON,
-                user_id=current_user["user_id"],
-                properties=person_updates,
-            )
-        for node in data.nodes:
-            if node.node_type not in NODE_TYPE_LABELS:
-                created.append(None)
-                continue
-
-            label = NODE_TYPE_LABELS[node.node_type]
-            rel_type = NODE_TYPE_RELATIONSHIPS[node.node_type]
-            uid = str(uuid.uuid4())
-            properties = encrypt_properties(node.properties)
-
-            # Try MERGE with key properties for dedup, fall back to CREATE
-            merge_keys = NODE_TYPE_MERGE_KEYS.get(node.node_type, [])
-            merge_key_values = {
-                k: properties.get(k) for k in merge_keys if properties.get(k)
-            }
-
-            if merge_key_values and len(merge_key_values) == len(merge_keys):
-                key_clause = ", ".join(f"{k}: $merge_{k}" for k in merge_key_values)
-                query = (
-                    f"MATCH (p:Person {{user_id: $user_id}}) "
-                    f"MERGE (p)-[:{rel_type}]->(n:{label} {{{key_clause}}}) "
-                    f"ON CREATE SET n += $properties, n.uid = $uid "
-                    f"ON MATCH SET n += $properties "
-                    f"RETURN n"
-                )
-                params: dict = {
-                    "user_id": current_user["user_id"],
-                    "properties": properties,
-                    "uid": uid,
-                }
-                for k, v in merge_key_values.items():
-                    params[f"merge_{k}"] = v
-
-                result = await session.run(query, **params)
-            else:
-                query = ADD_NODE.replace("{label}", label).replace(
-                    "{rel_type}", rel_type
-                )
-                result = await session.run(
-                    query,
-                    user_id=current_user["user_id"],
-                    properties=properties,
-                    uid=uid,
-                )
-
-            record = await result.single()
-            if record:
-                actual_uid = dict(record["n"]).get("uid", uid)
-                created.append(actual_uid)
-            else:
-                created.append(None)
-
-        # Create cross-entity links (USED_SKILL)
-        for rel in data.relationships:
-            if rel.type != "USED_SKILL":
-                continue
-            if 0 <= rel.from_index < len(created) and 0 <= rel.to_index < len(created):
-                from_uid = created[rel.from_index]
-                to_uid = created[rel.to_index]
-                if from_uid and to_uid:
-                    try:
-                        await session.run(
-                            LINK_SKILL,
-                            node_uid=from_uid,
-                            skill_uid=to_uid,
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to create USED_SKILL link %s -> %s: %s",
-                            from_uid,
-                            to_uid,
-                            e,
-                        )
-
-    valid_ids = [uid for uid in created if uid is not None]
-    return {"created": len(valid_ids), "node_ids": valid_ids}
+    return await _persist_nodes(data, current_user, db, wipe_existing=True)
