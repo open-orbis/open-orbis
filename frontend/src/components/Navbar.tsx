@@ -16,7 +16,7 @@ export default function Navbar({ center, rightBefore }: NavbarProps) {
       <div className="flex items-center justify-between gap-3">
         {/* Left: logo */}
         <button
-          onClick={() => navigate('/myorbis')}
+          onClick={() => navigate('/')}
           className="flex items-center gap-2 cursor-pointer group"
           title="Go to My Orbis"
         >
