@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/authStore';
 import UserMenu from './UserMenu';
 
 interface NavbarProps {
@@ -11,7 +10,6 @@ interface NavbarProps {
 
 export default function Navbar({ center, rightBefore }: NavbarProps) {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
 
   return (
     <div className="absolute top-0 left-0 right-0 z-30 px-3 sm:px-5 py-2 sm:py-3">
