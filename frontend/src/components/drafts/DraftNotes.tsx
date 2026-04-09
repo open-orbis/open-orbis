@@ -301,6 +301,10 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
       ids.forEach((id) => next.delete(id));
       return next;
     });
+    // Persist deletions to API
+    for (const id of ids) {
+      apiDeleteDraft(id).catch(() => { /* best effort */ });
+    }
   };
 
   const deleteNote = (id: string) => {
@@ -344,9 +348,16 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
 
   const handleUndoDelete = () => {
     if (!undoSnapshot) return;
+    // Find notes that were deleted (in snapshot but not in current)
+    const currentIds = new Set(notes.map((n) => n.id));
+    const restored = undoSnapshot.filter((n) => !currentIds.has(n.id));
     onNotesChange(undoSnapshot);
     setUndoSnapshot(null);
     setUndoDeletedCount(0);
+    // Re-create deleted notes in API
+    for (const note of restored) {
+      createDraft(note.text).catch(() => { /* best effort */ });
+    }
   };
 
   const formatTime = (ts: number) => {
