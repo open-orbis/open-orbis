@@ -96,8 +96,8 @@ const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
  * For allowYearOnly, also accepts bare YYYY (4 digits, no slash).
  */
 function maskDateInput(raw: string, prev: string, allowYearOnly: boolean): string {
-  // Strip non-digit, non-slash characters
-  const v = raw.replace(/[^\d/]/g, '');
+  // Strip non-digit, non-slash, non-dash characters, then convert dashes to slashes
+  const v = raw.replace(/[^\d/-]/g, '').replace(/-/g, '/');
 
   // Detect if user is deleting (backspace)
   if (v.length < prev.length) return v;
