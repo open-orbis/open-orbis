@@ -541,6 +541,11 @@ export default function OrbViewPage() {
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState('');
   const [focusRequest, setFocusRequest] = useState<{ nodeUid: string; seq: number } | null>(null);
+  const startTour = useCallback(() => {
+    // Always restart cleanly, even if a previous run state is still true.
+    setTourRunning(false);
+    requestAnimationFrame(() => setTourRunning(true));
+  }, []);
   const [extractedImport, setExtractedImport] = useState<{
     nodes: Array<{ node_type: string; properties: Record<string, unknown> }>;
     relationships: Array<{ from_index: number; to_index: number; type: string }>;
@@ -624,8 +629,10 @@ export default function OrbViewPage() {
   // case they passed `state.allowEmpty` and we let them stay on the empty view).
   const navigate = useNavigate();
   const location = useLocation();
-  const allowEmpty = (location.state as { allowEmpty?: boolean } | null)?.allowEmpty === true;
+  const locationState = (location.state as { allowEmpty?: boolean; startTour?: boolean } | null) ?? null;
+  const allowEmpty = locationState?.allowEmpty === true;
   const hasRedirectedRef = useRef(false);
+  const consumedStartTourRef = useRef(false);
   useEffect(() => {
     // Only redirect on the very first successful load, never on subsequent refetches
     if (hasRedirectedRef.current) return;
@@ -637,6 +644,20 @@ export default function OrbViewPage() {
       hasRedirectedRef.current = true; // Had content on first load, never redirect
     }
   }, [loading, data, allowEmpty, navigate]);
+
+  useEffect(() => {
+    if (!locationState?.startTour || consumedStartTourRef.current) return;
+    consumedStartTourRef.current = true;
+    setTourRunning(true);
+
+    const nextState: { allowEmpty?: boolean; startTour?: boolean } = { ...locationState };
+    delete nextState.startTour;
+
+    navigate(location.pathname, {
+      replace: true,
+      state: Object.keys(nextState).length > 0 ? nextState : null,
+    });
+  }, [location.pathname, locationState, navigate]);
 
 
   useEffect(() => {
@@ -1160,7 +1181,7 @@ export default function OrbViewPage() {
 
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
-                <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} onStartTour={() => setTourRunning(true)} />
+                <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} onStartTour={startTour} />
               </div>
             </div>
           </div>
@@ -1275,7 +1296,7 @@ export default function OrbViewPage() {
       />}
 
       {/* ── Chat Box ── */}
-      {!isPendingDeletion && <div data-tour="chatbox"><ChatBox
+      {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
         onFocusNode={handleFocusNode}
         onClearResults={handleChatClear}
@@ -1285,7 +1306,7 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
-      /></div>}
+      />}
 
       {/* ── Draft Notes ── */}
       <DraftNotes

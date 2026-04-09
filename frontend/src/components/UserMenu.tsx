@@ -429,7 +429,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
               <button
                 onClick={() => {
                   onClose();
-                  onStartTour?.();
+                  window.setTimeout(() => onStartTour?.(), 120);
                 }}
                 className="flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors cursor-pointer w-full"
               >
