@@ -21,6 +21,20 @@ export default function SharedOrbPage() {
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [showViewMenu, setShowViewMenu] = useState(false);
+  const [focusRequest, setFocusRequest] = useState<{ nodeUid: string; seq: number } | null>(null);
+
+  const handleFocusNode = useCallback((nodeUid: string) => {
+    setFocusRequest((prev) => ({
+      nodeUid,
+      seq: (prev?.seq ?? 0) + 1,
+    }));
+  }, []);
+
+  const personNodeId = ((data?.person?.user_id || data?.person?.orb_id) as string) || '';
+  const handleChatClear = useCallback(() => {
+    if (!personNodeId) return;
+    handleFocusNode(personNodeId);
+  }, [personNodeId, handleFocusNode]);
   const viewMenuRef = useRef<HTMLDivElement>(null);
 
   const handleShowAllNodeTypes = useCallback(() => {
@@ -208,16 +222,20 @@ export default function SharedOrbPage() {
         hiddenNodeTypes={hiddenNodeTypes}
         width={dimensions.width}
         height={dimensions.height}
+        focusNodeId={focusRequest?.nodeUid || null}
+        focusNodeToken={focusRequest?.seq ?? 0}
       />
 
       {/* ── Chat Box (no Add / Share buttons) ── */}
       <ChatBox
         onHighlight={setHighlightedNodeIds}
+        onClearResults={handleChatClear}
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
         placeholder={`Query ${personName}'s orbis...`}
         searchFn={searchFn}
+        onFocusNode={handleFocusNode}
       />
     </div>
   );
