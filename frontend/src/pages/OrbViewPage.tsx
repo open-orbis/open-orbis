@@ -520,6 +520,7 @@ export default function OrbViewPage() {
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState('');
+  const [focusRequest, setFocusRequest] = useState<{ nodeUid: string; seq: number } | null>(null);
   const [extractedImport, setExtractedImport] = useState<{
     nodes: Array<{ node_type: string; properties: Record<string, unknown> }>;
     relationships: Array<{ from_index: number; to_index: number; type: string }>;
@@ -799,6 +800,18 @@ export default function OrbViewPage() {
   const handleSetVisibleNodeTypes = useCallback((visibleTypes: Set<string>) => {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
+
+  const handleFocusNode = useCallback((nodeUid: string) => {
+    setFocusRequest((prev) => ({
+      nodeUid,
+      seq: (prev?.seq ?? 0) + 1,
+    }));
+  }, []);
+  const personNodeId = ((data?.person?.user_id || data?.person?.orb_id) as string) || '';
+  const handleChatClear = useCallback(() => {
+    if (!personNodeId) return;
+    handleFocusNode(personNodeId);
+  }, [personNodeId, handleFocusNode]);
 
   const doImport = useCallback(async (file: File) => {
     setImporting(true);
@@ -1110,6 +1123,8 @@ export default function OrbViewPage() {
           width={dimensions.width}
           height={dimensions.height}
           cameraDistance={MY_ORBIS_CAMERA_DISTANCE}
+          focusNodeId={focusRequest?.nodeUid || null}
+          focusNodeToken={focusRequest?.seq ?? 0}
         />
       </div>
 
@@ -1141,6 +1156,8 @@ export default function OrbViewPage() {
       {/* ── Chat Box ── */}
       {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
+        onFocusNode={handleFocusNode}
+        onClearResults={handleChatClear}
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
