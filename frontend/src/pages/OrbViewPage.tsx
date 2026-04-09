@@ -490,7 +490,19 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 // ── Constants ──
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
-const MY_ORBIS_CAMERA_DISTANCE = 200;
+const DEFAULT_CAMERA_DISTANCE = 200;
+const CAMERA_DISTANCE_KEY = 'orbis_camera_distance';
+
+function getSavedCameraDistance(): number {
+  try {
+    const saved = localStorage.getItem(CAMERA_DISTANCE_KEY);
+    if (saved) {
+      const val = parseInt(saved, 10);
+      if (val > 50 && val < 2000) return val;
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_CAMERA_DISTANCE;
+}
 
 const LABEL_TO_TYPE: Record<string, string> = {
   Education: 'education',
@@ -520,6 +532,11 @@ export default function OrbViewPage() {
   const [showShare, setShowShare] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [cameraDistance] = useState(getSavedCameraDistance);
+
+  const handleCameraDistanceChange = useCallback((dist: number) => {
+    try { localStorage.setItem(CAMERA_DISTANCE_KEY, String(dist)); } catch { /* ignore */ }
+  }, []);
   const [tourRunning, setTourRunning] = useState(false);
   const [editNode, setEditNode] = useState<{ type: string; values: Record<string, unknown> } | null>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -1223,9 +1240,10 @@ export default function OrbViewPage() {
           hiddenNodeTypes={hiddenNodeTypes}
           width={dimensions.width}
           height={dimensions.height}
-          cameraDistance={MY_ORBIS_CAMERA_DISTANCE}
+          cameraDistance={cameraDistance}
           focusNodeId={focusRequest?.nodeUid || null}
           focusNodeToken={focusRequest?.seq ?? 0}
+          onCameraDistanceChange={handleCameraDistanceChange}
         />
       </div>
 
@@ -1285,6 +1303,7 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
+        onRecenter={() => handleFocusNode(personNodeId)}
       /></div>}
 
       {/* ── Draft Notes ── */}
