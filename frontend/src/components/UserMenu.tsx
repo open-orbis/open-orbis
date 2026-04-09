@@ -423,6 +423,21 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
                 {tab.label}
               </button>
             ))}
+            <div className="mt-auto pt-3 border-t border-white/5">
+              <button
+                onClick={() => {
+                  resetTour();
+                  addToast('Guided tour will restart on next page load', 'info');
+                  onClose();
+                }}
+                className="flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors cursor-pointer w-full"
+              >
+                <svg className="w-4 h-4 text-purple-400/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                </svg>
+                Guided tour
+              </button>
+            </div>
           </div>
 
           {/* Tab content */}
@@ -570,22 +585,6 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
                 >
                   <label className="text-xs text-white/45 uppercase tracking-[0.12em] font-medium">Account</label>
                   <p className="text-[11px] text-white/45 mt-0.5">Manage your account and data.</p>
-
-                  <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-                    <button
-                      onClick={() => {
-                        resetTour();
-                        addToast('Guided tour will restart on next page load', 'info');
-                        onClose();
-                      }}
-                      className="w-full flex items-center gap-2.5 text-xs text-white/60 hover:text-white/90 transition-colors cursor-pointer"
-                    >
-                      <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
-                      </svg>
-                      Restart guided tour
-                    </button>
-                  </div>
 
                   {user?.deletion_days_remaining != null ? (
                     /* ── Account pending deletion — show recovery ── */
