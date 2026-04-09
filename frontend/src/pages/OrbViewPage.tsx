@@ -594,33 +594,28 @@ export default function OrbViewPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  // Load drafts when userId becomes available — try API first, fall back to localStorage
+  // Load drafts when userId becomes available — API is the source of truth
   useEffect(() => {
     if (!userId) return;
-    // Show localStorage drafts immediately for fast render
-    const local = loadDraftNotes(userId);
-    if (local.length > 0) setDraftNotes(local);
-
-    // Then load from API (includes migration of localStorage → server)
     loadDraftNotesAsync(userId).then((notes) => {
       if (notes.length > 0) {
         setDraftNotes(notes);
-      } else if (local.length === 0) {
+      } else {
         // Seed a sample note for first-time users
-        setDraftNotes([{
-          id: 'sample-1',
-          text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
-          createdAt: Date.now(),
-        }]);
+        const local = loadDraftNotes(userId);
+        if (local.length > 0) {
+          setDraftNotes(local);
+        } else {
+          setDraftNotes([{
+            id: 'sample-1',
+            text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
+            createdAt: Date.now(),
+          }]);
+        }
       }
       setDraftsLoaded(true);
     });
   }, [userId]);
-
-  // Persist drafts to localStorage (user-scoped) — only after initial load
-  useEffect(() => {
-    if (userId && draftsLoaded) saveDraftNotes(userId, draftNotes);
-  }, [draftNotes, userId, draftsLoaded]);
 
   useEffect(() => { fetchOrb(); }, [fetchOrb]);
 

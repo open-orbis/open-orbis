@@ -86,6 +86,32 @@ const DATE_FORMAT_RE = /^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
 
 const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
+/** Convert ISO dates (YYYY-MM-DD, YYYY-MM, YYYY) to display format (DD/MM/YYYY, MM/YYYY). */
+function isoToDisplay(value: string): string {
+  if (!value) return value;
+  const v = value.trim();
+  // YYYY-MM-DD → DD/MM/YYYY
+  const full = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (full) return `${full[3]}/${full[2]}/${full[1]}`;
+  // YYYY-MM → MM/YYYY
+  const partial = v.match(/^(\d{4})-(\d{2})$/);
+  if (partial) return `${partial[2]}/${partial[1]}`;
+  // YYYY alone → 01/YYYY
+  const yearOnly = v.match(/^(\d{4})$/);
+  if (yearOnly) return `01/${yearOnly[1]}`;
+  return value;
+}
+
+/** Normalize date fields in initial values from ISO to display format. */
+function normalizeInitialDates(values: Record<string, unknown>, fields: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(values)) {
+    const str = v != null ? String(v) : '';
+    result[k] = fields.includes(k) ? isoToDisplay(str) : str;
+  }
+  return result;
+}
+
 /** Validate that a date string has valid month (1-12) and day (1-maxForMonth). */
 function isValidDate(dateStr: string): string | null {
   const parts = dateStr.split('/');
@@ -255,9 +281,11 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   useEffect(() => {
     onTypeChange?.(nodeType);
   }, [nodeType, onTypeChange]);
-  const [values, setValues] = useState<Record<string, string>>(
-    (initialValues as Record<string, string>) || {}
-  );
+  const dateFields = (LAYOUT_CONFIG[nodeType]?.left || []).filter((f) => f.includes('date'));
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    if (!initialValues) return {};
+    return normalizeInitialDates(initialValues, dateFields);
+  });
   const [isCurrent, setIsCurrent] = useState(false);
   const layoutForType = LAYOUT_CONFIG[nodeType];
   const renderableFields = layoutForType
@@ -328,7 +356,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       const result = await onEnhance(text);
       if (result) {
         setNodeType(result.node_type);
-        setValues(result.properties);
+        const enhanceDateFields = (LAYOUT_CONFIG[result.node_type]?.left || []).filter((f) => f.includes('date'));
+        setValues(normalizeInitialDates(result.properties, enhanceDateFields));
       }
     } finally {
       setEnhancing(false);
