@@ -342,8 +342,13 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
     });
   };
 
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const handleBulkDelete = () => {
+    setConfirmBulkDelete(true);
+  };
+  const handleBulkDeleteConfirm = () => {
     deleteByIds(new Set(selectedIds));
+    setConfirmBulkDelete(false);
   };
 
   const handleUndoDelete = () => {
@@ -546,17 +551,36 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                     </button>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleBulkDelete}
-                  disabled={selectedCount === 0}
-                  className="h-7 w-7 flex items-center justify-center rounded-md border border-red-500/25 bg-red-500/10 text-red-300 disabled:opacity-30"
-                  title={selectedCount > 0 ? `Delete ${selectedCount} selected notes` : 'Select notes to delete'}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                {confirmBulkDelete ? (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmBulkDelete(false)}
+                      className="text-[10px] text-white/40 hover:text-white/60 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkDeleteConfirm}
+                      className="text-[10px] font-medium text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded hover:bg-red-500/10 transition-colors"
+                    >
+                      Delete {selectedCount}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={selectedCount === 0}
+                    className="h-7 w-7 flex items-center justify-center rounded-md border border-red-500/25 bg-red-500/10 text-red-300 disabled:opacity-30"
+                    title={selectedCount > 0 ? `Delete ${selectedCount} selected notes` : 'Select notes to delete'}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </div>
               {enhanceError && (
                 <div className="flex items-start justify-between gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-2">
