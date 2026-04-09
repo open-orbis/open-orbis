@@ -9,6 +9,40 @@ import NodeForm from '../editor/NodeForm';
 import { useAuthStore } from '../../stores/authStore';
 import { useToastStore } from '../../stores/toastStore';
 
+const REVIEW_REQUIRED_FIELDS: Record<string, string[]> = {
+  skill: ['name'],
+  language: ['name'],
+  work_experience: ['company', 'title'],
+  education: ['institution', 'degree'],
+  certification: ['name', 'issuing_organization'],
+  publication: ['title'],
+  project: ['name'],
+  patent: ['title'],
+  award: ['name'],
+  outreach: ['title', 'venue'],
+};
+
+function normalizeNodeType(type: string) {
+  return type.toLowerCase();
+}
+
+function getMissingFields(nodeType: string, props: Record<string, unknown>): string[] {
+  const required = REVIEW_REQUIRED_FIELDS[normalizeNodeType(nodeType)] || [];
+  return required.filter((field) => !String(props[field] ?? '').trim());
+}
+
+function parseConfidence(props: Record<string, unknown>): number | null {
+  const raw = props.confidence;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return raw <= 1 ? raw : raw / 100;
+  }
+  if (typeof raw === 'string') {
+    const num = Number(raw.trim());
+    if (Number.isFinite(num)) return num <= 1 ? num : num / 100;
+  }
+  return null;
+}
+
 interface ExtractedDataReviewProps {
   initialNodes: ExtractedData['nodes'];
   initialRelationships: ExtractedRelationship[];
@@ -60,6 +94,7 @@ export default function ExtractedDataReview({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ready' | 'missing' | 'low'>('all');
   const [existingNodeCount, setExistingNodeCount] = useState<number | null>(null);
   const [showReplaceWarning, setShowReplaceWarning] = useState(false);
   const isReplaceMode = !onConfirmOverride;
@@ -125,10 +160,52 @@ export default function ExtractedDataReview({
     }
   };
 
-  const grouped = extractedNodes.reduce<Record<string, Array<{ index: number; props: Record<string, unknown> }>>>((acc, node, i) => {
-    const type = node.node_type;
-    if (!acc[type]) acc[type] = [];
-    acc[type].push({ index: i, props: node.properties });
+  const reviewed = extractedNodes.map((node, i) => {
+    const missingFields = getMissingFields(node.node_type, node.properties);
+    const confidence = parseConfidence(node.properties);
+    const lowConfidence = confidence !== null && confidence < 0.6;
+    return {
+      index: i,
+      type: node.node_type,
+      props: node.properties,
+      missingFields,
+      confidence,
+      lowConfidence,
+      ready: missingFields.length === 0 && !lowConfidence,
+    };
+  });
+
+  const readyCount = reviewed.filter((r) => r.ready).length;
+  const missingCount = reviewed.filter((r) => r.missingFields.length > 0).length;
+  const lowCount = reviewed.filter((r) => r.lowConfidence).length;
+  const edgesCount = relationships.length;
+
+  const groupedConfidence = reviewed.reduce<Record<string, { sum: number; count: number }>>((acc, row) => {
+    if (row.confidence === null) return acc;
+    const key = normalizeNodeType(row.type);
+    if (!acc[key]) acc[key] = { sum: 0, count: 0 };
+    acc[key].sum += row.confidence;
+    acc[key].count += 1;
+    return acc;
+  }, {});
+
+  const filteredReviewed = reviewed.filter((row) => {
+    if (statusFilter === 'ready') return row.ready;
+    if (statusFilter === 'missing') return row.missingFields.length > 0;
+    if (statusFilter === 'low') return row.lowConfidence;
+    return true;
+  });
+
+  const grouped = filteredReviewed.reduce<Record<string, Array<{
+    index: number;
+    props: Record<string, unknown>;
+    missingFields: string[];
+    confidence: number | null;
+    lowConfidence: boolean;
+    ready: boolean;
+  }>>>((acc, row) => {
+    if (!acc[row.type]) acc[row.type] = [];
+    acc[row.type].push(row);
     return acc;
   }, {});
 
@@ -160,10 +237,63 @@ export default function ExtractedDataReview({
               {skippedCount} entr{skippedCount === 1 ? 'y was' : 'ies were'} skipped due to missing required fields or unknown types.
             </p>
           )}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-left">
+            <StatusTile label="Nodes" value={String(extractedNodes.length)} tone="neutral" />
+            <StatusTile label="Edges" value={String(edgesCount)} tone="neutral" />
+            <StatusTile label="Ready" value={String(readyCount)} tone="success" />
+            <StatusTile label="Needs Attention" value={String(missingCount + lowCount)} tone="warn" />
+          </div>
+          {Object.keys(groupedConfidence).length > 0 && (
+            <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left">
+              <p className="text-[10px] uppercase tracking-wide text-white/45 mb-1">Section Confidence</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(groupedConfidence).map(([type, data]) => {
+                  const label = NODE_TYPE_LABELS[type] || type;
+                  const avg = Math.round((data.sum / data.count) * 100);
+                  return (
+                    <span key={type} className="text-xs text-white/65 border border-white/10 rounded-full px-2 py-0.5">
+                      {label}: {avg}%
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap justify-center gap-1.5 mt-3">
+            {[
+              { key: 'all', label: `All (${reviewed.length})` },
+              { key: 'ready', label: `Ready (${readyCount})` },
+              { key: 'missing', label: `Missing required (${missingCount})` },
+              { key: 'low', label: `Low confidence (${lowCount})` },
+            ].map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={() => setStatusFilter(filter.key as 'all' | 'ready' | 'missing' | 'low')}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  statusFilter === filter.key
+                    ? 'border-purple-400/50 bg-purple-500/15 text-purple-200'
+                    : 'border-white/15 text-white/45 hover:text-white/70 hover:border-white/30'
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          {statusFilter !== 'all' && (
+            <p className="text-[11px] text-white/35 mt-2">
+              Showing {filteredReviewed.length} of {reviewed.length} entries.
+            </p>
+          )}
           {children}
         </div>
 
         <div className="space-y-6 mb-8">
+          {Object.keys(grouped).length === 0 && (
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
+              <p className="text-white/55 text-sm">No entries match the selected filter.</p>
+            </div>
+          )}
           {Object.entries(grouped).map(([type, items]) => {
             const color = NODE_TYPE_COLORS[type] || '#8b5cf6';
             const label = NODE_TYPE_LABELS[type] || type;
@@ -175,7 +305,7 @@ export default function ExtractedDataReview({
                   <span className="text-white/20 text-xs">({items.length})</span>
                 </div>
                 <div className="space-y-2">
-                  {items.map(({ index, props }) => {
+                  {items.map(({ index, props, missingFields, confidence, lowConfidence, ready }) => {
                     if (editingIndex === index) {
                       return (
                         <motion.div
@@ -197,7 +327,7 @@ export default function ExtractedDataReview({
                             onCancel={() => setEditingIndex(null)}
                             onEnhance={async (text) => {
                               const existingSkills = extractedNodes
-                                .filter(n => n.node_type === 'Skill' && n.properties.name)
+                                .filter(n => normalizeNodeType(n.node_type) === 'skill' && n.properties.name)
                                 .map((n, i) => ({ uid: `cv-${i}`, name: n.properties.name as string }));
                               const targetLang = localStorage.getItem('orbis_note_target_lang') || 'en';
                               const result = await enhanceNote(text, targetLang, existingSkills);
@@ -216,9 +346,36 @@ export default function ExtractedDataReview({
                         className="flex items-center gap-2 sm:gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 group"
                       >
                         <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                            {ready && (
+                              <span className="text-[10px] rounded-full px-1.5 py-0.5 border border-emerald-500/35 bg-emerald-500/10 text-emerald-200">
+                                Ready
+                              </span>
+                            )}
+                            {missingFields.length > 0 && (
+                              <span className="text-[10px] rounded-full px-1.5 py-0.5 border border-red-500/35 bg-red-500/10 text-red-200">
+                                Missing required
+                              </span>
+                            )}
+                            {lowConfidence && (
+                              <span className="text-[10px] rounded-full px-1.5 py-0.5 border border-amber-500/35 bg-amber-500/10 text-amber-200">
+                                Low confidence
+                              </span>
+                            )}
+                            {confidence !== null && (
+                              <span className="text-[10px] rounded-full px-1.5 py-0.5 border border-white/15 bg-white/[0.03] text-white/55">
+                                {(confidence * 100).toFixed(0)}%
+                              </span>
+                            )}
+                          </div>
                           <div className="text-white/80 text-sm font-medium truncate">{title}</div>
                           {subtitle && subtitle !== title && (
                             <div className="text-white/30 text-xs truncate">{subtitle}</div>
+                          )}
+                          {missingFields.length > 0 && (
+                            <div className="text-red-300/80 text-[11px] mt-1">
+                              Missing: {missingFields.map((f) => f.replace(/_/g, ' ')).join(', ')}
+                            </div>
                           )}
                         </div>
                         <button
@@ -326,6 +483,21 @@ export default function ExtractedDataReview({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function StatusTile({ label, value, tone }: { label: string; value: string; tone: 'neutral' | 'success' | 'warn' }) {
+  const toneClass = tone === 'success'
+    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+    : tone === 'warn'
+      ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+      : 'border-white/10 bg-white/[0.03] text-white/65';
+
+  return (
+    <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>
+      <p className="text-[10px] uppercase tracking-wide opacity-80">{label}</p>
+      <p className="text-sm font-semibold mt-0.5">{value}</p>
     </div>
   );
 }
