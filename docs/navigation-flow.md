@@ -90,6 +90,7 @@ stateDiagram-v2
     state "DraftNotes (slide-out)" as DRAFT_NOTES
     state "Import Review (overlay)" as IMPORT_REVIEW
     state "Import Limit Warning (modal)" as IMPORT_LIMIT
+    state "Guided Tour (overlay)" as GUIDED_TOUR
 
     %% ── Tabs inside AccountSettings ──
     state ACCOUNT_SETTINGS {
@@ -119,6 +120,9 @@ stateDiagram-v2
     IMPORT_LIMIT --> IMPORT_REVIEW: Replace & import
     MAIN --> IMPORT_REVIEW: Import file (under limit)
     IMPORT_REVIEW --> MAIN: Confirm / Cancel
+    MAIN --> GUIDED_TOUR: Auto-trigger (new user) / Settings sidebar "Guided tour"
+    GUIDED_TOUR --> MAIN: Finish / Skip / Close
+    ACCOUNT_SETTINGS --> GUIDED_TOUR: Sidebar "Guided tour" button
 ```
 
 ---
@@ -183,6 +187,7 @@ flowchart TD
 | `DRAFT_NOTES` | (panel on ORB_VIEW) | Yes | Draft notes list + management |
 | `IMPORT_REVIEW` | (overlay on ORB_VIEW) | Yes | Review imported document data |
 | `IMPORT_LIMIT` | (modal on ORB_VIEW) | Yes | Document limit confirmation |
+| `GUIDED_TOUR` | (overlay on ORB_VIEW) | Yes | 9-step interactive tour (react-joyride). Auto-triggers for new users, restartable from Settings sidebar |
 
 ---
 
