@@ -1225,6 +1225,7 @@ export default function OrbViewPage() {
       {!isPendingDeletion && <FloatingInput
         open={showInput}
         editNode={editNode}
+        referenceNote={draftReferenceText}
         onSubmit={handleSubmit}
         onCancel={() => {
           setShowInput(false);
@@ -1262,20 +1263,6 @@ export default function OrbViewPage() {
         }}
         onSaveDraft={pendingDraftNoteId ? handleSaveDraftEnhanced : undefined}
       />}
-
-      {/* ── Draft reference helper (stays above form while adding from notes) ── */}
-      {!isPendingDeletion && showInput && draftReferenceText && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-full max-w-[95vw] sm:max-w-xl px-2 sm:px-0">
-          <div className="bg-white border border-gray-300 rounded-xl shadow-2xl p-3 sm:p-4">
-            <textarea
-              readOnly
-              value={draftReferenceText}
-              rows={4}
-              className="w-full bg-white text-gray-900 text-sm leading-relaxed border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none"
-            />
-          </div>
-        </div>
-      )}
 
       {/* ── Chat Box ── */}
       {!isPendingDeletion && <ChatBox

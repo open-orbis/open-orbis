@@ -6,6 +6,7 @@ import NodeForm from './NodeForm';
 interface FloatingInputProps {
   open: boolean;
   editNode?: { type: string; values: Record<string, unknown> } | null;
+  referenceNote?: string | null;
   onSubmit: (nodeType: string, properties: Record<string, unknown>) => void;
   onCancel: () => void;
   onDelete?: (uid: string) => void;
@@ -13,7 +14,7 @@ interface FloatingInputProps {
   onSaveDraft?: (nodeType: string, properties: Record<string, unknown>) => void;
 }
 
-export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDelete, onEnhance, onSaveDraft }: FloatingInputProps) {
+export default function FloatingInput({ open, editNode, referenceNote, onSubmit, onCancel, onDelete, onEnhance, onSaveDraft }: FloatingInputProps) {
   const [currentType, setCurrentType] = useState(editNode?.type || 'skill');
   const color = NODE_TYPE_COLORS[currentType] || '#8b5cf6';
   const isEditing = !!editNode?.values?.uid;
@@ -66,6 +67,21 @@ export default function FloatingInput({ open, editNode, onSubmit, onCancel, onDe
 
               {/* Form */}
               <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                {referenceNote && (
+                  <div className="mb-3 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+                    <div className="px-3 py-2 border-b border-slate-200 bg-slate-50">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-700">Draft note</p>
+                    </div>
+                    <div className="p-3">
+                      <textarea
+                        readOnly
+                        value={referenceNote}
+                        rows={3}
+                        className="w-full bg-white text-slate-900 text-sm leading-relaxed border border-slate-300 rounded-lg px-3 py-2 resize-none focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                )}
                 <NodeForm
                   initialType={editNode?.type}
                   initialValues={editNode?.values && Object.keys(editNode.values).length > 0 ? editNode.values : undefined}
