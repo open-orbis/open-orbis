@@ -142,7 +142,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
 };
 
 // Additional fields that should be required whenever they exist in the active modal.
-const ALWAYS_REQUIRED_IF_PRESENT = ['field_of_study', 'location', 'start_date', 'end_date', 'issue_date', 'expiry_date'];
+const ALWAYS_REQUIRED_IF_PRESENT = ['field_of_study', 'location', 'start_date', 'end_date', 'issue_date', 'expiry_date', 'date'];
 
 function FieldInput({
   field,
