@@ -16,7 +16,7 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import ExtractedDataReview from '../components/onboarding/ExtractedDataReview';
 import type { DraftNote } from '../components/drafts/DraftNotes';
-import { loadDraftNotes, loadDraftNotesAsync, saveDraftNotes } from '../components/drafts/DraftNotes';
+import { loadDraftNotes, loadDraftNotesAsync } from '../components/drafts/DraftNotes';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
@@ -525,7 +525,6 @@ export default function OrbViewPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const userId = user?.user_id ?? '';
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
-  const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
   const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
@@ -613,7 +612,6 @@ export default function OrbViewPage() {
           }]);
         }
       }
-      setDraftsLoaded(true);
     });
   }, [userId]);
 
@@ -625,9 +623,16 @@ export default function OrbViewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const allowEmpty = (location.state as { allowEmpty?: boolean } | null)?.allowEmpty === true;
+  const hasRedirectedRef = useRef(false);
   useEffect(() => {
+    // Only redirect on the very first successful load, never on subsequent refetches
+    if (hasRedirectedRef.current) return;
     if (!loading && data && data.nodes.length === 0 && !allowEmpty) {
+      hasRedirectedRef.current = true;
       navigate('/create', { replace: true });
+    }
+    if (!loading && data && data.nodes.length > 0) {
+      hasRedirectedRef.current = true; // Had content on first load, never redirect
     }
   }, [loading, data, allowEmpty, navigate]);
 
