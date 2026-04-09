@@ -24,6 +24,21 @@ import { useToastStore } from '../stores/toastStore';
 import { getDocuments, confirmImport } from '../api/cv';
 import type { DocumentMetadata } from '../api/cv';
 
+const IMPORT_PROGRESS_STEP_LABELS: Record<string, string> = {
+  reading_pdf: 'Reading PDF',
+  extracting_text: 'Extracting text',
+  classifying: 'Classifying entries',
+  parsing_response: 'Building graph',
+  done: 'Finalizing',
+};
+
+function resolveImportStepLabel(step: string | null | undefined, detail: string | null | undefined, message: string | null | undefined): string {
+  if (step && IMPORT_PROGRESS_STEP_LABELS[step]) return IMPORT_PROGRESS_STEP_LABELS[step];
+  if (detail?.trim()) return detail.trim();
+  if (message?.trim()) return message.trim();
+  return 'Reading PDF';
+}
+
 // ── Modals ──
 
 function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) {
@@ -787,13 +802,13 @@ export default function OrbViewPage() {
 
   const doImport = useCallback(async (file: File) => {
     setImporting(true);
-    setImportStatus('Reading file...');
+    setImportStatus('Reading PDF');
     const pollId = setInterval(async () => {
       try {
         const { getCVProgress } = await import('../api/cv');
         const p = await getCVProgress();
         if (p.active && p.message) {
-          setImportStatus(p.detail || p.message);
+          setImportStatus(resolveImportStepLabel(p.step, p.detail, p.message));
         }
       } catch { /* ignore */ }
     }, 2000);
@@ -913,7 +928,10 @@ export default function OrbViewPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                       </svg>
                     )}
-                    <span>{importing ? 'Processing...' : 'Import'}</span>
+                    <span>{importing ? 'Processing...' : 'Import new document'}</span>
+                    {importing && importStatus && (
+                      <span className="text-[10px] text-purple-200/80 whitespace-nowrap">{importStatus}</span>
+                    )}
                     <input
                       type="file"
                       accept=".pdf,.docx,.txt"
@@ -987,7 +1005,10 @@ export default function OrbViewPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
                         )}
-                        {importing ? 'Processing...' : 'Import data'}
+                        <span>{importing ? 'Processing...' : 'Import new document'}</span>
+                        {importing && importStatus && (
+                          <span className="text-[10px] text-purple-200/80 whitespace-nowrap">{importStatus}</span>
+                        )}
                         <input
                           type="file"
                           accept=".pdf,.docx,.txt"
@@ -996,9 +1017,6 @@ export default function OrbViewPage() {
                           onChange={handleImportInputChange}
                         />
                       </label>
-                      {importing && importStatus && (
-                        <p className="text-[11px] text-purple-200/80 px-1">{importStatus}</p>
-                      )}
                       {/* Document history */}
                       {documents.length > 0 && (
                         <div className="mt-2 space-y-1">
@@ -1038,11 +1056,6 @@ export default function OrbViewPage() {
               {activeKeywords.length > 0 && (
                 <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-amber-500/12 border border-amber-500/30 text-amber-200">
                   Filters: {activeKeywords.length}
-                </span>
-              )}
-              {importing && (
-                <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-purple-500/12 border border-purple-500/30 text-purple-200">
-                  Importing...
                 </span>
               )}
             </div>
