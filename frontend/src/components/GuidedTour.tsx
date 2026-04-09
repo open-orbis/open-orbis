@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import Joyride, { CallBackProps, STATUS, ACTIONS, EVENTS } from 'react-joyride';
-import type { Step } from 'react-joyride';
+import Joyride, { STATUS, ACTIONS, EVENTS } from 'react-joyride';
+import type { CallBackProps, Step } from 'react-joyride';
 
 const TOUR_COMPLETED_KEY = 'orbis_tour_completed';
 
