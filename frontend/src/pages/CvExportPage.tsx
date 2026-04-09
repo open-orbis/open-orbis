@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { getMyOrb } from '../api/orbs';
 import type { OrbData, OrbNode } from '../api/orbs';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
+import { useAuthStore } from '../stores/authStore';
 
 /* ── Helpers ── */
 
@@ -148,6 +149,7 @@ const SECTION_LABELS: Record<SectionKey, string> = {
 export default function CvExportPage() {
   const [data, setData] = useState<OrbData | null>(null);
   const [loading, setLoading] = useState(true);
+  const user = useAuthStore((s) => s.user);
   const { activeKeywords } = useFilterStore();
   const cvRef = useRef<HTMLDivElement>(null);
 
@@ -457,9 +459,11 @@ export default function CvExportPage() {
   }
 
   /* Contact links */
+  const accountEmail = str(user?.email).trim();
+  const exportEmail = accountEmail || str(p.email).trim();
   const phoneVal = showPhone && phoneNumber.trim() ? phoneNumber.trim() : str(p.phone);
   const contacts = [
-    p.email && { icon: 'fas fa-envelope', text: str(p.email) },
+    exportEmail && { icon: 'fas fa-envelope', text: exportEmail },
     phoneVal && { icon: 'fas fa-phone', href: `tel:${phoneVal}`, text: phoneVal },
     p.website_url && { icon: 'fas fa-globe', href: str(p.website_url), text: 'Website' },
     p.scholar_url && { icon: 'fas fa-graduation-cap', href: str(p.scholar_url), text: 'Scholar' },
