@@ -118,7 +118,7 @@ export default function CreateOrbPage() {
             Build from your CV
           </button>
           <button
-            onClick={() => navigate('/myorbis', { state: { allowEmpty: true } })}
+            onClick={() => navigate('/myorbis', { state: { allowEmpty: true, startTour: true } })}
             className="w-full mt-2 rounded-xl border border-white/15 hover:border-white/30 text-white/70 hover:text-white py-3 px-4 transition-colors"
           >
             Build from scratch
