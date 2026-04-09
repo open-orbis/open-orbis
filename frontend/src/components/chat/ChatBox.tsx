@@ -245,6 +245,7 @@ export default function ChatBox({
 
   return (
     <div
+      data-tour="chatbox"
       ref={containerRef}
       className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-[90vw] sm:max-w-xl px-2 sm:px-4 pb-6 sm:pb-10"
       onClick={(e) => e.stopPropagation()}

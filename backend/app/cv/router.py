@@ -95,6 +95,7 @@ async def upload_cv(
             user_id,
             CVStep.CLASSIFYING,
             f"Analyzing {len(raw_text):,} characters",
+            text_chars=len(raw_text),
         )
         logger.info(
             "Classifying entries with %s (%d chars)",
@@ -249,6 +250,7 @@ async def import_document(
             user_id,
             CVStep.CLASSIFYING,
             f"Analyzing {len(raw_text):,} characters",
+            text_chars=len(raw_text),
         )
         result = await classify_entries(raw_text)
 
@@ -350,6 +352,15 @@ async def get_cv_progress(
         "detail": p.detail,
         "elapsed_seconds": round(time.time() - p.started_at),
     }
+
+
+@router.post("/progress/discard")
+async def discard_cv_progress(
+    current_user: dict = Depends(get_current_user),
+):
+    """Discard any tracked CV progress for the current user."""
+    progress.clear_progress(current_user["user_id"])
+    return {"status": "discarded"}
 
 
 async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noqa: C901

@@ -75,7 +75,6 @@ export default function ExtractedDataReview({
   initialRelationships,
   cvOwnerName,
   unmatchedCount,
-  skippedCount,
   truncated,
   onReset,
   resetLabel = 'Try another file',
@@ -94,7 +93,7 @@ export default function ExtractedDataReview({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'ready' | 'missing' | 'low'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ready' | 'attention'>('all');
   const [existingNodeCount, setExistingNodeCount] = useState<number | null>(null);
   const [showReplaceWarning, setShowReplaceWarning] = useState(false);
   const isReplaceMode = !onConfirmOverride;
@@ -191,8 +190,7 @@ export default function ExtractedDataReview({
 
   const filteredReviewed = reviewed.filter((row) => {
     if (statusFilter === 'ready') return row.ready;
-    if (statusFilter === 'missing') return row.missingFields.length > 0;
-    if (statusFilter === 'low') return row.lowConfidence;
+    if (statusFilter === 'attention') return row.missingFields.length > 0 || row.lowConfidence;
     return true;
   });
 
@@ -213,79 +211,83 @@ export default function ExtractedDataReview({
     <div className="min-h-screen bg-black flex flex-col items-center px-3 sm:px-4 py-10 sm:py-16">
       <div className="w-full max-w-[95vw] sm:max-w-2xl">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center">
-            <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-white text-xl font-semibold">
-            Found {extractedNodes.length} entries
-          </h2>
-          <p className="text-white/30 text-sm mt-1">Review, edit, or remove entries, then add them all to your orb.</p>
-          {truncated && (
-            <p className="text-amber-400/80 text-xs mt-2">
-              Your CV was too long and was partially truncated. Some entries at the end may have been missed.
-            </p>
-          )}
-          {unmatchedCount > 0 && (
-            <p className="text-amber-400/80 text-xs mt-2">
-              {unmatchedCount} entr{unmatchedCount === 1 ? 'y' : 'ies'} couldn't be classified and {unmatchedCount === 1 ? 'was' : 'were'} added to your Draft Notes for manual review.
-            </p>
-          )}
-          {skippedCount > 0 && (
-            <p className="text-amber-400/60 text-xs mt-1">
-              {skippedCount} entr{skippedCount === 1 ? 'y was' : 'ies were'} skipped due to missing required fields or unknown types.
-            </p>
-          )}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-left">
-            <StatusTile label="Nodes" value={String(extractedNodes.length)} tone="neutral" />
-            <StatusTile label="Edges" value={String(edgesCount)} tone="neutral" />
-            <StatusTile label="Ready" value={String(readyCount)} tone="success" />
-            <StatusTile label="Needs Attention" value={String(missingCount + lowCount)} tone="warn" />
-          </div>
-          {Object.keys(groupedConfidence).length > 0 && (
-            <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-left">
-              <p className="text-[10px] uppercase tracking-wide text-white/45 mb-1">Section Confidence</p>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(groupedConfidence).map(([type, data]) => {
-                  const label = NODE_TYPE_LABELS[type] || type;
-                  const avg = Math.round((data.sum / data.count) * 100);
-                  return (
-                    <span key={type} className="text-xs text-white/65 border border-white/10 rounded-full px-2 py-0.5">
-                      {label}: {avg}%
-                    </span>
-                  );
-                })}
-              </div>
+          {children && <div className="mb-5">{children}</div>}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 sm:p-4 text-left space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] uppercase tracking-wide text-white/45">Review snapshot</p>
+              <p className="text-[11px] text-white/35">{reviewed.length} extracted</p>
             </div>
-          )}
-          <div className="flex flex-wrap justify-center gap-1.5 mt-3">
-            {[
-              { key: 'all', label: `All (${reviewed.length})` },
-              { key: 'ready', label: `Ready (${readyCount})` },
-              { key: 'missing', label: `Missing required (${missingCount})` },
-              { key: 'low', label: `Low confidence (${lowCount})` },
-            ].map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                onClick={() => setStatusFilter(filter.key as 'all' | 'ready' | 'missing' | 'low')}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                  statusFilter === filter.key
-                    ? 'border-purple-400/50 bg-purple-500/15 text-purple-200'
-                    : 'border-white/15 text-white/45 hover:text-white/70 hover:border-white/30'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <StatusTile
+                label="Ready"
+                value={String(readyCount)}
+                tone="success"
+                emphasis="primary"
+                className="sm:col-span-6"
+                active={statusFilter === 'ready'}
+                onClick={() => setStatusFilter((prev) => (prev === 'ready' ? 'all' : 'ready'))}
+              />
+              <StatusTile
+                label="Needs attention"
+                value={String(missingCount + lowCount)}
+                tone="warn"
+                emphasis="primary"
+                className="sm:col-span-6"
+                active={statusFilter === 'attention'}
+                onClick={() => setStatusFilter((prev) => (prev === 'attention' ? 'all' : 'attention'))}
+              />
+              <StatusTile
+                label="Nodes"
+                value={String(extractedNodes.length)}
+                tone="neutral"
+                className="sm:col-span-6"
+                active={statusFilter === 'all'}
+                onClick={() => setStatusFilter('all')}
+              />
+              <StatusTile label="Edges" value={String(edgesCount)} tone="neutral" className="sm:col-span-6" />
+            </div>
+
+            {(truncated || unmatchedCount > 0) && (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2.5">
+                <p className="text-[10px] uppercase tracking-wide text-amber-300/80 mb-1">Processing notes</p>
+                <div className="space-y-1.5">
+                  {truncated && (
+                    <p className="text-amber-200/90 text-xs">
+                      Your CV was partially truncated. Some entries at the end may have been missed.
+                    </p>
+                  )}
+                  {unmatchedCount > 0 && (
+                    <p className="text-amber-200/90 text-xs">
+                      {unmatchedCount} entr{unmatchedCount === 1 ? 'y was' : 'ies were'} not classified and moved to Draft Notes.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(groupedConfidence).length > 0 && (
+              <div className="mt-3 pt-3 border-t border-white/10">
+                <p className="text-[10px] uppercase tracking-wide text-white/45 mb-1">Section Confidence</p>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(groupedConfidence).map(([type, data]) => {
+                    const label = NODE_TYPE_LABELS[type] || type;
+                    const avg = Math.round((data.sum / data.count) * 100);
+                    return (
+                      <span key={type} className="text-xs text-white/65 border border-white/10 rounded-full px-2 py-0.5">
+                        {label}: {avg}%
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           {statusFilter !== 'all' && (
             <p className="text-[11px] text-white/35 mt-2">
               Showing {filteredReviewed.length} of {reviewed.length} entries.
             </p>
           )}
-          {children}
         </div>
 
         <div className="space-y-6 mb-8">
@@ -487,17 +489,44 @@ export default function ExtractedDataReview({
   );
 }
 
-function StatusTile({ label, value, tone }: { label: string; value: string; tone: 'neutral' | 'success' | 'warn' }) {
+function StatusTile({
+  label,
+  value,
+  tone,
+  emphasis = 'default',
+  className = '',
+  active = false,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  tone: 'neutral' | 'success' | 'warn';
+  emphasis?: 'default' | 'primary';
+  className?: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   const toneClass = tone === 'success'
     ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
     : tone === 'warn'
       ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
       : 'border-white/10 bg-white/[0.03] text-white/65';
 
+  const valueClass = emphasis === 'primary' ? 'text-xl font-semibold mt-1 leading-none' : 'text-sm font-semibold mt-0.5';
+  const paddingClass = emphasis === 'primary' ? 'py-3' : 'py-2';
+  const activeClass = active ? 'ring-1 ring-purple-400/60 border-purple-400/50' : '';
+  const interactiveClass = onClick
+    ? 'cursor-pointer transition-all hover:-translate-y-px hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60'
+    : '';
+
   return (
-    <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border px-3 ${paddingClass} ${toneClass} ${activeClass} ${interactiveClass} ${className}`}
+    >
       <p className="text-[10px] uppercase tracking-wide opacity-80">{label}</p>
-      <p className="text-sm font-semibold mt-0.5">{value}</p>
-    </div>
+      <p className={valueClass}>{value}</p>
+    </button>
   );
 }

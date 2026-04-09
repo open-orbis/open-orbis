@@ -42,10 +42,15 @@ function AppRoutes() {
   const navigate = useNavigate();
   const { logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
+  const lastSessionExpiredEventAt = useRef(0);
 
   // Handle global session-expired events from the API client
   useEffect(() => {
     const handler = () => {
+      const now = Date.now();
+      // Guard against duplicate 401/event bursts that can occur close together.
+      if (now - lastSessionExpiredEventAt.current < 1500) return;
+      lastSessionExpiredEventAt.current = now;
       logout();
       addToast('Your session has expired. Please sign in again.', 'info');
       navigate('/', { replace: true });
