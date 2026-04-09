@@ -198,13 +198,6 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
     (initialValues as Record<string, string>) || {}
   );
   const [isCurrent, setIsCurrent] = useState(false);
-  const [expanded, setExpanded] = useState(() => {
-    // Auto-expand if any extra field has a pre-filled value
-    if (!initialValues) return false;
-    const layout = LAYOUT_CONFIG[initialType || 'skill'];
-    if (!layout) return false;
-    return layout.extra.some((f) => initialValues[f]);
-  });
 
   const set = (field: string, v: string) => {
     setValues({ ...values, [field]: v });
@@ -255,11 +248,6 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       if (result) {
         setNodeType(result.node_type);
         setValues(result.properties);
-        // Auto-expand extra fields if they have values
-        const newLayout = LAYOUT_CONFIG[result.node_type];
-        if (newLayout && newLayout.extra.some((f) => result.properties[f])) {
-          setExpanded(true);
-        }
       }
     } finally {
       setEnhancing(false);
@@ -379,7 +367,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
 
     return (
       <form onSubmit={handleSubmit}>
-        <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); setExpanded(false); }} />
+        <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); }} />
 
         <AnimatePresence mode="wait">
         <motion.div
@@ -431,36 +419,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
           </div>
         </div>
 
-        {/* Toggle button for extra fields */}
+        {/* Extra fields */}
         {layout.extra.length > 0 && (
-          <div className="flex justify-end mt-3">
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1 text-xs font-medium transition-colors"
-              style={{ color: `${color}aa` }}
-            >
-              {expanded ? (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                  </svg>
-                  Less details
-                </>
-              ) : (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  More details
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Extra fields (expanded) */}
-        {expanded && (
           <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
             {layout.extra.map((field) => (
               <FieldInput
