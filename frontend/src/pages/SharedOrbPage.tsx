@@ -29,6 +29,12 @@ export default function SharedOrbPage() {
       seq: (prev?.seq ?? 0) + 1,
     }));
   }, []);
+
+  const personNodeId = ((data?.person?.user_id || data?.person?.orb_id) as string) || '';
+  const handleChatClear = useCallback(() => {
+    if (!personNodeId) return;
+    handleFocusNode(personNodeId);
+  }, [personNodeId, handleFocusNode]);
   const viewMenuRef = useRef<HTMLDivElement>(null);
 
   const handleShowAllNodeTypes = useCallback(() => {
@@ -223,6 +229,7 @@ export default function SharedOrbPage() {
       {/* ── Chat Box (no Add / Share buttons) ── */}
       <ChatBox
         onHighlight={setHighlightedNodeIds}
+        onClearResults={handleChatClear}
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
