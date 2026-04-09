@@ -42,21 +42,60 @@ All protected endpoints require `Authorization: Bearer <jwt>`. JWT is obtained v
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/cv/upload` | JWT | Upload PDF (max 10MB). Requires GDPR consent. Returns extracted nodes. |
-| GET | `/cv/processing-count` | No | Count of PDFs currently being processed |
-| POST | `/cv/confirm` | JWT | Persist confirmed nodes to Neo4j. Wipes existing graph first. |
+| POST | `/cv/upload` | JWT | Upload PDF (max 10MB). Requires GDPR consent. Returns extracted nodes + `document_id`. |
+| POST | `/cv/confirm` | JWT | Persist confirmed nodes to Neo4j. Wipes existing graph first. Accepts `document_id` to track metadata. |
+| POST | `/cv/import` | JWT | Import supplementary document (PDF, DOCX, TXT). Returns extracted nodes + `document_id`. |
+| POST | `/cv/import-confirm` | JWT | Merge imported nodes into existing orb (no wipe). Accepts `document_id` to track metadata. |
+| GET | `/cv/documents` | JWT | List document metadata for current user (up to 3, ordered by date desc). |
+| GET | `/cv/documents/{document_id}/download` | JWT | Download a specific stored document (decrypted). |
+| GET | `/cv/download` | JWT | Download the latest uploaded CV (backward compat, delegates to documents endpoint). |
+| GET | `/cv/processing-count` | No | Count of PDFs currently being processed. |
+| GET | `/cv/progress` | JWT | Real-time progress for current user's CV processing. |
 
-### CV Upload Response
+### CV Upload/Import Response
 
 ```json
 {
   "nodes": [{"node_type": "work_experience", "properties": {...}}, ...],
-  "relationships": [{"source_index": 0, "target_index": 5, "type": "USED_SKILL"}],
+  "relationships": [{"from_index": 0, "to_index": 5, "type": "USED_SKILL"}],
   "unmatched": ["line that couldn't be classified", ...],
   "skipped_nodes": [...],
   "truncated": false,
-  "cv_owner_name": "John Doe"
+  "cv_owner_name": "John Doe",
+  "document_id": "uuid-string"
 }
+```
+
+### Confirm Request Body
+
+```json
+{
+  "nodes": [...],
+  "relationships": [...],
+  "cv_owner_name": "John Doe",
+  "document_id": "uuid-from-upload-response",
+  "original_filename": "resume.pdf",
+  "file_size_bytes": 204800,
+  "page_count": 3
+}
+```
+
+When `document_id` is provided, the confirm endpoint records document metadata (including `entities_count` and `edges_count` computed from the nodes/relationships). If the user already has 3 documents, the oldest is automatically evicted.
+
+### Document Metadata Response (`GET /cv/documents`)
+
+```json
+[
+  {
+    "document_id": "uuid",
+    "original_filename": "resume.pdf",
+    "uploaded_at": "2026-04-09T12:00:00+00:00",
+    "file_size_bytes": 204800,
+    "page_count": 3,
+    "entities_count": 42,
+    "edges_count": 15
+  }
+]
 ```
 
 ## Export (`/export`)

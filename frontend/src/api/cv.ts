@@ -21,6 +21,17 @@ export interface ExtractedData {
   relationships?: ExtractedRelationship[];
   truncated?: boolean;
   cv_owner_name?: string | null;
+  document_id?: string | null;
+}
+
+export interface DocumentMetadata {
+  document_id: string;
+  original_filename: string;
+  uploaded_at: string;
+  file_size_bytes: number;
+  page_count: number;
+  entities_count: number | null;
+  edges_count: number | null;
 }
 
 export async function uploadCV(file: File): Promise<ExtractedData> {
@@ -37,22 +48,34 @@ export async function confirmCV(
   nodes: ExtractedData['nodes'],
   relationships?: ExtractedRelationship[],
   cv_owner_name?: string | null,
+  document_id?: string | null,
+  original_filename?: string | null,
+  file_size_bytes?: number | null,
+  page_count?: number | null,
 ): Promise<void> {
-  await client.post('/cv/confirm', { nodes, relationships: relationships || [], cv_owner_name: cv_owner_name || null });
+  await client.post('/cv/confirm', {
+    nodes,
+    relationships: relationships || [],
+    cv_owner_name: cv_owner_name || null,
+    document_id: document_id || null,
+    original_filename: original_filename || null,
+    file_size_bytes: file_size_bytes || null,
+    page_count: page_count || null,
+  });
 }
 
-
-export async function downloadCV(): Promise<void> {
-  const response = await client.get('/cv/download', { responseType: 'blob' });
+export async function downloadCV(documentId?: string): Promise<void> {
+  const url = documentId ? `/cv/documents/${documentId}/download` : '/cv/download';
+  const response = await client.get(url, { responseType: 'blob' });
   const disposition = response.headers['content-disposition'] || '';
   const match = disposition.match(/filename="?([^"]+)"?/);
   const filename = match ? match[1] : 'cv.pdf';
-  const url = URL.createObjectURL(response.data);
+  const blobUrl = URL.createObjectURL(response.data);
   const a = document.createElement('a');
-  a.href = url;
+  a.href = blobUrl;
   a.download = filename;
   a.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(blobUrl);
 }
 
 export async function importDocument(file: File): Promise<ExtractedData> {
@@ -69,20 +92,25 @@ export async function confirmImport(
   nodes: ExtractedData['nodes'],
   relationships?: ExtractedRelationship[],
   cv_owner_name?: string | null,
+  document_id?: string | null,
+  original_filename?: string | null,
+  file_size_bytes?: number | null,
+  page_count?: number | null,
 ): Promise<void> {
   await client.post('/cv/import-confirm', {
     nodes,
     relationships: relationships || [],
     cv_owner_name: cv_owner_name || null,
+    document_id: document_id || null,
+    original_filename: original_filename || null,
+    file_size_bytes: file_size_bytes || null,
+    page_count: page_count || null,
   });
 }
 
-export async function storeFile(file: File): Promise<void> {
-  const formData = new FormData();
-  formData.append('file', file);
-  await client.post('/cv/store-file', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+export async function getDocuments(): Promise<DocumentMetadata[]> {
+  const { data } = await client.get('/cv/documents');
+  return data;
 }
 
 export async function getProcessingCount(): Promise<number> {

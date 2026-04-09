@@ -10,7 +10,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.router import router as cv_router
-from app.cv_storage.storage import delete_cv as delete_stored_cv
+from app.cv_storage.storage import delete_all_for_user as delete_stored_cvs
 from app.drafts.db import delete_all_for_user as delete_user_drafts
 from app.drafts.router import router as drafts_router
 from app.export.router import router as export_router
@@ -52,7 +52,7 @@ async def _cleanup_expired_accounts(driver):
             )
             # Clean up secondary databases
             try:
-                delete_stored_cv(user_id)
+                delete_stored_cvs(user_id)
             except Exception as e:
                 logging.getLogger(__name__).warning(
                     "Failed to delete CV for %s: %s", user_id, e

@@ -14,9 +14,11 @@ from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import classify_entries
 from app.cv.progress import CVStep
 from app.cv.text_extractor import extract_text as multi_extract
-from app.cv_storage.db import get_metadata as get_cv_metadata
-from app.cv_storage.storage import load_cv
-from app.cv_storage.storage import save_cv as store_cv_file
+from app.cv_storage import db as cv_db
+from app.cv_storage.storage import (
+    evict_oldest_if_at_limit,
+    load_document,
+)
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties, encrypt_value
 from app.graph.queries import (
@@ -65,17 +67,7 @@ async def upload_cv(
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
     user_id = current_user.get("user_id", "")
-
-    # Best-effort: store the original PDF encrypted for future recovery
-    try:
-        import fitz
-
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-        pc = len(doc)
-        doc.close()
-        store_cv_file(user_id, pdf_bytes, file.filename or "upload.pdf", pc)
-    except Exception as e:
-        logger.warning("Failed to store CV file: %s", e)
+    document_id = str(uuid.uuid4())
 
     counter.increment()
     try:
@@ -140,6 +132,7 @@ async def upload_cv(
             truncated=result.truncated,
             cv_owner_name=result.cv_owner_name,
             profile=extracted_profile,
+            document_id=document_id,
         )
 
     except HTTPException:
@@ -169,21 +162,23 @@ async def upload_cv(
         asyncio.create_task(_cleanup())
 
 
-@router.get("/download")
-async def download_cv(
+@router.get("/documents/{document_id}/download")
+async def download_document(
+    document_id: str,
     current_user: dict = Depends(get_current_user),
 ):
-    """Download the latest uploaded CV (decrypted)."""
+    """Download a specific stored document (decrypted)."""
     user_id = current_user["user_id"]
-    meta = get_cv_metadata(user_id)
-    if meta is None:
-        raise HTTPException(status_code=404, detail="No CV stored")
+    docs = cv_db.list_documents(user_id)
+    doc = next((d for d in docs if d["document_id"] == document_id), None)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
 
-    pdf_bytes = load_cv(user_id)
+    pdf_bytes = load_document(user_id, document_id)
     if pdf_bytes is None:
-        raise HTTPException(status_code=404, detail="CV file not found")
+        raise HTTPException(status_code=404, detail="Document file not found")
 
-    filename = meta.get("original_filename", "cv.pdf")
+    filename = doc.get("original_filename", "document.pdf")
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -191,31 +186,27 @@ async def download_cv(
     )
 
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
-
-
-@router.post("/store-file")
-async def store_file(
-    file: UploadFile = File(...),
+@router.get("/download")
+async def download_cv(
     current_user: dict = Depends(get_current_user),
 ):
-    """Store a file as the user's downloadable CV (replaces previous)."""
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No file provided")
-    file_bytes = await file.read()
-    if len(file_bytes) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+    """Download the latest uploaded CV (backward compat)."""
     user_id = current_user["user_id"]
-    try:
-        import fitz
+    docs = cv_db.list_documents(user_id)
+    if not docs:
+        raise HTTPException(status_code=404, detail="No CV stored")
+    return await download_document(docs[0]["document_id"], current_user)
 
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
-        pc = len(doc)
-        doc.close()
-    except Exception:
-        pc = 1
-    store_cv_file(user_id, file_bytes, file.filename or "upload", pc)
-    return {"status": "stored"}
+
+@router.get("/documents")
+async def list_documents(
+    current_user: dict = Depends(get_current_user),
+):
+    """List all document metadata for the current user (up to 3)."""
+    return cv_db.list_documents(current_user["user_id"])
+
+
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
 
 
 @router.post("/import", response_model=ExtractedData)
@@ -243,6 +234,7 @@ async def import_document(
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
     user_id = current_user.get("user_id", "")
+    document_id = str(uuid.uuid4())
     try:
         progress.set_progress(user_id, CVStep.EXTRACTING_TEXT, file.filename)
         raw_text = await multi_extract(file_bytes, file.filename)
@@ -281,6 +273,7 @@ async def import_document(
             truncated=result.truncated,
             cv_owner_name=result.cv_owner_name,
             profile=extracted_profile,
+            document_id=document_id,
         )
     except HTTPException:
         raise
@@ -299,7 +292,29 @@ async def import_confirm(
 ):
     """Merge imported nodes into existing orb (no deletion of existing data)."""
     await _require_consent(current_user, db)
-    return await _persist_nodes(data, current_user, db, wipe_existing=False)
+    user_id = current_user["user_id"]
+
+    if data.document_id:
+        evict_oldest_if_at_limit(user_id)
+
+    result = await _persist_nodes(data, current_user, db, wipe_existing=False)
+
+    if data.document_id:
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()
+        cv_db.insert_document(
+            document_id=data.document_id,
+            user_id=user_id,
+            filename=data.original_filename or "document-import",
+            size=data.file_size_bytes or 0,
+            page_count=data.page_count or 0,
+            entities_count=len(data.nodes),
+            edges_count=len(data.relationships),
+            now=now,
+        )
+
+    return result
 
 
 @router.get("/processing-count")
@@ -451,4 +466,26 @@ async def confirm_cv(
 ):
     """Persist confirmed CV nodes to Neo4j with dedup and cross-entity linking."""
     await _require_consent(current_user, db)
-    return await _persist_nodes(data, current_user, db, wipe_existing=True)
+    user_id = current_user["user_id"]
+
+    if data.document_id:
+        evict_oldest_if_at_limit(user_id)
+
+    result = await _persist_nodes(data, current_user, db, wipe_existing=True)
+
+    if data.document_id:
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc).isoformat()
+        cv_db.insert_document(
+            document_id=data.document_id,
+            user_id=user_id,
+            filename=data.original_filename or "cv-upload",
+            size=data.file_size_bytes or 0,
+            page_count=data.page_count or 0,
+            entities_count=len(data.nodes),
+            edges_count=len(data.relationships),
+            now=now,
+        )
+
+    return result

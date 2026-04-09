@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
 import { claimOrbId } from '../api/orbs';
+import { getDocuments, downloadCV } from '../api/cv';
+import type { DocumentMetadata } from '../api/cv';
 
 interface UserMenuProps {
   orbId?: string;
@@ -19,7 +21,20 @@ export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
+  const [showCVs, setShowCVs] = useState(false);
+  const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+
+  const fetchDocs = useCallback(async () => {
+    try {
+      const docs = await getDocuments();
+      setDocuments(docs);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    if (showCVs) fetchDocs();
+  }, [showCVs, fetchDocs]);
 
   // Close on outside click
   useEffect(() => {
@@ -111,24 +126,54 @@ export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps
               Account settings
             </button>
 
-            {/* Download CV */}
+            {/* My uploaded CVs */}
             <button
-              onClick={async () => {
-                setOpen(false);
-                try {
-                  const { downloadCV } = await import('../api/cv');
-                  await downloadCV();
-                } catch {
-                  addToast('No CV uploaded yet', 'info');
-                }
-              }}
+              onClick={() => setShowCVs((v) => !v)}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              My uploaded CV
+              <span className="flex-1 text-left">My uploaded CVs</span>
+              <svg className={`w-3.5 h-3.5 transition-transform ${showCVs ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </button>
+            {showCVs && (
+              <div className="px-3 pb-2">
+                {documents.length === 0 ? (
+                  <p className="text-white/30 text-xs px-1 py-2">No documents uploaded yet.</p>
+                ) : (
+                  <div className="space-y-1">
+                    {documents.map((doc) => (
+                      <button
+                        key={doc.document_id}
+                        onClick={async () => {
+                          try {
+                            await downloadCV(doc.document_id);
+                          } catch {
+                            addToast('Failed to download document', 'error');
+                          }
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg bg-white/[0.03] hover:bg-white/[0.07] transition-colors text-left cursor-pointer group"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0 text-white/20 group-hover:text-purple-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17v3a2 2 0 002 2h14a2 2 0 002-2v-3" />
+                        </svg>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white/60 text-xs truncate group-hover:text-white/80 transition-colors">{doc.original_filename}</div>
+                          <div className="text-white/25 text-[10px]">
+                            {new Date(doc.uploaded_at).toLocaleDateString()}
+                            {doc.entities_count != null ? ` · ${doc.entities_count} nodes` : ''}
+                            {doc.edges_count != null ? ` · ${doc.edges_count} edges` : ''}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="border-t border-white/5" />
 
