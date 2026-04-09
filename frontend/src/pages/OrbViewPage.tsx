@@ -16,7 +16,7 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DraftNotes from '../components/drafts/DraftNotes';
 import ExtractedDataReview from '../components/onboarding/ExtractedDataReview';
 import type { DraftNote } from '../components/drafts/DraftNotes';
-import { loadDraftNotes, loadDraftNotesAsync, saveDraftNotes } from '../components/drafts/DraftNotes';
+import { loadDraftNotes, loadDraftNotesAsync } from '../components/drafts/DraftNotes';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
@@ -525,10 +525,10 @@ export default function OrbViewPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const userId = user?.user_id ?? '';
   const [draftNotes, setDraftNotes] = useState<DraftNote[]>([]);
-  const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
   const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
+  const [draftReferenceText, setDraftReferenceText] = useState<string | null>(null);
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
@@ -554,7 +554,15 @@ export default function OrbViewPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (showToolsMenu) { setShowToolsMenu(false); return; }
-      if (showInput) { setShowInput(false); setEditNode(null); return; }
+      if (showInput) {
+        setShowInput(false);
+        setEditNode(null);
+        setPendingSkillLinks([]);
+        setPendingDraftNoteId(null);
+        setPendingDraftRawText('');
+        setDraftReferenceText(null);
+        return;
+      }
       if (showProfile) { setShowProfile(false); return; }
       if (showShare) { setShowShare(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
@@ -585,33 +593,27 @@ export default function OrbViewPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
-  // Load drafts when userId becomes available — try API first, fall back to localStorage
+  // Load drafts when userId becomes available — API is the source of truth
   useEffect(() => {
     if (!userId) return;
-    // Show localStorage drafts immediately for fast render
-    const local = loadDraftNotes(userId);
-    if (local.length > 0) setDraftNotes(local);
-
-    // Then load from API (includes migration of localStorage → server)
     loadDraftNotesAsync(userId).then((notes) => {
       if (notes.length > 0) {
         setDraftNotes(notes);
-      } else if (local.length === 0) {
+      } else {
         // Seed a sample note for first-time users
-        setDraftNotes([{
-          id: 'sample-1',
-          text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
-          createdAt: Date.now(),
-        }]);
+        const local = loadDraftNotes(userId);
+        if (local.length > 0) {
+          setDraftNotes(local);
+        } else {
+          setDraftNotes([{
+            id: 'sample-1',
+            text: '💡 This is a draft note! Jot down quick thoughts here — a new skill you learned, a project idea, or something to add to your Orbis later. When ready, click "Add to graph" to turn a note into a real entry.',
+            createdAt: Date.now(),
+          }]);
+        }
       }
-      setDraftsLoaded(true);
     });
   }, [userId]);
-
-  // Persist drafts to localStorage (user-scoped) — only after initial load
-  useEffect(() => {
-    if (userId && draftsLoaded) saveDraftNotes(userId, draftNotes);
-  }, [draftNotes, userId, draftsLoaded]);
 
   useEffect(() => { fetchOrb(); }, [fetchOrb]);
 
@@ -621,9 +623,16 @@ export default function OrbViewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const allowEmpty = (location.state as { allowEmpty?: boolean } | null)?.allowEmpty === true;
+  const hasRedirectedRef = useRef(false);
   useEffect(() => {
+    // Only redirect on the very first successful load, never on subsequent refetches
+    if (hasRedirectedRef.current) return;
     if (!loading && data && data.nodes.length === 0 && !allowEmpty) {
+      hasRedirectedRef.current = true;
       navigate('/create', { replace: true });
+    }
+    if (!loading && data && data.nodes.length > 0) {
+      hasRedirectedRef.current = true; // Had content on first load, never redirect
     }
   }, [loading, data, allowEmpty, navigate]);
 
@@ -671,36 +680,17 @@ export default function OrbViewPage() {
     }
     setPendingDraftRawText('');
     setPendingSkillLinks([]);
+    setDraftReferenceText(null);
     setShowInput(false);
     setEditNode(null);
   };
 
   const handleDraftToGraph = (note: DraftNote) => {
     setPendingDraftNoteId(note.id);
-    // If the draft has been enhanced, jump straight into the form with the
-    // enhanced state so the user only has to confirm before creating the node.
-    if (note.enhanced) {
-      setPendingSkillLinks(note.enhanced.suggestedSkillUids);
-      setEditNode({ type: note.enhanced.nodeType, values: note.enhanced.properties });
-      setShowInput(true);
-      setShowDrafts(false);
-      return;
-    }
-    const text = note.text.toLowerCase();
-    const detect: [RegExp, string][] = [
-      [/\b(python|javascript|typescript|react|angular|vue|java|c\+\+|node\.?js|sql|docker|kubernetes|aws|git|html|css|figma|photoshop|agile|scrum|machine learning|data science|deep learning|tensorflow|pytorch)\b/i, 'skill'],
-      [/\b(university|degree|bachelor|master|phd|diploma|graduated|school|college|mba|studies|thesis)\b/i, 'education'],
-      [/\b(certified|certification|certificate|license|accredit|aws certified|pmp|cpa|comptia)\b/i, 'certification'],
-      [/\b(english|french|spanish|german|italian|portuguese|chinese|japanese|korean|arabic|hindi|russian|dutch|fluent|native speaker|bilingual)\b/i, 'language'],
-      [/\b(published|paper|article|journal|conference|proceedings|co-author|isbn|doi)\b/i, 'publication'],
-      [/\b(project|built|developed|created|launched|side project|open.?source|hackathon|prototype|app|website)\b/i, 'project'],
-      [/\b(patent|invention|filed|provisional|granted patent|patent number)\b/i, 'patent'],
-    ];
-    let type = 'work_experience';
-    for (const [regex, nodeType] of detect) {
-      if (regex.test(text)) { type = nodeType; break; }
-    }
-    setEditNode({ type, values: { description: note.text } });
+    setPendingDraftRawText(note.text);
+    setPendingSkillLinks([]);
+    setDraftReferenceText(note.text);
+    setEditNode({ type: 'work_experience', values: {} });
     setShowInput(true);
     setShowDrafts(false);
   };
@@ -709,6 +699,7 @@ export default function OrbViewPage() {
     // Already enhanced: re-open the form with the saved structured data so
     // the user can keep refining without spending another LLM call.
     if (note.enhanced) {
+      setDraftReferenceText(null);
       setPendingDraftNoteId(note.id);
       setPendingDraftRawText(note.text);
       setPendingSkillLinks(note.enhanced.suggestedSkillUids);
@@ -724,6 +715,7 @@ export default function OrbViewPage() {
 
     const result = await enhanceNote(note.text, targetLang, existingSkills);
 
+    setDraftReferenceText(null);
     setPendingDraftNoteId(note.id);
     setPendingDraftRawText(note.text);
     setPendingSkillLinks(result.suggested_skill_uids);
@@ -760,6 +752,7 @@ export default function OrbViewPage() {
     setPendingDraftNoteId(null);
     setPendingDraftRawText('');
     setPendingSkillLinks([]);
+    setDraftReferenceText(null);
     setShowInput(false);
     setEditNode(null);
     setShowDrafts(true);
@@ -1232,8 +1225,16 @@ export default function OrbViewPage() {
       {!isPendingDeletion && <FloatingInput
         open={showInput}
         editNode={editNode}
+        referenceNote={draftReferenceText}
         onSubmit={handleSubmit}
-        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); setPendingDraftRawText(''); }}
+        onCancel={() => {
+          setShowInput(false);
+          setEditNode(null);
+          setPendingSkillLinks([]);
+          setPendingDraftNoteId(null);
+          setPendingDraftRawText('');
+          setDraftReferenceText(null);
+        }}
         onDelete={async (uid) => {
           const nodeToDelete = data?.nodes.find(n => n.uid === uid);
           const nodeTypeKey = nodeToDelete?._labels?.[0] ? LABEL_TO_TYPE[nodeToDelete._labels[0]] || '' : '';
@@ -1249,6 +1250,7 @@ export default function OrbViewPage() {
           await deleteNode(uid, nodeTypeKey, nodeProps, nodeRelationships);
           setShowInput(false);
           setEditNode(null);
+          setDraftReferenceText(null);
         }}
         onEnhance={async (text) => {
           const existingSkills = (data?.nodes || [])
@@ -1270,7 +1272,7 @@ export default function OrbViewPage() {
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
-        onAdd={() => { setEditNode(null); setShowInput(true); }}
+        onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
       />}

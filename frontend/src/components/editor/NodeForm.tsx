@@ -81,8 +81,103 @@ const DATE_PAIRS: Record<string, [string, string, string][]> = {
   patent: [['filing_date', 'grant_date', 'Filing date must be before grant date']],
 };
 
-// Accept: MM/YYYY or DD/MM/YYYY
+// Accept: MM/YYYY or DD/MM/YYYY (or YYYY for types that allow it)
 const DATE_FORMAT_RE = /^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
+const DATE_FORMAT_WITH_YEAR_RE = /^(\d{4}|\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
+
+// Node types where date fields accept year-only (YYYY) format
+const YEAR_ONLY_TYPES = new Set(['publication']);
+
+const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/**
+ * Mask date input to enforce MM/YYYY or DD/MM/YYYY structure.
+ * Allows `/` or `-` as separators (dashes converted to `/`).
+ * Auto-inserts `/` after 2-digit groups when typing digits only.
+ * Respects user-typed separators to distinguish MM/YYYY from DD/MM/YYYY.
+ */
+function maskDateInput(raw: string, prev: string, allowYearOnly: boolean): string {
+  // Normalize: strip invalid chars, convert dashes to slashes
+  const v = raw.replace(/[^\d/-]/g, '').replace(/-/g, '/');
+
+  // Detect backspace — let the user delete freely
+  if (v.length < prev.length) return v;
+
+  // Split on slashes to get user-typed segments
+  const parts = v.split('/');
+
+  // For year-only mode: if no slash and <= 4 digits, allow bare YYYY
+  if (allowYearOnly && parts.length === 1 && parts[0].length <= 4) {
+    return parts[0].replace(/\D/g, '').slice(0, 4);
+  }
+
+  // Enforce segment lengths: each segment max 2 digits, last segment max 4
+  const maxLens = parts.length <= 2 ? [2, 4] : [2, 2, 4];
+  const capped: string[] = [];
+  for (let i = 0; i < parts.length && i < maxLens.length; i++) {
+    capped.push(parts[i].replace(/\D/g, '').slice(0, maxLens[i]));
+  }
+
+  // Auto-insert `/` when a segment reaches its max and user is typing digits
+  const last = capped[capped.length - 1];
+  const lastMax = maxLens[capped.length - 1];
+  if (capped.length < maxLens.length && last.length >= lastMax) {
+    // Segment is full, start next segment
+    return capped.join('/') + '/';
+  }
+
+  return capped.join('/');
+}
+
+/** Convert ISO dates (YYYY-MM-DD, YYYY-MM, YYYY) to display format (DD/MM/YYYY, MM/YYYY). */
+function isoToDisplay(value: string): string {
+  if (!value) return value;
+  const v = value.trim();
+  // YYYY-MM-DD → DD/MM/YYYY
+  const full = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (full) return `${full[3]}/${full[2]}/${full[1]}`;
+  // YYYY-MM → MM/YYYY
+  const partial = v.match(/^(\d{4})-(\d{2})$/);
+  if (partial) return `${partial[2]}/${partial[1]}`;
+  // YYYY alone → 01/YYYY
+  const yearOnly = v.match(/^(\d{4})$/);
+  if (yearOnly) return `01/${yearOnly[1]}`;
+  return value;
+}
+
+/** Normalize date fields in initial values from ISO to display format. */
+function normalizeInitialDates(values: Record<string, unknown>, fields: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(values)) {
+    const str = v != null ? String(v) : '';
+    result[k] = fields.includes(k) ? isoToDisplay(str) : str;
+  }
+  return result;
+}
+
+/** Validate that a date string has valid month (1-12) and day (1-maxForMonth). */
+function isValidDate(dateStr: string): string | null {
+  const parts = dateStr.split('/');
+  if (parts.length === 2) {
+    // MM/YYYY
+    const month = parseInt(parts[0], 10);
+    if (month < 1 || month > 12) return 'Month must be between 01 and 12';
+  } else if (parts.length === 3) {
+    // DD/MM/YYYY
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (month < 1 || month > 12) return 'Month must be between 01 and 12';
+    let maxDay = DAYS_IN_MONTH[month];
+    // Adjust February for non-leap years
+    if (month === 2) {
+      const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+      if (!isLeap) maxDay = 28;
+    }
+    if (day < 1 || day > maxDay) return `Day must be between 01 and ${maxDay} for month ${String(month).padStart(2, '0')}`;
+  }
+  return null;
+}
 
 /** Convert DD/MM/YYYY or MM/YYYY to sortable YYYY-MM-DD or YYYY-MM for comparison. */
 function toSortable(dateStr: string): string {
@@ -93,11 +188,21 @@ function toSortable(dateStr: string): string {
 }
 
 function validateDates(nodeType: string, values: Record<string, string>, isCurrent: boolean): string | null {
-  // Check format of all date fields
+  const allowYearOnly = YEAR_ONLY_TYPES.has(nodeType);
+  const formatRe = allowYearOnly ? DATE_FORMAT_WITH_YEAR_RE : DATE_FORMAT_RE;
+  const formatHint = allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY';
+
+  // Check format and validity of all date fields
   for (const [key, val] of Object.entries(values)) {
     if (!key.includes('date') || !val.trim()) continue;
-    if (!DATE_FORMAT_RE.test(val.trim())) {
-      return `Invalid date format for ${key.replace(/_/g, ' ')}. Use MM/YYYY or DD/MM/YYYY.`;
+    if (!formatRe.test(val.trim())) {
+      return `Invalid date format for ${key.replace(/_/g, ' ')}. Use ${formatHint}.`;
+    }
+    // Skip deep validation for year-only values
+    if (/^\d{4}$/.test(val.trim())) continue;
+    const dateError = isValidDate(val.trim());
+    if (dateError) {
+      return `Invalid ${key.replace(/_/g, ' ')}: ${dateError}.`;
     }
   }
 
@@ -127,48 +232,89 @@ const SIMPLE_FIELDS: Record<string, string[]> = {
   language: ['name', 'proficiency'],
 };
 
+// Required fields aligned with backend merge keys to ensure a valid add/update payload.
+const REQUIRED_FIELDS: Record<string, string[]> = {
+  skill: ['name'],
+  language: ['name'],
+  work_experience: ['company', 'title'],
+  education: ['institution', 'degree'],
+  certification: ['name', 'issuing_organization'],
+  publication: ['title'],
+  project: ['name'],
+  patent: ['title', 'patent_number'],
+  award: ['name'],
+  outreach: ['title', 'venue'],
+};
+
+// Additional fields that should be required whenever they exist in the active modal.
+const ALWAYS_REQUIRED_IF_PRESENT = ['field_of_study', 'location', 'start_date', 'end_date', 'issue_date', 'expiry_date', 'date', 'filing_date', 'grant_date'];
+
 function FieldInput({
   field,
   value,
   onChange,
   color,
+  required = false,
+  missing = false,
+  allowYearOnly = false,
 }: {
   field: string;
   value: string;
   onChange: (v: string) => void;
   color: string;
+  required?: boolean;
+  missing?: boolean;
+  allowYearOnly?: boolean;
 }) {
   const label = field.replace(/_/g, ' ');
   const isDate = field.includes('date');
   const isUrl = field.includes('url');
   const isTextarea = field === 'description' || field === 'abstract';
+  const dateRe = allowYearOnly ? DATE_FORMAT_WITH_YEAR_RE : DATE_FORMAT_RE;
   const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
-  const showDateHint = isDate && value.trim() !== '' && !/^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/.test(value.trim());
+  const showDateHint = isDate && value.trim() !== '' && (!dateRe.test(value.trim()) || (/^\d{4}$/.test(value.trim()) ? false : isValidDate(value.trim()) !== null));
 
-  const baseClass = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors';
+  const isFilled = required && !missing;
+  const borderClass = required
+    ? (missing ? 'border-red-500/85' : '')
+    : 'border-white/10';
+  const baseClass = `w-full bg-white/5 border rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors`;
 
   return (
     <div>
-      <label className="block text-[10px] font-medium text-white/35 uppercase tracking-wider mb-1">
-        {label}
+      <label className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider mb-1" style={{ color: isFilled ? color : undefined }}>
+        <span className={isFilled ? '' : 'text-white/35'}>{label}</span>
+        {required && <span style={isFilled ? { color } : undefined} className={isFilled ? '' : 'text-red-400 ml-0.5'}>*</span>}
+        {isDate && (
+          <svg className="w-3 h-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        )}
       </label>
       {isTextarea ? (
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={label}
-          className={baseClass}
-          style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
+          className={`${baseClass} ${borderClass}`}
+          style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
           rows={3}
         />
       ) : (
         <input
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={isDate ? 'MM/YYYY or DD/MM/YYYY' : label}
-          className={baseClass}
-          style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
+          onChange={(e) => {
+            if (isDate) {
+              onChange(maskDateInput(e.target.value, value, allowYearOnly));
+            } else {
+              onChange(e.target.value);
+            }
+          }}
+          maxLength={isDate ? 10 : undefined}
+          placeholder={isDate ? (allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY') : label}
+          className={`${baseClass} ${borderClass}`}
+          style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
         />
       )}
       {showUrlHint && (
@@ -178,7 +324,9 @@ function FieldInput({
       )}
       {showDateHint && (
         <p className="text-[10px] text-amber-400/60 mt-1">
-          Use format MM/YYYY or DD/MM/YYYY
+          {!dateRe.test(value.trim())
+            ? (allowYearOnly ? 'Use format YYYY, MM/YYYY, or DD/MM/YYYY' : 'Use format MM/YYYY or DD/MM/YYYY')
+            : isValidDate(value.trim()) || 'Invalid date'}
         </p>
       )}
     </div>
@@ -194,17 +342,28 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   useEffect(() => {
     onTypeChange?.(nodeType);
   }, [nodeType, onTypeChange]);
-  const [values, setValues] = useState<Record<string, string>>(
-    (initialValues as Record<string, string>) || {}
-  );
-  const [isCurrent, setIsCurrent] = useState(false);
-  const [expanded, setExpanded] = useState(() => {
-    // Auto-expand if any extra field has a pre-filled value
-    if (!initialValues) return false;
-    const layout = LAYOUT_CONFIG[initialType || 'skill'];
-    if (!layout) return false;
-    return layout.extra.some((f) => initialValues[f]);
+  const dateFields = (LAYOUT_CONFIG[nodeType]?.left || []).filter((f) => f.includes('date'));
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    if (!initialValues) return {};
+    return normalizeInitialDates(initialValues, dateFields);
   });
+  const [isCurrent, setIsCurrent] = useState(false);
+  const layoutForType = LAYOUT_CONFIG[nodeType];
+  const renderableFields = layoutForType
+    ? [...layoutForType.left, ...layoutForType.main, ...layoutForType.extra]
+    : (SIMPLE_FIELDS[nodeType] || []);
+  const requiredSet = new Set(REQUIRED_FIELDS[nodeType] || []);
+  for (const field of ALWAYS_REQUIRED_IF_PRESENT) {
+    if (renderableFields.includes(field)) requiredSet.add(field);
+  }
+  // "Current" means the toggle date field (e.g. end_date) is intentionally omitted.
+  if (isCurrent && layoutForType?.currentToggle) {
+    requiredSet.delete(layoutForType.currentToggle);
+  }
+  const requiredFields = Array.from(requiredSet);
+  const missingRequiredFields = requiredFields.filter((f) => !(values[f] || '').trim());
+  const isRequiredField = (field: string) => requiredFields.includes(field);
+  const isMissingRequiredField = (field: string) => missingRequiredFields.includes(field);
 
   const set = (field: string, v: string) => {
     setValues({ ...values, [field]: v });
@@ -213,14 +372,21 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (missingRequiredFields.length > 0) {
+      setDateError(`Required fields missing: ${missingRequiredFields.map((f) => f.replace(/_/g, ' ')).join(', ')}`);
+      return;
+    }
     const error = validateDates(nodeType, values, isCurrent);
     if (error) {
       setDateError(error);
       return;
     }
     setDateError(null);
+    // Only submit renderable fields — exclude metadata (_labels, uid, score, etc.)
     const filtered = Object.fromEntries(
-      Object.entries(values).filter(([, v]) => v !== '')
+      renderableFields
+        .map((f) => [f, values[f] || ''] as const)
+        .filter(([, v]) => v !== '')
     );
     if (isCurrent) {
       delete filtered.end_date;
@@ -232,7 +398,9 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const handleSaveDraftClick = () => {
     if (!onSaveDraft) return;
     const filtered = Object.fromEntries(
-      Object.entries(values).filter(([, v]) => v !== '')
+      renderableFields
+        .map((f) => [f, values[f] || ''] as const)
+        .filter(([, v]) => v !== '')
     );
     if (isCurrent) {
       delete filtered.end_date;
@@ -254,12 +422,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       const result = await onEnhance(text);
       if (result) {
         setNodeType(result.node_type);
-        setValues(result.properties);
-        // Auto-expand extra fields if they have values
-        const newLayout = LAYOUT_CONFIG[result.node_type];
-        if (newLayout && newLayout.extra.some((f) => result.properties[f])) {
-          setExpanded(true);
-        }
+        const enhanceDateFields = (LAYOUT_CONFIG[result.node_type]?.left || []).filter((f) => f.includes('date'));
+        setValues(normalizeInitialDates(result.properties, enhanceDateFields));
       }
     } finally {
       setEnhancing(false);
@@ -269,7 +433,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const hasAnyText = Object.values(values).some((v) => v && v.trim());
 
   const color = NODE_TYPE_COLORS[nodeType] || '#8b5cf6';
-  const layout = LAYOUT_CONFIG[nodeType];
+  const layout = layoutForType;
   const simple = SIMPLE_FIELDS[nodeType];
 
   const actionButtons = (
@@ -335,7 +499,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       )}
       <button
         type="submit"
-        className="flex-1 text-white font-medium py-2.5 px-4 rounded-lg transition-all hover:brightness-110 text-sm shadow-lg"
+        disabled={missingRequiredFields.length > 0}
+        className="flex-1 text-white font-medium py-2.5 px-4 rounded-lg transition-all hover:brightness-110 text-sm shadow-lg disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:brightness-100"
         style={{ backgroundColor: color, boxShadow: `0 4px 14px ${color}30` }}
       >
         {initialValues ? 'Update' : 'Add to Graph'}
@@ -379,7 +544,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
 
     return (
       <form onSubmit={handleSubmit}>
-        <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); setExpanded(false); }} />
+        <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); }} />
 
         <AnimatePresence mode="wait">
         <motion.div
@@ -401,6 +566,9 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                   value={values[field] || ''}
                   onChange={(v) => set(field, v)}
                   color={color}
+                  required={isRequiredField(field)}
+                  missing={isMissingRequiredField(field)}
+                  allowYearOnly={YEAR_ONLY_TYPES.has(nodeType)}
                 />
               );
             })}
@@ -426,41 +594,15 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                 value={values[field] || ''}
                 onChange={(v) => set(field, v)}
                 color={color}
+                required={isRequiredField(field)}
+                missing={isMissingRequiredField(field)}
               />
             ))}
           </div>
         </div>
 
-        {/* Toggle button for extra fields */}
+        {/* Extra fields */}
         {layout.extra.length > 0 && (
-          <div className="flex justify-end mt-3">
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="flex items-center gap-1 text-xs font-medium transition-colors"
-              style={{ color: `${color}aa` }}
-            >
-              {expanded ? (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                  </svg>
-                  Less details
-                </>
-              ) : (
-                <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  More details
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Extra fields (expanded) */}
-        {expanded && (
           <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
             {layout.extra.map((field) => (
               <FieldInput
@@ -469,6 +611,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                 value={values[field] || ''}
                 onChange={(v) => set(field, v)}
                 color={color}
+                required={isRequiredField(field)}
+                missing={isMissingRequiredField(field)}
               />
             ))}
           </div>
@@ -507,6 +651,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
             value={values[field] || ''}
             onChange={(v) => set(field, v)}
             color={color}
+            required={isRequiredField(field)}
+            missing={isMissingRequiredField(field)}
           />
         ))}
       </div>

@@ -73,7 +73,7 @@ Valid node_types and their expected properties:
     start_date (string), end_date (string or null), url (string or null)
 
 - patent:
-    title (string), patent_number (string or null), filing_date (string or null),
+    title (string), patent_number (string, REQUIRED), filing_date (string or null),
     grant_date (string or null), status (string or null), description (string or null),
     url (string or null)
 

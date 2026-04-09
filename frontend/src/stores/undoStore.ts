@@ -18,13 +18,15 @@ interface UndoState {
   clear: () => void;
 }
 
+const MAX_UNDO_STEPS = 100;
+
 export const useUndoStore = create<UndoState>((set, get) => ({
   undoStack: [],
   redoStack: [],
 
   pushUndo: (entry: UndoEntry) => {
     set((state) => ({
-      undoStack: [...state.undoStack, entry],
+      undoStack: [...state.undoStack, entry].slice(-MAX_UNDO_STEPS),
       redoStack: [],
     }));
   },
