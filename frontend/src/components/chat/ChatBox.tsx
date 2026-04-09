@@ -23,6 +23,7 @@ interface ChatBoxProps {
   placeholder?: string;
   searchFn?: (query: string) => Promise<OrbNode[]>;
   interactionHint?: string;
+  onRecenter?: () => void;
 }
 
 export type { ChatMessage };
@@ -88,6 +89,7 @@ export default function ChatBox({
   placeholder = 'Query your orbis...',
   searchFn = textSearch,
   interactionHint = 'Zoom: mouse wheel · Pan: right-drag · Rotate: left-drag',
+  onRecenter,
 }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -399,8 +401,20 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* Bottom bar — chat input + action buttons */}
+      {/* Bottom bar — recenter + chat input + action buttons */}
       <div className="flex items-center gap-2">
+        {onRecenter && (
+          <button
+            type="button"
+            onClick={onRecenter}
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
+            title="Recenter graph"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+          </button>
+        )}
         {/* Chat input */}
         <form onSubmit={handleSubmit} className="flex-1">
           <div

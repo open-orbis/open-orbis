@@ -21,6 +21,7 @@ interface OrbGraph3DProps {
   cameraDistance?: number;
   focusNodeId?: string | null;
   focusNodeToken?: number;
+  onCameraDistanceChange?: (distance: number) => void;
 }
 
 function getNodeName(node: any): string {
@@ -63,6 +64,7 @@ export default function OrbGraph3D({
   cameraDistance = 400,
   focusNodeId = null,
   focusNodeToken = 0,
+  onCameraDistanceChange,
 }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
@@ -125,6 +127,24 @@ export default function OrbGraph3D({
       el.removeEventListener('mousedown', blockRightMouse, { capture: true } as EventListenerOptions);
     };
   }, [enableZoom, enablePan, data]);
+
+  // Track camera distance changes (debounced) for zoom persistence
+  useEffect(() => {
+    if (!onCameraDistanceChange) return;
+    let lastReported = cameraDistance;
+    const interval = setInterval(() => {
+      const fg = fgRef.current;
+      if (!fg) return;
+      const pos = fg.cameraPosition();
+      if (!pos) return;
+      const dist = Math.round(Math.sqrt(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z));
+      if (Math.abs(dist - lastReported) > 10) {
+        lastReported = dist;
+        onCameraDistanceChange(dist);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [onCameraDistanceChange, cameraDistance]);
 
   const graphData = useMemo(() => {
     const personId = (data.person.user_id || data.person.orb_id) as string;

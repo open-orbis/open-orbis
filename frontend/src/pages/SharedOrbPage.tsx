@@ -236,6 +236,7 @@ export default function SharedOrbPage() {
         placeholder={`Query ${personName}'s orbis...`}
         searchFn={searchFn}
         onFocusNode={handleFocusNode}
+        onRecenter={() => handleFocusNode(personNodeId)}
       />
     </div>
   );
