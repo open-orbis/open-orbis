@@ -131,6 +131,27 @@ Encrypted document files are stored on disk at `backend/data/cv_files/{user_id}_
 
 **Migration:** On first connection, if the old `cv_uploads` table exists (single row per user), rows are migrated to `cv_documents` with generated UUIDs and NULL entities/edges counts.
 
+## SQLite — Orb Snapshots
+
+Orb version snapshots are stored in the same SQLite database (`backend/data/cv_uploads.db`).
+
+### `orb_snapshots` Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `snapshot_id` | TEXT | UUID |
+| `user_id` | TEXT | Links to Person node |
+| `created_at` | TEXT | ISO timestamp |
+| `trigger` | TEXT | What caused it: "cv_import", "manual", "pre_restore" |
+| `label` | TEXT | Nullable — user-facing label, e.g. "Before CV import" |
+| `node_count` | INTEGER | Total nodes at time of snapshot |
+| `edge_count` | INTEGER | Total edges at time of snapshot |
+| `data` | TEXT | JSON-serialized graph (person + nodes + links) |
+
+Primary key: `(user_id, snapshot_id)`. Maximum 3 snapshots per user — oldest evicted when a 4th is created. PII fields are stored encrypted as-is (no decrypt/re-encrypt on restore).
+
+Auto-created before destructive CV imports. Manually creatable from Settings > Versions tab.
+
 ## Constraints and Indexes
 
 Defined in `infra/neo4j/init.cypher`:
