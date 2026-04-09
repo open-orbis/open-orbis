@@ -78,13 +78,19 @@ def test_evict_oldest():
     cv_storage.save_document(_USER, "doc-old", _PDF, "old.pdf", 1, 5, 2)
     # Insert with explicit timestamps via db layer for ordering
     cv_db.delete_document(_USER, "doc-old")
-    cv_db.insert_document("doc-old", _USER, "old.pdf", len(_PDF), 1, 5, 2, "2026-01-01T00:00:00")
+    cv_db.insert_document(
+        "doc-old", _USER, "old.pdf", len(_PDF), 1, 5, 2, "2026-01-01T00:00:00"
+    )
     cv_storage.save_document(_USER, "doc-mid", b"mid", "mid.pdf", 1, 7, 3)
     cv_db.delete_document(_USER, "doc-mid")
-    cv_db.insert_document("doc-mid", _USER, "mid.pdf", 3, 1, 7, 3, "2026-03-01T00:00:00")
+    cv_db.insert_document(
+        "doc-mid", _USER, "mid.pdf", 3, 1, 7, 3, "2026-03-01T00:00:00"
+    )
     cv_storage.save_document(_USER, "doc-new", b"new", "new.pdf", 2, 10, 4)
     cv_db.delete_document(_USER, "doc-new")
-    cv_db.insert_document("doc-new", _USER, "new.pdf", 3, 2, 10, 4, "2026-06-01T00:00:00")
+    cv_db.insert_document(
+        "doc-new", _USER, "new.pdf", 3, 2, 10, 4, "2026-06-01T00:00:00"
+    )
 
     evicted = cv_storage.evict_oldest_if_at_limit(_USER)
     assert evicted is not None
@@ -125,11 +131,14 @@ def test_file_migration_on_save(monkeypatch, tmp_path):
     cv_dir.mkdir()
     # Simulate old file
     from app.graph.encryption import _get_fernet
+
     old_path = cv_dir / f"{_USER}.pdf.enc"
     old_path.write_bytes(_get_fernet().encrypt(_PDF))
 
     # Insert a legacy document record (simulating migration from db layer)
-    cv_db.insert_document("doc-legacy", _USER, "old.pdf", len(_PDF), 2, None, None, "2025-12-01T00:00:00")
+    cv_db.insert_document(
+        "doc-legacy", _USER, "old.pdf", len(_PDF), 2, None, None, "2025-12-01T00:00:00"
+    )
 
     # migrate_legacy_file should rename the old file
     cv_storage.migrate_legacy_file(_USER, "doc-legacy")

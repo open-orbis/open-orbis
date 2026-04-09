@@ -46,9 +46,15 @@ def test_insert_and_list():
 
 
 def test_list_ordered_by_date_desc():
-    cv_db.insert_document("doc-old", "user-1", "old.pdf", 100, 1, 5, 2, "2026-01-01T00:00:00")
-    cv_db.insert_document("doc-new", "user-1", "new.pdf", 200, 2, 10, 4, "2026-06-01T00:00:00")
-    cv_db.insert_document("doc-mid", "user-1", "mid.pdf", 150, 1, 7, 3, "2026-03-01T00:00:00")
+    cv_db.insert_document(
+        "doc-old", "user-1", "old.pdf", 100, 1, 5, 2, "2026-01-01T00:00:00"
+    )
+    cv_db.insert_document(
+        "doc-new", "user-1", "new.pdf", 200, 2, 10, 4, "2026-06-01T00:00:00"
+    )
+    cv_db.insert_document(
+        "doc-mid", "user-1", "mid.pdf", 150, 1, 7, 3, "2026-03-01T00:00:00"
+    )
     docs = cv_db.list_documents("user-1")
     assert [d["document_id"] for d in docs] == ["doc-new", "doc-mid", "doc-old"]
 
@@ -69,8 +75,12 @@ def test_count_scoped_to_user():
 
 
 def test_get_oldest_document():
-    cv_db.insert_document("doc-new", "user-1", "new.pdf", 200, 2, 10, 4, "2026-06-01T00:00:00")
-    cv_db.insert_document("doc-old", "user-1", "old.pdf", 100, 1, 5, 2, "2026-01-01T00:00:00")
+    cv_db.insert_document(
+        "doc-new", "user-1", "new.pdf", 200, 2, 10, 4, "2026-06-01T00:00:00"
+    )
+    cv_db.insert_document(
+        "doc-old", "user-1", "old.pdf", 100, 1, 5, 2, "2026-01-01T00:00:00"
+    )
     oldest = cv_db.get_oldest_document("user-1")
     assert oldest is not None
     assert oldest["document_id"] == "doc-old"

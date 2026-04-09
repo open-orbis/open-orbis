@@ -102,8 +102,16 @@ def insert_document(
              uploaded_at, page_count, entities_count, edges_count)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (document_id, user_id, filename, size, now, page_count,
-         entities_count, edges_count),
+        (
+            document_id,
+            user_id,
+            filename,
+            size,
+            now,
+            page_count,
+            entities_count,
+            edges_count,
+        ),
     )
     conn.commit()
     return {
