@@ -375,7 +375,11 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   const handleBulkEnhance = async () => {
     if (!onEnhance || selectedIds.size === 0 || bulkEnhancing) return;
     setEnhanceError(null);
-    const selectedNotes = notes.filter((n) => selectedIds.has(n.id));
+    const selectedNotes = notes.filter((n) => selectedIds.has(n.id) && !n.enhanced);
+    if (selectedNotes.length === 0) {
+      setEnhanceError('Select at least one non-enhanced note to bulk enhance.');
+      return;
+    }
     setBulkEnhancing(true);
     try {
       for (const note of selectedNotes) {
@@ -408,6 +412,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   };
 
   const selectedCount = selectedIds.size;
+  const selectedEnhanceableCount = notes.filter((n) => selectedIds.has(n.id) && !n.enhanced).length;
   const filteredCount = filteredNotes.length;
   const allFilteredSelected = filteredNotes.length > 0 && filteredNotes.every((n) => selectedIds.has(n.id));
 
@@ -621,10 +626,10 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                       <button
                         type="button"
                         onClick={handleBulkEnhance}
-                        disabled={selectedCount === 0 || bulkEnhancing}
+                        disabled={selectedEnhanceableCount === 0 || bulkEnhancing}
                         className="text-[10px] font-medium px-2 py-1 rounded-md text-amber-300 bg-amber-500/10 border border-amber-500/25 disabled:opacity-30"
                       >
-                        {bulkEnhancing ? 'Enhancing...' : 'Enhance'}
+                        {bulkEnhancing ? 'Enhancing...' : `Enhance (${selectedEnhanceableCount})`}
                       </button>
                     )}
                     <button
