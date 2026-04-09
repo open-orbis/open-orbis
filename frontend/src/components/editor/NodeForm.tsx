@@ -127,16 +127,34 @@ const SIMPLE_FIELDS: Record<string, string[]> = {
   language: ['name', 'proficiency'],
 };
 
+// Required fields aligned with backend merge keys to ensure a valid add/update payload.
+const REQUIRED_FIELDS: Record<string, string[]> = {
+  skill: ['name'],
+  language: ['name'],
+  work_experience: ['company', 'title'],
+  education: ['institution', 'degree'],
+  certification: ['name', 'issuing_organization'],
+  publication: ['title'],
+  project: ['name'],
+  patent: ['title'],
+  award: ['name'],
+  outreach: ['title', 'venue'],
+};
+
 function FieldInput({
   field,
   value,
   onChange,
   color,
+  required = false,
+  missing = false,
 }: {
   field: string;
   value: string;
   onChange: (v: string) => void;
   color: string;
+  required?: boolean;
+  missing?: boolean;
 }) {
   const label = field.replace(/_/g, ' ');
   const isDate = field.includes('date');
@@ -145,12 +163,15 @@ function FieldInput({
   const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
   const showDateHint = isDate && value.trim() !== '' && !/^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/.test(value.trim());
 
-  const baseClass = 'w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors';
+  const borderClass = required
+    ? (missing ? 'border-red-500/85' : 'border-red-500/45')
+    : 'border-white/10';
+  const baseClass = `w-full bg-white/5 border ${borderClass} rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors`;
 
   return (
     <div>
       <label className="block text-[10px] font-medium text-white/35 uppercase tracking-wider mb-1">
-        {label}
+        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {isTextarea ? (
         <textarea
@@ -198,6 +219,10 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
     (initialValues as Record<string, string>) || {}
   );
   const [isCurrent, setIsCurrent] = useState(false);
+  const requiredFields = REQUIRED_FIELDS[nodeType] || [];
+  const missingRequiredFields = requiredFields.filter((f) => !(values[f] || '').trim());
+  const isRequiredField = (field: string) => requiredFields.includes(field);
+  const isMissingRequiredField = (field: string) => missingRequiredFields.includes(field);
 
   const set = (field: string, v: string) => {
     setValues({ ...values, [field]: v });
@@ -206,6 +231,10 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (missingRequiredFields.length > 0) {
+      setDateError(`Required fields missing: ${missingRequiredFields.map((f) => f.replace(/_/g, ' ')).join(', ')}`);
+      return;
+    }
     const error = validateDates(nodeType, values, isCurrent);
     if (error) {
       setDateError(error);
@@ -323,7 +352,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       )}
       <button
         type="submit"
-        className="flex-1 text-white font-medium py-2.5 px-4 rounded-lg transition-all hover:brightness-110 text-sm shadow-lg"
+        disabled={missingRequiredFields.length > 0}
+        className="flex-1 text-white font-medium py-2.5 px-4 rounded-lg transition-all hover:brightness-110 text-sm shadow-lg disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:brightness-100"
         style={{ backgroundColor: color, boxShadow: `0 4px 14px ${color}30` }}
       >
         {initialValues ? 'Update' : 'Add to Graph'}
@@ -389,6 +419,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                   value={values[field] || ''}
                   onChange={(v) => set(field, v)}
                   color={color}
+                  required={isRequiredField(field)}
+                  missing={isMissingRequiredField(field)}
                 />
               );
             })}
@@ -414,6 +446,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                 value={values[field] || ''}
                 onChange={(v) => set(field, v)}
                 color={color}
+                required={isRequiredField(field)}
+                missing={isMissingRequiredField(field)}
               />
             ))}
           </div>
@@ -429,6 +463,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                 value={values[field] || ''}
                 onChange={(v) => set(field, v)}
                 color={color}
+                required={isRequiredField(field)}
+                missing={isMissingRequiredField(field)}
               />
             ))}
           </div>
@@ -467,6 +503,8 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
             value={values[field] || ''}
             onChange={(v) => set(field, v)}
             color={color}
+            required={isRequiredField(field)}
+            missing={isMissingRequiredField(field)}
           />
         ))}
       </div>
