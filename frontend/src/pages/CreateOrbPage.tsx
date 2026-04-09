@@ -20,44 +20,6 @@ const SUGGESTED_ORDER = [
   { type: 'publication', prompt: 'Any publications?' },
 ];
 
-// ── Path selector card ──
-
-function PathCard({ title, description, icon, onClick, color, recommended }: {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-  color: string;
-  recommended?: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-center">
-      <motion.button
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={onClick}
-        className={`bg-white/[0.03] rounded-2xl p-4 sm:p-6 text-left hover:bg-white/[0.06] transition-all group w-full ${
-          recommended
-            ? 'border-2 border-amber-500/50 hover:border-amber-400/70'
-            : 'border border-white/[0.08] hover:border-white/15'
-        }`}
-      >
-        <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
-          style={{ backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
-        >
-          {icon}
-        </div>
-        <h3 className="text-white text-base font-semibold mb-1.5">{title}</h3>
-        <p className="text-white/35 text-sm leading-relaxed">{description}</p>
-      </motion.button>
-      {recommended && (
-        <span className="mt-2 text-xs font-medium text-amber-400/80 uppercase tracking-widest">recommended</span>
-      )}
-    </div>
-  );
-}
-
 export default function CreateOrbPage() {
   const navigate = useNavigate();
   const { data, loading, fetchOrb, addNode } = useOrbStore();
@@ -121,14 +83,14 @@ export default function CreateOrbPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-10"
+          className="text-center mb-8 w-full max-w-2xl"
         >
           <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
             How do you want to build your{' '}
             <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">orbis</span>?
           </h1>
           <p className="text-white/35 text-base max-w-md mx-auto">
-            Choose how you'd like to add your professional information. You can always add more later.
+            Choose your starting path. You can always add or edit entries later.
           </p>
         </motion.div>
 
@@ -136,31 +98,29 @@ export default function CreateOrbPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl"
+          className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5"
         >
-          <PathCard
-            title="Build from your CV"
-            description="Upload a PDF file. We'll parse it and extract your experiences, skills, and education."
-            color="#3b82f6"
-            recommended
+          <div className="space-y-3 mb-4">
+            <h2 className="text-white font-semibold text-base">What will happen next</h2>
+            <ul className="space-y-1.5 text-sm text-white/45">
+              <li>1. Upload your CV and review extracted entries.</li>
+              <li>2. Edit or remove anything before adding to your orbis.</li>
+              <li>3. Publish to see your graph and keep enriching it.</li>
+            </ul>
+          </div>
+
+          <button
             onClick={() => setSelectedPath('upload')}
-            icon={
-              <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-            }
-          />
-          <PathCard
-            title="Build from scratch"
-            description="Start with an empty orbis and add entries one by one. Full control over every detail."
-            color="#10b981"
+            className="w-full rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold py-3 px-4 transition-colors"
+          >
+            Build from your CV
+          </button>
+          <button
             onClick={() => navigate('/myorbis', { state: { allowEmpty: true } })}
-            icon={
-              <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            }
-          />
+            className="w-full mt-2 rounded-xl border border-white/15 hover:border-white/30 text-white/70 hover:text-white py-3 px-4 transition-colors"
+          >
+            Build from scratch
+          </button>
         </motion.div>
         </div>
       </ConsentGate>
