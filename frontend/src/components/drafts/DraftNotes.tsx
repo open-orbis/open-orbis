@@ -340,22 +340,8 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
     });
   };
 
-  const selectAllFiltered = () => {
-    setSelectedIds((prev) => {
-      const allSelected = filteredNotes.length > 0 && filteredNotes.every((n) => prev.has(n.id));
-      return allSelected ? new Set() : new Set(filteredNotes.map((n) => n.id));
-    });
-  };
-
   const handleBulkDelete = () => {
     deleteByIds(new Set(selectedIds));
-  };
-
-  const handleBulkAddToGraph = () => {
-    if (selectedIds.size !== 1) return;
-    const note = notes.find((n) => selectedIds.has(n.id));
-    if (!note) return;
-    onAddToGraph(note);
   };
 
   const handleUndoDelete = () => {
@@ -377,7 +363,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
 
   const selectedCount = selectedIds.size;
   const filteredCount = filteredNotes.length;
-  const allFilteredSelected = filteredNotes.length > 0 && filteredNotes.every((n) => selectedIds.has(n.id));
 
   return (
     <AnimatePresence>
@@ -552,36 +537,17 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                     </button>
                   )}
                 </div>
-              </div>
-              <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 space-y-2">
-                <div className="flex items-center justify-between text-[10px] text-white/40">
-                  <span>{selectedCount} selected</span>
-                  <button
-                    type="button"
-                    onClick={selectAllFiltered}
-                    className="text-white/60 hover:text-white/85"
-                  >
-                    {allFilteredSelected ? 'Clear shown' : 'Select shown'}
-                  </button>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleBulkAddToGraph}
-                    disabled={selectedCount !== 1}
-                    className="text-[10px] font-medium px-2 py-1 rounded-md text-purple-300 bg-purple-500/10 border border-purple-500/25 disabled:opacity-30"
-                  >
-                    Add to graph
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBulkDelete}
-                    disabled={selectedCount === 0}
-                    className="text-[10px] font-medium px-2 py-1 rounded-md text-red-300 bg-red-500/10 border border-red-500/25 disabled:opacity-30"
-                  >
-                    Delete
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={selectedCount === 0}
+                  className="h-7 w-7 flex items-center justify-center rounded-md border border-red-500/25 bg-red-500/10 text-red-300 disabled:opacity-30"
+                  title={selectedCount > 0 ? `Delete ${selectedCount} selected notes` : 'Select notes to delete'}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
               {enhanceError && (
                 <div className="flex items-start justify-between gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-2">
