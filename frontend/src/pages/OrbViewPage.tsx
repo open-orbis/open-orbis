@@ -21,6 +21,7 @@ import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
 import { useToastStore } from '../stores/toastStore';
+import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport } from '../api/cv';
 import type { DocumentMetadata } from '../api/cv';
 
@@ -490,12 +491,29 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
 const MY_ORBIS_CAMERA_DISTANCE = 200;
 
+const LABEL_TO_TYPE: Record<string, string> = {
+  Education: 'education',
+  WorkExperience: 'work_experience',
+  Certification: 'certification',
+  Language: 'language',
+  Publication: 'publication',
+  Project: 'project',
+  Skill: 'skill',
+  Patent: 'patent',
+  Award: 'award',
+  Outreach: 'outreach',
+};
+
 // ── Page ──
 
 export default function OrbViewPage() {
   const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
+  const undoStack = useUndoStore((s) => s.undoStack);
+  const redoStack = useUndoStore((s) => s.redoStack);
+  const undo = useUndoStore((s) => s.undo);
+  const redo = useUndoStore((s) => s.redo);
   const isPendingDeletion = user?.deletion_days_remaining != null;
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -813,6 +831,24 @@ export default function OrbViewPage() {
     handleFocusNode(personNodeId);
   }, [personNodeId, handleFocusNode]);
 
+  const handleUndo = useCallback(async () => {
+    try {
+      await undo();
+      await fetchOrb();
+    } catch {
+      addToast('Failed to undo', 'error');
+    }
+  }, [undo, fetchOrb, addToast]);
+
+  const handleRedo = useCallback(async () => {
+    try {
+      await redo();
+      await fetchOrb();
+    } catch {
+      addToast('Failed to redo', 'error');
+    }
+  }, [redo, fetchOrb, addToast]);
+
   const doImport = useCallback(async (file: File) => {
     setImporting(true);
     setImportStatus('Reading PDF');
@@ -912,6 +948,37 @@ export default function OrbViewPage() {
 
               {!isPendingDeletion && (
                 <div className="hidden sm:flex items-center gap-1.5 ml-2">
+                  {/* Undo / Redo */}
+                  <div className="flex items-center">
+                    <button
+                      onClick={handleUndo}
+                      disabled={undoStack.length === 0}
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                        undoStack.length === 0
+                          ? 'text-white/15 cursor-default'
+                          : 'text-white/40 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Undo"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleRedo}
+                      disabled={redoStack.length === 0}
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                        redoStack.length === 0
+                          ? 'text-white/15 cursor-default'
+                          : 'text-white/40 hover:text-white hover:bg-white/10'
+                      }`}
+                      title="Redo"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+                      </svg>
+                    </button>
+                  </div>
                   <NodeTypeFilter
                     hiddenTypes={hiddenNodeTypes}
                     onShowAll={handleShowAllNodeTypes}
@@ -983,6 +1050,37 @@ export default function OrbViewPage() {
 
                   {showToolsMenu && (
                     <div className="absolute right-0 top-full mt-2 w-64 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-3 space-y-2">
+                      {/* Undo / Redo (mobile) */}
+                      <div className="flex items-center gap-1 mb-2">
+                        <button
+                          onClick={handleUndo}
+                          disabled={undoStack.length === 0}
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                            undoStack.length === 0
+                              ? 'border-white/5 text-white/20 cursor-default'
+                              : 'border-white/10 text-white/70 hover:text-white hover:bg-white/10 cursor-pointer'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+                          </svg>
+                          Undo
+                        </button>
+                        <button
+                          onClick={handleRedo}
+                          disabled={redoStack.length === 0}
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                            redoStack.length === 0
+                              ? 'border-white/5 text-white/20 cursor-default'
+                              : 'border-white/10 text-white/70 hover:text-white hover:bg-white/10 cursor-pointer'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+                          </svg>
+                          Redo
+                        </button>
+                      </div>
                       <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
                       <div className="flex items-center justify-between px-1">
                         <span className="text-xs text-white/65">Node types</span>
@@ -1137,7 +1235,18 @@ export default function OrbViewPage() {
         onSubmit={handleSubmit}
         onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); setPendingDraftRawText(''); }}
         onDelete={async (uid) => {
-          await deleteNode(uid);
+          const nodeToDelete = data?.nodes.find(n => n.uid === uid);
+          const nodeTypeKey = nodeToDelete?._labels?.[0] ? LABEL_TO_TYPE[nodeToDelete._labels[0]] || '' : '';
+          const nodeProps: Record<string, unknown> = {};
+          if (nodeToDelete) {
+            for (const [k, v] of Object.entries(nodeToDelete)) {
+              if (!['uid', '_labels', 'score', 'embedding'].includes(k)) nodeProps[k] = v;
+            }
+          }
+          const nodeRelationships = data?.links
+            .filter(l => l.type === 'USED_SKILL' && (l.source === uid || l.target === uid))
+            .map(l => ({ source: l.source, target: l.target, type: l.type }));
+          await deleteNode(uid, nodeTypeKey, nodeProps, nodeRelationships);
           setShowInput(false);
           setEditNode(null);
         }}
