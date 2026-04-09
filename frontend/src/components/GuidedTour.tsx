@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Joyride, STATUS, ACTIONS, EVENTS } from 'react-joyride';
+import { Joyride } from 'react-joyride';
 import type { CallBackProps, Step } from 'react-joyride';
 
 const TOUR_COMPLETED_KEY = 'orbis_tour_completed';
@@ -87,16 +87,13 @@ export default function GuidedTour({ run: runOverride, onFinish }: GuidedTourPro
   }, [runOverride]);
 
   const handleCallback = useCallback((data: CallBackProps) => {
-    const { status, action, type } = data;
+    const { status, action } = data;
 
-    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      markTourCompleted();
-      setRun(false);
-      onFinish?.();
-    }
+    // Use string values directly — the named exports may be undefined in ESM
+    const isFinished = status === 'finished' || status === 'skipped';
+    const isClosed = action === 'close';
 
-    // Close on overlay click
-    if (type === EVENTS.STEP_AFTER && action === ACTIONS.CLOSE) {
+    if (isFinished || isClosed) {
       markTourCompleted();
       setRun(false);
       onFinish?.();
