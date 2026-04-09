@@ -90,7 +90,9 @@ export default function CreateOrbPage() {
             <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">orbis</span>?
           </h1>
           <p className="text-white/35 text-base max-w-md mx-auto">
-            Choose your starting path. You can always add or edit entries later.
+            Choose your starting path.
+            <br />
+            You can always add or edit entries later.
           </p>
         </motion.div>
 
@@ -105,7 +107,7 @@ export default function CreateOrbPage() {
             <ul className="space-y-1.5 text-sm text-white/45">
               <li>1. Upload your CV and review extracted entries.</li>
               <li>2. Edit or remove anything before adding to your orbis.</li>
-              <li>3. Publish to see your graph and keep enriching it.</li>
+              <li>3. Finalize it to see your orbis and keep enriching it.</li>
             </ul>
           </div>
 
