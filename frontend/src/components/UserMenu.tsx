@@ -325,6 +325,11 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
     setDeleting(true);
     try {
       await deleteAccount();
+      // Clear local draft notes for this user
+      try {
+        const { clearDraftNotes } = await import('../components/drafts/DraftNotes');
+        if (user?.user_id) clearDraftNotes(user.user_id);
+      } catch { /* best effort */ }
       logout();
       addToast('Account scheduled for deletion. You have 30 days to recover it.', 'info');
       navigate('/', { replace: true });
