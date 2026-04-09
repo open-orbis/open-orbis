@@ -132,6 +132,19 @@ async def create_snapshot(
 
     data = serialize_orb_raw(record)
     node_count, edge_count = count_from_serialized(data)
+
+    # Skip snapshot if orb is empty (nothing to preserve)
+    if node_count == 0:
+        return {
+            "snapshot_id": None,
+            "user_id": user_id,
+            "trigger": trigger,
+            "label": label,
+            "node_count": 0,
+            "edge_count": 0,
+            "skipped": True,
+        }
+
     snapshot_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 

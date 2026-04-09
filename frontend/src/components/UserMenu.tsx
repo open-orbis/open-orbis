@@ -426,7 +426,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col min-h-0 bg-black/10">
+          <div className="flex-1 p-4 sm:p-6 overflow-y-auto flex flex-col min-h-0 bg-black/10">
             <AnimatePresence mode="wait">
               {/* ── Orbis ID tab ── */}
               {activeTab === 'orb-id' && (
@@ -566,7 +566,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -8 }}
                   transition={{ duration: 0.15, ease: 'easeInOut' }}
-                  className="space-y-3"
+                  className="space-y-3 overflow-y-auto"
                 >
                   <label className="text-xs text-white/45 uppercase tracking-[0.12em] font-medium">Account</label>
                   <p className="text-[11px] text-white/45 mt-0.5">Manage your account and data.</p>
