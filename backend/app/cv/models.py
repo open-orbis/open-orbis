@@ -41,6 +41,7 @@ class ExtractedData(BaseModel):
     truncated: bool = False
     cv_owner_name: str | None = None
     profile: ExtractedProfile | None = None
+    document_id: str | None = None
 
 
 class ConfirmRequest(BaseModel):
@@ -48,3 +49,7 @@ class ConfirmRequest(BaseModel):
     relationships: list[ExtractedRelationship] = []
     cv_owner_name: str | None = None
     profile: ExtractedProfile | None = None
+    document_id: str | None = None
+    original_filename: str | None = None
+    file_size_bytes: int | None = None
+    page_count: int | None = None
