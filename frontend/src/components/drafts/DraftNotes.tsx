@@ -52,6 +52,8 @@ function userDraftsKey(userId: string) {
   return `orbis_drafts_${userId}`;
 }
 
+const MAX_DRAFT_NOTES = 50;
+
 /** Load drafts from API, falling back to localStorage. Also migrates localStorage → API. */
 export async function loadDraftNotesAsync(userId: string): Promise<DraftNote[]> {
   try {
@@ -63,21 +65,17 @@ export async function loadDraftNotesAsync(userId: string): Promise<DraftNote[]> 
       createdAt: new Date(d.created_at).getTime(),
     }));
 
-    // Migrate any localStorage drafts to the API
-    const localNotes = _loadFromLocalStorage(userId);
-    if (localNotes.length > 0) {
-      const serverIds = new Set(notes.map((n) => n.id));
-      for (const note of localNotes) {
-        if (!serverIds.has(note.id)) {
-          try {
-            const created = await createDraft(note.text);
-            notes.push({ id: created.uid, text: created.text, createdAt: new Date(created.created_at).getTime() });
-          } catch { /* ignore migration errors */ }
-        }
+    // Clear localStorage unconditionally (API is the source of truth)
+    localStorage.removeItem(userDraftsKey(userId));
+    for (const key of LEGACY_KEYS) localStorage.removeItem(key);
+
+    // Trim excess drafts: keep only the most recent MAX_DRAFT_NOTES
+    if (notes.length > MAX_DRAFT_NOTES) {
+      notes.sort((a, b) => b.createdAt - a.createdAt);
+      const toDelete = notes.splice(MAX_DRAFT_NOTES);
+      for (const old of toDelete) {
+        try { await apiDeleteDraft(old.id); } catch { /* ignore */ }
       }
-      // Clear localStorage after migration
-      localStorage.removeItem(userDraftsKey(userId));
-      for (const key of LEGACY_KEYS) localStorage.removeItem(key);
     }
 
     return notes;
