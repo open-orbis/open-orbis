@@ -194,7 +194,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [targetLang, setTargetLang] = useState(loadTargetLang);
   const [enhancingNoteId, setEnhancingNoteId] = useState<string | null>(null);
-  const [bulkEnhancing, setBulkEnhancing] = useState(false);
   const [enhanceError, setEnhanceError] = useState<string | null>(null);
   const [undoSnapshot, setUndoSnapshot] = useState<DraftNote[] | null>(null);
   const [undoDeletedCount, setUndoDeletedCount] = useState(0);
@@ -224,7 +223,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   };
 
   const handleEnhance = async (note: DraftNote) => {
-    if (!onEnhance || enhancingNoteId || bulkEnhancing) return;
+    if (!onEnhance || enhancingNoteId) return;
     setEnhanceError(null);
     setEnhancingNoteId(note.id);
     try {
@@ -359,28 +358,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
     onAddToGraph(note);
   };
 
-  const handleBulkEnhance = async () => {
-    if (!onEnhance || selectedIds.size === 0 || bulkEnhancing) return;
-    setEnhanceError(null);
-    const selectedNotes = notes.filter((n) => selectedIds.has(n.id) && !n.enhanced);
-    if (selectedNotes.length === 0) {
-      setEnhanceError('Select at least one non-enhanced note to bulk enhance.');
-      return;
-    }
-    setBulkEnhancing(true);
-    try {
-      for (const note of selectedNotes) {
-        setEnhancingNoteId(note.id);
-        await onEnhance(note, targetLang);
-      }
-    } catch {
-      setEnhanceError('Bulk enhancement failed for at least one note.');
-    } finally {
-      setEnhancingNoteId(null);
-      setBulkEnhancing(false);
-    }
-  };
-
   const handleUndoDelete = () => {
     if (!undoSnapshot) return;
     onNotesChange(undoSnapshot);
@@ -399,7 +376,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   };
 
   const selectedCount = selectedIds.size;
-  const selectedEnhanceableCount = notes.filter((n) => selectedIds.has(n.id) && !n.enhanced).length;
   const filteredCount = filteredNotes.length;
   const allFilteredSelected = filteredNotes.length > 0 && filteredNotes.every((n) => selectedIds.has(n.id));
 
@@ -597,16 +573,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                   >
                     Add to graph
                   </button>
-                  {onEnhance && (
-                    <button
-                      type="button"
-                      onClick={handleBulkEnhance}
-                      disabled={selectedEnhanceableCount === 0 || bulkEnhancing}
-                      className="text-[10px] font-medium px-2 py-1 rounded-md text-amber-300 bg-amber-500/10 border border-amber-500/25 disabled:opacity-30"
-                    >
-                      {bulkEnhancing ? 'Enhancing...' : `Enhance (${selectedEnhanceableCount})`}
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={handleBulkDelete}
@@ -781,11 +747,11 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                                 {onEnhance && (
                                   <button
                                     onClick={() => handleEnhance(note)}
-                                    disabled={enhancingNoteId !== null || bulkEnhancing}
+                                    disabled={enhancingNoteId !== null}
                                     className={`text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
                                       enhancingNoteId === note.id
                                         ? 'text-amber-400/80 bg-amber-500/10'
-                                        : enhancingNoteId || bulkEnhancing
+                                        : enhancingNoteId
                                           ? 'text-white/15 cursor-not-allowed'
                                           : 'text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/10'
                                     }`}
