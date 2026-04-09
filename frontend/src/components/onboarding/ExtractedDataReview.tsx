@@ -18,8 +18,20 @@ interface ExtractedDataReviewProps {
   truncated: boolean;
   onReset: () => void;
   resetLabel?: string;
+  documentId?: string | null;
+  originalFilename?: string | null;
+  fileSizeBytes?: number | null;
+  pageCount?: number | null;
   /** Override the confirm function (default: confirmCV which wipes existing data) */
-  onConfirm?: (nodes: ExtractedData['nodes'], relationships: ExtractedRelationship[], cvOwnerName: string | null) => Promise<void>;
+  onConfirm?: (
+    nodes: ExtractedData['nodes'],
+    relationships: ExtractedRelationship[],
+    cvOwnerName: string | null,
+    documentId?: string | null,
+    originalFilename?: string | null,
+    fileSizeBytes?: number | null,
+    pageCount?: number | null,
+  ) => Promise<void>;
   /** Extra content rendered below the header (e.g., checkbox) */
   children?: React.ReactNode;
 }
@@ -33,6 +45,10 @@ export default function ExtractedDataReview({
   truncated,
   onReset,
   resetLabel = 'Try another file',
+  documentId,
+  originalFilename,
+  fileSizeBytes,
+  pageCount,
   onConfirm: onConfirmOverride,
   children,
 }: ExtractedDataReviewProps) {
@@ -86,8 +102,11 @@ export default function ExtractedDataReview({
     setConfirming(true);
     try {
       const replaced = existingNodeCount ?? 0;
-      const doConfirm = onConfirmOverride || confirmCV;
-      await doConfirm(extractedNodes, relationships, cvOwnerName);
+      if (onConfirmOverride) {
+        await onConfirmOverride(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount);
+      } else {
+        await confirmCV(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount);
+      }
       await fetchUser();
       if (isReplaceMode && replaced > 0) {
         addToast(
