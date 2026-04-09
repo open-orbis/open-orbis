@@ -141,6 +141,9 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   outreach: ['title', 'venue'],
 };
 
+// Additional fields that should be required whenever they exist in the active modal.
+const ALWAYS_REQUIRED_IF_PRESENT = ['field_of_study', 'location', 'start_date', 'end_date'];
+
 function FieldInput({
   field,
   value,
@@ -219,7 +222,19 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
     (initialValues as Record<string, string>) || {}
   );
   const [isCurrent, setIsCurrent] = useState(false);
-  const requiredFields = REQUIRED_FIELDS[nodeType] || [];
+  const layoutForType = LAYOUT_CONFIG[nodeType];
+  const renderableFields = layoutForType
+    ? [...layoutForType.left, ...layoutForType.main, ...layoutForType.extra]
+    : (SIMPLE_FIELDS[nodeType] || []);
+  const requiredSet = new Set(REQUIRED_FIELDS[nodeType] || []);
+  for (const field of ALWAYS_REQUIRED_IF_PRESENT) {
+    if (renderableFields.includes(field)) requiredSet.add(field);
+  }
+  // "Current" means the toggle date field (e.g. end_date) is intentionally omitted.
+  if (isCurrent && layoutForType?.currentToggle) {
+    requiredSet.delete(layoutForType.currentToggle);
+  }
+  const requiredFields = Array.from(requiredSet);
   const missingRequiredFields = requiredFields.filter((f) => !(values[f] || '').trim());
   const isRequiredField = (field: string) => requiredFields.includes(field);
   const isMissingRequiredField = (field: string) => missingRequiredFields.includes(field);
@@ -286,7 +301,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const hasAnyText = Object.values(values).some((v) => v && v.trim());
 
   const color = NODE_TYPE_COLORS[nodeType] || '#8b5cf6';
-  const layout = LAYOUT_CONFIG[nodeType];
+  const layout = layoutForType;
   const simple = SIMPLE_FIELDS[nodeType];
 
   const actionButtons = (
