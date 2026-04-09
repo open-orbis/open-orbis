@@ -92,37 +92,41 @@ const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 /**
  * Mask date input to enforce MM/YYYY or DD/MM/YYYY structure.
- * Auto-inserts `/` after 2-digit segments. Only allows digits and `/`.
- * For allowYearOnly, also accepts bare YYYY (4 digits, no slash).
+ * Allows `/` or `-` as separators (dashes converted to `/`).
+ * Auto-inserts `/` after 2-digit groups when typing digits only.
+ * Respects user-typed separators to distinguish MM/YYYY from DD/MM/YYYY.
  */
 function maskDateInput(raw: string, prev: string, allowYearOnly: boolean): string {
-  // Strip non-digit, non-slash, non-dash characters, then convert dashes to slashes
+  // Normalize: strip invalid chars, convert dashes to slashes
   const v = raw.replace(/[^\d/-]/g, '').replace(/-/g, '/');
 
-  // Detect if user is deleting (backspace)
+  // Detect backspace — let the user delete freely
   if (v.length < prev.length) return v;
 
-  // Remove any manually typed slashes — we'll add them automatically
-  const digits = v.replace(/\//g, '');
+  // Split on slashes to get user-typed segments
+  const parts = v.split('/');
 
-  // For year-only mode: if 4 digits or fewer and no slash typed, allow bare digits
-  if (allowYearOnly && digits.length <= 4 && !v.includes('/')) {
-    return digits;
+  // For year-only mode: if no slash and <= 4 digits, allow bare YYYY
+  if (allowYearOnly && parts.length === 1 && parts[0].length <= 4) {
+    return parts[0].replace(/\D/g, '').slice(0, 4);
   }
 
-  // Build masked string: groups of 2 digits separated by `/`, last group is 4 digits
-  // Patterns: DD/MM/YYYY (10 chars) or MM/YYYY (7 chars)
-  let result = '';
-  for (let i = 0; i < digits.length; i++) {
-    // Insert `/` after position 2 and 4 (for DD/MM/YYYY) or after position 2 (for MM/YYYY)
-    if (i === 2 || i === 4) result += '/';
-    result += digits[i];
+  // Enforce segment lengths: each segment max 2 digits, last segment max 4
+  const maxLens = parts.length <= 2 ? [2, 4] : [2, 2, 4];
+  const capped: string[] = [];
+  for (let i = 0; i < parts.length && i < maxLens.length; i++) {
+    capped.push(parts[i].replace(/\D/g, '').slice(0, maxLens[i]));
   }
 
-  // Cap at DD/MM/YYYY length (10 chars = 8 digits + 2 slashes)
-  if (result.length > 10) result = result.slice(0, 10);
+  // Auto-insert `/` when a segment reaches its max and user is typing digits
+  const last = capped[capped.length - 1];
+  const lastMax = maxLens[capped.length - 1];
+  if (capped.length < maxLens.length && last.length >= lastMax) {
+    // Segment is full, start next segment
+    return capped.join('/') + '/';
+  }
 
-  return result;
+  return capped.join('/');
 }
 
 /** Convert ISO dates (YYYY-MM-DD, YYYY-MM, YYYY) to display format (DD/MM/YYYY, MM/YYYY). */
