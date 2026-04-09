@@ -206,13 +206,7 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   const filteredNotes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return notes;
-    return notes.filter((note) => {
-      const textMatch = note.text.toLowerCase().includes(q);
-      const nodeTypeMatch = note.enhanced?.nodeType?.toLowerCase().includes(q);
-      const heading = note.enhanced ? pickHeading(note.enhanced.nodeType, note.enhanced.properties) : '';
-      const headingMatch = heading.toLowerCase().includes(q);
-      return textMatch || nodeTypeMatch || headingMatch;
-    });
+    return notes.filter((note) => note.text.toLowerCase().includes(q));
   }, [notes, searchQuery]);
 
   const duplicateMatch = useMemo(() => {
