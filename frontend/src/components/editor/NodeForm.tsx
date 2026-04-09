@@ -90,6 +90,41 @@ const YEAR_ONLY_TYPES = new Set(['publication']);
 
 const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
+/**
+ * Mask date input to enforce MM/YYYY or DD/MM/YYYY structure.
+ * Auto-inserts `/` after 2-digit segments. Only allows digits and `/`.
+ * For allowYearOnly, also accepts bare YYYY (4 digits, no slash).
+ */
+function maskDateInput(raw: string, prev: string, allowYearOnly: boolean): string {
+  // Strip non-digit, non-slash characters
+  const v = raw.replace(/[^\d/]/g, '');
+
+  // Detect if user is deleting (backspace)
+  if (v.length < prev.length) return v;
+
+  // Remove any manually typed slashes — we'll add them automatically
+  const digits = v.replace(/\//g, '');
+
+  // For year-only mode: if 4 digits or fewer and no slash typed, allow bare digits
+  if (allowYearOnly && digits.length <= 4 && !v.includes('/')) {
+    return digits;
+  }
+
+  // Build masked string: groups of 2 digits separated by `/`, last group is 4 digits
+  // Patterns: DD/MM/YYYY (10 chars) or MM/YYYY (7 chars)
+  let result = '';
+  for (let i = 0; i < digits.length; i++) {
+    // Insert `/` after position 2 and 4 (for DD/MM/YYYY) or after position 2 (for MM/YYYY)
+    if (i === 2 || i === 4) result += '/';
+    result += digits[i];
+  }
+
+  // Cap at DD/MM/YYYY length (10 chars = 8 digits + 2 slashes)
+  if (result.length > 10) result = result.slice(0, 10);
+
+  return result;
+}
+
 /** Convert ISO dates (YYYY-MM-DD, YYYY-MM, YYYY) to display format (DD/MM/YYYY, MM/YYYY). */
 function isoToDisplay(value: string): string {
   if (!value) return value;
@@ -265,7 +300,14 @@ function FieldInput({
         <input
           type="text"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            if (isDate) {
+              onChange(maskDateInput(e.target.value, value, allowYearOnly));
+            } else {
+              onChange(e.target.value);
+            }
+          }}
+          maxLength={isDate ? 10 : undefined}
           placeholder={isDate ? (allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY') : label}
           className={`${baseClass} ${borderClass}`}
           style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
