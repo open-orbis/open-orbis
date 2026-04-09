@@ -944,7 +944,7 @@ export default function OrbViewPage() {
                 <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
               </div>
               <div className="hidden sm:block w-px h-5 bg-white/10" />
-              <span className="text-white/25 text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
+              <span className="text-white text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
 
               {!isPendingDeletion && (
                 <div className="hidden sm:flex items-center gap-1.5 ml-2">
