@@ -23,6 +23,7 @@ import UserMenu from '../components/UserMenu';
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport } from '../api/cv';
+import GuidedTour from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
 
 const IMPORT_PROGRESS_STEP_LABELS: Record<string, string> = {
@@ -937,12 +938,12 @@ export default function OrbViewPage() {
                 <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
               </div>
               <div className="hidden sm:block w-px h-5 bg-white/10" />
-              <span className="text-white text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
+              <span data-tour="node-count" className="text-white text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
 
               {!isPendingDeletion && (
                 <div className="hidden sm:flex items-center gap-1.5 ml-2">
                   {/* Undo / Redo */}
-                  <div className="flex items-center">
+                  <div data-tour="undo-redo" className="flex items-center">
                     <button
                       onClick={handleUndo}
                       disabled={undoStack.length === 0}
@@ -972,14 +973,17 @@ export default function OrbViewPage() {
                       </svg>
                     </button>
                   </div>
-                  <NodeTypeFilter
-                    hiddenTypes={hiddenNodeTypes}
-                    onShowAll={handleShowAllNodeTypes}
-                    onHideAll={handleHideAllNodeTypes}
-                    onSetVisible={handleSetVisibleNodeTypes}
-                  />
+                  <div data-tour="node-types">
+                    <NodeTypeFilter
+                      hiddenTypes={hiddenNodeTypes}
+                      onShowAll={handleShowAllNodeTypes}
+                      onHideAll={handleHideAllNodeTypes}
+                      onSetVisible={handleSetVisibleNodeTypes}
+                    />
+                  </div>
                   <KeywordFilterDropdown />
                   <button
+                    data-tour="export"
                     onClick={() => window.open('/cv-export', '_blank')}
                     className="h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
                   >
@@ -987,6 +991,7 @@ export default function OrbViewPage() {
                     <span>Export</span>
                   </button>
                   <label
+                    data-tour="import"
                     className={`h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all ${
                       importing
                         ? 'text-purple-300 bg-purple-500/15 cursor-wait'
@@ -1019,15 +1024,17 @@ export default function OrbViewPage() {
 
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
-              <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
-                <IconNotes />
-                <span className="hidden sm:inline">Notes</span>
-                {draftNotes.length > 0 && (
-                  <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
-                    {draftNotes.length}
-                  </span>
-                )}
-              </HeaderBtn>
+              <div data-tour="notes">
+                <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
+                  <IconNotes />
+                  <span className="hidden sm:inline">Notes</span>
+                  {draftNotes.length > 0 && (
+                    <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
+                      {draftNotes.length}
+                    </span>
+                  )}
+                </HeaderBtn>
+              </div>
 
               {!isPendingDeletion && (
                 <div className="relative sm:hidden" ref={toolsMenuRef}>
@@ -1151,7 +1158,9 @@ export default function OrbViewPage() {
               )}
 
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
-              <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
+              <div data-tour="user-menu">
+                <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
+              </div>
             </div>
           </div>
 
@@ -1201,7 +1210,7 @@ export default function OrbViewPage() {
       )}
 
       {/* ── 3D Graph ── */}
-      <div className={isPendingDeletion ? 'opacity-60 grayscale pointer-events-none' : ''}>
+      <div data-tour="graph" className={isPendingDeletion ? 'opacity-60 grayscale pointer-events-none' : ''}>
         <OrbGraph3D
           data={data}
           onNodeClick={isPendingDeletion ? undefined : handleNodeClick}
@@ -1265,7 +1274,7 @@ export default function OrbViewPage() {
       />}
 
       {/* ── Chat Box ── */}
-      {!isPendingDeletion && <ChatBox
+      {!isPendingDeletion && <div data-tour="chatbox"><ChatBox
         onHighlight={setHighlightedNodeIds}
         onFocusNode={handleFocusNode}
         onClearResults={handleChatClear}
@@ -1275,7 +1284,7 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
-      />}
+      /></div>}
 
       {/* ── Draft Notes ── */}
       <DraftNotes
@@ -1362,6 +1371,9 @@ export default function OrbViewPage() {
           </div>
         </div>
       )}
+
+      {/* ── Guided Tour ── */}
+      <GuidedTour />
     </div>
   );
 }
