@@ -95,6 +95,7 @@ async def upload_cv(
             user_id,
             CVStep.CLASSIFYING,
             f"Analyzing {len(raw_text):,} characters",
+            text_chars=len(raw_text),
         )
         logger.info(
             "Classifying entries with %s (%d chars)",
@@ -249,6 +250,7 @@ async def import_document(
             user_id,
             CVStep.CLASSIFYING,
             f"Analyzing {len(raw_text):,} characters",
+            text_chars=len(raw_text),
         )
         result = await classify_entries(raw_text)
 
