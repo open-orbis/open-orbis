@@ -21,20 +21,25 @@ Once on ORB_VIEW, execute:
 
 ```
 1. Verify graph loaded (node count > 0)
-2. Click a node -> verify FloatingInput opens with correct data
-3. Save edit -> verify graph refreshes
-4. Add a new node via "+" -> fill required fields -> save
-5. Verify undo button becomes active -> click undo -> verify node removed
-6. Click redo -> verify node restored
-7. Open Notes panel -> add a note -> enhance it -> add to graph
-8. Open ChatBox -> search for a known skill -> verify highlights
-9. Click a result -> verify camera centers on node
-10. Clear results -> verify camera resets
-11. Open Share panel -> copy public link -> verify clipboard
-12. Open Profile panel -> verify data matches orb
-13. Open Account settings -> switch between tabs
-14. Click Export -> verify new tab opens with CV preview
-15. Import a document -> review -> confirm -> verify graph updated
+2. If guided tour overlay appears -> complete it or skip it (new users only)
+3. Click a node -> verify FloatingInput opens with correct data
+4. Save edit -> verify graph refreshes
+5. Add a new node via "+" -> fill required fields (red * indicators, date masking MM/YYYY) -> save
+6. Verify undo button (teal) becomes active -> click undo -> verify node removed
+7. Click redo (sky blue) -> verify node restored
+8. Open Notes panel -> add a note -> enhance it -> add to graph
+9. Open ChatBox -> search for a known skill -> verify highlights
+10. Click a result -> verify camera centers on node
+11. Click recenter button (crosshair, left of ChatBox) -> verify camera resets to center
+12. Clear results -> verify camera resets
+13. Open Share panel -> copy public link -> verify clipboard
+14. Open Profile panel -> verify data matches orb
+15. Open Account settings -> switch between tabs (Orbis ID, Versions, Account)
+16. In Account Settings sidebar, click "Guided tour" -> verify tour starts immediately
+17. Click Export -> verify new tab opens with CV preview
+18. Import a document -> review -> confirm -> verify graph updated
+19. Open UserMenu dropdown -> expand "My uploaded CVs" -> verify document list
+20. Zoom in/out -> refresh page -> verify zoom level persisted
 ```
 
 ### 2. Edge Paths
@@ -43,7 +48,8 @@ After the happy path, cover these edge cases:
 
 **Empty Orb Path:**
 ```
-Create new user -> Choose "Build from scratch" -> Verify empty graph hint
+Create new user -> Choose "Build from scratch" -> Guided tour auto-starts
+-> Complete or skip tour -> Verify empty graph hint
 -> Add first node manually -> Verify graph updates
 ```
 
@@ -214,6 +220,7 @@ For agents that need to detect the current state programmatically:
 | `DRAFT_NOTES` | Notes panel with input field visible |
 | `IMPORT_REVIEW` | "Found N entries" with "Cancel import" button visible |
 | `IMPORT_LIMIT` | "Document limit reached" heading visible |
+| `GUIDED_TOUR` | Joyride tooltip overlay visible with "Next" / "Skip tour" buttons and spotlight on a UI element |
 | `LOADING` | Spinner animation visible |
 | `EMPTY_ORB` | "Tap the + button" hint visible |
 | `ORB_NOT_FOUND` | "Orbis not found" text visible |

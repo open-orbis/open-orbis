@@ -2,7 +2,7 @@
 # Each entry defines a user action with its trigger, preconditions, effect, and next state.
 # Used by autonomous agents for end-to-end UX evaluation.
 #
-# Last updated: 2026-04-09 | Issue: #193
+# Last updated: 2026-04-09 | Issue: #193, #216
 
 # ── Landing Page ──
 
@@ -89,8 +89,8 @@
   action: Click "Build from scratch" card
   selector_or_control: "PathCard with manual build icon"
   preconditions: [authenticated, gdpr_consent]
-  expected_effect: Navigates to /myorbis with allowEmpty flag
-  next_state: ORB_VIEW
+  expected_effect: Navigates to /myorbis with allowEmpty flag. Guided tour auto-starts if not previously completed.
+  next_state: ORB_VIEW (+ GUIDED_TOUR overlay if new user)
   fallback_on_failure: null
 
 # ── CV Upload ──
@@ -155,10 +155,13 @@
   from_state: FLOATING_INPUT
   action: Fill form and click "Add to Graph" / "Update"
   selector_or_control: "submit button in NodeForm"
-  preconditions: [required_fields_filled]
+  preconditions:
+    - required_fields_filled (marked with red * — turns node-type color when filled)
+    - date_fields_valid (MM/YYYY or DD/MM/YYYY format enforced by input masking; YYYY also accepted for publications)
+    - date_values_valid (month 01-12, day 01-31 per month, leap year aware)
   expected_effect: Creates/updates node via API, refreshes graph, pushes to undo stack
   next_state: ORB_VIEW
-  fallback_on_failure: Toast "Failed to add/update entry"
+  fallback_on_failure: Red error text below form showing missing fields or invalid dates
 
 - id: ORB_DELETE_NODE
   from_state: FLOATING_INPUT
@@ -466,3 +469,74 @@
   expected_effect: Dismisses modal, no upload
   next_state: ORB_VIEW | CV_UPLOAD
   fallback_on_failure: null
+
+# ── Guided Tour ──
+
+- id: ORB_AUTO_TOUR
+  from_state: ORB_VIEW
+  action: Automatic trigger for new users (1.5s delay after page load)
+  selector_or_control: null (auto-triggered)
+  preconditions: [authenticated, tour_not_completed (localStorage orbis_tour_completed !== 'true')]
+  expected_effect: 9-step guided tour overlay appears highlighting key UI elements
+  next_state: GUIDED_TOUR
+  fallback_on_failure: null
+
+- id: ORB_START_TOUR
+  from_state: ACCOUNT_SETTINGS
+  action: Click "Guided tour" button in settings sidebar
+  selector_or_control: "sidebar button with ? icon at bottom of tab list"
+  preconditions: [authenticated]
+  expected_effect: Closes settings modal, starts guided tour immediately
+  next_state: GUIDED_TOUR
+  fallback_on_failure: null
+
+- id: TOUR_FINISH
+  from_state: GUIDED_TOUR
+  action: Click "Finish" on last step, "Skip tour", or close overlay
+  selector_or_control: "Finish / Skip tour / close buttons in tour tooltip"
+  preconditions: []
+  expected_effect: Tour dismissed, completion persisted to localStorage. Does not restart on refresh.
+  next_state: ORB_VIEW
+  fallback_on_failure: null
+
+# ── Recenter ──
+
+- id: ORB_RECENTER
+  from_state: ORB_VIEW
+  action: Click recenter button (crosshair icon left of ChatBox)
+  selector_or_control: "rounded button to the left of search input in ChatBox"
+  preconditions: []
+  expected_effect: Camera smoothly centers on Person (central) node
+  next_state: ORB_VIEW
+  fallback_on_failure: null
+
+- id: SHARED_RECENTER
+  from_state: SHARED_ORB
+  action: Click recenter button (crosshair icon left of ChatBox)
+  selector_or_control: "rounded button to the left of search input in ChatBox"
+  preconditions: []
+  expected_effect: Camera smoothly centers on Person (central) node
+  next_state: SHARED_ORB
+  fallback_on_failure: null
+
+# ── Camera Zoom Persistence ──
+
+- id: ORB_CAMERA_ZOOM_PERSIST
+  from_state: ORB_VIEW
+  action: Zoom in/out via mouse wheel
+  selector_or_control: "mouse wheel on 3D graph canvas"
+  preconditions: []
+  expected_effect: Camera distance saved to localStorage (orbis_camera_distance) every 2s. Persists across sessions. Restored on next page load. Only on /myorbis, not on /:orbId.
+  next_state: ORB_VIEW
+  fallback_on_failure: null
+
+# ── User Menu CVs ──
+
+- id: USER_MENU_VIEW_CVS
+  from_state: ORB_VIEW
+  action: Click "My uploaded CVs" in UserMenu dropdown
+  selector_or_control: "expandable section in avatar dropdown menu"
+  preconditions: [authenticated]
+  expected_effect: Expands to show list of uploaded documents (up to 3) with filename, date, node/edge counts. Each clickable to download.
+  next_state: ORB_VIEW (dropdown expanded)
+  fallback_on_failure: "No documents uploaded yet" message
