@@ -1,0 +1,468 @@
+# OpenOrbis Navigation Action Catalog
+# Each entry defines a user action with its trigger, preconditions, effect, and next state.
+# Used by autonomous agents for end-to-end UX evaluation.
+#
+# Last updated: 2026-04-09 | Issue: #193
+
+# ── Landing Page ──
+
+- id: LANDING_GOOGLE_LOGIN
+  from_state: LANDING
+  action: Click Google Sign In button
+  selector_or_control: "Google OAuth button (circular icon)"
+  preconditions: [not_authenticated]
+  expected_effect: Opens Google OAuth popup, exchanges code, sets JWT
+  next_state: ORB_VIEW | CREATE
+  fallback_on_failure: Toast "Sign in failed", stays on LANDING
+
+- id: LANDING_LINKEDIN_LOGIN
+  from_state: LANDING
+  action: Click LinkedIn Sign In button
+  selector_or_control: "LinkedIn OAuth button (circular icon)"
+  preconditions: [not_authenticated]
+  expected_effect: Redirects to LinkedIn authorization page
+  next_state: LINKEDIN_CALLBACK
+  fallback_on_failure: Toast "Sign in failed", stays on LANDING
+
+- id: LANDING_GO_TO_ORBIS
+  from_state: LANDING
+  action: Click "Go to My Orbis" button
+  selector_or_control: "header button visible when logged in"
+  preconditions: [authenticated]
+  expected_effect: Navigates to /myorbis
+  next_state: ORB_VIEW
+  fallback_on_failure: null
+
+- id: LANDING_ABOUT
+  from_state: LANDING
+  action: Click About link
+  selector_or_control: "footer or header About link"
+  preconditions: []
+  expected_effect: Navigates to /about
+  next_state: ABOUT
+  fallback_on_failure: null
+
+- id: LANDING_PRIVACY
+  from_state: LANDING
+  action: Click Privacy link
+  selector_or_control: "footer Privacy Policy link"
+  preconditions: []
+  expected_effect: Navigates to /privacy
+  next_state: PRIVACY
+  fallback_on_failure: null
+
+# ── Auth Callbacks ──
+
+- id: AUTH_CALLBACK_REDIRECT
+  from_state: AUTH_CALLBACK
+  action: Automatic redirect after OAuth exchange
+  selector_or_control: null
+  preconditions: [valid_auth_code]
+  expected_effect: Sets JWT, fetches user, checks orb content
+  next_state: ORB_VIEW | CREATE
+  fallback_on_failure: Redirect to LANDING with error
+
+# ── GDPR Consent Gate ──
+
+- id: CONSENT_GRANT
+  from_state: CONSENT_GATE
+  action: Check consent checkbox and click Continue
+  selector_or_control: "GDPR consent checkbox + Continue button"
+  preconditions: [authenticated, no_gdpr_consent]
+  expected_effect: Calls grantGdprConsent(), allows access to protected page
+  next_state: CREATE | ORB_VIEW
+  fallback_on_failure: Toast "Failed to save consent"
+
+# ── Create Orb Page ──
+
+- id: CREATE_CHOOSE_CV
+  from_state: CREATE
+  action: Click "Build from your CV" card
+  selector_or_control: "PathCard with CV icon"
+  preconditions: [authenticated, gdpr_consent]
+  expected_effect: Shows CVUploadOnboarding component
+  next_state: CV_UPLOAD
+  fallback_on_failure: null
+
+- id: CREATE_CHOOSE_MANUAL
+  from_state: CREATE
+  action: Click "Build from scratch" card
+  selector_or_control: "PathCard with manual build icon"
+  preconditions: [authenticated, gdpr_consent]
+  expected_effect: Navigates to /myorbis with allowEmpty flag
+  next_state: ORB_VIEW
+  fallback_on_failure: null
+
+# ── CV Upload ──
+
+- id: CV_UPLOAD_FILE
+  from_state: CV_UPLOAD
+  action: Drop or select PDF file
+  selector_or_control: "drag-and-drop zone or file input"
+  preconditions: [authenticated, gdpr_consent]
+  expected_effect: Uploads file, shows progress steps, polls getCVProgress()
+  next_state: CV_REVIEW
+  fallback_on_failure: Error message "Failed to parse CV"
+
+- id: CV_UPLOAD_LIMIT_CHECK
+  from_state: CV_UPLOAD
+  action: Upload file when at 3-document limit
+  selector_or_control: "drag-and-drop zone or file input"
+  preconditions: [authenticated, documents_count >= 3]
+  expected_effect: Shows document limit warning modal
+  next_state: IMPORT_LIMIT
+  fallback_on_failure: null
+
+- id: CV_REVIEW_CONFIRM
+  from_state: CV_REVIEW
+  action: Click "Add entries to graph"
+  selector_or_control: "purple confirm button"
+  preconditions: [extracted_nodes_count > 0]
+  expected_effect: Persists nodes to Neo4j, creates document record
+  next_state: ORB_VIEW
+  fallback_on_failure: Toast "Failed to import CV data"
+
+- id: CV_REVIEW_RESET
+  from_state: CV_REVIEW
+  action: Click "Try another file" / "Cancel import"
+  selector_or_control: "secondary button"
+  preconditions: []
+  expected_effect: Returns to upload/previous state
+  next_state: CV_UPLOAD | ORB_VIEW
+  fallback_on_failure: null
+
+# ── Orb View ──
+
+- id: ORB_NODE_CLICK
+  from_state: ORB_VIEW
+  action: Click a node in the 3D graph
+  selector_or_control: "3D graph node (sphere)"
+  preconditions: [node_exists]
+  expected_effect: Opens FloatingInput with node data for editing
+  next_state: FLOATING_INPUT
+  fallback_on_failure: null
+
+- id: ORB_ADD_NODE
+  from_state: ORB_VIEW
+  action: Click "+" button or ChatBox "Add" button
+  selector_or_control: "FloatingInput trigger / ChatBox Add button"
+  preconditions: [authenticated, not_pending_deletion]
+  expected_effect: Opens empty FloatingInput for new node creation
+  next_state: FLOATING_INPUT
+  fallback_on_failure: null
+
+- id: ORB_SAVE_NODE
+  from_state: FLOATING_INPUT
+  action: Fill form and click "Add to Graph" / "Update"
+  selector_or_control: "submit button in NodeForm"
+  preconditions: [required_fields_filled]
+  expected_effect: Creates/updates node via API, refreshes graph, pushes to undo stack
+  next_state: ORB_VIEW
+  fallback_on_failure: Toast "Failed to add/update entry"
+
+- id: ORB_DELETE_NODE
+  from_state: FLOATING_INPUT
+  action: Click trash icon then "Confirm"
+  selector_or_control: "trash icon + confirm button in NodeForm"
+  preconditions: [editing_existing_node]
+  expected_effect: Deletes node via API, refreshes graph, pushes to undo stack
+  next_state: ORB_VIEW
+  fallback_on_failure: Toast "Failed to delete entry"
+
+- id: ORB_UNDO
+  from_state: ORB_VIEW
+  action: Click Undo button (teal arrow)
+  selector_or_control: "undo button left of Node types"
+  preconditions: [undo_stack_not_empty]
+  expected_effect: Reverses last add/delete, refreshes graph
+  next_state: ORB_VIEW
+  fallback_on_failure: Toast "Failed to undo"
+
+- id: ORB_REDO
+  from_state: ORB_VIEW
+  action: Click Redo button (sky-blue arrow)
+  selector_or_control: "redo button left of Node types"
+  preconditions: [redo_stack_not_empty]
+  expected_effect: Re-applies undone action, refreshes graph
+  next_state: ORB_VIEW
+  fallback_on_failure: Toast "Failed to redo"
+
+- id: ORB_OPEN_SHARE
+  from_state: ORB_VIEW
+  action: Click Share button in ChatBox
+  selector_or_control: "share icon button in ChatBox header"
+  preconditions: []
+  expected_effect: Opens SharePanel modal with QR code and links
+  next_state: SHARE_PANEL
+  fallback_on_failure: null
+
+- id: ORB_OPEN_PROFILE
+  from_state: ORB_VIEW
+  action: Click profile image/Person node
+  selector_or_control: "Person node in graph or profile area"
+  preconditions: []
+  expected_effect: Opens ProfilePanel modal
+  next_state: PROFILE_PANEL
+  fallback_on_failure: null
+
+- id: ORB_OPEN_NOTES
+  from_state: ORB_VIEW
+  action: Click Notes button in header
+  selector_or_control: "notes button with count badge"
+  preconditions: []
+  expected_effect: Opens DraftNotes slide-out panel
+  next_state: DRAFT_NOTES
+  fallback_on_failure: null
+
+- id: ORB_OPEN_SETTINGS
+  from_state: ORB_VIEW
+  action: UserMenu > Account settings
+  selector_or_control: "avatar dropdown > Account settings"
+  preconditions: [authenticated]
+  expected_effect: Opens AccountSettingsModal
+  next_state: ACCOUNT_SETTINGS
+  fallback_on_failure: null
+
+- id: ORB_EXPORT
+  from_state: ORB_VIEW
+  action: Click Export button
+  selector_or_control: "Export button in header"
+  preconditions: []
+  expected_effect: Opens /cv-export in new browser tab
+  next_state: CV_EXPORT
+  fallback_on_failure: null
+
+- id: ORB_IMPORT
+  from_state: ORB_VIEW
+  action: Click Import data and select file
+  selector_or_control: "Import data label + file input"
+  preconditions: [authenticated, gdpr_consent]
+  expected_effect: Extracts document, shows review overlay
+  next_state: IMPORT_REVIEW | IMPORT_LIMIT
+  fallback_on_failure: Toast "Failed to import document"
+
+- id: ORB_SEARCH
+  from_state: ORB_VIEW
+  action: Type query in ChatBox and press Enter
+  selector_or_control: "ChatBox input field"
+  preconditions: []
+  expected_effect: Searches orb nodes, highlights matches in graph, shows results
+  next_state: ORB_VIEW (with highlights)
+  fallback_on_failure: "No matches found" message
+
+- id: ORB_FILTER_NODE_TYPES
+  from_state: ORB_VIEW
+  action: Toggle node types in NodeTypeFilter
+  selector_or_control: "Node types dropdown with checkboxes"
+  preconditions: []
+  expected_effect: Shows/hides node categories in 3D graph
+  next_state: ORB_VIEW (filtered)
+  fallback_on_failure: null
+
+- id: ORB_FILTER_KEYWORDS
+  from_state: ORB_VIEW
+  action: Add/remove keyword filter
+  selector_or_control: "Keywords dropdown"
+  preconditions: []
+  expected_effect: Hides nodes matching keywords from graph
+  next_state: ORB_VIEW (filtered)
+  fallback_on_failure: null
+
+- id: ORB_FILTER_DATE_RANGE
+  from_state: ORB_VIEW
+  action: Adjust date range slider handles
+  selector_or_control: "DateRangeSlider at bottom of viewport"
+  preconditions: [nodes_have_dates]
+  expected_effect: Filters visible nodes by date range
+  next_state: ORB_VIEW (filtered)
+  fallback_on_failure: null
+
+- id: ORB_SIGN_OUT
+  from_state: ORB_VIEW
+  action: UserMenu > Sign out
+  selector_or_control: "avatar dropdown > Sign out"
+  preconditions: [authenticated]
+  expected_effect: Clears JWT, redirects to landing
+  next_state: LANDING
+  fallback_on_failure: null
+
+# ── Draft Notes ──
+
+- id: DRAFT_ADD_NOTE
+  from_state: DRAFT_NOTES
+  action: Type text and press Enter
+  selector_or_control: "note input field at top of panel"
+  preconditions: [text_not_empty]
+  expected_effect: Creates new draft note
+  next_state: DRAFT_NOTES
+  fallback_on_failure: null
+
+- id: DRAFT_DELETE_NOTE
+  from_state: DRAFT_NOTES
+  action: Click trash icon on note then Confirm
+  selector_or_control: "per-note trash icon + confirmation"
+  preconditions: []
+  expected_effect: Removes note from UI and API
+  next_state: DRAFT_NOTES
+  fallback_on_failure: null
+
+- id: DRAFT_ADD_TO_GRAPH
+  from_state: DRAFT_NOTES
+  action: Click "Add to graph" on a note
+  selector_or_control: "Add to graph button on note card"
+  preconditions: []
+  expected_effect: Opens FloatingInput pre-filled with note data
+  next_state: FLOATING_INPUT
+  fallback_on_failure: null
+
+- id: DRAFT_ENHANCE
+  from_state: DRAFT_NOTES
+  action: Click Enhance on a note
+  selector_or_control: "AI enhance button on note card"
+  preconditions: [note_has_text]
+  expected_effect: Calls AI enhancement, updates note with structured data
+  next_state: DRAFT_NOTES (note enhanced)
+  fallback_on_failure: Toast "Enhancement failed"
+
+- id: DRAFT_BULK_DELETE
+  from_state: DRAFT_NOTES
+  action: Select notes + click bulk delete + confirm
+  selector_or_control: "checkboxes + trash button + confirmation"
+  preconditions: [selected_count > 0]
+  expected_effect: Removes selected notes from UI and API
+  next_state: DRAFT_NOTES
+  fallback_on_failure: null
+
+# ── Account Settings ──
+
+- id: SETTINGS_CLAIM_ORB_ID
+  from_state: ACCOUNT_SETTINGS
+  action: Enter custom ID and click Save
+  selector_or_control: "Orbis ID tab input + Save button"
+  preconditions: [id_valid_format, id_not_taken]
+  expected_effect: Claims the orbis ID for public URL
+  next_state: ACCOUNT_SETTINGS (success)
+  fallback_on_failure: Error "ID already taken" or validation error
+
+- id: SETTINGS_SAVE_VERSION
+  from_state: ACCOUNT_SETTINGS
+  action: Click "Save current version" in Versions tab
+  selector_or_control: "Save current version button"
+  preconditions: [snapshots_count < 3 or will evict oldest]
+  expected_effect: Creates orb snapshot in SQLite
+  next_state: ACCOUNT_SETTINGS (version list updated)
+  fallback_on_failure: Toast "Failed to save version"
+
+- id: SETTINGS_RESTORE_VERSION
+  from_state: ACCOUNT_SETTINGS
+  action: Click Restore on a version then Confirm
+  selector_or_control: "Restore button + confirmation modal"
+  preconditions: [snapshot_exists]
+  expected_effect: Saves current state, wipes graph, recreates from snapshot
+  next_state: LANDING (page reload)
+  fallback_on_failure: Toast "Failed to restore version"
+
+- id: SETTINGS_DELETE_VERSION
+  from_state: ACCOUNT_SETTINGS
+  action: Click Delete on a version
+  selector_or_control: "Delete button on version card"
+  preconditions: [snapshot_exists]
+  expected_effect: Removes snapshot from SQLite
+  next_state: ACCOUNT_SETTINGS (version list updated)
+  fallback_on_failure: Toast "Failed to delete version"
+
+- id: SETTINGS_DELETE_ACCOUNT
+  from_state: ACCOUNT_SETTINGS
+  action: Click "Delete my account" then Confirm
+  selector_or_control: "Account tab > Delete button + confirmation"
+  preconditions: [authenticated, not_pending_deletion]
+  expected_effect: Sets deletion_requested_at, clears local drafts, signs out
+  next_state: LANDING
+  fallback_on_failure: Error "Failed to delete account"
+
+- id: SETTINGS_RECOVER_ACCOUNT
+  from_state: ACCOUNT_SETTINGS
+  action: Click "Recover my account"
+  selector_or_control: "Account tab > Recover button (shown during grace period)"
+  preconditions: [pending_deletion]
+  expected_effect: Removes deletion_requested_at, restores account
+  next_state: ORB_VIEW (page reload)
+  fallback_on_failure: Error "Failed to recover account"
+
+# ── Share Panel ──
+
+- id: SHARE_COPY_LINK
+  from_state: SHARE_PANEL
+  action: Click Copy on public link
+  selector_or_control: "Copy button next to public link input"
+  preconditions: [orb_id_set]
+  expected_effect: Copies public URL to clipboard
+  next_state: SHARE_PANEL (copied feedback)
+  fallback_on_failure: null
+
+- id: SHARE_COPY_FILTERED
+  from_state: SHARE_PANEL
+  action: Click Copy on filtered link
+  selector_or_control: "Copy button next to filtered link"
+  preconditions: [keyword_filters_active]
+  expected_effect: Copies filtered URL (with filter_token) to clipboard
+  next_state: SHARE_PANEL (copied feedback)
+  fallback_on_failure: null
+
+# ── Shared Orb (Public) ──
+
+- id: SHARED_SEARCH
+  from_state: SHARED_ORB
+  action: Type query in ChatBox
+  selector_or_control: "ChatBox input"
+  preconditions: []
+  expected_effect: Searches public orb (respects filter_token), highlights matches
+  next_state: SHARED_ORB (with highlights)
+  fallback_on_failure: "No matches found"
+
+- id: SHARED_CLICK_RESULT
+  from_state: SHARED_ORB
+  action: Click a search result node
+  selector_or_control: "node result in ChatBox results list"
+  preconditions: [search_results_exist]
+  expected_effect: Camera centers on the node in 3D graph
+  next_state: SHARED_ORB (focused)
+  fallback_on_failure: null
+
+- id: SHARED_CLEAR_RESULTS
+  from_state: SHARED_ORB
+  action: Click Clear in ChatBox
+  selector_or_control: "Clear button in search results"
+  preconditions: [search_results_active]
+  expected_effect: Clears highlights, camera resets to central node
+  next_state: SHARED_ORB
+  fallback_on_failure: null
+
+- id: SHARED_CTA
+  from_state: SHARED_ORB
+  action: Click "Create your own Orbis"
+  selector_or_control: "header CTA link"
+  preconditions: []
+  expected_effect: Navigates to landing page
+  next_state: LANDING
+  fallback_on_failure: null
+
+# ── Import Limit Warning ──
+
+- id: IMPORT_LIMIT_CONFIRM
+  from_state: IMPORT_LIMIT
+  action: Click "Replace & import" / "Replace & upload"
+  selector_or_control: "purple confirm button"
+  preconditions: []
+  expected_effect: Proceeds with upload, oldest document will be evicted at confirm
+  next_state: CV_REVIEW | IMPORT_REVIEW
+  fallback_on_failure: null
+
+- id: IMPORT_LIMIT_CANCEL
+  from_state: IMPORT_LIMIT
+  action: Click Cancel
+  selector_or_control: "Cancel button"
+  preconditions: []
+  expected_effect: Dismisses modal, no upload
+  next_state: ORB_VIEW | CV_UPLOAD
+  fallback_on_failure: null

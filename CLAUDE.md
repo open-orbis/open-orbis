@@ -95,8 +95,13 @@ Detailed docs live in `docs/`. Key files:
 - `docs/testing.md` — test strategy, running tests, CI pipelines, coverage
 - `docs/deployment.md` — production setup, Docker, environment variables
 - `docs/cv-extraction-quality.md` — CV extraction quality metrics and CI
+- `docs/navigation-flow.md` — user-flow state diagrams (pages, modals, guards)
+- `docs/navigation-actions.yaml` — action catalog for every UI interaction
+- `docs/agent-navigation-guide.md` — agent traversal strategy for UX evaluation
 
 When making architectural changes, update both this file and the relevant docs.
+
+When adding/removing pages, routes, modals, or interactive elements, update `docs/navigation-flow.md` and `docs/navigation-actions.yaml` accordingly.
 
 ## Pre-PR Documentation Check (for Claude Code)
 
