@@ -690,7 +690,7 @@ export default function OrbViewPage() {
     setPendingDraftRawText(note.text);
     setPendingSkillLinks([]);
     setDraftReferenceText(note.text);
-    setEditNode({ type: 'work_experience', values: { description: note.text } });
+    setEditNode({ type: 'work_experience', values: {} });
     setShowInput(true);
     setShowDrafts(false);
   };
