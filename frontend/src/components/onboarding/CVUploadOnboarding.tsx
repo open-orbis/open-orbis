@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { uploadCV, getCVProgress } from '../../api/cv';
+import { uploadCV, getCVProgress, getDocuments } from '../../api/cv';
 import type { ExtractedData, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
 import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
@@ -29,6 +29,7 @@ export default function CVUploadOnboarding() {
     pollRef.current = setInterval(poll, 2000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [uploading]);
+
   const [extractedData, setExtractedData] = useState<{
     nodes: ExtractedData['nodes'];
     relationships: ExtractedRelationship[];
@@ -36,21 +37,22 @@ export default function CVUploadOnboarding() {
     unmatchedCount: number;
     skippedCount: number;
     truncated: boolean;
+    documentId: string | null;
+    originalFilename: string | null;
+    fileSizeBytes: number | null;
+    pageCount: number | null;
   } | null>(null);
 
-  const handleFile = useCallback(async (file: File) => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'pdf') {
-      setError('Please upload a PDF file.');
-      return;
-    }
+  const [showLimitWarning, setShowLimitWarning] = useState(false);
+  const [oldestDoc, setOldestDoc] = useState<{ name: string; date: string } | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
+  const doUpload = useCallback(async (file: File) => {
     setUploading(true);
     setError('');
     try {
       const data = await uploadCV(file);
 
-      // Save unmatched entries to draft notes (user-scoped)
       let unmatchedCount = 0;
       if (data.unmatched && data.unmatched.length > 0 && user?.user_id) {
         const existing = loadDraftNotes(user.user_id);
@@ -74,6 +76,10 @@ export default function CVUploadOnboarding() {
           unmatchedCount,
           skippedCount: data.skipped_nodes?.length || 0,
           truncated: data.truncated || false,
+          documentId: data.document_id || null,
+          originalFilename: file.name,
+          fileSizeBytes: file.size,
+          pageCount: null,
         });
       }
     } catch {
@@ -82,6 +88,41 @@ export default function CVUploadOnboarding() {
       setUploading(false);
     }
   }, [user]);
+
+  const handleFile = useCallback(async (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'pdf') {
+      setError('Please upload a PDF file.');
+      return;
+    }
+
+    // Check document limit
+    try {
+      const docs = await getDocuments();
+      if (docs.length >= 3) {
+        const oldest = docs[docs.length - 1]; // list is ordered desc, last = oldest
+        setOldestDoc({
+          name: oldest.original_filename,
+          date: new Date(oldest.uploaded_at).toLocaleDateString(),
+        });
+        setPendingFile(file);
+        setShowLimitWarning(true);
+        return;
+      }
+    } catch {
+      // If check fails, proceed anyway — cap is also enforced server-side
+    }
+
+    await doUpload(file);
+  }, [doUpload]);
+
+  const handleLimitConfirm = useCallback(async () => {
+    setShowLimitWarning(false);
+    if (pendingFile) {
+      await doUpload(pendingFile);
+      setPendingFile(null);
+    }
+  }, [pendingFile, doUpload]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -107,6 +148,10 @@ export default function CVUploadOnboarding() {
         truncated={extractedData.truncated}
         onReset={() => setExtractedData(null)}
         resetLabel="Try another file"
+        documentId={extractedData.documentId}
+        originalFilename={extractedData.originalFilename}
+        fileSizeBytes={extractedData.fileSizeBytes}
+        pageCount={extractedData.pageCount}
       />
     );
   }
@@ -167,6 +212,43 @@ export default function CVUploadOnboarding() {
         </label>
 
         {error && <p className="text-red-400 text-sm text-center mt-4">{error}</p>}
+
+        {showLimitWarning && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+            <div className="bg-neutral-950 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white text-lg font-semibold mb-1">Document limit reached</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">
+                    You already have 3 documents stored. Uploading this file will remove the oldest document
+                    {oldestDoc && (
+                      <> (<span className="text-white font-medium">{oldestDoc.name}</span>, uploaded {oldestDoc.date})</>
+                    )}.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end mt-5">
+                <button
+                  onClick={() => { setShowLimitWarning(false); setPendingFile(null); }}
+                  className="border border-white/10 text-white/60 hover:text-white hover:bg-white/5 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLimitConfirm}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                >
+                  Replace &amp; upload
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
