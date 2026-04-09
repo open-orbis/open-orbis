@@ -19,8 +19,8 @@ class CVStep(str, Enum):
 
 STEP_PERCENT: dict[CVStep, int] = {
     CVStep.READING_PDF: 5,
-    CVStep.EXTRACTING_TEXT: 15,
-    CVStep.CLASSIFYING: 25,
+    CVStep.EXTRACTING_TEXT: 20,
+    CVStep.CLASSIFYING: 35,
     CVStep.PARSING_RESPONSE: 90,
     CVStep.DONE: 100,
     CVStep.FAILED: 0,
@@ -43,6 +43,7 @@ class CVProgress:
     message: str
     detail: str = ""
     started_at: float = field(default_factory=time.time)
+    text_chars: int = 0  # character count of text being classified
 
 
 _lock = threading.Lock()
@@ -53,16 +54,19 @@ def set_progress(
     user_id: str,
     step: CVStep,
     detail: str = "",
+    text_chars: int = 0,
 ) -> None:
     with _lock:
         existing = _progress.get(user_id)
         started_at = existing.started_at if existing else time.time()
+        chars = text_chars or (existing.text_chars if existing else 0)
         _progress[user_id] = CVProgress(
             step=step,
             percent=STEP_PERCENT[step],
             message=STEP_MESSAGE[step],
             detail=detail,
             started_at=started_at,
+            text_chars=chars,
         )
 
 
@@ -74,10 +78,17 @@ def get_progress(user_id: str) -> CVProgress | None:
         # Simulate progress during classification (the long step)
         if p.step == CVStep.CLASSIFYING:
             elapsed = time.time() - p.started_at
-            # Gradually increase from 25% to 85% over ~5 minutes
-            fraction = min(elapsed / 300, 0.95)
-            simulated = 25 + int(60 * fraction)
-            # Rotate through processing descriptions
+            # Estimate expected duration based on text size:
+            # ~15s for short CVs (2k chars), ~60s for medium (8k), ~120s for long (15k+)
+            # Baseline 15s + ~7ms per character
+            chars = max(p.text_chars, 2000)
+            estimated_duration = min(15 + chars * 0.007, 180)
+            # Progress from 35% to 88% over the estimated duration
+            # Uses ease-out so early progress feels faster
+            fraction = min(elapsed / estimated_duration, 1.0)
+            eased = 1 - (1 - fraction) ** 2  # quadratic ease-out
+            simulated = 35 + int(53 * eased)
+            # Rotate substep labels based on estimated progress sections
             substeps = [
                 "Identifying work experiences...",
                 "Extracting education entries...",
@@ -87,7 +98,9 @@ def get_progress(user_id: str) -> CVProgress | None:
                 "Mapping skill relationships...",
                 "Validating extracted entries...",
             ]
-            detail = substeps[int(elapsed / 12) % len(substeps)]
+            # Advance substep labels proportionally to progress
+            substep_idx = min(int(fraction * len(substeps)), len(substeps) - 1)
+            detail = substeps[substep_idx]
             return CVProgress(
                 step=p.step,
                 percent=simulated,
