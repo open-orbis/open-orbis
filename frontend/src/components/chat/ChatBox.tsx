@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
@@ -13,6 +13,7 @@ interface ChatMessage {
 interface ChatBoxProps {
   onHighlight: (nodeIds: Set<string>) => void;
   onFocusNode?: (nodeUid: string) => void;
+  onClearResults?: () => void;
   highlightedNodeIds?: Set<string>;
   messages: ChatMessage[];
   onMessagesChange: (msgs: ChatMessage[]) => void;
@@ -77,6 +78,7 @@ function getScoreStyle(score: number): { dot: string; text: string } {
 export default function ChatBox({
   onHighlight,
   onFocusNode,
+  onClearResults,
   highlightedNodeIds,
   messages,
   onMessagesChange,
@@ -115,6 +117,13 @@ export default function ChatBox({
     [messages],
   );
 
+  const clearResults = useCallback(() => {
+    onMessagesChange([]);
+    onHighlight(new Set());
+    setActiveResultIndex(-1);
+    onClearResults?.();
+  }, [onMessagesChange, onHighlight, onClearResults]);
+
   useEffect(() => {
     if (resultNodes.length === 0) {
       setActiveResultIndex(-1);
@@ -134,14 +143,13 @@ export default function ChatBox({
       const target = event.target as Node | null;
       if (!target || !containerRef.current) return;
       if (!containerRef.current.contains(target)) {
-        onMessagesChange([]);
-        onHighlight(new Set());
+        clearResults();
       }
     };
 
     document.addEventListener('pointerdown', handlePointerDown);
     return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [hasMessages, onHighlight, onMessagesChange]);
+  }, [hasMessages, clearResults]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,9 +205,7 @@ export default function ChatBox({
   };
 
   const handleClearResults = () => {
-    onMessagesChange([]);
-    onHighlight(new Set());
-    setActiveResultIndex(-1);
+    clearResults();
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

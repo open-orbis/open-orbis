@@ -807,6 +807,11 @@ export default function OrbViewPage() {
       seq: (prev?.seq ?? 0) + 1,
     }));
   }, []);
+  const personNodeId = ((data?.person?.user_id || data?.person?.orb_id) as string) || '';
+  const handleChatClear = useCallback(() => {
+    if (!personNodeId) return;
+    handleFocusNode(personNodeId);
+  }, [personNodeId, handleFocusNode]);
 
   const doImport = useCallback(async (file: File) => {
     setImporting(true);
@@ -1152,6 +1157,7 @@ export default function OrbViewPage() {
       {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
         onFocusNode={handleFocusNode}
+        onClearResults={handleChatClear}
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
