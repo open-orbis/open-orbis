@@ -352,6 +352,15 @@ async def get_cv_progress(
     }
 
 
+@router.post("/progress/discard")
+async def discard_cv_progress(
+    current_user: dict = Depends(get_current_user),
+):
+    """Discard any tracked CV progress for the current user."""
+    progress.clear_progress(current_user["user_id"])
+    return {"status": "discarded"}
+
+
 async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noqa: C901
     """Shared logic for confirm_cv and import_confirm."""
     created: list[str | None] = []

@@ -1,16 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { uploadCV, getCVProgress, getDocuments } from '../../api/cv';
+import { uploadCV, getCVProgress, getDocuments, discardCVProgress } from '../../api/cv';
 import type { ExtractedData, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
 import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
 import ExtractedDataReview from './ExtractedDataReview';
 
 export default function CVUploadOnboarding() {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [processingUiActive, setProcessingUiActive] = useState(false);
   const [error, setError] = useState('');
   const [errorDetails, setErrorDetails] = useState('');
   const [showTechDetails, setShowTechDetails] = useState(false);
@@ -18,10 +17,19 @@ export default function CVUploadOnboarding() {
   const [progressData, setProgressData] = useState<CVProgressData | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAbortControllerRef = useRef<AbortController | null>(null);
+  const activeUploadRunRef = useRef(0);
+  const isProcessing = uploading && processingUiActive;
+
+  useEffect(() => {
+    return () => {
+      uploadAbortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Poll progress while uploading
   useEffect(() => {
-    if (!uploading) {
+    if (!isProcessing) {
       if (pollRef.current) clearInterval(pollRef.current);
       return;
     }
@@ -34,7 +42,7 @@ export default function CVUploadOnboarding() {
     poll();
     pollRef.current = setInterval(poll, 2000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [uploading]);
+  }, [isProcessing]);
 
   const [extractedData, setExtractedData] = useState<{
     nodes: ExtractedData['nodes'];
@@ -53,13 +61,53 @@ export default function CVUploadOnboarding() {
   const [oldestDoc, setOldestDoc] = useState<{ name: string; date: string } | null>(null);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
+  const resetToUploadStep = useCallback(() => {
+    // Invalidate any in-flight upload response so it won't overwrite UI state.
+    activeUploadRunRef.current += 1;
+    uploadAbortControllerRef.current?.abort();
+    uploadAbortControllerRef.current = null;
+    void discardCVProgress().catch(() => {
+      // Keep UI reset even if backend discard call fails.
+    });
+    setProcessingUiActive(false);
+    setUploading(false);
+    setProgressData(null);
+    setError('');
+    setErrorDetails('');
+    setShowTechDetails(false);
+    setShowLimitWarning(false);
+    setPendingFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, []);
+
+  // Hard reset on page load/refresh: never restore in-progress CV processing in onboarding.
+  useEffect(() => {
+    resetToUploadStep();
+  }, [resetToUploadStep]);
+
+  // Also reset when the page is restored from browser cache/history.
+  useEffect(() => {
+    const onPageShow = () => {
+      resetToUploadStep();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, [resetToUploadStep]);
+
   const doUpload = useCallback(async (file: File) => {
+    const runId = activeUploadRunRef.current + 1;
+    activeUploadRunRef.current = runId;
+    uploadAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    uploadAbortControllerRef.current = controller;
+    setProcessingUiActive(true);
     setUploading(true);
     setError('');
     setErrorDetails('');
     setShowTechDetails(false);
     try {
-      const data = await uploadCV(file);
+      const data = await uploadCV(file, controller.signal);
+      if (runId !== activeUploadRunRef.current) return;
 
       let unmatchedCount = 0;
       if (data.unmatched && data.unmatched.length > 0 && user?.user_id) {
@@ -91,10 +139,14 @@ export default function CVUploadOnboarding() {
         });
       }
     } catch (e) {
+      if (runId !== activeUploadRunRef.current) return;
       setError('Failed to parse CV. Please try again or use manual entry.');
       setErrorDetails(e instanceof Error ? e.message : 'Unknown upload error');
     } finally {
-      setUploading(false);
+      if (runId === activeUploadRunRef.current) {
+        setProcessingUiActive(false);
+        setUploading(false);
+      }
     }
   }, [user]);
 
@@ -152,6 +204,10 @@ export default function CVUploadOnboarding() {
     if (file) handleFile(file);
   }, [handleFile]);
 
+  const handleBackToUpload = useCallback(() => {
+    resetToUploadStep();
+  }, [resetToUploadStep]);
+
   // ── Review mode (shared component) ──
   if (extractedData) {
     return (
@@ -169,18 +225,16 @@ export default function CVUploadOnboarding() {
         fileSizeBytes={extractedData.fileSizeBytes}
         pageCount={extractedData.pageCount}
       >
-        <div className="mt-4">
-          <OnboardingStages current="review" />
-        </div>
+        <OnboardingStages current="review" />
       </ExtractedDataReview>
     );
   }
 
   // ── Upload mode ──
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center px-3 sm:px-4 py-8 pb-28">
-      <div className="w-full max-w-[95vw] sm:max-w-xl">
-        <OnboardingStages current={uploading ? 'process' : 'upload'} />
+    <div className="min-h-screen bg-black flex flex-col items-center px-3 sm:px-4 pb-28">
+      <div className="w-full max-w-[95vw] sm:max-w-xl my-auto">
+        <OnboardingStages current={isProcessing ? 'process' : 'upload'} />
 
         <div className="text-center mt-6 mb-6">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-blue-500/15 border border-blue-500/25 flex items-center justify-center">
@@ -189,27 +243,7 @@ export default function CVUploadOnboarding() {
             </svg>
           </div>
           <h2 className="text-white text-xl font-semibold">Import from your CV</h2>
-          <p className="text-white/30 text-sm mt-1">Upload a CV and review extracted entries before publishing to your orbis.</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55 mb-1">Import behavior</p>
-            <p className="text-xs text-white/35 leading-relaxed">
-              Entries are reviewed first, then merged into your orbis when you confirm.
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55 mb-1">Storage policy</p>
-            <p className="text-xs text-white/35 leading-relaxed">
-              If you already have 3 documents, we ask confirmation before replacing the oldest one.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] text-emerald-200">You can continue later</span>
-          <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-[11px] text-blue-200">Processing can continue in background</span>
+          <p className="text-white/30 text-sm mt-1">Upload a CV and review extracted entries before getting your orbis.</p>
         </div>
 
         {/* Dropzone */}
@@ -217,13 +251,17 @@ export default function CVUploadOnboarding() {
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          className={`block border-2 border-dashed rounded-2xl p-6 sm:p-12 text-center cursor-pointer transition-all ${
-            dragOver
-              ? 'border-purple-500/60 bg-purple-500/10'
-              : 'border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04]'
+          className={`block rounded-2xl text-center transition-all ${
+            isProcessing
+              ? 'border border-white/10 bg-white/[0.03] px-4 py-6 sm:px-6 sm:py-8 cursor-default'
+              : `border-2 border-dashed p-6 sm:p-12 cursor-pointer ${
+                  dragOver
+                    ? 'border-purple-500/60 bg-purple-500/10'
+                    : 'border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.04]'
+                }`
           }`}
         >
-          {uploading ? (
+          {isProcessing ? (
             <ProgressSteps progress={progressData} />
           ) : (
             <>
@@ -253,7 +291,7 @@ export default function CVUploadOnboarding() {
             accept=".pdf"
             onChange={handleFileInput}
             className="hidden"
-            disabled={uploading}
+            disabled={isProcessing}
           />
         </label>
 
@@ -269,7 +307,7 @@ export default function CVUploadOnboarding() {
                   <button
                     type="button"
                     onClick={handleRetry}
-                    disabled={!lastFile || uploading}
+                    disabled={!lastFile || isProcessing}
                     className="rounded-md border border-red-400/40 bg-red-500/20 px-2.5 py-1 text-xs text-red-100 disabled:opacity-40"
                   >
                     Retry
@@ -332,18 +370,20 @@ export default function CVUploadOnboarding() {
 
       {/* Sticky actions */}
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-black/90 backdrop-blur px-3 py-3">
-        <div className="w-full max-w-[95vw] sm:max-w-xl mx-auto flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/create')}
-            className="border border-white/15 hover:border-white/30 text-white/65 hover:text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
-          >
-            Back
-          </button>
+        <div className={`w-full max-w-[95vw] sm:max-w-xl mx-auto flex items-center gap-3 ${isProcessing ? 'justify-between' : 'justify-end'}`}>
+          {isProcessing && (
+            <button
+              type="button"
+              onClick={handleBackToUpload}
+              className="border border-white/15 hover:border-white/30 text-white/65 hover:text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              Back
+            </button>
+          )}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={isProcessing}
             className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors"
           >
             Continue
@@ -360,19 +400,19 @@ const STAGES = [
   { key: 'upload', label: 'Upload' },
   { key: 'process', label: 'Process' },
   { key: 'review', label: 'Review' },
-  { key: 'publish', label: 'Publish' },
+  { key: 'publish', label: 'Get your orbis' },
 ];
 
 function OnboardingStages({ current }: { current: 'upload' | 'process' | 'review' | 'publish' }) {
   const currentIdx = STAGES.findIndex((s) => s.key === current);
   return (
     <div className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
-      <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto">
+      <div className="grid grid-cols-4 items-center">
         {STAGES.map((stage, idx) => {
           const done = idx < currentIdx;
           const active = idx === currentIdx;
           return (
-            <div key={stage.key} className="flex items-center gap-2 shrink-0">
+            <div key={stage.key} className="relative flex items-center justify-center gap-2 min-w-0">
               <div
                 className={`w-5 h-5 rounded-full border text-[10px] font-semibold flex items-center justify-center ${
                   done
@@ -384,10 +424,12 @@ function OnboardingStages({ current }: { current: 'upload' | 'process' | 'review
               >
                 {done ? '✓' : idx + 1}
               </div>
-              <span className={`text-xs ${active ? 'text-white' : done ? 'text-white/70' : 'text-white/35'}`}>
+              <span className={`text-xs truncate ${active ? 'text-white' : done ? 'text-white/70' : 'text-white/35'}`}>
                 {stage.label}
               </span>
-              {idx < STAGES.length - 1 && <span className="text-white/15">→</span>}
+              {idx < STAGES.length - 1 && (
+                <span className="hidden sm:block absolute -right-1 text-white/15 pointer-events-none">→</span>
+              )}
             </div>
           );
         })}
@@ -400,37 +442,47 @@ const STEPS = [
   { key: 'reading_pdf', label: 'Reading PDF' },
   { key: 'extracting_text', label: 'Extracting text' },
   { key: 'classifying', label: 'Classifying entries' },
-  { key: 'parsing_response', label: 'Building graph' },
+  { key: 'parsing_response', label: 'Building your orbis' },
 ];
 
 function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
   const currentStep = progress?.step || 'reading_pdf';
-  const percent = progress?.percent || 5;
   const detail = progress?.detail || progress?.message || '';
 
   const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
-  const completedChecks = currentStep === 'done'
+  const completedSteps = currentStep === 'done'
     ? STEPS.length
     : currentIdx >= 0
       ? currentIdx
       : 0;
+  const currentStepLabel = currentStep === 'done'
+    ? 'Ready to review'
+    : STEPS.find((s) => s.key === currentStep)?.label || 'Working...';
+  const statusText = detail || currentStepLabel;
+  const displayPercent = currentStep === 'done'
+    ? 100
+    : Math.round((completedSteps / STEPS.length) * 100);
 
   return (
-    <div className="flex flex-col items-center gap-4 py-2">
-      <div className="w-full max-w-xs flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-wide text-white/45">Processing state</span>
-        <span className="text-[11px] text-purple-300 font-medium">{detail || 'Working...'}</span>
+    <div className="w-full max-w-md mx-auto rounded-xl border border-white/10 bg-black/20 px-4 py-4 sm:px-5 sm:py-5">
+      <div className="text-left">
+        <p className="text-sm font-semibold text-white">Processing your CV</p>
+        <p className="text-[11px] text-white/45 mt-0.5">We are preparing your orbis from the uploaded document.</p>
       </div>
 
       {/* Steps */}
-      <div className="w-full max-w-xs space-y-2">
+      <div className="mt-4 space-y-2.5 text-left">
         {STEPS.map((step, i) => {
           const isDone = i < currentIdx || currentStep === 'done';
           const isCurrent = i === currentIdx && currentStep !== 'done';
-          const isPending = i > currentIdx && currentStep !== 'done';
 
           return (
-            <div key={step.key} className="flex items-center gap-3">
+            <div
+              key={step.key}
+              className={`flex items-center gap-3 rounded-lg px-2 py-1.5 ${
+                isCurrent ? 'border border-purple-500/25 bg-purple-500/10' : 'border border-transparent'
+              }`}
+            >
               {/* Icon */}
               <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
                 {isDone ? (
@@ -439,15 +491,15 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
                   </svg>
                 ) : isCurrent ? (
                   <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
-                ) : isPending ? (
+                ) : (
                   <div className="w-3 h-3 rounded-full bg-white/10" />
-                ) : null}
+                )}
               </div>
               {/* Label */}
               <span className={`text-sm ${
-                isDone ? 'text-white/40' :
+                isDone ? 'text-white/60' :
                 isCurrent ? 'text-white font-medium' :
-                'text-white/20'
+                'text-white/35'
               }`}>
                 {step.label}
               </span>
@@ -457,22 +509,22 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full max-w-xs">
-        <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="mt-4">
+        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
           <div
-            className="h-full rounded-full transition-all duration-1000 ease-out"
+            className="h-full rounded-full transition-all duration-700 ease-out bg-gradient-to-r from-purple-500 via-fuchsia-500 to-emerald-400"
             style={{
-              width: `${percent}%`,
-              background: percent >= 90
-                ? 'linear-gradient(to right, #a855f6, #22c55e)'
-                : 'linear-gradient(to right, #7c3aed, #a855f6)',
+              width: `${displayPercent}%`,
             }}
           />
         </div>
-        <div className="flex justify-between mt-1.5">
-          <span className="text-white/20 text-[10px]">{percent}%</span>
-          <span className="text-white/20 text-[10px]">{completedChecks}/{STEPS.length} checks completed</span>
+        <div className="flex justify-between mt-2">
+          <span className="text-white/45 text-[11px]">{displayPercent}%</span>
+          <span className="text-white/45 text-[11px]">{completedSteps}/{STEPS.length} steps completed</span>
         </div>
+        <p className="mt-2 text-[11px] text-purple-200 font-medium text-right">
+          {statusText}
+        </p>
       </div>
     </div>
   );
