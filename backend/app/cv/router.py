@@ -30,6 +30,7 @@ from app.graph.queries import (
     NODE_TYPE_RELATIONSHIPS,
     UPDATE_PERSON,
 )
+from app.snapshots.service import create_snapshot as create_orb_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -467,6 +468,17 @@ async def confirm_cv(
     """Persist confirmed CV nodes to Neo4j with dedup and cross-entity linking."""
     await _require_consent(current_user, db)
     user_id = current_user["user_id"]
+
+    # Auto-snapshot before destructive CV import
+    try:
+        await create_orb_snapshot(
+            user_id=user_id,
+            db=db,
+            trigger="cv_import",
+            label="Before CV import",
+        )
+    except Exception as e:
+        logger.warning("Failed to create pre-import snapshot: %s", e)
 
     if data.document_id:
         evict_oldest_if_at_limit(user_id)
