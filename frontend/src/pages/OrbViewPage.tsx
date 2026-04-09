@@ -529,6 +529,7 @@ export default function OrbViewPage() {
   const [pendingSkillLinks, setPendingSkillLinks] = useState<string[]>([]);
   const [pendingDraftNoteId, setPendingDraftNoteId] = useState<string | null>(null);
   const [pendingDraftRawText, setPendingDraftRawText] = useState<string>('');
+  const [draftReferenceText, setDraftReferenceText] = useState<string | null>(null);
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
@@ -554,7 +555,15 @@ export default function OrbViewPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (showToolsMenu) { setShowToolsMenu(false); return; }
-      if (showInput) { setShowInput(false); setEditNode(null); return; }
+      if (showInput) {
+        setShowInput(false);
+        setEditNode(null);
+        setPendingSkillLinks([]);
+        setPendingDraftNoteId(null);
+        setPendingDraftRawText('');
+        setDraftReferenceText(null);
+        return;
+      }
       if (showProfile) { setShowProfile(false); return; }
       if (showShare) { setShowShare(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
@@ -671,36 +680,17 @@ export default function OrbViewPage() {
     }
     setPendingDraftRawText('');
     setPendingSkillLinks([]);
+    setDraftReferenceText(null);
     setShowInput(false);
     setEditNode(null);
   };
 
   const handleDraftToGraph = (note: DraftNote) => {
     setPendingDraftNoteId(note.id);
-    // If the draft has been enhanced, jump straight into the form with the
-    // enhanced state so the user only has to confirm before creating the node.
-    if (note.enhanced) {
-      setPendingSkillLinks(note.enhanced.suggestedSkillUids);
-      setEditNode({ type: note.enhanced.nodeType, values: note.enhanced.properties });
-      setShowInput(true);
-      setShowDrafts(false);
-      return;
-    }
-    const text = note.text.toLowerCase();
-    const detect: [RegExp, string][] = [
-      [/\b(python|javascript|typescript|react|angular|vue|java|c\+\+|node\.?js|sql|docker|kubernetes|aws|git|html|css|figma|photoshop|agile|scrum|machine learning|data science|deep learning|tensorflow|pytorch)\b/i, 'skill'],
-      [/\b(university|degree|bachelor|master|phd|diploma|graduated|school|college|mba|studies|thesis)\b/i, 'education'],
-      [/\b(certified|certification|certificate|license|accredit|aws certified|pmp|cpa|comptia)\b/i, 'certification'],
-      [/\b(english|french|spanish|german|italian|portuguese|chinese|japanese|korean|arabic|hindi|russian|dutch|fluent|native speaker|bilingual)\b/i, 'language'],
-      [/\b(published|paper|article|journal|conference|proceedings|co-author|isbn|doi)\b/i, 'publication'],
-      [/\b(project|built|developed|created|launched|side project|open.?source|hackathon|prototype|app|website)\b/i, 'project'],
-      [/\b(patent|invention|filed|provisional|granted patent|patent number)\b/i, 'patent'],
-    ];
-    let type = 'work_experience';
-    for (const [regex, nodeType] of detect) {
-      if (regex.test(text)) { type = nodeType; break; }
-    }
-    setEditNode({ type, values: { description: note.text } });
+    setPendingDraftRawText(note.text);
+    setPendingSkillLinks([]);
+    setDraftReferenceText(note.text);
+    setEditNode({ type: 'work_experience', values: { description: note.text } });
     setShowInput(true);
     setShowDrafts(false);
   };
@@ -709,6 +699,7 @@ export default function OrbViewPage() {
     // Already enhanced: re-open the form with the saved structured data so
     // the user can keep refining without spending another LLM call.
     if (note.enhanced) {
+      setDraftReferenceText(null);
       setPendingDraftNoteId(note.id);
       setPendingDraftRawText(note.text);
       setPendingSkillLinks(note.enhanced.suggestedSkillUids);
@@ -724,6 +715,7 @@ export default function OrbViewPage() {
 
     const result = await enhanceNote(note.text, targetLang, existingSkills);
 
+    setDraftReferenceText(null);
     setPendingDraftNoteId(note.id);
     setPendingDraftRawText(note.text);
     setPendingSkillLinks(result.suggested_skill_uids);
@@ -760,6 +752,7 @@ export default function OrbViewPage() {
     setPendingDraftNoteId(null);
     setPendingDraftRawText('');
     setPendingSkillLinks([]);
+    setDraftReferenceText(null);
     setShowInput(false);
     setEditNode(null);
     setShowDrafts(true);
@@ -1233,7 +1226,14 @@ export default function OrbViewPage() {
         open={showInput}
         editNode={editNode}
         onSubmit={handleSubmit}
-        onCancel={() => { setShowInput(false); setEditNode(null); setPendingSkillLinks([]); setPendingDraftNoteId(null); setPendingDraftRawText(''); }}
+        onCancel={() => {
+          setShowInput(false);
+          setEditNode(null);
+          setPendingSkillLinks([]);
+          setPendingDraftNoteId(null);
+          setPendingDraftRawText('');
+          setDraftReferenceText(null);
+        }}
         onDelete={async (uid) => {
           const nodeToDelete = data?.nodes.find(n => n.uid === uid);
           const nodeTypeKey = nodeToDelete?._labels?.[0] ? LABEL_TO_TYPE[nodeToDelete._labels[0]] || '' : '';
@@ -1249,6 +1249,7 @@ export default function OrbViewPage() {
           await deleteNode(uid, nodeTypeKey, nodeProps, nodeRelationships);
           setShowInput(false);
           setEditNode(null);
+          setDraftReferenceText(null);
         }}
         onEnhance={async (text) => {
           const existingSkills = (data?.nodes || [])
@@ -1262,6 +1263,20 @@ export default function OrbViewPage() {
         onSaveDraft={pendingDraftNoteId ? handleSaveDraftEnhanced : undefined}
       />}
 
+      {/* ── Draft reference helper (stays above form while adding from notes) ── */}
+      {!isPendingDeletion && showInput && draftReferenceText && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] w-full max-w-[95vw] sm:max-w-xl px-2 sm:px-0">
+          <div className="bg-white border border-gray-300 rounded-xl shadow-2xl p-3 sm:p-4">
+            <textarea
+              readOnly
+              value={draftReferenceText}
+              rows={4}
+              className="w-full bg-white text-gray-900 text-sm leading-relaxed border border-gray-200 rounded-lg px-3 py-2 resize-none focus:outline-none"
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Chat Box ── */}
       {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
@@ -1270,7 +1285,7 @@ export default function OrbViewPage() {
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}
         onMessagesChange={setChatMessages}
-        onAdd={() => { setEditNode(null); setShowInput(true); }}
+        onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
       />}
