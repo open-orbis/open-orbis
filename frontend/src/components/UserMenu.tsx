@@ -306,7 +306,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -320,7 +320,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-neutral-950 border border-white/10 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl h-[440px] max-h-[90vh] overflow-hidden flex flex-col"
+        className="relative bg-neutral-950 border border-white/10 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full shadow-2xl h-[calc(100vh-1rem)] sm:h-[440px] max-h-[calc(100vh-1rem)] sm:max-h-[90vh] overflow-hidden flex flex-col my-auto"
       >
         <button
           onClick={onClose}
