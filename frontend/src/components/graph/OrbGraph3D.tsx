@@ -19,6 +19,8 @@ interface OrbGraph3DProps {
   enableZoom?: boolean;
   enablePan?: boolean;
   cameraDistance?: number;
+  focusNodeId?: string | null;
+  focusNodeToken?: number;
 }
 
 function getNodeName(node: any): string {
@@ -47,7 +49,21 @@ const SHARED_GEO = {
   highlightRing: new THREE.RingGeometry(5.1, 6.0, 24),
 };
 
-export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highlightedNodeIds, filteredNodeIds, hiddenNodeTypes, width, height, enableZoom = true, enablePan = true, cameraDistance = 400 }: OrbGraph3DProps) {
+export default function OrbGraph3D({
+  data,
+  onNodeClick,
+  onBackgroundClick,
+  highlightedNodeIds,
+  filteredNodeIds,
+  hiddenNodeTypes,
+  width,
+  height,
+  enableZoom = true,
+  enablePan = true,
+  cameraDistance = 400,
+  focusNodeId = null,
+  focusNodeToken = 0,
+}: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
   const hoveredNodeRef = useRef<Record<string, unknown> | null>(null);
@@ -208,7 +224,7 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
         }
 
         // Auto-rotate graph when no node is hovered
-        if (!hoveredNodeRef.current && scene) {
+        if (!hoveredNodeRef.current && !hasHighlightsRef.current && scene) {
           scene.rotation.y += 0.0012;
         }
 
@@ -270,6 +286,63 @@ export default function OrbGraph3D({ data, onNodeClick, onBackgroundClick, highl
       if (fg) fg.refresh();
     }
   }, [hiddenNodeTypes]);
+
+  // Center camera on requested node (chat result selection).
+  useEffect(() => {
+    if (!focusNodeId || focusNodeToken <= 0) return;
+    const fg = fgRef.current;
+    if (!fg) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    const centerOnNode = () => {
+      if (cancelled || !fgRef.current) return;
+      attempts += 1;
+
+      const liveGraph = fgRef.current.graphData?.() as { nodes?: any[] } | undefined;
+      const nodes = liveGraph?.nodes || graphData.nodes;
+      const targetNode = nodes.find((n: any) => (n.id || n.uid) === focusNodeId);
+
+      if (!targetNode) return;
+
+      const x = Number(targetNode.x);
+      const y = Number(targetNode.y);
+      const z = Number(targetNode.z);
+
+      if (![x, y, z].every(Number.isFinite)) {
+        if (attempts < maxAttempts) requestAnimationFrame(centerOnNode);
+        return;
+      }
+
+      const camera = fgRef.current.camera?.();
+      const controls = fgRef.current.controls?.();
+      const camPos = camera?.position;
+      const currentTarget = controls?.target;
+
+      const offset = new THREE.Vector3(0, 0, cameraDistance);
+      if (camPos && currentTarget) {
+        offset.set(
+          camPos.x - currentTarget.x,
+          camPos.y - currentTarget.y,
+          camPos.z - currentTarget.z,
+        );
+      }
+      if (!Number.isFinite(offset.length()) || offset.length() < 1) {
+        offset.set(0, 0, cameraDistance);
+      }
+
+      fgRef.current.cameraPosition(
+        { x: x + offset.x, y: y + offset.y, z: z + offset.z },
+        { x, y, z },
+        900,
+      );
+    };
+
+    requestAnimationFrame(centerOnNode);
+    return () => { cancelled = true; };
+  }, [focusNodeId, focusNodeToken, graphData.nodes, cameraDistance]);
 
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node || null);

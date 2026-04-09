@@ -12,6 +12,7 @@ interface ChatMessage {
 
 interface ChatBoxProps {
   onHighlight: (nodeIds: Set<string>) => void;
+  onFocusNode?: (nodeUid: string) => void;
   highlightedNodeIds?: Set<string>;
   messages: ChatMessage[];
   onMessagesChange: (msgs: ChatMessage[]) => void;
@@ -75,6 +76,7 @@ function getScoreStyle(score: number): { dot: string; text: string } {
 
 export default function ChatBox({
   onHighlight,
+  onFocusNode,
   highlightedNodeIds,
   messages,
   onMessagesChange,
@@ -163,6 +165,7 @@ export default function ChatBox({
       } else {
         const selectedNodeUid = sortedResults[0].uid;
         onHighlight(new Set([selectedNodeUid]));
+        onFocusNode?.(selectedNodeUid);
 
         const summary = sortedResults.length === 1
           ? 'Found 1 matching node — highlighted in your graph.'
@@ -186,6 +189,7 @@ export default function ChatBox({
 
   const handleResultClick = (messageIndex: number, nodeUid: string) => {
     onHighlight(new Set([nodeUid]));
+    onFocusNode?.(nodeUid);
     setMessages((prev) => prev.map((msg, idx) => {
       if (idx !== messageIndex || !msg.matchedNodes) return msg;
       return { ...msg, selectedNodeUid: nodeUid };
