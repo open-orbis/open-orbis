@@ -520,6 +520,7 @@ export default function OrbViewPage() {
   const [showShare, setShowShare] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [tourRunning, setTourRunning] = useState(false);
   const [editNode, setEditNode] = useState<{ type: string; values: Record<string, unknown> } | null>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<Set<string>>(new Set());
@@ -1159,7 +1160,7 @@ export default function OrbViewPage() {
 
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
-                <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} />
+                <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} onStartTour={() => setTourRunning(true)} />
               </div>
             </div>
           </div>
@@ -1373,7 +1374,7 @@ export default function OrbViewPage() {
       )}
 
       {/* ── Guided Tour ── */}
-      <GuidedTour />
+      <GuidedTour run={tourRunning} onFinish={() => setTourRunning(false)} />
     </div>
   );
 }

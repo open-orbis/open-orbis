@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
-import { resetTour } from './GuidedTour';
 import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion } from '../api/orbs';
 import type { SnapshotMetadata } from '../api/orbs';
 import { getDocuments, downloadCV } from '../api/cv';
@@ -16,9 +15,10 @@ interface UserMenuProps {
   onOrbIdChanged?: () => void;
   /** Display name next to avatar — makes the whole thing a clickable pill */
   label?: string;
+  onStartTour?: () => void;
 }
 
-export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps) {
+export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: UserMenuProps) {
   const { user, logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const navigate = useNavigate();
@@ -219,6 +219,7 @@ export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps
             orbId={orbId}
             onOrbIdChanged={onOrbIdChanged}
             onClose={() => setShowAccountSettings(false)}
+            onStartTour={onStartTour}
           />
         </AnimatePresence>,
         document.body,
@@ -229,10 +230,11 @@ export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps
 
 // ── Account Settings Modal ──
 
-function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
+function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
   orbId?: string;
   onOrbIdChanged?: () => void;
   onClose: () => void;
+  onStartTour?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<'orb-id' | 'versions' | 'account'>('orb-id');
   const { user, logout } = useAuthStore();
@@ -426,9 +428,8 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
             <div className="mt-auto pt-3 border-t border-white/5">
               <button
                 onClick={() => {
-                  resetTour();
-                  addToast('Guided tour will restart on next page load', 'info');
                   onClose();
+                  onStartTour?.();
                 }}
                 className="flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors cursor-pointer w-full"
               >
