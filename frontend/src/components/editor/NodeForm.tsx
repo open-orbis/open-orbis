@@ -235,15 +235,17 @@ function FieldInput({
   const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
   const showDateHint = isDate && value.trim() !== '' && (!dateRe.test(value.trim()) || (/^\d{4}$/.test(value.trim()) ? false : isValidDate(value.trim()) !== null));
 
+  const isFilled = required && !missing;
   const borderClass = required
-    ? (missing ? 'border-red-500/85' : 'border-red-500/45')
+    ? (missing ? 'border-red-500/85' : '')
     : 'border-white/10';
-  const baseClass = `w-full bg-white/5 border ${borderClass} rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors`;
+  const baseClass = `w-full bg-white/5 border rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors`;
 
   return (
     <div>
-      <label className="flex items-center gap-1 text-[10px] font-medium text-white/35 uppercase tracking-wider mb-1">
-        {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+      <label className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider mb-1" style={{ color: isFilled ? color : undefined }}>
+        <span className={isFilled ? '' : 'text-white/35'}>{label}</span>
+        {required && <span style={isFilled ? { color } : undefined} className={isFilled ? '' : 'text-red-400 ml-0.5'}>*</span>}
         {isDate && (
           <svg className="w-3 h-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -255,8 +257,8 @@ function FieldInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={label}
-          className={baseClass}
-          style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
+          className={`${baseClass} ${borderClass}`}
+          style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
           rows={3}
         />
       ) : (
@@ -265,8 +267,8 @@ function FieldInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={isDate ? (allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY') : label}
-          className={baseClass}
-          style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
+          className={`${baseClass} ${borderClass}`}
+          style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
         />
       )}
       {showUrlHint && (
@@ -334,8 +336,11 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
       return;
     }
     setDateError(null);
+    // Only submit renderable fields — exclude metadata (_labels, uid, score, etc.)
     const filtered = Object.fromEntries(
-      Object.entries(values).filter(([, v]) => v !== '')
+      renderableFields
+        .map((f) => [f, values[f] || ''] as const)
+        .filter(([, v]) => v !== '')
     );
     if (isCurrent) {
       delete filtered.end_date;
@@ -347,7 +352,9 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const handleSaveDraftClick = () => {
     if (!onSaveDraft) return;
     const filtered = Object.fromEntries(
-      Object.entries(values).filter(([, v]) => v !== '')
+      renderableFields
+        .map((f) => [f, values[f] || ''] as const)
+        .filter(([, v]) => v !== '')
     );
     if (isCurrent) {
       delete filtered.end_date;
