@@ -81,8 +81,12 @@ const DATE_PAIRS: Record<string, [string, string, string][]> = {
   patent: [['filing_date', 'grant_date', 'Filing date must be before grant date']],
 };
 
-// Accept: MM/YYYY or DD/MM/YYYY
+// Accept: MM/YYYY or DD/MM/YYYY (or YYYY for types that allow it)
 const DATE_FORMAT_RE = /^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
+const DATE_FORMAT_WITH_YEAR_RE = /^(\d{4}|\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
+
+// Node types where date fields accept year-only (YYYY) format
+const YEAR_ONLY_TYPES = new Set(['publication']);
 
 const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
@@ -145,12 +149,18 @@ function toSortable(dateStr: string): string {
 }
 
 function validateDates(nodeType: string, values: Record<string, string>, isCurrent: boolean): string | null {
+  const allowYearOnly = YEAR_ONLY_TYPES.has(nodeType);
+  const formatRe = allowYearOnly ? DATE_FORMAT_WITH_YEAR_RE : DATE_FORMAT_RE;
+  const formatHint = allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY';
+
   // Check format and validity of all date fields
   for (const [key, val] of Object.entries(values)) {
     if (!key.includes('date') || !val.trim()) continue;
-    if (!DATE_FORMAT_RE.test(val.trim())) {
-      return `Invalid date format for ${key.replace(/_/g, ' ')}. Use MM/YYYY or DD/MM/YYYY.`;
+    if (!formatRe.test(val.trim())) {
+      return `Invalid date format for ${key.replace(/_/g, ' ')}. Use ${formatHint}.`;
     }
+    // Skip deep validation for year-only values
+    if (/^\d{4}$/.test(val.trim())) continue;
     const dateError = isValidDate(val.trim());
     if (dateError) {
       return `Invalid ${key.replace(/_/g, ' ')}: ${dateError}.`;
@@ -207,6 +217,7 @@ function FieldInput({
   color,
   required = false,
   missing = false,
+  allowYearOnly = false,
 }: {
   field: string;
   value: string;
@@ -214,13 +225,15 @@ function FieldInput({
   color: string;
   required?: boolean;
   missing?: boolean;
+  allowYearOnly?: boolean;
 }) {
   const label = field.replace(/_/g, ' ');
   const isDate = field.includes('date');
   const isUrl = field.includes('url');
   const isTextarea = field === 'description' || field === 'abstract';
+  const dateRe = allowYearOnly ? DATE_FORMAT_WITH_YEAR_RE : DATE_FORMAT_RE;
   const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
-  const showDateHint = isDate && value.trim() !== '' && (!DATE_FORMAT_RE.test(value.trim()) || isValidDate(value.trim()) !== null);
+  const showDateHint = isDate && value.trim() !== '' && (!dateRe.test(value.trim()) || (/^\d{4}$/.test(value.trim()) ? false : isValidDate(value.trim()) !== null));
 
   const borderClass = required
     ? (missing ? 'border-red-500/85' : 'border-red-500/45')
@@ -251,7 +264,7 @@ function FieldInput({
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={isDate ? 'MM/YYYY or DD/MM/YYYY' : label}
+          placeholder={isDate ? (allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY') : label}
           className={baseClass}
           style={{ '--tw-ring-color': `${color}60` } as React.CSSProperties}
         />
@@ -263,8 +276,8 @@ function FieldInput({
       )}
       {showDateHint && (
         <p className="text-[10px] text-amber-400/60 mt-1">
-          {!DATE_FORMAT_RE.test(value.trim())
-            ? 'Use format MM/YYYY or DD/MM/YYYY'
+          {!dateRe.test(value.trim())
+            ? (allowYearOnly ? 'Use format YYYY, MM/YYYY, or DD/MM/YYYY' : 'Use format MM/YYYY or DD/MM/YYYY')
             : isValidDate(value.trim()) || 'Invalid date'}
         </p>
       )}
@@ -502,6 +515,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
                   color={color}
                   required={isRequiredField(field)}
                   missing={isMissingRequiredField(field)}
+                  allowYearOnly={YEAR_ONLY_TYPES.has(nodeType)}
                 />
               );
             })}
