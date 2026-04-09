@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import * as orbsApi from '../api/orbs';
 import type { OrbData, OrbNode } from '../api/orbs';
 import { useToastStore } from './toastStore';
+import { useUndoStore } from './undoStore';
 
 interface OrbState {
   data: OrbData | null;
@@ -11,7 +12,7 @@ interface OrbState {
   fetchPublicOrb: (orbId: string, filterToken?: string) => Promise<void>;
   addNode: (nodeType: string, properties: Record<string, unknown>) => Promise<OrbNode>;
   updateNode: (uid: string, properties: Record<string, unknown>) => Promise<void>;
-  deleteNode: (uid: string) => Promise<void>;
+  deleteNode: (uid: string, nodeType?: string, properties?: Record<string, unknown>, relationships?: Array<{ source: string; target: string; type: string }>) => Promise<void>;
 }
 
 export const useOrbStore = create<OrbState>((set, get) => ({
@@ -44,6 +45,12 @@ export const useOrbStore = create<OrbState>((set, get) => ({
       const node = await orbsApi.addNode(nodeType, properties);
       await get().fetchOrb();
       useToastStore.getState().addToast('Entry added to your orbis', 'success');
+      useUndoStore.getState().pushUndo({
+        type: 'add',
+        nodeUid: node.uid,
+        nodeType,
+        properties,
+      });
       return node;
     } catch (e) {
       useToastStore.getState().addToast('Failed to add entry', 'error');
@@ -62,11 +69,20 @@ export const useOrbStore = create<OrbState>((set, get) => ({
     }
   },
 
-  deleteNode: async (uid: string) => {
+  deleteNode: async (uid: string, nodeType?: string, properties?: Record<string, unknown>, relationships?: Array<{ source: string; target: string; type: string }>) => {
     try {
       await orbsApi.deleteNode(uid);
       await get().fetchOrb();
       useToastStore.getState().addToast('Entry deleted', 'success');
+      if (nodeType && properties) {
+        useUndoStore.getState().pushUndo({
+          type: 'delete',
+          nodeUid: uid,
+          nodeType,
+          properties,
+          relationships,
+        });
+      }
     } catch (e) {
       useToastStore.getState().addToast('Failed to delete entry', 'error');
       throw e;
