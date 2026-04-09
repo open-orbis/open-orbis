@@ -188,7 +188,6 @@ interface DraftNotesProps {
 export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddToGraph, onEnhance }: DraftNotesProps) {
   const [input, setInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -331,12 +330,6 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     addNote(input);
-  };
-
-  const handleToggleBulkMode = () => {
-    setBulkMode((prev) => !prev);
-    setSelectedIds(new Set());
-    setConfirmDeleteId(null);
   };
 
   const toggleSelected = (id: string) => {
@@ -583,60 +576,47 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                     </button>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={handleToggleBulkMode}
-                  className={`text-[11px] font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${
-                    bulkMode
-                      ? 'border-purple-400/40 bg-purple-500/20 text-purple-200'
-                      : 'border-white/10 text-white/60 hover:text-white/80 hover:border-white/20'
-                  }`}
-                >
-                  {bulkMode ? 'Done' : 'Bulk'}
-                </button>
               </div>
-              {bulkMode && (
-                <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 space-y-2">
-                  <div className="flex items-center justify-between text-[10px] text-white/40">
-                    <span>{selectedCount} selected</span>
-                    <button
-                      type="button"
-                      onClick={selectAllFiltered}
-                      className="text-white/60 hover:text-white/85"
-                    >
-                      {allFilteredSelected ? 'Clear shown' : 'Select shown'}
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleBulkAddToGraph}
-                      disabled={selectedCount !== 1}
-                      className="text-[10px] font-medium px-2 py-1 rounded-md text-purple-300 bg-purple-500/10 border border-purple-500/25 disabled:opacity-30"
-                    >
-                      Add to graph
-                    </button>
-                    {onEnhance && (
-                      <button
-                        type="button"
-                        onClick={handleBulkEnhance}
-                        disabled={selectedEnhanceableCount === 0 || bulkEnhancing}
-                        className="text-[10px] font-medium px-2 py-1 rounded-md text-amber-300 bg-amber-500/10 border border-amber-500/25 disabled:opacity-30"
-                      >
-                        {bulkEnhancing ? 'Enhancing...' : `Enhance (${selectedEnhanceableCount})`}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleBulkDelete}
-                      disabled={selectedCount === 0}
-                      className="text-[10px] font-medium px-2 py-1 rounded-md text-red-300 bg-red-500/10 border border-red-500/25 disabled:opacity-30"
-                    >
-                      Delete
-                    </button>
-                  </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-2 space-y-2">
+                <div className="flex items-center justify-between text-[10px] text-white/40">
+                  <span>{selectedCount} selected</span>
+                  <button
+                    type="button"
+                    onClick={selectAllFiltered}
+                    className="text-white/60 hover:text-white/85"
+                  >
+                    {allFilteredSelected ? 'Clear shown' : 'Select shown'}
+                  </button>
                 </div>
-              )}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleBulkAddToGraph}
+                    disabled={selectedCount !== 1}
+                    className="text-[10px] font-medium px-2 py-1 rounded-md text-purple-300 bg-purple-500/10 border border-purple-500/25 disabled:opacity-30"
+                  >
+                    Add to graph
+                  </button>
+                  {onEnhance && (
+                    <button
+                      type="button"
+                      onClick={handleBulkEnhance}
+                      disabled={selectedEnhanceableCount === 0 || bulkEnhancing}
+                      className="text-[10px] font-medium px-2 py-1 rounded-md text-amber-300 bg-amber-500/10 border border-amber-500/25 disabled:opacity-30"
+                    >
+                      {bulkEnhancing ? 'Enhancing...' : `Enhance (${selectedEnhanceableCount})`}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    disabled={selectedCount === 0}
+                    className="text-[10px] font-medium px-2 py-1 rounded-md text-red-300 bg-red-500/10 border border-red-500/25 disabled:opacity-30"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
               {enhanceError && (
                 <div className="flex items-start justify-between gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-2.5 py-2">
                   <p className="text-red-300 text-[11px]">{enhanceError}</p>
@@ -693,25 +673,23 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                           : 'bg-white/5 border-white/5 hover:border-white/10'
                       }`}
                     >
-                      <div className={`flex ${bulkMode ? 'items-start gap-2.5' : 'items-start'}`}>
-                        {bulkMode && (
-                          <button
-                            type="button"
-                            onClick={() => toggleSelected(note.id)}
-                            className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors ${
-                              isSelected
-                                ? 'border-purple-400 bg-purple-500/30'
-                                : 'border-white/30 bg-transparent hover:border-white/50'
-                            }`}
-                            title={isSelected ? 'Unselect note' : 'Select note'}
-                          >
-                            {isSelected && (
-                              <svg className="w-3 h-3 text-purple-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </button>
-                        )}
+                      <div className="flex items-start gap-2.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleSelected(note.id)}
+                          className={`mt-0.5 h-4 w-4 rounded border flex items-center justify-center transition-colors ${
+                            isSelected
+                              ? 'border-purple-400 bg-purple-500/30'
+                              : 'border-white/30 bg-transparent hover:border-white/50'
+                          }`}
+                          title={isSelected ? 'Unselect note' : 'Select note'}
+                        >
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-purple-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </button>
                         <div className="min-w-0 flex-1">
                           {editingId === note.id ? (
                             /* ── Inline edit mode ── */
@@ -793,65 +771,63 @@ export default function DraftNotes({ open, onClose, notes, onNotesChange, onAddT
                                 )}
                               </div>
 
-                              {!bulkMode && (
-                                <div className="flex flex-wrap items-center gap-1 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                              <div className="flex flex-wrap items-center gap-1 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => onAddToGraph(note)}
+                                  className="text-[10px] font-medium text-purple-400 hover:text-purple-300 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors"
+                                >
+                                  + Add to graph
+                                </button>
+                                {onEnhance && (
                                   <button
-                                    onClick={() => onAddToGraph(note)}
-                                    className="text-[10px] font-medium text-purple-400 hover:text-purple-300 px-2 py-0.5 rounded-md hover:bg-purple-500/10 transition-colors"
+                                    onClick={() => handleEnhance(note)}
+                                    disabled={enhancingNoteId !== null || bulkEnhancing}
+                                    className={`text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
+                                      enhancingNoteId === note.id
+                                        ? 'text-amber-400/80 bg-amber-500/10'
+                                        : enhancingNoteId || bulkEnhancing
+                                          ? 'text-white/15 cursor-not-allowed'
+                                          : 'text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/10'
+                                    }`}
+                                    title="Enhance with AI: translate, improve, and extract fields"
                                   >
-                                    + Add to graph
+                                    {enhancingNoteId === note.id ? (
+                                      <>
+                                        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                        </svg>
+                                        Enhancing...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                        </svg>
+                                        {note.enhanced ? 'Refine' : 'Enhance'}
+                                      </>
+                                    )}
                                   </button>
-                                  {onEnhance && (
-                                    <button
-                                      onClick={() => handleEnhance(note)}
-                                      disabled={enhancingNoteId !== null || bulkEnhancing}
-                                      className={`text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 ${
-                                        enhancingNoteId === note.id
-                                          ? 'text-amber-400/80 bg-amber-500/10'
-                                          : enhancingNoteId || bulkEnhancing
-                                            ? 'text-white/15 cursor-not-allowed'
-                                            : 'text-amber-400/70 hover:text-amber-300 hover:bg-amber-500/10'
-                                      }`}
-                                      title="Enhance with AI: translate, improve, and extract fields"
-                                    >
-                                      {enhancingNoteId === note.id ? (
-                                        <>
-                                          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                          </svg>
-                                          Enhancing...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                                          </svg>
-                                          {note.enhanced ? 'Refine' : 'Enhance'}
-                                        </>
-                                      )}
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => startEdit(note)}
-                                    className="text-white/30 hover:text-white/70 transition-colors p-0.5"
-                                    title="Edit note"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => setConfirmDeleteId(note.id)}
-                                    className="text-white/30 hover:text-red-400 transition-colors p-0.5"
-                                    title="Delete note"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              )}
+                                )}
+                                <button
+                                  onClick={() => startEdit(note)}
+                                  className="text-white/30 hover:text-white/70 transition-colors p-0.5"
+                                  title="Edit note"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteId(note.id)}
+                                  className="text-white/30 hover:text-red-400 transition-colors p-0.5"
+                                  title="Delete note"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>
