@@ -84,6 +84,32 @@ const DATE_PAIRS: Record<string, [string, string, string][]> = {
 // Accept: MM/YYYY or DD/MM/YYYY
 const DATE_FORMAT_RE = /^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/;
 
+const DAYS_IN_MONTH = [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** Validate that a date string has valid month (1-12) and day (1-maxForMonth). */
+function isValidDate(dateStr: string): string | null {
+  const parts = dateStr.split('/');
+  if (parts.length === 2) {
+    // MM/YYYY
+    const month = parseInt(parts[0], 10);
+    if (month < 1 || month > 12) return 'Month must be between 01 and 12';
+  } else if (parts.length === 3) {
+    // DD/MM/YYYY
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (month < 1 || month > 12) return 'Month must be between 01 and 12';
+    let maxDay = DAYS_IN_MONTH[month];
+    // Adjust February for non-leap years
+    if (month === 2) {
+      const isLeap = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+      if (!isLeap) maxDay = 28;
+    }
+    if (day < 1 || day > maxDay) return `Day must be between 01 and ${maxDay} for month ${String(month).padStart(2, '0')}`;
+  }
+  return null;
+}
+
 /** Convert DD/MM/YYYY or MM/YYYY to sortable YYYY-MM-DD or YYYY-MM for comparison. */
 function toSortable(dateStr: string): string {
   const parts = dateStr.split('/');
@@ -93,11 +119,15 @@ function toSortable(dateStr: string): string {
 }
 
 function validateDates(nodeType: string, values: Record<string, string>, isCurrent: boolean): string | null {
-  // Check format of all date fields
+  // Check format and validity of all date fields
   for (const [key, val] of Object.entries(values)) {
     if (!key.includes('date') || !val.trim()) continue;
     if (!DATE_FORMAT_RE.test(val.trim())) {
       return `Invalid date format for ${key.replace(/_/g, ' ')}. Use MM/YYYY or DD/MM/YYYY.`;
+    }
+    const dateError = isValidDate(val.trim());
+    if (dateError) {
+      return `Invalid ${key.replace(/_/g, ' ')}: ${dateError}.`;
     }
   }
 
@@ -164,7 +194,7 @@ function FieldInput({
   const isUrl = field.includes('url');
   const isTextarea = field === 'description' || field === 'abstract';
   const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
-  const showDateHint = isDate && value.trim() !== '' && !/^(\d{2}\/\d{4}|\d{2}\/\d{2}\/\d{4})$/.test(value.trim());
+  const showDateHint = isDate && value.trim() !== '' && (!DATE_FORMAT_RE.test(value.trim()) || isValidDate(value.trim()) !== null);
 
   const borderClass = required
     ? (missing ? 'border-red-500/85' : 'border-red-500/45')
@@ -207,7 +237,9 @@ function FieldInput({
       )}
       {showDateHint && (
         <p className="text-[10px] text-amber-400/60 mt-1">
-          Use format MM/YYYY or DD/MM/YYYY
+          {!DATE_FORMAT_RE.test(value.trim())
+            ? 'Use format MM/YYYY or DD/MM/YYYY'
+            : isValidDate(value.trim()) || 'Invalid date'}
         </p>
       )}
     </div>
