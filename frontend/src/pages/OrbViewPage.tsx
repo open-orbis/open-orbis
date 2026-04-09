@@ -955,8 +955,8 @@ export default function OrbViewPage() {
                       disabled={undoStack.length === 0}
                       className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
                         undoStack.length === 0
-                          ? 'text-white/15 cursor-default'
-                          : 'text-white/40 hover:text-white hover:bg-white/10'
+                          ? 'text-teal-500/20 cursor-default'
+                          : 'text-teal-400 hover:text-teal-300 hover:bg-teal-500/10'
                       }`}
                       title="Undo"
                     >
@@ -969,8 +969,8 @@ export default function OrbViewPage() {
                       disabled={redoStack.length === 0}
                       className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
                         redoStack.length === 0
-                          ? 'text-white/15 cursor-default'
-                          : 'text-white/40 hover:text-white hover:bg-white/10'
+                          ? 'text-sky-500/20 cursor-default'
+                          : 'text-sky-400 hover:text-sky-300 hover:bg-sky-500/10'
                       }`}
                       title="Redo"
                     >
@@ -1057,8 +1057,8 @@ export default function OrbViewPage() {
                           disabled={undoStack.length === 0}
                           className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
                             undoStack.length === 0
-                              ? 'border-white/5 text-white/20 cursor-default'
-                              : 'border-white/10 text-white/70 hover:text-white hover:bg-white/10 cursor-pointer'
+                              ? 'border-teal-500/10 text-teal-500/20 cursor-default'
+                              : 'border-teal-500/30 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 cursor-pointer'
                           }`}
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1071,8 +1071,8 @@ export default function OrbViewPage() {
                           disabled={redoStack.length === 0}
                           className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
                             redoStack.length === 0
-                              ? 'border-white/5 text-white/20 cursor-default'
-                              : 'border-white/10 text-white/70 hover:text-white hover:bg-white/10 cursor-pointer'
+                              ? 'border-sky-500/10 text-sky-500/20 cursor-default'
+                              : 'border-sky-500/30 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 cursor-pointer'
                           }`}
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
