@@ -108,6 +108,29 @@ Fernet symmetric encryption applied to PII fields: `email`, `phone`, `address`. 
 - `decrypt_properties(dict)` — decrypts PII fields; logs warning and leaves value as-is on failure
 - Key sourced from `ENCRYPTION_KEY` env var; auto-generated in dev mode (data won't survive restarts)
 
+## SQLite — CV Document Metadata
+
+Separate from the Neo4j graph, CV/document upload metadata is tracked in SQLite (`backend/data/cv_uploads.db`).
+
+### `cv_documents` Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `document_id` | TEXT | UUID, generated at upload time |
+| `user_id` | TEXT | Links to Person node |
+| `original_filename` | TEXT | Filename when uploaded |
+| `file_size_bytes` | INTEGER | Original file size |
+| `uploaded_at` | TEXT | ISO timestamp |
+| `page_count` | INTEGER | PDF page count |
+| `entities_count` | INTEGER | Nullable — nodes extracted from this document |
+| `edges_count` | INTEGER | Nullable — relationships extracted from this document |
+
+Primary key: `(user_id, document_id)`. Maximum 3 documents per user — when the limit is reached, the oldest document (by `uploaded_at`) is automatically evicted.
+
+Encrypted document files are stored on disk at `backend/data/cv_files/{user_id}_{document_id}.pdf.enc`.
+
+**Migration:** On first connection, if the old `cv_uploads` table exists (single row per user), rows are migrated to `cv_documents` with generated UUIDs and NULL entities/edges counts.
+
 ## Constraints and Indexes
 
 Defined in `infra/neo4j/init.cypher`:
