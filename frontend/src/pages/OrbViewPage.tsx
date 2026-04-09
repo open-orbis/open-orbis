@@ -21,6 +21,8 @@ import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
 import { useToastStore } from '../stores/toastStore';
+import { getDocuments, confirmImport } from '../api/cv';
+import type { DocumentMetadata } from '../api/cv';
 
 // ── Modals ──
 
@@ -497,6 +499,10 @@ export default function OrbViewPage() {
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
+  const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
+  const [showImportLimitWarning, setShowImportLimitWarning] = useState(false);
+  const [importOldestDoc, setImportOldestDoc] = useState<{ name: string; date: string } | null>(null);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState('');
   const [extractedImport, setExtractedImport] = useState<{
@@ -506,7 +512,7 @@ export default function OrbViewPage() {
     unmatchedCount: number;
     skippedCount: number;
     file: File;
-    replaceCV: boolean;
+    documentId: string | null;
   } | null>(null);
 
   // ESC key closes any open panel/modal
@@ -533,6 +539,17 @@ export default function OrbViewPage() {
     document.addEventListener('pointerdown', handleOutside);
     return () => document.removeEventListener('pointerdown', handleOutside);
   }, [showToolsMenu]);
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const docs = await getDocuments();
+      setDocuments(docs);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   // Load drafts when userId becomes available — try API first, fall back to localStorage
   useEffect(() => {
@@ -768,7 +785,7 @@ export default function OrbViewPage() {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
-  const handleImportFile = useCallback(async (file: File) => {
+  const doImport = useCallback(async (file: File) => {
     setImporting(true);
     setImportStatus('Reading file...');
     const pollId = setInterval(async () => {
@@ -793,7 +810,7 @@ export default function OrbViewPage() {
           unmatchedCount: result.unmatched?.length || 0,
           skippedCount: result.skipped_nodes?.length || 0,
           file,
-          replaceCV: false,
+          documentId: result.document_id || null,
         });
       } else {
         addToast('Error processing document. Please try again.', 'error');
@@ -806,6 +823,24 @@ export default function OrbViewPage() {
       setImportStatus('');
     }
   }, [addToast]);
+
+  const handleImportFile = useCallback(async (file: File) => {
+    try {
+      const docs = await getDocuments();
+      if (docs.length >= 3) {
+        const oldest = docs[docs.length - 1];
+        setImportOldestDoc({
+          name: oldest.original_filename,
+          date: new Date(oldest.uploaded_at).toLocaleDateString(),
+        });
+        setPendingImportFile(file);
+        setShowImportLimitWarning(true);
+        return;
+      }
+    } catch { /* proceed — server enforces cap too */ }
+
+    await doImport(file);
+  }, [doImport]);
 
   const handleImportInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -964,6 +999,30 @@ export default function OrbViewPage() {
                       {importing && importStatus && (
                         <p className="text-[11px] text-purple-200/80 px-1">{importStatus}</p>
                       )}
+                      {/* Document history */}
+                      {documents.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">Documents ({documents.length}/3)</span>
+                          {documents.map((doc) => (
+                            <div
+                              key={doc.document_id}
+                              className="flex items-center gap-1.5 text-[11px] text-white/50 bg-white/[0.03] rounded-lg px-2 py-1.5"
+                            >
+                              <svg className="w-3 h-3 flex-shrink-0 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate">{doc.original_filename}</div>
+                                <div className="text-white/25 text-[10px]">
+                                  {new Date(doc.uploaded_at).toLocaleDateString()}
+                                  {doc.entities_count != null && ` · ${doc.entities_count} nodes`}
+                                  {doc.edges_count != null && ` · ${doc.edges_count} edges`}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1107,33 +1166,59 @@ export default function OrbViewPage() {
             truncated={false}
             onReset={() => setExtractedImport(null)}
             resetLabel="Cancel import"
-            onConfirm={async (nodes, rels, name) => {
-              const { confirmImport } = await import('../api/cv');
-              await confirmImport(nodes, rels, name);
-              if (extractedImport.replaceCV) {
-                try {
-                  const { storeFile } = await import('../api/cv');
-                  await storeFile(extractedImport.file);
-                } catch { /* best effort */ }
-              }
+            onConfirm={async (nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount) => {
+              await confirmImport(nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount);
+              fetchDocuments();
             }}
-          >
-            <div className="flex justify-center mt-4 mb-2">
-              <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={extractedImport.replaceCV}
-                    onChange={(e) => setExtractedImport({ ...extractedImport, replaceCV: e.target.checked })}
-                    className="mt-0.5 w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 focus:ring-1"
-                  />
-                  <span className="text-amber-400 text-sm leading-relaxed font-semibold">
-                    Replace my latest uploaded CV with this document
-                  </span>
-                </label>
+            documentId={extractedImport.documentId}
+            originalFilename={extractedImport.file.name}
+            fileSizeBytes={extractedImport.file.size}
+            pageCount={null}
+          />
+        </div>
+      )}
+
+      {/* ── Import limit warning modal ── */}
+      {showImportLimitWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+          <div className="bg-neutral-950 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white text-lg font-semibold mb-1">Document limit reached</h3>
+                <p className="text-white/50 text-sm leading-relaxed">
+                  You already have 3 documents stored. Importing this file will remove the oldest document
+                  {importOldestDoc && (
+                    <> (<span className="text-white font-medium">{importOldestDoc.name}</span>, uploaded {importOldestDoc.date})</>
+                  )}.
+                </p>
               </div>
             </div>
-          </ExtractedDataReview>
+            <div className="flex gap-2 justify-end mt-5">
+              <button
+                onClick={() => { setShowImportLimitWarning(false); setPendingImportFile(null); }}
+                className="border border-white/10 text-white/60 hover:text-white hover:bg-white/5 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowImportLimitWarning(false);
+                  if (pendingImportFile) {
+                    await doImport(pendingImportFile);
+                    setPendingImportFile(null);
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg transition-colors cursor-pointer"
+              >
+                Replace &amp; import
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
