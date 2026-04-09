@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
@@ -210,15 +211,16 @@ export default function UserMenu({ orbId, onOrbIdChanged, label }: UserMenuProps
       </AnimatePresence>
 
       {/* Account Settings Modal */}
-      <AnimatePresence>
-        {showAccountSettings && (
+      {showAccountSettings && createPortal(
+        <AnimatePresence>
           <AccountSettingsModal
             orbId={orbId}
             onOrbIdChanged={onOrbIdChanged}
             onClose={() => setShowAccountSettings(false)}
           />
-        )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -306,13 +308,13 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
         onClick={onClose}
       />
       <motion.div
