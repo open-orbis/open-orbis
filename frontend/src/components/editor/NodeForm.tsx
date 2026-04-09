@@ -136,7 +136,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   certification: ['name', 'issuing_organization'],
   publication: ['title'],
   project: ['name'],
-  patent: ['title'],
+  patent: ['title', 'patent_number'],
   award: ['name'],
   outreach: ['title', 'venue'],
 };
@@ -173,8 +173,13 @@ function FieldInput({
 
   return (
     <div>
-      <label className="block text-[10px] font-medium text-white/35 uppercase tracking-wider mb-1">
+      <label className="flex items-center gap-1 text-[10px] font-medium text-white/35 uppercase tracking-wider mb-1">
         {label}{required && <span className="text-red-400 ml-0.5">*</span>}
+        {isDate && (
+          <svg className="w-3 h-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        )}
       </label>
       {isTextarea ? (
         <textarea
