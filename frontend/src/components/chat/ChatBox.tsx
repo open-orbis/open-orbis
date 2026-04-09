@@ -268,6 +268,7 @@ export default function ChatBox({
                     </div>
                   </div>
                 ) : (
+                  <>
                   <div className="flex justify-start">
                     <div className="space-y-2 max-w-[95%]">
                       <div
@@ -276,7 +277,10 @@ export default function ChatBox({
                       >
                         {msg.text}
                       </div>
-                      {msg.matchedNodes && msg.matchedNodes.length > 0 && (
+                    </div>
+                  </div>
+                  {msg.matchedNodes && msg.matchedNodes.length > 0 && (
+                    <div className="w-full">
                         <div
                           className="rounded-xl border border-white/10 bg-black/20 p-2.5 sm:p-3"
                           style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)' }}
@@ -370,9 +374,9 @@ export default function ChatBox({
                           })}
                           </div>
                         </div>
-                      )}
                     </div>
-                  </div>
+                  )}
+                  </>
                 )}
               </div>
             ))}
