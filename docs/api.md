@@ -98,6 +98,33 @@ When `document_id` is provided, the confirm endpoint records document metadata (
 ]
 ```
 
+## Versions (`/orbs/me/versions`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/orbs/me/versions` | JWT | List orb snapshots (metadata only, up to 3, ordered by date desc) |
+| POST | `/orbs/me/versions` | JWT | Manually save current orb state as a snapshot |
+| POST | `/orbs/me/versions/{snapshot_id}/restore` | JWT | Restore orb from a snapshot (current state saved first) |
+| DELETE | `/orbs/me/versions/{snapshot_id}` | JWT | Delete a specific snapshot |
+
+Snapshots are automatically created before destructive CV imports (`POST /cv/confirm`). Up to 3 snapshots per user; oldest is evicted when a 4th is created. Restoring always saves the current state first so the restore is undoable.
+
+### Snapshot Metadata Response (`GET /orbs/me/versions`)
+
+```json
+[
+  {
+    "snapshot_id": "uuid",
+    "user_id": "user-id",
+    "created_at": "2026-04-09T12:00:00+00:00",
+    "trigger": "cv_import",
+    "label": "Before CV import",
+    "node_count": 42,
+    "edge_count": 15
+  }
+]
+```
+
 ## Export (`/export`)
 
 | Method | Path | Auth | Rate Limit | Description |

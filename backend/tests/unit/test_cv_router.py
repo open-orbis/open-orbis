@@ -59,6 +59,10 @@ def test_confirm_cv_success(client, mock_db):
     result_mock_consent = MagicMock()
     result_mock_consent.single = AsyncMock(return_value={"consent": True})
 
+    # Auto-snapshot GET_FULL_ORB returns None (no existing orb), caught by try/except
+    result_mock_snapshot = MagicMock()
+    result_mock_snapshot.single = AsyncMock(return_value=None)
+
     result_mock_1 = MagicMock()
     result_mock_1.single = AsyncMock(return_value=None)
 
@@ -78,6 +82,7 @@ def test_confirm_cv_success(client, mock_db):
 
     run_mock.side_effect = [
         result_mock_consent,  # _require_consent
+        result_mock_snapshot,  # auto-snapshot GET_FULL_ORB (returns None -> ValueError caught)
         result_mock_1,  # DELETE_USER_GRAPH
         result_mock_2,  # UPDATE_PERSON
         result_mock_3,  # ADD_NODE 1
@@ -110,6 +115,10 @@ def test_confirm_cv_partial_link_failure(client, mock_db):
     res_consent = MagicMock()
     res_consent.single = AsyncMock(return_value={"consent": True})
 
+    # Auto-snapshot GET_FULL_ORB returns None (no existing orb), caught by try/except
+    res_snapshot = MagicMock()
+    res_snapshot.single = AsyncMock(return_value=None)
+
     res_ok = MagicMock()
     res_ok.single = AsyncMock(return_value=None)
 
@@ -123,6 +132,7 @@ def test_confirm_cv_partial_link_failure(client, mock_db):
 
     run_mock.side_effect = [
         res_consent,  # _require_consent
+        res_snapshot,  # auto-snapshot GET_FULL_ORB (returns None -> ValueError caught)
         res_ok,  # DELETE_USER_GRAPH
         res_node_1,  # MERGE (work_experience)
         res_node_2,  # MERGE (skill)

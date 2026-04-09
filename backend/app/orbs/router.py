@@ -34,6 +34,8 @@ from app.orbs.filter_token import (
 )
 from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
 from app.rate_limit import limiter
+from app.snapshots import db as snap_db
+from app.snapshots.service import create_snapshot, restore_snapshot
 
 logger = logging.getLogger(__name__)
 
@@ -323,6 +325,60 @@ async def unlink_skill(
         if record is None:
             raise HTTPException(status_code=404, detail="Link not found")
         return {"status": "unlinked"}
+
+
+# ── Versions ──
+
+
+@router.get("/me/versions")
+async def list_versions(
+    current_user: dict = Depends(get_current_user),
+):
+    """List orb snapshots (metadata only, no data)."""
+    return snap_db.list_snapshots(current_user["user_id"])
+
+
+@router.post("/me/versions")
+async def create_version(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Manually create a snapshot of the current orb state."""
+    return await create_snapshot(
+        user_id=current_user["user_id"],
+        db=db,
+        trigger="manual",
+        label="Manual save",
+    )
+
+
+@router.post("/me/versions/{snapshot_id}/restore")
+async def restore_version(
+    snapshot_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Restore an orb from a snapshot. Current state is saved first."""
+    try:
+        return await restore_snapshot(
+            user_id=current_user["user_id"],
+            snapshot_id=snapshot_id,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from None
+
+
+@router.delete("/me/versions/{snapshot_id}")
+async def delete_version(
+    snapshot_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete a specific snapshot."""
+    deleted = snap_db.delete_snapshot(current_user["user_id"], snapshot_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    return {"status": "deleted"}
 
 
 @router.post("/me/filter-token")

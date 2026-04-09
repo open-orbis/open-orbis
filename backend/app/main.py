@@ -19,6 +19,7 @@ from app.notes.router import router as notes_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
 from app.search.router import router as search_router
+from app.snapshots.db import delete_all_for_user as delete_user_snapshots
 
 logging.basicConfig(level=logging.INFO)
 
@@ -62,6 +63,12 @@ async def _cleanup_expired_accounts(driver):
             except Exception as e:
                 logging.getLogger(__name__).warning(
                     "Failed to delete drafts for %s: %s", user_id, e
+                )
+            try:
+                delete_user_snapshots(user_id)
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    "Failed to delete snapshots for %s: %s", user_id, e
                 )
 
     if expired:

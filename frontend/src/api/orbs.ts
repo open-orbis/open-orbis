@@ -117,3 +117,32 @@ export async function enhanceNote(
   return data;
 }
 
+// ── Versions ──
+
+export interface SnapshotMetadata {
+  snapshot_id: string;
+  user_id: string;
+  created_at: string;
+  trigger: string;
+  label: string | null;
+  node_count: number;
+  edge_count: number;
+}
+
+export async function getVersions(): Promise<SnapshotMetadata[]> {
+  const { data } = await client.get('/orbs/me/versions');
+  return data;
+}
+
+export async function createVersion(): Promise<SnapshotMetadata> {
+  const { data } = await client.post('/orbs/me/versions');
+  return data;
+}
+
+export async function restoreVersion(snapshotId: string): Promise<void> {
+  await client.post(`/orbs/me/versions/${snapshotId}/restore`);
+}
+
+export async function deleteVersion(snapshotId: string): Promise<void> {
+  await client.delete(`/orbs/me/versions/${snapshotId}`);
+}

@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
-import { claimOrbId } from '../api/orbs';
+import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion } from '../api/orbs';
+import type { SnapshotMetadata } from '../api/orbs';
 import { getDocuments, downloadCV } from '../api/cv';
 import type { DocumentMetadata } from '../api/cv';
 
@@ -232,7 +233,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
   onOrbIdChanged?: () => void;
   onClose: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'orb-id' | 'account'>('orb-id');
+  const [activeTab, setActiveTab] = useState<'orb-id' | 'versions' | 'account'>('orb-id');
   const { user, logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const navigate = useNavigate();
@@ -243,9 +244,63 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  // Versions state
+  const [versions, setVersions] = useState<SnapshotMetadata[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [restoreConfirm, setRestoreConfirm] = useState<SnapshotMetadata | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [savingVersion, setSavingVersion] = useState(false);
+
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const fetchVersions = useCallback(async () => {
+    setVersionsLoading(true);
+    try {
+      const v = await getVersions();
+      setVersions(v);
+    } catch { /* ignore */ }
+    finally { setVersionsLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'versions') fetchVersions();
+  }, [activeTab, fetchVersions]);
+
+  const handleSaveVersion = async () => {
+    setSavingVersion(true);
+    try {
+      await createVersion();
+      addToast('Version saved', 'success');
+      await fetchVersions();
+    } catch {
+      addToast('Failed to save version', 'error');
+    } finally { setSavingVersion(false); }
+  };
+
+  const handleRestore = async (snap: SnapshotMetadata) => {
+    setRestoring(true);
+    try {
+      await restoreVersion(snap.snapshot_id);
+      addToast('Orb restored to previous version', 'success');
+      setRestoreConfirm(null);
+      onClose();
+      window.location.reload();
+    } catch {
+      addToast('Failed to restore version', 'error');
+    } finally { setRestoring(false); }
+  };
+
+  const handleDeleteVersion = async (snapshotId: string) => {
+    try {
+      await deleteVersion(snapshotId);
+      await fetchVersions();
+      addToast('Version deleted', 'success');
+    } catch {
+      addToast('Failed to delete version', 'error');
+    }
+  };
 
   const handleSaveOrbId = async () => {
     const trimmed = customId.trim().toLowerCase();
@@ -298,6 +353,11 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
+      </svg>
+    )},
+    { id: 'versions' as const, label: 'Versions', icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     )},
     { id: 'account' as const, label: 'Account', icon: (
@@ -392,6 +452,103 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose }: {
                     <button onClick={handleSaveOrbId} disabled={saving} className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300">{saving ? 'Saving...' : 'Save'}</button>
                     <button onClick={onClose} className="flex-1 border border-white/15 text-white/75 hover:bg-white/10 font-medium py-2 rounded-lg transition-colors text-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">Cancel</button>
                   </div>
+                </motion.div>
+              )}
+
+              {/* ── Versions tab ── */}
+              {activeTab === 'versions' && (
+                <motion.div
+                  key="versions"
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.15, ease: 'easeInOut' }}
+                  className="flex flex-col h-full"
+                >
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    Your orb is automatically saved before major changes like CV imports.
+                  </p>
+
+                  <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+                    {versionsLoading ? (
+                      <p className="text-white/30 text-xs py-4 text-center">Loading versions...</p>
+                    ) : versions.length === 0 ? (
+                      <p className="text-white/30 text-xs py-4 text-center">No saved versions yet.</p>
+                    ) : (
+                      versions.map((snap) => (
+                        <div key={snap.snapshot_id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 py-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-white/70 text-sm font-medium">
+                                {snap.label || (snap.trigger === 'cv_import' ? 'Before CV import' : snap.trigger === 'pre_restore' ? 'Before restore' : 'Manual save')}
+                              </div>
+                              <div className="text-white/30 text-xs mt-0.5">
+                                {new Date(snap.created_at).toLocaleString()} · {snap.node_count} nodes · {snap.edge_count} edges
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => setRestoreConfirm(snap)}
+                              className="text-xs text-purple-400 hover:text-purple-300 font-medium cursor-pointer"
+                            >
+                              Restore
+                            </button>
+                            <button
+                              onClick={() => handleDeleteVersion(snap.snapshot_id)}
+                              className="text-xs text-white/30 hover:text-red-400 font-medium cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-white/5">
+                    <button
+                      onClick={handleSaveVersion}
+                      disabled={savingVersion}
+                      className="w-full bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      {savingVersion ? 'Saving...' : 'Save current version'}
+                    </button>
+                    <p className="text-white/20 text-[10px] mt-2 text-center">
+                      Up to 3 versions are kept. Oldest are automatically removed.
+                    </p>
+                  </div>
+
+                  {restoreConfirm && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center rounded-2xl">
+                      <div className="bg-neutral-950 border border-white/10 rounded-xl p-5 max-w-sm w-full mx-4">
+                        <h3 className="text-white text-sm font-semibold mb-2">Restore this version?</h3>
+                        <p className="text-white/50 text-xs leading-relaxed mb-1">
+                          This will replace your current orb with the version from{' '}
+                          <span className="text-white font-medium">{new Date(restoreConfirm.created_at).toLocaleString()}</span>{' '}
+                          ({restoreConfirm.node_count} nodes).
+                        </p>
+                        <p className="text-white/40 text-xs mb-4">
+                          Your current orb will be saved as a new version before restoring.
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => setRestoreConfirm(null)}
+                            className="border border-white/10 text-white/60 hover:text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleRestore(restoreConfirm)}
+                            disabled={restoring}
+                            className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {restoring ? 'Restoring...' : 'Restore'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
 
