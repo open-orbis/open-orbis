@@ -10,6 +10,8 @@ CREATE (p:Person {
     orb_id: $orb_id,
     picture: $picture,
     provider: $provider,
+    signup_code: $signup_code,
+    is_admin: false,
     headline: '',
     location: '',
     linkedin_url: '',
@@ -159,4 +161,137 @@ OPTIONAL MATCH (n)-[:USED_SKILL]->(s:Skill)
 WITH n, collect(s.uid) AS skill_uids
 WHERE size(skill_uids) > 0
 RETURN n.uid AS node_uid, skill_uids
+"""
+
+# ── Invitation system: AccessCode, Waitlist, BetaConfig ──
+
+COUNT_PERSONS = """
+MATCH (p:Person)
+RETURN count(p) AS total
+"""
+
+# AccessCode: shared, reusable codes that grant signup permission while the
+# beta cap is not reached. Each code carries a label so we can attribute
+# signups back to the channel that distributed it (newsletter, twitter, ...).
+
+CREATE_ACCESS_CODE = """
+CREATE (a:AccessCode {
+    code: $code,
+    label: $label,
+    active: true,
+    created_at: datetime(),
+    created_by: $created_by
+})
+RETURN a
+"""
+
+GET_ACCESS_CODE = """
+MATCH (a:AccessCode {code: $code})
+RETURN a
+"""
+
+LIST_ACCESS_CODES = """
+MATCH (a:AccessCode)
+OPTIONAL MATCH (p:Person {signup_code: a.code})
+WITH a, count(p) AS uses
+RETURN a, uses
+ORDER BY a.created_at DESC
+"""
+
+SET_ACCESS_CODE_ACTIVE = """
+MATCH (a:AccessCode {code: $code})
+SET a.active = $active
+RETURN a
+"""
+
+DELETE_ACCESS_CODE = """
+MATCH (a:AccessCode {code: $code})
+DELETE a
+"""
+
+# Waitlist: people who tried to register but were rejected. MERGE on email so
+# repeated attempts (same person retrying via Google then LinkedIn) collapse
+# into a single row with bumped attempts/last_attempt_at.
+
+UPSERT_WAITLIST = """
+MERGE (w:Waitlist {email: $email})
+ON CREATE SET
+    w.name = $name,
+    w.provider = $provider,
+    w.attempted_code = $attempted_code,
+    w.reason = $reason,
+    w.first_attempt_at = datetime(),
+    w.last_attempt_at = datetime(),
+    w.attempts = 1,
+    w.contacted = false
+ON MATCH SET
+    w.name = $name,
+    w.provider = $provider,
+    w.attempted_code = $attempted_code,
+    w.reason = $reason,
+    w.last_attempt_at = datetime(),
+    w.attempts = w.attempts + 1
+RETURN w
+"""
+
+LIST_WAITLIST = """
+MATCH (w:Waitlist)
+RETURN w
+ORDER BY w.last_attempt_at DESC
+"""
+
+MARK_WAITLIST_CONTACTED = """
+MATCH (w:Waitlist {email: $email})
+SET w.contacted = $contacted, w.contacted_at = datetime()
+RETURN w
+"""
+
+WAITLIST_STATS = """
+MATCH (w:Waitlist)
+RETURN w.reason AS reason, count(w) AS count
+"""
+
+# BetaConfig: a singleton node holding the runtime-modifiable cap and master
+# switch. We use a constant `singleton` field with a unique constraint so it
+# is structurally impossible to create a second config row.
+
+INIT_BETA_CONFIG = """
+MERGE (c:BetaConfig {singleton: 'global'})
+ON CREATE SET
+    c.max_users = $max_users,
+    c.registration_enabled = true,
+    c.created_at = datetime(),
+    c.updated_at = datetime()
+RETURN c
+"""
+
+GET_BETA_CONFIG = """
+MATCH (c:BetaConfig {singleton: 'global'})
+RETURN c
+"""
+
+UPDATE_BETA_CONFIG = """
+MATCH (c:BetaConfig {singleton: 'global'})
+SET c += $properties, c.updated_at = datetime()
+RETURN c
+"""
+
+# Admin role: simple boolean flag on the Person node, queried on every admin
+# request. Bootstrap is done out-of-band via scripts/grant_admin.py.
+
+IS_ADMIN = """
+MATCH (p:Person {user_id: $user_id})
+RETURN coalesce(p.is_admin, false) AS is_admin
+"""
+
+GRANT_ADMIN_BY_USER_ID = """
+MATCH (p:Person {user_id: $user_id})
+SET p.is_admin = true
+RETURN p
+"""
+
+REVOKE_ADMIN_BY_USER_ID = """
+MATCH (p:Person {user_id: $user_id})
+SET p.is_admin = false
+RETURN p
 """

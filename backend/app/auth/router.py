@@ -4,6 +4,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
 
+from app.admin.service import (
+    count_persons,
+    get_beta_config,
+    is_access_code_valid,
+    upsert_waitlist,
+)
 from app.auth.models import (
     OAuthCodeRequest,
     TokenResponse,
@@ -25,21 +31,93 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-async def _get_or_create_person(
+async def _enforce_invite_and_create_person(
+    db: AsyncDriver,
+    *,
+    user_id: str,
+    email: str,
+    name: str,
+    picture: str,
+    provider: str,
+    access_code: str | None,
+) -> None:
+    """Get-or-create the Person, enforcing closed-beta rules on first signup.
+
+    Existing users (Person already exists) are returned untouched — login is
+    always allowed regardless of cap or codes. Only first-time signups go
+    through the invitation gate.
+
+    Rejection paths always write to the Waitlist before raising, so we can
+    follow up later. Errors are returned with structured detail codes so the
+    frontend can show targeted messages:
+
+      - `registration_closed` — registration_enabled flag is false
+      - `invalid_access_code` — code missing or unknown/inactive
+      - `beta_full`           — code valid but cap reached
+    """
+    # Login path: existing user, always allowed.
+    async with db.session() as session:
+        result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
+        if await result.single() is not None:
+            return
+
+    # Signup path: enforce the closed-beta rules.
+    if not settings.invite_only_registration:
+        await _create_person(db, user_id, email, name, picture, provider, None)
+        return
+
+    config = await get_beta_config(db)
+    registration_enabled = bool(config.get("registration_enabled", True))
+    cap = int(config.get("max_users", 0))
+
+    if not registration_enabled:
+        await upsert_waitlist(
+            db,
+            email=email,
+            name=name,
+            provider=provider,
+            attempted_code=access_code,
+            reason="registration_closed",
+        )
+        raise HTTPException(status_code=403, detail="registration_closed")
+
+    if not access_code or not await is_access_code_valid(db, access_code):
+        await upsert_waitlist(
+            db,
+            email=email,
+            name=name,
+            provider=provider,
+            attempted_code=access_code,
+            reason="no_code" if not access_code else "invalid_code",
+        )
+        raise HTTPException(status_code=403, detail="invalid_access_code")
+
+    current = await count_persons(db)
+    if current >= cap:
+        await upsert_waitlist(
+            db,
+            email=email,
+            name=name,
+            provider=provider,
+            attempted_code=access_code,
+            reason="cap_reached",
+        )
+        raise HTTPException(status_code=403, detail="beta_full")
+
+    await _create_person(db, user_id, email, name, picture, provider, access_code)
+
+
+async def _create_person(
     db: AsyncDriver,
     user_id: str,
     email: str,
     name: str,
     picture: str,
     provider: str,
+    signup_code: str | None,
 ) -> None:
-    """Create a Person node if it doesn't exist yet."""
+    orb_id = await generate_orb_id(name, db)
     async with db.session() as session:
-        result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
-        if await result.single() is not None:
-            return
-
-        orb_id = await generate_orb_id(name, db)
         await session.run(
             CREATE_PERSON,
             user_id=user_id,
@@ -48,6 +126,7 @@ async def _get_or_create_person(
             orb_id=orb_id,
             picture=picture,
             provider=provider,
+            signup_code=signup_code,
         )
 
 
@@ -70,7 +149,15 @@ async def google_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    await _get_or_create_person(db, user_id, email, name, picture, "google")
+    await _enforce_invite_and_create_person(
+        db,
+        user_id=user_id,
+        email=email,
+        name=name,
+        picture=picture,
+        provider="google",
+        access_code=body.access_code,
+    )
 
     token = create_jwt(user_id, email)
     return TokenResponse(
@@ -100,7 +187,15 @@ async def linkedin_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    await _get_or_create_person(db, user_id, email, name, picture, "linkedin")
+    await _enforce_invite_and_create_person(
+        db,
+        user_id=user_id,
+        email=email,
+        name=name,
+        picture=picture,
+        provider="linkedin",
+        access_code=body.access_code,
+    )
 
     token = create_jwt(user_id, email)
     return TokenResponse(

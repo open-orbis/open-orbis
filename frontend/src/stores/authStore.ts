@@ -2,6 +2,40 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { getMe, googleLogin, linkedinLogin, type UserInfo } from '../api/auth';
 
+// Closed-beta access code lives in sessionStorage so it survives the OAuth
+// redirect (LinkedIn) but not browser restarts. Cleared on successful login.
+export const BETA_CODE_STORAGE_KEY = 'orbis_beta_access_code';
+
+export class InviteError extends Error {
+  code: 'invalid_access_code' | 'beta_full' | 'registration_closed' | 'unknown';
+  constructor(code: InviteError['code'], message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+function readAccessCode(): string | undefined {
+  return sessionStorage.getItem(BETA_CODE_STORAGE_KEY) ?? undefined;
+}
+
+function clearAccessCode() {
+  sessionStorage.removeItem(BETA_CODE_STORAGE_KEY);
+}
+
+function toInviteError(e: unknown, fallback: string): never {
+  if (axios.isAxiosError(e) && e.response?.status === 403) {
+    const detail = e.response.data?.detail;
+    if (
+      detail === 'invalid_access_code' ||
+      detail === 'beta_full' ||
+      detail === 'registration_closed'
+    ) {
+      throw new InviteError(detail, detail);
+    }
+  }
+  throw new Error(fallback);
+}
+
 interface AuthState {
   user: UserInfo | null;
   token: string | null;
@@ -44,24 +78,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginGoogle: async (code: string) => {
     set({ loading: true });
     try {
-      const { access_token, user } = await googleLogin(code);
+      const { access_token, user } = await googleLogin(code, readAccessCode());
       localStorage.setItem('orbis_token', access_token);
+      clearAccessCode();
       set({ token: access_token, user, loading: false });
-    } catch {
+    } catch (e) {
       set({ loading: false });
-      throw new Error('Google login failed');
+      toInviteError(e, 'Google login failed');
     }
   },
 
   loginLinkedIn: async (code: string) => {
     set({ loading: true });
     try {
-      const { access_token, user } = await linkedinLogin(code);
+      const { access_token, user } = await linkedinLogin(code, readAccessCode());
       localStorage.setItem('orbis_token', access_token);
+      clearAccessCode();
       set({ token: access_token, user, loading: false });
-    } catch {
+    } catch (e) {
       set({ loading: false });
-      throw new Error('LinkedIn login failed');
+      toInviteError(e, 'LinkedIn login failed');
     }
   },
 

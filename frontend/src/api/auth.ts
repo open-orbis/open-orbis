@@ -20,13 +20,25 @@ export async function deleteAccount(): Promise<void> {
   await client.delete('/auth/me');
 }
 
-export async function googleLogin(code: string): Promise<{ access_token: string; user: UserInfo }> {
-  const { data } = await client.post('/auth/google', { code });
+export async function googleLogin(
+  code: string,
+  accessCode?: string,
+): Promise<{ access_token: string; user: UserInfo }> {
+  const { data } = await client.post('/auth/google', {
+    code,
+    access_code: accessCode || null,
+  });
   return data;
 }
 
-export async function linkedinLogin(code: string): Promise<{ access_token: string; user: UserInfo }> {
-  const { data } = await client.post('/auth/linkedin', { code });
+export async function linkedinLogin(
+  code: string,
+  accessCode?: string,
+): Promise<{ access_token: string; user: UserInfo }> {
+  const { data } = await client.post('/auth/linkedin', {
+    code,
+    access_code: accessCode || null,
+  });
   return data;
 }
 

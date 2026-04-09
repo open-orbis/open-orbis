@@ -20,3 +20,4 @@ class TokenResponse(BaseModel):
 
 class OAuthCodeRequest(BaseModel):
     code: str
+    access_code: str | None = None

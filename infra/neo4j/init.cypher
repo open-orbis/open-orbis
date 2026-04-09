@@ -2,9 +2,17 @@
 CREATE CONSTRAINT person_user_id IF NOT EXISTS FOR (p:Person) REQUIRE p.user_id IS UNIQUE;
 CREATE CONSTRAINT person_orb_id IF NOT EXISTS FOR (p:Person) REQUIRE p.orb_id IS UNIQUE;
 
+// Invitation system: closed-beta access codes, waitlist, singleton config
+CREATE CONSTRAINT access_code_unique IF NOT EXISTS FOR (a:AccessCode) REQUIRE a.code IS UNIQUE;
+CREATE CONSTRAINT waitlist_email_unique IF NOT EXISTS FOR (w:Waitlist) REQUIRE w.email IS UNIQUE;
+CREATE CONSTRAINT beta_config_singleton IF NOT EXISTS FOR (c:BetaConfig) REQUIRE c.singleton IS UNIQUE;
+
 // Indexes
 CREATE INDEX person_email IF NOT EXISTS FOR (p:Person) ON (p.email);
+CREATE INDEX person_is_admin IF NOT EXISTS FOR (p:Person) ON (p.is_admin);
 CREATE INDEX skill_name IF NOT EXISTS FOR (s:Skill) ON (s.name);
+CREATE INDEX waitlist_contacted IF NOT EXISTS FOR (w:Waitlist) ON (w.contacted);
+CREATE INDEX waitlist_reason IF NOT EXISTS FOR (w:Waitlist) ON (w.reason);
 
 // Vector indexes for semantic search
 CREATE VECTOR INDEX education_embedding IF NOT EXISTS
