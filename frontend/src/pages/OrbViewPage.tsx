@@ -1325,7 +1325,7 @@ export default function OrbViewPage() {
         onShare={() => setShowShare(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
-      /></div>}
+      />}
 
       {/* ── Draft Notes ── */}
       <DraftNotes
