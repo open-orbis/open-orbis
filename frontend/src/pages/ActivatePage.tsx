@@ -7,8 +7,8 @@ import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
 
 const ERROR_MESSAGES: Record<string, string> = {
-  invalid_access_code: 'Codice di invito non valido. Controlla e riprova.',
-  code_already_used: 'Questo codice di invito è già stato utilizzato. Ogni codice può essere usato una sola volta.',
+  invalid_access_code: 'Invalid invite code. Please check and try again.',
+  code_already_used: 'This invite code has already been used. Each code can only be used once.',
 };
 
 const POLL_INTERVAL = 5000;
@@ -52,9 +52,9 @@ export default function ActivatePage() {
     } catch (e) {
       if (axios.isAxiosError(e) && e.response?.status === 403) {
         const detail = e.response.data?.detail;
-        setError(ERROR_MESSAGES[detail] ?? 'Codice non valido.');
+        setError(ERROR_MESSAGES[detail] ?? 'Invalid code.');
       } else {
-        setError('Qualcosa è andato storto. Riprova.');
+        setError('Something went wrong. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -88,12 +88,12 @@ export default function ActivatePage() {
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold mb-3">
-          Benvenuto{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
+          Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}!
         </h1>
         <p className="text-white/40 text-sm mb-8 leading-relaxed">
-          OpenOrbis è attualmente in <span className="text-purple-400 font-medium">beta chiusa</span>.
+          OpenOrbis is currently in <span className="text-purple-400 font-medium">closed beta</span>.
           <br />
-          Inserisci il tuo codice di invito per accedere alla piattaforma.
+          Enter your invite code to access the platform.
         </p>
 
         {/* Code input */}
@@ -103,7 +103,7 @@ export default function ActivatePage() {
             value={code}
             onChange={(e) => { setCode(e.target.value); setError(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-            placeholder="Inserisci il codice di invito"
+            placeholder="Enter your invite code"
             autoFocus
             spellCheck={false}
             autoComplete="off"
@@ -114,7 +114,7 @@ export default function ActivatePage() {
             disabled={submitting || !code.trim()}
             className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold py-3 px-6 rounded-xl transition-all text-sm"
           >
-            {submitting ? 'Verifica in corso...' : 'Attiva il mio account'}
+            {submitting ? 'Verifying...' : 'Activate my account'}
           </button>
         </div>
 
@@ -132,7 +132,7 @@ export default function ActivatePage() {
         {/* Waitlist info */}
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 mb-4 text-left">
           <p className="text-white/50 text-xs leading-relaxed">
-            Non hai un codice? Nessun problema — registrandoti sei stato aggiunto alla nostra waiting list. Ti contatteremo non appena il tuo accesso sarà abilitato.
+            Don&apos;t have a code? No problem — by signing up you&apos;ve been added to our waiting list. We&apos;ll reach out as soon as your access is enabled.
           </p>
         </div>
 
@@ -141,7 +141,7 @@ export default function ActivatePage() {
           onClick={handleLogout}
           className="text-white/25 text-xs hover:text-white/40 transition-colors underline underline-offset-2"
         >
-          Esci e torna alla home
+          Log out and return to home
         </button>
       </motion.div>
     </div>
