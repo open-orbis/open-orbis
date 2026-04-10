@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { activateAccount } from '../api/auth';
+import { activateAccount, getMe } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
 
@@ -11,12 +11,36 @@ const ERROR_MESSAGES: Record<string, string> = {
   code_already_used: 'Questo codice di invito è già stato utilizzato. Ogni codice può essere usato una sola volta.',
 };
 
+const POLL_INTERVAL = 5000;
+
 export default function ActivatePage() {
   const navigate = useNavigate();
   const { user, fetchUser, logout } = useAuthStore();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const navigatingRef = useRef(false);
+
+  const goToApp = useCallback(async () => {
+    if (navigatingRef.current) return;
+    navigatingRef.current = true;
+    await fetchUser();
+    const hasContent = await hasOrbContent();
+    navigate(hasContent ? '/myorbis' : '/create', { replace: true });
+  }, [navigate, fetchUser]);
+
+  // Silent poll: check activation status without touching store/UI
+  useEffect(() => {
+    const id = setInterval(async () => {
+      try {
+        const me = await getMe();
+        if (me.activated) goToApp();
+      } catch {
+        // ignore — network blips shouldn't break the page
+      }
+    }, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [goToApp]);
 
   const handleSubmit = async () => {
     if (!code.trim()) return;
@@ -24,9 +48,7 @@ export default function ActivatePage() {
     setError(null);
     try {
       await activateAccount(code.trim());
-      await fetchUser();
-      const hasContent = await hasOrbContent();
-      navigate(hasContent ? '/myorbis' : '/create', { replace: true });
+      await goToApp();
     } catch (e) {
       if (axios.isAxiosError(e) && e.response?.status === 403) {
         const detail = e.response.data?.detail;
@@ -107,10 +129,12 @@ export default function ActivatePage() {
           </motion.div>
         )}
 
-        {/* Info */}
-        <p className="text-white/20 text-xs mb-4">
-          Non hai un codice? Contattaci per richiedere l'accesso.
-        </p>
+        {/* Waitlist info */}
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 mb-4 text-left">
+          <p className="text-white/50 text-xs leading-relaxed">
+            Non hai un codice? Nessun problema — registrandoti sei stato aggiunto alla nostra waiting list. Ti contatteremo non appena il tuo accesso sarà abilitato.
+          </p>
+        </div>
 
         {/* Logout link */}
         <button

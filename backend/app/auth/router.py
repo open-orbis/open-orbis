@@ -45,11 +45,17 @@ async def _get_or_create_person(
 
     In the new flow, registration always succeeds — the invite code gate
     happens later on the /auth/activate endpoint, not at signup time.
+    If the platform is open (invite code not required), the user is
+    auto-activated with a special signup_code so they stay activated
+    even if the admin later closes the platform.
     """
     async with db.session() as session:
         result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
         if await result.single() is not None:
             return
+
+    invite_required = await is_invite_code_required(db)
+    signup_code = None if invite_required else "open-registration"
 
     orb_id = await generate_orb_id(name, db)
     async with db.session() as session:
@@ -61,7 +67,7 @@ async def _get_or_create_person(
             orb_id=orb_id,
             picture=picture,
             provider=provider,
-            signup_code=None,
+            signup_code=signup_code,
         )
 
 

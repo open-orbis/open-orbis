@@ -15,19 +15,28 @@ from neo4j import AsyncDriver
 from app.config import settings
 from app.graph.encryption import decrypt_value
 from app.graph.queries import (
+    ACTIVATE_ALL_PENDING,
     ACTIVATE_PERSON,
+    ACTIVATE_PERSON_BY_ADMIN,
     CONSUME_ACCESS_CODE,
     COUNT_ACCESS_CODES,
     COUNT_PENDING_PERSONS,
     COUNT_PERSONS,
     CREATE_ACCESS_CODE,
     DELETE_ACCESS_CODE,
+    DELETE_PERSON_FULL,
+    DELETE_PERSON_NODE,
     GET_ACCESS_CODE,
     GET_BETA_CONFIG,
+    GET_PERSON_BY_USER_ID,
+    GET_PERSON_DETAIL,
+    GRANT_ADMIN_BY_USER_ID,
     INIT_BETA_CONFIG,
     IS_ADMIN,
     LIST_ACCESS_CODES,
+    LIST_ALL_PERSONS,
     LIST_PENDING_PERSONS,
+    REVOKE_ADMIN_BY_USER_ID,
     SET_ACCESS_CODE_ACTIVE,
     UPDATE_BETA_CONFIG,
 )
@@ -59,7 +68,13 @@ async def update_beta_config(db: AsyncDriver, properties: dict) -> dict:
     async with db.session() as session:
         result = await session.run(UPDATE_BETA_CONFIG, properties=properties)
         record = await result.single()
-        return dict(record["c"])
+        config = dict(record["c"])
+
+    # When opening the platform, auto-activate all pending users
+    if properties.get("invite_code_required") is False:
+        await activate_all_pending(db)
+
+    return config
 
 
 async def is_invite_code_required(db: AsyncDriver) -> bool:
@@ -113,6 +128,17 @@ async def list_pending_persons(db: AsyncDriver) -> list[dict]:
 
 
 # ── Activation ──
+
+
+async def activate_all_pending(db: AsyncDriver) -> int:
+    """Auto-activate all pending users (used when platform opens)."""
+    async with db.session() as session:
+        result = await session.run(ACTIVATE_ALL_PENDING, code="open-registration")
+        record = await result.single()
+        count = int(record["activated"]) if record else 0
+    if count:
+        logger.info("Auto-activated %d pending user(s) (platform opened)", count)
+    return count
 
 
 async def activate_person(db: AsyncDriver, user_id: str, code: str) -> bool:
@@ -223,3 +249,98 @@ async def create_batch_access_codes(
             if record:
                 codes.append(dict(record["a"]))
     return codes
+
+
+# ── User management ──
+
+
+async def list_all_users(db: AsyncDriver) -> list[dict]:
+    """Return all registered users with decrypted emails."""
+    async with db.session() as session:
+        result = await session.run(LIST_ALL_PERSONS)
+        records = [r async for r in result]
+    out = []
+    for r in records:
+        person = dict(r["p"])
+        email = person.get("email", "")
+        if email:
+            with contextlib.suppress(Exception):
+                email = decrypt_value(email)
+        out.append({**person, "email": email})
+    return out
+
+
+async def get_user_detail(db: AsyncDriver, user_id: str) -> dict | None:
+    """Return a single user with node count and decrypted email."""
+    async with db.session() as session:
+        result = await session.run(GET_PERSON_DETAIL, user_id=user_id)
+        record = await result.single()
+    if not record:
+        return None
+    person = dict(record["p"])
+    email = person.get("email", "")
+    if email:
+        with contextlib.suppress(Exception):
+            email = decrypt_value(email)
+    return {**person, "email": email, "node_count": int(record["node_count"])}
+
+
+async def activate_user_by_admin(
+    db: AsyncDriver, user_id: str, code: str
+) -> dict | None:
+    """Activate a pending user by admin, assigning a code."""
+    async with db.session() as session:
+        result = await session.run(ACTIVATE_PERSON_BY_ADMIN, user_id=user_id, code=code)
+        record = await result.single()
+    if not record:
+        return None
+    person = dict(record["p"])
+    email = person.get("email", "")
+    if email:
+        with contextlib.suppress(Exception):
+            email = decrypt_value(email)
+    return {**person, "email": email}
+
+
+async def delete_user(db: AsyncDriver, user_id: str) -> bool:
+    """Delete a user and all their graph data. Returns True if user existed."""
+    async with db.session() as session:
+        # Check user exists
+        result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
+        if await result.single() is None:
+            return False
+        # Delete all connected nodes first
+        await session.run(DELETE_PERSON_FULL, user_id=user_id)
+        # Delete the person node
+        await session.run(DELETE_PERSON_NODE, user_id=user_id)
+    return True
+
+
+async def grant_admin(db: AsyncDriver, user_id: str) -> dict | None:
+    """Promote a user to admin."""
+    async with db.session() as session:
+        result = await session.run(GRANT_ADMIN_BY_USER_ID, user_id=user_id)
+        record = await result.single()
+    if not record:
+        return None
+    person = dict(record["p"])
+    email = person.get("email", "")
+    if email:
+        with contextlib.suppress(Exception):
+            email = decrypt_value(email)
+    return {**person, "email": email}
+
+
+async def revoke_admin(db: AsyncDriver, user_id: str) -> dict | None:
+    """Revoke admin from a user."""
+    async with db.session() as session:
+        result = await session.run(REVOKE_ADMIN_BY_USER_ID, user_id=user_id)
+        record = await result.single()
+    if not record:
+        return None
+    person = dict(record["p"])
+    email = person.get("email", "")
+    if email:
+        with contextlib.suppress(Exception):
+            email = decrypt_value(email)
+    return {**person, "email": email}

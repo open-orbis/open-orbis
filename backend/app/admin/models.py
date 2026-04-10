@@ -58,3 +58,31 @@ class BetaConfigResponse(BaseModel):
 
 class BetaConfigUpdate(BaseModel):
     invite_code_required: bool | None = None
+
+
+# ── User management ──
+
+
+class UserResponse(BaseModel):
+    user_id: str
+    name: str = ""
+    email: str = ""
+    provider: str = ""
+    is_admin: bool = False
+    signup_code: str | None = None
+    activated_at: str | None = None
+    created_at: str = ""
+
+
+class UserDetailResponse(UserResponse):
+    orb_id: str = ""
+    picture: str = ""
+    headline: str = ""
+    location: str = ""
+    node_count: int = 0
+    gdpr_consent: bool = False
+    deletion_requested_at: str | None = None
+
+
+class BatchActivateRequest(BaseModel):
+    user_ids: list[str] = Field(min_length=1, max_length=100)
