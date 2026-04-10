@@ -18,6 +18,8 @@ from app.graph.queries import (
     ACTIVATE_ALL_PENDING,
     ACTIVATE_PERSON,
     ACTIVATE_PERSON_BY_ADMIN,
+    AVG_ACTIVATION_TIME,
+    CODE_ATTRIBUTION,
     CONSUME_ACCESS_CODE,
     COUNT_ACCESS_CODES,
     COUNT_PENDING_PERSONS,
@@ -26,6 +28,9 @@ from app.graph.queries import (
     DELETE_ACCESS_CODE,
     DELETE_PERSON_FULL,
     DELETE_PERSON_NODE,
+    ENGAGEMENT_DISTRIBUTION,
+    FUNNEL_ACTIVATIONS_PER_DAY,
+    FUNNEL_SIGNUPS_PER_DAY,
     GET_ACCESS_CODE,
     GET_BETA_CONFIG,
     GET_PERSON_BY_USER_ID,
@@ -36,6 +41,7 @@ from app.graph.queries import (
     LIST_ACCESS_CODES,
     LIST_ALL_PERSONS,
     LIST_PENDING_PERSONS,
+    PROVIDER_BREAKDOWN,
     REVOKE_ADMIN_BY_USER_ID,
     SET_ACCESS_CODE_ACTIVE,
     UPDATE_BETA_CONFIG,
@@ -344,3 +350,79 @@ async def revoke_admin(db: AsyncDriver, user_id: str) -> dict | None:
         with contextlib.suppress(Exception):
             email = decrypt_value(email)
     return {**person, "email": email}
+
+
+# ── Funnel metrics ──
+
+
+async def get_funnel_metrics(db: AsyncDriver, days: int = 30) -> dict:
+    """Return signup and activation time-series for the last N days."""
+    async with db.session() as session:
+        result = await session.run(FUNNEL_SIGNUPS_PER_DAY, days=days)
+        signups = [
+            {"date": r["date"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(FUNNEL_ACTIVATIONS_PER_DAY, days=days)
+        activations = [
+            {"date": r["date"], "count": int(r["count"])} async for r in result
+        ]
+
+    total_signups = sum(s["count"] for s in signups)
+    total_activations = sum(a["count"] for a in activations)
+    conversion_rate = (
+        round(total_activations / total_signups, 4) if total_signups else 0.0
+    )
+
+    return {
+        "signups": signups,
+        "activations": activations,
+        "total_signups": total_signups,
+        "total_activations": total_activations,
+        "conversion_rate": conversion_rate,
+    }
+
+
+# ── Insights ──
+
+
+async def get_insights(db: AsyncDriver) -> dict:
+    """Return provider breakdown, activation time, code attribution, engagement."""
+    async with db.session() as session:
+        result = await session.run(PROVIDER_BREAKDOWN)
+        providers = [
+            {"provider": r["provider"], "count": int(r["count"])}
+            async for r in result
+        ]
+
+        result = await session.run(AVG_ACTIVATION_TIME)
+        record = await result.single()
+        activation_time = {
+            "total": int(record["total"]) if record else 0,
+            "avg_hours": round(float(record["avg_hours"]), 2)
+            if record and record["avg_hours"] is not None
+            else None,
+            "min_hours": round(float(record["min_hours"]), 2)
+            if record and record["min_hours"] is not None
+            else None,
+            "max_hours": round(float(record["max_hours"]), 2)
+            if record and record["max_hours"] is not None
+            else None,
+        }
+
+        result = await session.run(CODE_ATTRIBUTION)
+        code_attribution = [
+            {"label": r["label"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(ENGAGEMENT_DISTRIBUTION)
+        engagement = [
+            {"bucket": r["bucket"], "count": int(r["count"])} async for r in result
+        ]
+
+    return {
+        "providers": providers,
+        "activation_time": activation_time,
+        "code_attribution": code_attribution,
+        "engagement": engagement,
+    }

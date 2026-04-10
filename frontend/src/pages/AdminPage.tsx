@@ -18,6 +18,8 @@ import {
   toggleAccessCode,
   deleteAccessCode,
   updateBetaConfig,
+  getFunnelMetrics,
+  getInsights,
   type AdminStats,
   type AccessCode,
   type PendingUser,
@@ -26,6 +28,10 @@ import {
   listIdeas,
   deleteIdea,
   type Idea,
+  getFunnelMetrics,
+  getInsights,
+  type FunnelMetrics,
+  type Insights,
 } from '../api/admin';
 
 // ── Helpers ──
@@ -45,6 +51,14 @@ function formatDate(iso: string | null): string {
   }
 }
 
+function formatHours(hours: number | null): string {
+  if (hours === null) return '—';
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 24) return `${hours.toFixed(1)}h`;
+  const days = hours / 24;
+  return `${days.toFixed(1)}d`;
+}
+
 // ── Stat Card ──
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -53,6 +67,53 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
       <div className="text-white/40 text-xs uppercase tracking-wider font-medium">{label}</div>
       <div className="text-white text-2xl font-bold">{value}</div>
       {sub && <div className="text-white/25 text-xs">{sub}</div>}
+    </div>
+  );
+}
+
+// ── Funnel Chart ──
+
+function FunnelChart({ signups, activations }: { signups: { date: string; count: number }[]; activations: { date: string; count: number }[] }) {
+  // Build a merged day-by-day map for the last 30 days
+  const activationMap = new Map(activations.map((a) => [a.date, a.count]));
+  const days = signups.length > 0 ? signups : activations;
+  const maxCount = Math.max(1, ...days.map((d) => d.count), ...activations.map((a) => a.count));
+
+  if (days.length === 0) {
+    return <div className="text-white/20 text-sm text-center py-8">No data in the last 30 days.</div>;
+  }
+
+  return (
+    <div className="flex items-end gap-[2px] h-40">
+      {days.map((d) => {
+        const signupH = (d.count / maxCount) * 100;
+        const actH = ((activationMap.get(d.date) || 0) / maxCount) * 100;
+        const shortDate = d.date.slice(5); // MM-DD
+        return (
+          <div key={d.date} className="flex-1 flex flex-col items-center gap-0.5 group relative min-w-0">
+            <div className="w-full flex flex-col items-center justify-end h-32">
+              <div
+                className="w-full bg-purple-500/30 rounded-t-sm relative"
+                style={{ height: `${signupH}%`, minHeight: d.count > 0 ? '2px' : '0px' }}
+              >
+                {actH > 0 && (
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-green-500/50 rounded-t-sm"
+                    style={{ height: `${(actH / signupH) * 100}%`, minHeight: '2px' }}
+                  />
+                )}
+              </div>
+            </div>
+            <span className="text-[8px] text-white/20 leading-none truncate w-full text-center">{shortDate}</span>
+            {/* Tooltip */}
+            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              <div className="text-white/60 mb-0.5">{d.date}</div>
+              <div className="text-purple-300">Signups: {d.count}</div>
+              <div className="text-green-300">Activations: {activationMap.get(d.date) || 0}</div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -110,8 +171,10 @@ export default function AdminPage() {
   const [codes, setCodes] = useState<AccessCode[]>([]);
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [funnel, setFunnel] = useState<FunnelMetrics | null>(null);
+  const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas'>('codes');
+  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'funnel'>('codes');
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,18 +220,22 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, c, p, u, i] = await Promise.all([
+      const [s, c, p, u, id, f, ins] = await Promise.all([
         getStats(),
         listAccessCodes(),
         listPendingUsers(),
         listUsers(),
         listIdeas(),
+        getFunnelMetrics(30),
+        getInsights(),
       ]);
       setStats(s);
       setCodes(c);
       setPendingUsers(p);
-      setIdeas(i);
       setUsers(u);
+      setIdeas(id);
+      setFunnel(f);
+      setInsights(ins);
       setError(null);
     } catch {
       setError('Error loading data.');
@@ -581,6 +648,14 @@ export default function AdminPage() {
           >
             Ideas ({ideas.length})
           </button>
+          <button
+            onClick={() => setTab('funnel')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === 'funnel' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Funnel
+          </button>
         </div>
 
         {/* ── Codes Tab ── */}
@@ -911,6 +986,138 @@ export default function AdminPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Funnel Tab ── */}
+        {tab === 'funnel' && funnel && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              <StatCard label="Signups (30d)" value={funnel.total_signups} />
+              <StatCard label="Activations (30d)" value={funnel.total_activations} />
+              <StatCard
+                label="Conversion rate"
+                value={`${(funnel.conversion_rate * 100).toFixed(1)}%`}
+                sub={`${funnel.total_activations} of ${funnel.total_signups}`}
+              />
+            </div>
+
+            {/* Chart */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5 mb-6">
+              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">
+                Daily signups &amp; activations (last 30 days)
+              </h3>
+              <FunnelChart signups={funnel.signups} activations={funnel.activations} />
+            </div>
+
+            {/* ── Insights ── */}
+            {insights && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Provider breakdown */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Signup providers</h3>
+                  {insights.providers.length === 0 ? (
+                    <div className="text-white/20 text-sm">No data.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {insights.providers.map((p) => {
+                        const total = insights.providers.reduce((s, x) => s + x.count, 0);
+                        const pct = total > 0 ? (p.count / total) * 100 : 0;
+                        return (
+                          <div key={p.provider}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-white/70 capitalize">{p.provider}</span>
+                              <span className="text-white/40">{p.count} ({pct.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-white/[0.04] rounded-full h-2">
+                              <div
+                                className="bg-purple-500/60 h-2 rounded-full transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Activation time */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Activation time</h3>
+                  {insights.activation_time.total === 0 ? (
+                    <div className="text-white/20 text-sm">No activations yet.</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Average</div>
+                        <div className="text-white text-xl font-bold">{formatHours(insights.activation_time.avg_hours)}</div>
+                      </div>
+                      <div>
+                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Activated</div>
+                        <div className="text-white text-xl font-bold">{insights.activation_time.total}</div>
+                      </div>
+                      <div>
+                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Fastest</div>
+                        <div className="text-white/70 text-sm">{formatHours(insights.activation_time.min_hours)}</div>
+                      </div>
+                      <div>
+                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Slowest</div>
+                        <div className="text-white/70 text-sm">{formatHours(insights.activation_time.max_hours)}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Code attribution */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Code attribution</h3>
+                  {insights.code_attribution.length === 0 ? (
+                    <div className="text-white/20 text-sm">No codes used yet.</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {insights.code_attribution.map((c) => (
+                        <div key={c.label} className="flex justify-between items-center text-sm">
+                          <span className="text-white/70 font-mono text-xs truncate mr-2">{c.label}</span>
+                          <span className="text-white/40 tabular-nums shrink-0">{c.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Engagement */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">User engagement</h3>
+                  {insights.engagement.length === 0 ? (
+                    <div className="text-white/20 text-sm">No data.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {insights.engagement.map((e) => {
+                        const total = insights.engagement.reduce((s, x) => s + x.count, 0);
+                        const pct = total > 0 ? (e.count / total) * 100 : 0;
+                        const label = e.bucket === '0' ? 'No nodes' : `${e.bucket} nodes`;
+                        return (
+                          <div key={e.bucket}>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-white/70">{label}</span>
+                              <span className="text-white/40">{e.count} ({pct.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-white/[0.04] rounded-full h-2">
+                              <div
+                                className="bg-green-500/50 h-2 rounded-full transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </motion.div>

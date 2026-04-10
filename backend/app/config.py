@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # URLs
     frontend_url: str = "http://localhost:5173"
 
+    # Resend (email notifications)
+    resend_api_key: str = ""
+    email_from: str = "OpenOrbis <noreply@openorbis.com>"
+
     # Closed-beta invitation system. When True, signups (first-time logins)
     # require a valid AccessCode AND a free seat under the cap stored in the
     # singleton :BetaConfig node. The cap itself is modified at runtime via

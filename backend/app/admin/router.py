@@ -16,6 +16,8 @@ from app.admin.models import (
     BatchActivateRequest,
     BetaConfigResponse,
     BetaConfigUpdate,
+    FunnelResponse,
+    InsightsResponse,
     InviteCodeCounts,
     PendingUser,
     StatsResponse,
@@ -34,6 +36,8 @@ from app.admin.service import (
     delete_user,
     get_access_code,
     get_beta_config,
+    get_funnel_metrics,
+    get_insights,
     get_user_detail,
     grant_admin,
     list_access_codes,
@@ -43,7 +47,9 @@ from app.admin.service import (
     set_access_code_active,
     update_beta_config,
 )
+from app.config import settings
 from app.dependencies import get_db, require_admin
+from app.email.service import send_activation_email
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +140,33 @@ async def get_stats(
         invite_code_required=bool(config.get("invite_code_required", True)),
         invite_codes=InviteCodeCounts(**code_counts),
     )
+
+
+# ── Funnel metrics ──
+
+
+@router.get("/funnel", response_model=FunnelResponse)
+async def get_funnel(
+    days: int = 30,
+    _admin: dict = Depends(require_admin),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Return signup/activation time-series for the waitlist funnel."""
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 365")
+    return await get_funnel_metrics(db, days)
+
+
+# ── Insights ──
+
+
+@router.get("/insights", response_model=InsightsResponse)
+async def get_insights_endpoint(
+    _admin: dict = Depends(require_admin),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Provider breakdown, activation time, code attribution, engagement."""
+    return await get_insights(db)
 
 
 # ── BetaConfig ──
@@ -284,6 +317,13 @@ async def activate_user(
             status_code=400, detail="User not found or already activated"
         )
     await consume_access_code(db, code, user_id)
+
+    # Best-effort activation email
+    if user.get("email"):
+        await send_activation_email(
+            to=user["email"], frontend_url=settings.frontend_url
+        )
+
     return _serialize_user(user)
 
 
@@ -304,6 +344,13 @@ async def activate_users_batch(
         if user is not None:
             await consume_access_code(db, code, uid)
             activated.append(_serialize_user(user))
+
+            # Best-effort activation email
+            if user.get("email"):
+                await send_activation_email(
+                    to=user["email"], frontend_url=settings.frontend_url
+                )
+
     return activated
 
 

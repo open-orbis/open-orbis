@@ -186,3 +186,61 @@ export async function listIdeas(): Promise<Idea[]> {
 export async function deleteIdea(ideaId: string): Promise<void> {
   await client.delete(`/admin/ideas/${ideaId}`);
 }
+
+// ── Funnel Metrics ──
+
+export interface DailyCount {
+  date: string;
+  count: number;
+}
+
+export interface FunnelMetrics {
+  signups: DailyCount[];
+  activations: DailyCount[];
+  total_signups: number;
+  total_activations: number;
+  conversion_rate: number;
+}
+
+export async function getFunnelMetrics(
+  days: number = 30,
+): Promise<FunnelMetrics> {
+  const { data } = await client.get('/admin/funnel', { params: { days } });
+  return data;
+}
+
+// ── Insights ──
+
+export interface ProviderCount {
+  provider: string;
+  count: number;
+}
+
+export interface ActivationTimeStats {
+  total: number;
+  avg_hours: number | null;
+  min_hours: number | null;
+  max_hours: number | null;
+}
+
+export interface CodeAttributionEntry {
+  label: string;
+  count: number;
+}
+
+export interface EngagementBucket {
+  bucket: string;
+  count: number;
+}
+
+export interface Insights {
+  providers: ProviderCount[];
+  activation_time: ActivationTimeStats;
+  code_attribution: CodeAttributionEntry[];
+  engagement: EngagementBucket[];
+}
+
+export async function getInsights(): Promise<Insights> {
+  const { data } = await client.get('/admin/insights');
+  return data;
+}

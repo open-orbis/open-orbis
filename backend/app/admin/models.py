@@ -86,3 +86,51 @@ class UserDetailResponse(UserResponse):
 
 class BatchActivateRequest(BaseModel):
     user_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+# ── Insights ──
+
+
+class ProviderCount(BaseModel):
+    provider: str
+    count: int
+
+
+class ActivationTimeStats(BaseModel):
+    total: int
+    avg_hours: float | None
+    min_hours: float | None
+    max_hours: float | None
+
+
+class CodeAttributionEntry(BaseModel):
+    label: str
+    count: int
+
+
+class EngagementBucket(BaseModel):
+    bucket: str
+    count: int
+
+
+class InsightsResponse(BaseModel):
+    providers: list[ProviderCount]
+    activation_time: ActivationTimeStats
+    code_attribution: list[CodeAttributionEntry]
+    engagement: list[EngagementBucket]
+
+
+# ── Funnel metrics ──
+
+
+class DailyCount(BaseModel):
+    date: str
+    count: int
+
+
+class FunnelResponse(BaseModel):
+    signups: list[DailyCount]
+    activations: list[DailyCount]
+    total_signups: int
+    total_activations: int
+    conversion_rate: float

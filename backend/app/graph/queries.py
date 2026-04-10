@@ -338,6 +338,77 @@ SET p.signup_code = $code, p.activated_at = datetime()
 RETURN count(p) AS activated
 """
 
+# ── Funnel metrics ──
+
+FUNNEL_SIGNUPS_PER_DAY = """
+MATCH (p:Person)
+WHERE p.created_at >= datetime() - duration({days: $days})
+WITH date(p.created_at) AS day
+RETURN toString(day) AS date, count(*) AS count
+ORDER BY date
+"""
+
+FUNNEL_ACTIVATIONS_PER_DAY = """
+MATCH (p:Person)
+WHERE p.activated_at IS NOT NULL
+  AND p.activated_at >= datetime() - duration({days: $days})
+WITH date(p.activated_at) AS day
+RETURN toString(day) AS date, count(*) AS count
+ORDER BY date
+"""
+
+# ── Insights ──
+
+PROVIDER_BREAKDOWN = """
+MATCH (p:Person)
+RETURN coalesce(p.provider, 'unknown') AS provider, count(*) AS count
+ORDER BY count DESC
+"""
+
+AVG_ACTIVATION_TIME = """
+MATCH (p:Person)
+WHERE p.activated_at IS NOT NULL AND p.created_at IS NOT NULL
+WITH duration.between(p.created_at, p.activated_at) AS d
+RETURN
+    count(d) AS total,
+    avg(d.hours + d.minutes / 60.0) AS avg_hours,
+    min(d.hours + d.minutes / 60.0) AS min_hours,
+    max(d.hours + d.minutes / 60.0) AS max_hours
+"""
+
+CODE_ATTRIBUTION = """
+MATCH (p:Person)
+WHERE p.signup_code IS NOT NULL
+OPTIONAL MATCH (a:AccessCode {code: p.signup_code})
+RETURN
+    coalesce(a.label, p.signup_code) AS label,
+    count(*) AS count
+ORDER BY count DESC
+"""
+
+ENGAGEMENT_DISTRIBUTION = """
+MATCH (p:Person)
+WHERE p.signup_code IS NOT NULL OR coalesce(p.is_admin, false) = true
+OPTIONAL MATCH (p)-[]->(n)
+WHERE NOT n:AccessCode AND NOT n:BetaConfig AND NOT n:ProcessingRecord AND NOT n:OntologyVersion
+WITH p, count(DISTINCT n) AS nodes
+RETURN
+    CASE
+        WHEN nodes = 0 THEN '0'
+        WHEN nodes <= 10 THEN '1-10'
+        WHEN nodes <= 50 THEN '11-50'
+        ELSE '50+'
+    END AS bucket,
+    count(*) AS count
+ORDER BY
+    CASE bucket
+        WHEN '0' THEN 0
+        WHEN '1-10' THEN 1
+        WHEN '11-50' THEN 2
+        ELSE 3
+    END
+"""
+
 # ── Ontology Versioning ──
 
 CREATE_ONTOLOGY_VERSION = """
