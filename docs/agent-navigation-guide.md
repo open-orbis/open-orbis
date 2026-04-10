@@ -13,6 +13,8 @@ Execute these actions in order to cover the primary user flow:
 ```
 LANDING
   -> Google Sign In -> AUTH_CALLBACK
+  -> (if invite_code_required AND not admin AND no signup_code) ACTIVATION
+       -> Enter valid code -> activated
   -> (if new user) CREATE -> CV_UPLOAD -> CV_REVIEW -> ORB_VIEW
   -> (if existing user) ORB_VIEW
 ```
@@ -72,6 +74,29 @@ Account settings -> Account tab -> Delete account -> Confirm
 Account settings -> Versions tab -> Save current version
 -> Delete a node -> Save another version
 -> Restore first version -> Verify deleted node is back
+```
+
+**Activation Gate Path (closed beta):**
+```
+Register as new user via Google -> ProtectedRoute redirects to /activate
+-> Enter invalid code -> Verify error message "Codice non valido"
+-> Enter already-used code -> Verify error "già stato utilizzato"
+-> Enter valid code -> Verify redirect to CREATE or ORB_VIEW
+-> Subsequent logins go directly to ORB_VIEW (no activation page)
+```
+
+**Admin Dashboard Path:**
+```
+Login as admin (is_admin=true on Person) -> UserMenu -> Admin Dashboard
+-> Verify stats cards (registered, pending, codes available)
+-> Create single code -> Verify appears in table
+-> Create batch codes (prefix "test", count 5) -> Verify 5 new codes
+-> Click code in table -> Verify clipboard copy ("Copiato!" feedback)
+-> Filter: Disponibili -> Verify only unused codes shown
+-> Disattiva a code -> Verify status changes
+-> Click "Codice invito: OBBLIGATORIO" toggle -> Verify confirmation dialog
+-> Confirm -> Verify toggle flips to "Piattaforma: APERTA A TUTTI"
+-> Switch to "Utenti in attesa" tab -> Verify pending users listed
 ```
 
 **Session Expiry Path:**
@@ -207,6 +232,8 @@ For agents that need to detect the current state programmatically:
 
 | State | Detection Method |
 |-------|-----------------|
+| `ACTIVATION` | URL is `/activate`, invite code input field visible, "beta chiusa" message |
+| `ADMIN` | URL is `/admin`, "Admin Dashboard" heading, stat cards and code table visible |
 | `LANDING` | URL is `/`, sign-in buttons visible |
 | `CREATE` | URL is `/create`, path cards visible |
 | `CV_UPLOAD` | Drag-and-drop zone visible |
