@@ -43,6 +43,7 @@ RETURN p
 
 DELETE_USER_GRAPH = """
 MATCH (p:Person {user_id: $user_id})-[r]->(n)
+WHERE NOT n:ProcessingRecord
 DETACH DELETE n
 """
 
@@ -57,6 +58,7 @@ RETURN p
 GET_FULL_ORB = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
@@ -69,6 +71,7 @@ RETURN p, connections, cross_links, cross_skill_nodes
 GET_FULL_ORB_PUBLIC = """
 MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
@@ -306,12 +309,13 @@ ORDER BY p.created_at DESC
 GET_PERSON_DETAIL = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WITH p, count(DISTINCT CASE WHEN NOT n:AccessCode AND NOT n:BetaConfig THEN n END) AS node_count
+WITH p, count(DISTINCT CASE WHEN NOT n:AccessCode AND NOT n:BetaConfig AND NOT n:ProcessingRecord THEN n END) AS node_count
 RETURN p, node_count
 """
 
 DELETE_PERSON_FULL = """
 MATCH (p:Person {user_id: $user_id})-[*1..]->(n)
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion
 WITH DISTINCT n DETACH DELETE n
 """
 
@@ -332,4 +336,68 @@ MATCH (p:Person)
 WHERE p.signup_code IS NULL AND coalesce(p.is_admin, false) = false
 SET p.signup_code = $code, p.activated_at = datetime()
 RETURN count(p) AS activated
+"""
+
+# ── Ontology Versioning ──
+
+CREATE_ONTOLOGY_VERSION = """
+CREATE (ov:OntologyVersion {
+    version_id: $version_id,
+    version_number: $version_number,
+    content_hash: $content_hash,
+    schema_definition: $schema_definition,
+    extraction_prompt: $extraction_prompt,
+    source_file: $source_file,
+    prompt_reviewed: $prompt_reviewed,
+    created_at: datetime()
+})
+RETURN ov
+"""
+
+GET_LATEST_ONTOLOGY_VERSION = """
+MATCH (ov:OntologyVersion)
+RETURN ov
+ORDER BY ov.version_number DESC
+LIMIT 1
+"""
+
+LINK_ONTOLOGY_SUPERSEDES = """
+MATCH (newer:OntologyVersion {version_id: $newer_id})
+MATCH (older:OntologyVersion {version_id: $older_id})
+CREATE (newer)-[:SUPERSEDES]->(older)
+"""
+
+# ── Processing Records ──
+
+CREATE_PROCESSING_RECORD = """
+CREATE (pr:ProcessingRecord {
+    record_id: $record_id,
+    document_id: $document_id,
+    llm_provider: $llm_provider,
+    llm_model: $llm_model,
+    extraction_method: $extraction_method,
+    prompt_hash: $prompt_hash,
+    nodes_extracted: $nodes_extracted,
+    edges_extracted: $edges_extracted,
+    processed_at: datetime()
+})
+RETURN pr
+"""
+
+LINK_PROCESSING_RECORD_TO_ONTOLOGY = """
+MATCH (pr:ProcessingRecord {record_id: $record_id})
+MATCH (ov:OntologyVersion {version_id: $version_id})
+CREATE (pr)-[:USED_ONTOLOGY]->(ov)
+"""
+
+LINK_PROCESSING_RECORD_TO_NODE = """
+MATCH (pr:ProcessingRecord {record_id: $record_id})
+MATCH (n {uid: $node_uid})
+CREATE (pr)-[:EXTRACTED]->(n)
+"""
+
+LINK_PERSON_TO_PROCESSING_RECORD = """
+MATCH (p:Person {user_id: $user_id})
+MATCH (pr:ProcessingRecord {record_id: $record_id})
+CREATE (p)-[:HAS_PROCESSING_RECORD]->(pr)
 """

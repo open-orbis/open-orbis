@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenOrbis — Printable Card</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  /* ── Reset & Print Setup ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Credit-card size */
+    --card-w: 3.375in;
+    --card-h: 2.125in;
+    /* Bleed area for professional print */
+    --bleed: 0.125in;
+    /* Brand palette */
+    --purple-main: #7c3aed;
+    --purple-mid: #8b5cf6;
+    --purple-light: #a78bfa;
+    --purple-dark: #6d28d9;
+    --amber: #f59e0b;
+    --orange: #fb923c;
+    --black: #000000;
+    --white: #ffffff;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e;
+    color: var(--white);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 40px;
+  }
+
+  h1.page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--purple-light);
+    letter-spacing: 0.05em;
+  }
+
+  .instructions {
+    max-width: 600px;
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  /* ── Card Container ── */
+  .card-pair {
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .card-label {
+    text-align: center;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 8px;
+  }
+
+  .card {
+    width: var(--card-w);
+    height: var(--card-h);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.25), 0 0 0 1px rgba(139,92,246,0.15);
+  }
+
+  /* ══════════════════════════════════
+     FRONT FACE — Curiosity & Mystery
+     ══════════════════════════════════ */
+  .card-front {
+    background: var(--black);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  /* Subtle grid pattern */
+  .card-front::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 50% 50%, rgba(124,58,237,0.12) 0%, transparent 70%),
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+  }
+
+  /* Animated glow orb (static for print, animated on screen) */
+  .orb-container {
+    position: relative;
+    z-index: 2;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 12px;
+  }
+
+  .orb-outer {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 1.5px solid rgba(139,92,246,0.4);
+    background: rgba(124,58,237,0.15);
+    animation: pulse-outer 3s ease-in-out infinite;
+  }
+
+  .orb-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--purple-light);
+    box-shadow: 0 0 20px rgba(167,139,250,0.6), 0 0 40px rgba(124,58,237,0.3);
+    animation: pulse-inner 3s ease-in-out infinite;
+  }
+
+  /* Orbital ring */
+  .orb-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(167,139,250,0.2);
+    animation: rotate-ring 8s linear infinite;
+  }
+
+  .orb-ring::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 6px rgba(245,158,11,0.8);
+  }
+
+  .front-title {
+    position: relative;
+    z-index: 2;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    background: linear-gradient(135deg, var(--white) 0%, var(--purple-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .front-tagline {
+    position: relative;
+    z-index: 2;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    margin-top: 6px;
+  }
+
+  .front-hook {
+    position: relative;
+    z-index: 2;
+    margin-top: 14px;
+    padding: 4px 14px;
+    border: 1px solid rgba(245,158,11,0.4);
+    border-radius: 20px;
+    font-size: 0.5rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(251,146,60,0.05));
+    color: var(--amber);
+  }
+
+  /* Corner accent dots */
+  .corner-dot {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--purple-mid);
+    opacity: 0.4;
+    z-index: 2;
+  }
+  .corner-dot.tl { top: 12px; left: 12px; }
+  .corner-dot.tr { top: 12px; right: 12px; }
+  .corner-dot.bl { bottom: 12px; left: 12px; }
+  .corner-dot.br { bottom: 12px; right: 12px; }
+
+  /* ══════════════════════════════════
+     BACK FACE — QR Code + CTA
+     ══════════════════════════════════ */
+  .card-back {
+    background: var(--black);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 16px;
+    position: relative;
+  }
+
+  .card-back::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 80% 50%, rgba(124,58,237,0.08) 0%, transparent 60%);
+  }
+
+  .back-left {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .back-cta {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.4;
+    color: var(--white);
+  }
+
+  .back-cta .highlight {
+    background: linear-gradient(135deg, var(--amber), var(--orange));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .back-desc {
+    font-size: 0.42rem;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.45);
+    max-width: 160px;
+  }
+
+  .back-features {
+    display: flex;
+    gap: 6px;
+    margin-top: 2px;
+  }
+
+  .feature-pill {
+    font-size: 0.35rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(139,92,246,0.2);
+    color: var(--purple-light);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .back-url {
+    font-size: 0.38rem;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  .back-right {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .qr-wrapper {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 0 20px rgba(124,58,237,0.2);
+  }
+
+  #qrcode {
+    width: 80px;
+    height: 80px;
+  }
+
+  #qrcode img, #qrcode canvas {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  .scan-label {
+    font-size: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* Divider line between left and right */
+  .back-divider {
+    width: 1px;
+    height: 60%;
+    background: linear-gradient(to bottom, transparent, rgba(139,92,246,0.3), transparent);
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── Animations (screen only) ── */
+  @keyframes pulse-outer {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.7; }
+  }
+  @keyframes pulse-inner {
+    0%, 100% { box-shadow: 0 0 20px rgba(167,139,250,0.6), 0 0 40px rgba(124,58,237,0.3); }
+    50% { box-shadow: 0 0 30px rgba(167,139,250,0.8), 0 0 60px rgba(124,58,237,0.4); }
+  }
+  @keyframes rotate-ring {
+    from { transform: translate(-50%, -50%) rotate(0deg); }
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  /* ── Print Styles ── */
+  @media print {
+    body {
+      background: white;
+      padding: 0;
+      gap: 0.3in;
+    }
+    h1.page-title, .instructions { display: none; }
+    .card-label { color: #999; }
+    .card { box-shadow: none; border: 0.5px solid #ccc; }
+
+    /* Disable animations for print */
+    .orb-outer, .orb-inner, .orb-ring { animation: none !important; }
+
+    /* Multiple cards per page for batch printing */
+    .print-sheet {
+      display: grid;
+      grid-template-columns: repeat(2, var(--card-w));
+      gap: 0.25in;
+      page-break-after: always;
+    }
+  }
+
+  /* ── Cut Guide (toggle with checkbox) ── */
+  .cut-guide .card {
+    outline: 1px dashed rgba(255,255,255,0.15);
+    outline-offset: 4px;
+  }
+
+  .toggle-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .toggle-row label {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .toggle-row input[type="checkbox"] {
+    accent-color: var(--purple-main);
+  }
+
+  /* ── Batch Print Grid ── */
+  .batch-grid {
+    display: none;
+    gap: 0.15in;
+    padding: 20px;
+  }
+
+  .batch-grid.show {
+    display: grid;
+    grid-template-columns: repeat(2, var(--card-w));
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">OpenOrbis — Printable Card</h1>
+<p class="instructions">
+  Credit-card size (3.375 × 2.125 in) — double-sided.<br>
+  Print on thick card stock (300gsm+). Use "Actual size" in print settings.
+</p>
+
+<div class="toggle-row">
+  <label><input type="checkbox" id="cutGuide"> Show cut guides</label>
+  <label><input type="checkbox" id="batchMode"> Batch mode (8 per page)</label>
+</div>
+
+<!-- ═══ SINGLE CARD PREVIEW ═══ -->
+<div class="card-pair" id="singlePair">
+  <div>
+    <div class="card-label">Front</div>
+    <div class="card card-front" id="cardFront">
+      <span class="corner-dot tl"></span>
+      <span class="corner-dot tr"></span>
+      <span class="corner-dot bl"></span>
+      <span class="corner-dot br"></span>
+
+      <div class="orb-container">
+        <div class="orb-outer"></div>
+        <div class="orb-ring"></div>
+        <div class="orb-inner"></div>
+      </div>
+
+      <div class="front-title">OpenOrbis</div>
+      <div class="front-tagline">Your career as a knowledge graph</div>
+      <div class="front-hook">Flip me →</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card-label">Back</div>
+    <div class="card card-back">
+      <div class="back-left">
+        <div class="back-cta">
+          Your CV, <span class="highlight">reimagined</span>.
+        </div>
+        <div class="back-desc">
+          Build a living knowledge graph from your research & career. Share it with labs, committees, and AI agents.
+        </div>
+        <div class="back-features">
+          <span class="feature-pill">Portable</span>
+          <span class="feature-pill">Structured</span>
+          <span class="feature-pill">AI-ready</span>
+        </div>
+        <div class="back-url">openorbis.io</div>
+      </div>
+      <div class="back-divider"></div>
+      <div class="back-right">
+        <div class="qr-wrapper">
+          <div id="qrcode"></div>
+        </div>
+        <div class="scan-label">Scan to explore</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BATCH PRINT GRID ═══ -->
+<div class="batch-grid" id="batchGrid"></div>
+
+<script>
+  // Generate QR code
+  const qr = new QRCode(document.getElementById('qrcode'), {
+    text: 'https://openorbis.io',
+    width: 80,
+    height: 80,
+    colorDark: '#7c3aed',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+
+  // Cut guide toggle
+  document.getElementById('cutGuide').addEventListener('change', (e) => {
+    document.querySelectorAll('.card').forEach(c => {
+      c.parentElement.classList.toggle('cut-guide', e.target.checked);
+    });
+  });
+
+  // Batch mode toggle
+  document.getElementById('batchMode').addEventListener('change', (e) => {
+    const grid = document.getElementById('batchGrid');
+    const single = document.getElementById('singlePair');
+
+    if (e.target.checked) {
+      single.style.display = 'none';
+      grid.classList.add('show');
+      grid.innerHTML = '';
+
+      // 8 fronts then 8 backs (print front sheet, flip paper, print back sheet)
+      const frontPage = document.createElement('div');
+      frontPage.style.cssText = 'display:grid;grid-template-columns:repeat(2,var(--card-w));gap:0.15in;page-break-after:always;';
+
+      const backPage = document.createElement('div');
+      backPage.style.cssText = 'display:grid;grid-template-columns:repeat(2,var(--card-w));gap:0.15in;';
+
+      for (let i = 0; i < 8; i++) {
+        const front = document.getElementById('cardFront').cloneNode(true);
+        front.removeAttribute('id');
+        frontPage.appendChild(front);
+
+        const back = document.querySelector('.card-back').cloneNode(true);
+        const qrDiv = back.querySelector('#qrcode');
+        if (qrDiv) {
+          qrDiv.removeAttribute('id');
+          qrDiv.id = 'qr-batch-' + i;
+        }
+        backPage.appendChild(back);
+      }
+
+      grid.appendChild(frontPage);
+      grid.appendChild(backPage);
+
+      // Generate QR codes for batch
+      for (let i = 0; i < 8; i++) {
+        const el = document.getElementById('qr-batch-' + i);
+        if (el) {
+          el.innerHTML = '';
+          new QRCode(el, {
+            text: 'https://openorbis.io',
+            width: 80,
+            height: 80,
+            colorDark: '#7c3aed',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+      }
+    } else {
+      single.style.display = 'flex';
+      grid.classList.remove('show');
+      grid.innerHTML = '';
+    }
+  });
+</script>
+
+</body>
+</html>

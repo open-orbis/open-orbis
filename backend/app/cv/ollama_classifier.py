@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import re
@@ -11,7 +12,12 @@ from datetime import datetime
 import httpx
 
 from app.config import settings
-from app.cv.models import ExtractedNode, ExtractedRelationship, SkippedNode
+from app.cv.models import (
+    ExtractedNode,
+    ExtractedRelationship,
+    ExtractionMetadata,
+    SkippedNode,
+)
 from app.graph.queries import NODE_TYPE_LABELS
 
 logger = logging.getLogger(__name__)
@@ -220,6 +226,7 @@ class ClassificationResult:
     truncated: bool = False
     cv_owner_name: str | None = None
     profile: dict | None = None
+    metadata: ExtractionMetadata | None = None
 
 
 MAX_RETRIES = 2
@@ -268,6 +275,18 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
             cr = _parse_result(result)
             if cr.nodes or cr.unmatched:
                 cr.truncated = truncated
+                prompt_hash = hashlib.sha256(SYSTEM_PROMPT.encode()).hexdigest()
+                if provider == "claude":
+                    model_name = settings.claude_model or "claude-opus-4-6"
+                else:
+                    model_name = settings.ollama_model or "llama3.2:3b"
+                cr.metadata = ExtractionMetadata(
+                    llm_provider=provider,
+                    llm_model=model_name,
+                    extraction_method="primary",
+                    prompt_content=SYSTEM_PROMPT,
+                    prompt_hash=prompt_hash,
+                )
                 return cr
             logger.warning(
                 "%s returned empty result, attempt %d", provider, attempt + 1
@@ -323,6 +342,13 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
                     skipped=skipped,
                     truncated=truncated,
                     cv_owner_name=fallback_name,
+                    metadata=ExtractionMetadata(
+                        llm_provider="rule_based",
+                        llm_model="rule_based_parser",
+                        extraction_method="fallback_rule_based",
+                        prompt_content="",
+                        prompt_hash="",
+                    ),
                 )
     except Exception as e:
         logger.warning("Rule-based fallback also failed: %s", e)
@@ -339,6 +365,13 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
     return ClassificationResult(
         unmatched=fallback_lines[:50],
         truncated=truncated,
+        metadata=ExtractionMetadata(
+            llm_provider="rule_based",
+            llm_model="rule_based_parser",
+            extraction_method="fallback_raw_text",
+            prompt_content="",
+            prompt_hash="",
+        ),
     )
 
 

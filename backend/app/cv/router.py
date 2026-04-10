@@ -11,6 +11,7 @@ from app.config import settings
 from app.cv import counter, progress
 from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
+from app.cv.ollama_classifier import SYSTEM_PROMPT as EXTRACTION_PROMPT
 from app.cv.ollama_classifier import classify_entries
 from app.cv.progress import CVStep
 from app.cv.text_extractor import extract_text as multi_extract
@@ -21,6 +22,7 @@ from app.cv_storage.storage import (
 )
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties, encrypt_value
+from app.graph.provenance import create_processing_record, ensure_ontology_version
 from app.graph.queries import (
     ADD_NODE,
     DELETE_USER_GRAPH,
@@ -135,6 +137,12 @@ async def upload_cv(
             cv_owner_name=result.cv_owner_name,
             profile=extracted_profile,
             document_id=document_id,
+            llm_provider=result.metadata.llm_provider if result.metadata else None,
+            llm_model=result.metadata.llm_model if result.metadata else None,
+            extraction_method=result.metadata.extraction_method
+            if result.metadata
+            else None,
+            prompt_hash=result.metadata.prompt_hash if result.metadata else None,
         )
 
     except HTTPException:
@@ -277,6 +285,12 @@ async def import_document(
             cv_owner_name=result.cv_owner_name,
             profile=extracted_profile,
             document_id=document_id,
+            llm_provider=result.metadata.llm_provider if result.metadata else None,
+            llm_model=result.metadata.llm_model if result.metadata else None,
+            extraction_method=result.metadata.extraction_method
+            if result.metadata
+            else None,
+            prompt_hash=result.metadata.prompt_hash if result.metadata else None,
         )
     except HTTPException:
         raise
@@ -300,7 +314,38 @@ async def import_confirm(
     if data.document_id:
         evict_oldest_if_at_limit(user_id)
 
-    result = await _persist_nodes(data, current_user, db, wipe_existing=False)
+    result, valid_ids = await _persist_nodes(
+        data, current_user, db, wipe_existing=False
+    )
+
+    # --- Provenance tracking ---
+    try:
+        from pathlib import Path
+
+        project_root = str(Path(__file__).resolve().parent.parent.parent)
+        prompt_content = data.prompt_content or EXTRACTION_PROMPT
+
+        async with db.session() as session:
+            ontology_version_id = await ensure_ontology_version(
+                session, project_root, prompt_content
+            )
+
+            if data.llm_provider:
+                await create_processing_record(
+                    session=session,
+                    user_id=user_id,
+                    document_id=data.document_id or "",
+                    ontology_version_id=ontology_version_id,
+                    llm_provider=data.llm_provider,
+                    llm_model=data.llm_model or "",
+                    extraction_method=data.extraction_method or "primary",
+                    prompt_hash=data.prompt_hash or "",
+                    nodes_extracted=len(valid_ids),
+                    edges_extracted=len(data.relationships),
+                    node_uids=valid_ids,
+                )
+    except Exception as e:
+        logger.warning("Failed to create provenance record: %s", e)
 
     if data.document_id:
         from datetime import datetime, timezone
@@ -453,7 +498,7 @@ async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noq
                         )
 
     valid_ids = [uid for uid in created if uid is not None]
-    return {"created": len(valid_ids), "node_ids": valid_ids}
+    return {"created": len(valid_ids), "node_ids": valid_ids}, valid_ids
 
 
 def _build_person_updates(data: ConfirmRequest) -> dict:
@@ -494,7 +539,36 @@ async def confirm_cv(
     if data.document_id:
         evict_oldest_if_at_limit(user_id)
 
-    result = await _persist_nodes(data, current_user, db, wipe_existing=True)
+    result, valid_ids = await _persist_nodes(data, current_user, db, wipe_existing=True)
+
+    # --- Provenance tracking ---
+    try:
+        from pathlib import Path
+
+        project_root = str(Path(__file__).resolve().parent.parent.parent)
+        prompt_content = data.prompt_content or EXTRACTION_PROMPT
+
+        async with db.session() as session:
+            ontology_version_id = await ensure_ontology_version(
+                session, project_root, prompt_content
+            )
+
+            if data.llm_provider:
+                await create_processing_record(
+                    session=session,
+                    user_id=user_id,
+                    document_id=data.document_id or "",
+                    ontology_version_id=ontology_version_id,
+                    llm_provider=data.llm_provider,
+                    llm_model=data.llm_model or "",
+                    extraction_method=data.extraction_method or "primary",
+                    prompt_hash=data.prompt_hash or "",
+                    nodes_extracted=len(valid_ids),
+                    edges_extracted=len(data.relationships),
+                    node_uids=valid_ids,
+                )
+    except Exception as e:
+        logger.warning("Failed to create provenance record: %s", e)
 
     if data.document_id:
         from datetime import datetime, timezone

@@ -42,6 +42,21 @@ class ExtractedData(BaseModel):
     cv_owner_name: str | None = None
     profile: ExtractedProfile | None = None
     document_id: str | None = None
+    # Provenance metadata
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    extraction_method: str | None = None
+    prompt_hash: str | None = None
+
+
+class ExtractionMetadata(BaseModel):
+    """Metadata about how a CV extraction was performed."""
+
+    llm_provider: str  # "claude", "ollama", "rule_based"
+    llm_model: str  # "claude-opus-4-6", "llama3.2:3b", "rule_based_parser"
+    extraction_method: str  # "primary", "fallback_rule_based", "fallback_raw_text"
+    prompt_content: str  # Full system prompt used (empty for rule_based)
+    prompt_hash: str  # SHA-256 of prompt_content
 
 
 class ConfirmRequest(BaseModel):
@@ -53,3 +68,9 @@ class ConfirmRequest(BaseModel):
     original_filename: str | None = None
     file_size_bytes: int | None = None
     page_count: int | None = None
+    # Provenance metadata
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    extraction_method: str | None = None
+    prompt_hash: str | None = None
+    prompt_content: str | None = None

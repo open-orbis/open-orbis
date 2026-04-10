@@ -6,13 +6,20 @@ import pytest
 
 from app.graph.queries import (
     ADD_NODE,
+    CREATE_ONTOLOGY_VERSION,
     CREATE_PERSON,
+    CREATE_PROCESSING_RECORD,
     DELETE_NODE,
     GET_FULL_ORB,
     GET_FULL_ORB_PUBLIC,
+    GET_LATEST_ONTOLOGY_VERSION,
     GET_PERSON_BY_ORB_ID,
     GET_PERSON_BY_USER_ID,
     GET_SKILL_LINKS,
+    LINK_ONTOLOGY_SUPERSEDES,
+    LINK_PERSON_TO_PROCESSING_RECORD,
+    LINK_PROCESSING_RECORD_TO_NODE,
+    LINK_PROCESSING_RECORD_TO_ONTOLOGY,
     LINK_SKILL,
     NODE_TYPE_LABELS,
     NODE_TYPE_MERGE_KEYS,
@@ -219,3 +226,38 @@ class TestCypherStructure:
         assert first_word in valid_starts, (
             f"{name}: starts with '{first_word}', expected a Cypher keyword"
         )
+
+
+# ── Provenance queries ──
+
+
+def test_provenance_queries_are_strings():
+    """All provenance query constants are non-empty strings."""
+    for q in [
+        CREATE_ONTOLOGY_VERSION,
+        GET_LATEST_ONTOLOGY_VERSION,
+        CREATE_PROCESSING_RECORD,
+        LINK_PROCESSING_RECORD_TO_ONTOLOGY,
+        LINK_PROCESSING_RECORD_TO_NODE,
+        LINK_PERSON_TO_PROCESSING_RECORD,
+        LINK_ONTOLOGY_SUPERSEDES,
+    ]:
+        assert isinstance(q, str)
+        assert len(q.strip()) > 0
+
+
+def test_create_ontology_version_uses_parameters():
+    assert "$version_id" in CREATE_ONTOLOGY_VERSION
+    assert "$version_number" in CREATE_ONTOLOGY_VERSION
+    assert "$content_hash" in CREATE_ONTOLOGY_VERSION
+    assert "$schema_definition" in CREATE_ONTOLOGY_VERSION
+    assert "$extraction_prompt" in CREATE_ONTOLOGY_VERSION
+    assert "$prompt_reviewed" in CREATE_ONTOLOGY_VERSION
+
+
+def test_create_processing_record_uses_parameters():
+    assert "$record_id" in CREATE_PROCESSING_RECORD
+    assert "$document_id" in CREATE_PROCESSING_RECORD
+    assert "$llm_provider" in CREATE_PROCESSING_RECORD
+    assert "$llm_model" in CREATE_PROCESSING_RECORD
+    assert "$prompt_hash" in CREATE_PROCESSING_RECORD
