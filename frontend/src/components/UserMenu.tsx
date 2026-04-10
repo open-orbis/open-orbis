@@ -9,22 +9,26 @@ import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion }
 import type { SnapshotMetadata } from '../api/orbs';
 import { getDocuments, downloadCV } from '../api/cv';
 import type { DocumentMetadata } from '../api/cv';
+import ProfileEditorModal from './profile/ProfileEditorModal';
 
 interface UserMenuProps {
   orbId?: string;
   onOrbIdChanged?: () => void;
+  person?: Record<string, unknown>;
+  onProfileSaved?: () => void;
   /** Display name next to avatar — makes the whole thing a clickable pill */
   label?: string;
   onStartTour?: () => void;
 }
 
-export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: UserMenuProps) {
+export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved, label, onStartTour }: UserMenuProps) {
   const { user, logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const navigate = useNavigate();
   const location = useLocation();
   const onAdminPage = location.pathname === '/admin';
   const [open, setOpen] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showCVs, setShowCVs] = useState(false);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
@@ -148,6 +152,15 @@ export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: 
               <p className="text-[10px] uppercase tracking-[0.14em] text-white/30 font-semibold px-2">Account</p>
               <div className="mt-1 space-y-1">
                 <button
+                  onClick={() => { setOpen(false); setShowProfileEditor(true); }}
+                  className="group w-full h-10 flex items-center gap-3 px-2.5 rounded-lg text-sm text-white/75 hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 transition-colors cursor-pointer"
+                >
+                  <svg className="w-4 h-4 text-white/45 group-hover:text-purple-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  <span className="flex-1 text-left">Edit Profile</span>
+                </button>
+                <button
                   onClick={() => { setOpen(false); setShowAccountSettings(true); }}
                   className="group w-full h-10 flex items-center gap-3 px-2.5 rounded-lg text-sm text-white/75 hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 transition-colors cursor-pointer"
                 >
@@ -232,6 +245,18 @@ export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Profile Editor Modal */}
+      {showProfileEditor && person && createPortal(
+        <AnimatePresence>
+          <ProfileEditorModal
+            person={person}
+            onClose={() => setShowProfileEditor(false)}
+            onSaved={() => { onProfileSaved?.(); }}
+          />
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {/* Account Settings Modal */}
       {showAccountSettings && createPortal(
@@ -411,7 +436,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-neutral-950 border border-white/10 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full shadow-2xl h-[calc(100vh-1rem)] sm:h-[440px] max-h-[calc(100vh-1rem)] sm:max-h-[90vh] overflow-hidden flex flex-col my-auto"
+        className="relative bg-neutral-950 border border-white/10 rounded-2xl max-w-[95vw] sm:max-w-2xl w-full shadow-2xl h-[calc(100vh-1rem)] sm:h-auto max-h-[calc(100vh-1rem)] sm:max-h-[90vh] overflow-hidden flex flex-col my-auto"
       >
         <button
           onClick={onClose}
