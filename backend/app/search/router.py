@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from neo4j import AsyncDriver
 from pydantic import BaseModel
 
 from app.dependencies import get_current_user, get_db
 from app.graph.embeddings import generate_embedding
-from app.orbs.filter_token import decode_filter_token, node_matches_filters
+from app.orbs.share_token import node_matches_filters, validate_share_token
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -260,21 +261,27 @@ async def text_search(  # noqa: C901
 class PublicTextSearchRequest(BaseModel):
     query: str
     orb_id: str
-    filter_token: str | None = None
+    token: str
 
 
 @router.post("/text/public")
+@limiter.limit("30/minute")
 async def public_text_search(  # noqa: C901
+    request: Request,
     data: PublicTextSearchRequest,
     db: AsyncDriver = Depends(get_db),
 ):
-    """Fuzzy text search across a public orb's nodes (no auth required)."""
-    # Decode filter token to get privacy keywords (if any)
-    filter_keywords: list[str] = []
-    if data.filter_token:
-        decoded = decode_filter_token(data.filter_token)
-        if decoded and decoded["orb_id"] == data.orb_id:
-            filter_keywords = decoded["filters"]
+    """Fuzzy text search across a public orb's nodes (requires share token)."""
+    # Validate the share token
+    token_data = await validate_share_token(db, data.token)
+    if token_data is None:
+        raise HTTPException(status_code=403, detail="Invalid or expired share token.")
+    if token_data["orb_id"] != data.orb_id:
+        raise HTTPException(
+            status_code=403, detail="Token does not grant access to this orb."
+        )
+    filter_keywords = token_data["keywords"]
+    hidden_types = set(token_data.get("hidden_node_types", []))
 
     raw_term = data.query.strip().lower()
     terms = [t for t in raw_term.split() if len(t) >= 2]
@@ -302,6 +309,9 @@ async def public_text_search(  # noqa: C901
                     node["_labels"] = record["node_labels"]
                     node["score"] = _node_match_score(node, fields, raw_term, terms)
                     if node.get("uid") not in seen_uids:
+                        node_labels = set(node.get("_labels", []))
+                        if hidden_types and node_labels & hidden_types:
+                            continue
                         if filter_keywords and node_matches_filters(
                             node, filter_keywords
                         ):
@@ -330,6 +340,9 @@ async def public_text_search(  # noqa: C901
                         node = dict(record["n"])
                         uid = node.get("uid", "")
                         if uid in seen_uids:
+                            continue
+                        node_labels = set(record.get("node_labels", []))
+                        if hidden_types and node_labels & hidden_types:
                             continue
                         if filter_keywords and node_matches_filters(
                             node, filter_keywords

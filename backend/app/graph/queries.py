@@ -58,7 +58,7 @@ RETURN p
 GET_FULL_ORB = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
@@ -71,7 +71,7 @@ RETURN p, connections, cross_links, cross_skill_nodes
 GET_FULL_ORB_PUBLIC = """
 MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
@@ -575,4 +575,50 @@ MATCH (p:Person {user_id: $user_id})-[:HAS_PROCESSING_RECORD]->(pr:ProcessingRec
 OPTIONAL MATCH (pr)-[:USED_ONTOLOGY]->(ov:OntologyVersion)
 RETURN pr, ov.version_number AS ontology_version
 ORDER BY pr.processed_at DESC
+"""
+
+# ── Share Tokens ──
+
+CREATE_SHARE_TOKEN = """
+MATCH (p:Person {user_id: $user_id})
+WHERE p.orb_id IS NOT NULL AND p.orb_id <> ''
+CREATE (p)-[:HAS_SHARE_TOKEN]->(st:ShareToken {
+    token_id: $token_id,
+    orb_id: p.orb_id,
+    keywords: $keywords,
+    hidden_node_types: $hidden_node_types,
+    label: $label,
+    created_at: datetime(),
+    expires_at: $expires_at,
+    revoked: false,
+    revoked_at: null
+})
+RETURN st
+"""
+
+VALIDATE_SHARE_TOKEN = """
+MATCH (st:ShareToken {token_id: $token_id})
+WHERE st.revoked = false
+  AND (st.expires_at IS NULL OR st.expires_at > datetime())
+RETURN st.orb_id AS orb_id, st.keywords AS keywords,
+       coalesce(st.hidden_node_types, []) AS hidden_node_types
+"""
+
+LIST_SHARE_TOKENS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken)
+RETURN st
+ORDER BY st.created_at DESC
+"""
+
+REVOKE_SHARE_TOKEN = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_id: $token_id})
+WHERE st.revoked = false
+SET st.revoked = true, st.revoked_at = datetime()
+RETURN st
+"""
+
+DELETE_SHARE_TOKEN = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_id: $token_id})
+DETACH DELETE st
+RETURN true AS deleted
 """

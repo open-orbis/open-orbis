@@ -40,3 +40,6 @@ CREATE INDEX ontology_content_hash IF NOT EXISTS FOR (ov:OntologyVersion) ON (ov
 // Processing records
 CREATE CONSTRAINT processing_record_id IF NOT EXISTS FOR (pr:ProcessingRecord) REQUIRE pr.record_id IS UNIQUE;
 CREATE INDEX processing_record_document IF NOT EXISTS FOR (pr:ProcessingRecord) ON (pr.document_id);
+
+// Share tokens for controlled public access
+CREATE CONSTRAINT share_token_id IF NOT EXISTS FOR (st:ShareToken) REQUIRE st.token_id IS UNIQUE;
