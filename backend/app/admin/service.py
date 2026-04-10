@@ -38,6 +38,7 @@ from app.graph.queries import (
     GET_BETA_CONFIG,
     GET_PERSON_BY_USER_ID,
     GET_PERSON_DETAIL,
+    GET_USER_PROCESSING_RECORDS,
     GRANT_ADMIN_BY_USER_ID,
     GRAPH_RICHNESS,
     INIT_BETA_CONFIG,
@@ -285,18 +286,56 @@ async def list_all_users(db: AsyncDriver) -> list[dict]:
 
 
 async def get_user_detail(db: AsyncDriver, user_id: str) -> dict | None:
-    """Return a single user with node count and decrypted email."""
+    """Return a single user with node count, decrypted email, and processing records."""
     async with db.session() as session:
         result = await session.run(GET_PERSON_DETAIL, user_id=user_id)
         record = await result.single()
-    if not record:
-        return None
+        if not record:
+            return None
+
+        # Fetch processing records
+        pr_result = await session.run(GET_USER_PROCESSING_RECORDS, user_id=user_id)
+        pr_records = [r async for r in pr_result]
+
     person = dict(record["p"])
     email = person.get("email", "")
     if email:
         with contextlib.suppress(Exception):
             email = decrypt_value(email)
-    return {**person, "email": email, "node_count": int(record["node_count"])}
+
+    # Enrich processing records with document filenames from SQLite
+    from app.cv_storage import db as cv_db
+
+    user_docs = {
+        d["document_id"]: d["original_filename"] for d in cv_db.list_documents(user_id)
+    }
+
+    processing_records = []
+    for r in pr_records:
+        pr = dict(r["pr"])
+        doc_id = pr.get("document_id", "")
+        processing_records.append(
+            {
+                "document_id": doc_id,
+                "original_filename": user_docs.get(doc_id, "deleted"),
+                "llm_provider": pr.get("llm_provider", ""),
+                "llm_model": pr.get("llm_model", ""),
+                "extraction_method": pr.get("extraction_method", ""),
+                "nodes_extracted": int(pr.get("nodes_extracted", 0)),
+                "edges_extracted": int(pr.get("edges_extracted", 0)),
+                "ontology_version": int(r["ontology_version"])
+                if r["ontology_version"] is not None
+                else None,
+                "processed_at": str(pr.get("processed_at", "")),
+            }
+        )
+
+    return {
+        **person,
+        "email": email,
+        "node_count": int(record["node_count"]),
+        "processing_records": processing_records,
+    }
 
 
 async def activate_user_by_admin(

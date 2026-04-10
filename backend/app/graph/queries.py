@@ -569,3 +569,10 @@ MATCH (p:Person {user_id: $user_id})
 MATCH (pr:ProcessingRecord {record_id: $record_id})
 CREATE (p)-[:HAS_PROCESSING_RECORD]->(pr)
 """
+
+GET_USER_PROCESSING_RECORDS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_PROCESSING_RECORD]->(pr:ProcessingRecord)
+OPTIONAL MATCH (pr)-[:USED_ONTOLOGY]->(ov:OntologyVersion)
+RETURN pr, ov.version_number AS ontology_version
+ORDER BY pr.processed_at DESC
+"""

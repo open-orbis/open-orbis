@@ -74,6 +74,18 @@ class UserResponse(BaseModel):
     created_at: str = ""
 
 
+class ProcessingRecordInfo(BaseModel):
+    document_id: str = ""
+    original_filename: str = ""
+    llm_provider: str = ""
+    llm_model: str = ""
+    extraction_method: str = ""
+    nodes_extracted: int = 0
+    edges_extracted: int = 0
+    ontology_version: int | None = None
+    processed_at: str = ""
+
+
 class UserDetailResponse(UserResponse):
     orb_id: str = ""
     picture: str = ""
@@ -82,6 +94,7 @@ class UserDetailResponse(UserResponse):
     node_count: int = 0
     gdpr_consent: bool = False
     deletion_requested_at: str | None = None
+    processing_records: list[ProcessingRecordInfo] = []
 
 
 class BatchActivateRequest(BaseModel):

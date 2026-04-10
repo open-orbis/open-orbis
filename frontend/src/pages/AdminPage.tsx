@@ -20,16 +20,14 @@ import {
   updateBetaConfig,
   getFunnelMetrics,
   getInsights,
+  listIdeas,
+  deleteIdea,
   type AdminStats,
   type AccessCode,
   type PendingUser,
   type AdminUser,
   type AdminUserDetail,
-  listIdeas,
-  deleteIdea,
   type Idea,
-  getFunnelMetrics,
-  getInsights,
   type FunnelMetrics,
   type Insights,
 } from '../api/admin';
@@ -1354,6 +1352,32 @@ export default function AdminPage() {
                   <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 col-span-2">
                     <div className="text-red-400 text-xs uppercase tracking-wider mb-1">Deletion requested</div>
                     <div className="text-red-300 text-xs">{formatDate(userDetail.deletion_requested_at)}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Processing History */}
+              <div className="mt-5 pt-4 border-t border-white/[0.06]">
+                <p className="text-white/40 text-xs uppercase tracking-wider font-medium mb-3">Processing History</p>
+                {userDetail.processing_records.length === 0 ? (
+                  <p className="text-white/20 text-xs">No processing records.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {userDetail.processing_records.map((pr, i) => (
+                      <div key={i} className="bg-white/[0.03] border border-white/5 rounded-lg p-3 text-xs">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-white/70 font-medium truncate">{pr.original_filename}</span>
+                          <span className="text-white/30 flex-shrink-0 ml-2">{formatDate(pr.processed_at)}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-white/40">
+                          <span>Model: <span className="text-white/60">{pr.llm_provider}/{pr.llm_model}</span></span>
+                          <span>Method: <span className={pr.extraction_method === 'primary' ? 'text-green-400/70' : 'text-amber-400/70'}>{pr.extraction_method}</span></span>
+                          {pr.ontology_version != null && <span>Ontology: <span className="text-white/60">v{pr.ontology_version}</span></span>}
+                          <span>Nodes: <span className="text-white/60">{pr.nodes_extracted}</span></span>
+                          <span>Edges: <span className="text-white/60">{pr.edges_extracted}</span></span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
