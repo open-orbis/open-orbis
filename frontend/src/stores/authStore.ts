@@ -29,10 +29,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       const user = await getMe();
       set({ user, loading: false });
     } catch (e) {
-      // Wipe local session on any failure so we don't stay in a half-authenticated state.
-      // 401 is already handled by the axios interceptor (dispatches session-expired).
-      // 404 means the Person node is gone (orphaned token) → emit the same event so
-      // the global handler shows a toast and routes us back to the landing page.
       localStorage.removeItem('orbis_token');
       set({ user: null, token: null, loading: false });
       if (axios.isAxiosError(e) && e.response?.status === 404) {

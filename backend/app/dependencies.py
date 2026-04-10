@@ -7,6 +7,7 @@ from neo4j import AsyncDriver
 
 from app.config import settings
 from app.graph.neo4j_client import get_driver
+from app.graph.queries import IS_ADMIN
 
 security = HTTPBearer()
 
@@ -36,3 +37,20 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         ) from None
+
+
+async def require_admin(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+) -> dict:
+    """Allow only Persons with `is_admin = true`. Used by /admin/* endpoints.
+
+    Implemented as a dedicated dependency rather than inside get_current_user
+    so the JWT-only check stays cheap on the hot path of regular endpoints.
+    """
+    async with db.session() as session:
+        result = await session.run(IS_ADMIN, user_id=current_user["user_id"])
+        record = await result.single()
+        if record is None or not record["is_admin"]:
+            raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user

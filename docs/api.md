@@ -4,7 +4,9 @@ Base URL: `http://localhost:8000` (dev) — frontend proxies via `/api` prefix.
 
 ## Authentication
 
-All protected endpoints require `Authorization: Bearer <jwt>`. JWT is obtained via `POST /auth/dev-login`.
+All protected endpoints require `Authorization: Bearer <jwt>`. JWT is obtained via Google or LinkedIn OAuth.
+
+Admin endpoints additionally require `is_admin = true` on the Person node (returns 403 otherwise).
 
 ## Health Check
 
@@ -16,10 +18,29 @@ All protected endpoints require `Authorization: Bearer <jwt>`. JWT is obtained v
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/auth/dev-login` | No | Creates/retrieves dev user, returns JWT |
-| GET | `/auth/me` | JWT | Returns current user info (`user_id`, `email`, `name`, `gdpr_consent`) |
+| POST | `/auth/google` | No | Exchange Google OAuth code for JWT. Creates Person on first login. |
+| POST | `/auth/linkedin` | No | Exchange LinkedIn OAuth code for JWT. Creates Person on first login. |
+| GET | `/auth/me` | JWT | Returns current user info including `activated`, `is_admin`, `gdpr_consent`, `deletion_requested_at` |
+| POST | `/auth/activate` | JWT | Validate and consume invite code. Sets `signup_code` on Person. 403 if invalid/used. |
 | POST | `/auth/gdpr-consent` | JWT | Sets GDPR consent flag on Person node |
-| DELETE | `/auth/account` | JWT | Soft-deletes account (30-day grace period via `deletion_requested_at`) |
+| DELETE | `/auth/me` | JWT | Soft-deletes account (30-day grace period via `deletion_requested_at`) |
+| POST | `/auth/me/recover` | JWT | Cancel pending account deletion |
+
+## Admin (`/admin`)
+
+All endpoints require `is_admin = true` on the authenticated Person.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/admin/stats` | Admin | Aggregated stats: registered count, pending activation, invite code counts |
+| GET | `/admin/beta-config` | Admin | Read `invite_code_required` toggle state |
+| PATCH | `/admin/beta-config` | Admin | Update `invite_code_required` (true = codes required, false = open platform) |
+| GET | `/admin/access-codes` | Admin | List all invite codes with status (used/available/inactive) |
+| POST | `/admin/access-codes` | Admin | Create single invite code (`{code, label?}`) |
+| POST | `/admin/access-codes/batch` | Admin | Batch create codes (`{prefix, count, label?}`) |
+| PATCH | `/admin/access-codes/{code}` | Admin | Toggle code active/inactive |
+| DELETE | `/admin/access-codes/{code}` | Admin | Delete unused code |
+| GET | `/admin/pending-users` | Admin | List users registered but not yet activated |
 
 ## Orbs (`/orbs`)
 

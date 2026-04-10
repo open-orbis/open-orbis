@@ -1,15 +1,13 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export default function AdminRoute({ children }: { children: React.ReactNode }) {
   const { token, user, loading } = useAuthStore();
 
-  // No token at all → redirect immediately
   if (!token) {
     return <Navigate to="/" replace />;
   }
 
-  // Token present but user not yet fetched → wait for fetchUser to resolve
   if (loading || !user) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -18,9 +16,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  // User is authenticated but not activated → redirect to activation page
-  if (!user.activated) {
-    return <Navigate to="/activate" replace />;
+  if (!user.is_admin) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;
