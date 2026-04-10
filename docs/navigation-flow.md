@@ -34,14 +34,27 @@ stateDiagram-v2
     state "CV Export (/cv-export)" as CV_EXPORT
     state "About (/about)" as ABOUT
     state "Privacy (/privacy)" as PRIVACY
+    state "Activate (/activate)" as ACTIVATION
+    state "Admin Dashboard (/admin)" as ADMIN
 
     %% ── Auth flows ──
     LANDING --> AUTH_CALLBACK: Google Sign In
     LANDING --> LINKEDIN_CALLBACK: LinkedIn Sign In
-    AUTH_CALLBACK --> ORB_VIEW: Has orb content
-    AUTH_CALLBACK --> CREATE: Empty orb
-    LINKEDIN_CALLBACK --> ORB_VIEW: Has orb content
-    LINKEDIN_CALLBACK --> CREATE: Empty orb
+    AUTH_CALLBACK --> ACTIVATION: Not activated (invite code required)
+    AUTH_CALLBACK --> ORB_VIEW: Activated + has orb content
+    AUTH_CALLBACK --> CREATE: Activated + empty orb
+    LINKEDIN_CALLBACK --> ACTIVATION: Not activated (invite code required)
+    LINKEDIN_CALLBACK --> ORB_VIEW: Activated + has orb content
+    LINKEDIN_CALLBACK --> CREATE: Activated + empty orb
+
+    %% ── Activation gate (closed beta) ──
+    ACTIVATION --> ORB_VIEW: Valid code + has orb content
+    ACTIVATION --> CREATE: Valid code + empty orb
+    ACTIVATION --> LANDING: Sign out
+
+    %% ── Admin dashboard ──
+    ORB_VIEW --> ADMIN: UserMenu > Admin Dashboard (admin only)
+    ADMIN --> ORB_VIEW: Navigate back
 
     %% ── Consent gate ──
     CREATE --> CONSENT_GATE: No GDPR consent
@@ -133,7 +146,11 @@ stateDiagram-v2
 flowchart TD
     START[User opens app] --> AUTH{Authenticated?}
     AUTH -->|No| LANDING[Landing Page]
-    AUTH -->|Yes| CONSENT{GDPR consent?}
+    AUTH -->|Yes| ACTIVATED{Activated?}
+    ACTIVATED -->|No| ACTIVATION[Activate Page - enter invite code]
+    ACTIVATION -->|Valid code| ACTIVATED_YES[Activated]
+    ACTIVATED -->|Yes| CONSENT{GDPR consent?}
+    ACTIVATED_YES --> CONSENT
     CONSENT -->|No| CONSENT_GATE[Consent Gate]
     CONSENT_GATE --> CONSENT_YES[Grant consent] --> HAS_ORB
     CONSENT -->|Yes| HAS_ORB{Orb has content?}
@@ -144,8 +161,11 @@ flowchart TD
     LANDING --> LINKEDIN[LinkedIn Sign In]
     GOOGLE --> CALLBACK[Auth Callback]
     LINKEDIN --> LI_CALLBACK[LinkedIn Callback]
-    CALLBACK --> HAS_ORB
-    LI_CALLBACK --> HAS_ORB
+    CALLBACK --> ACTIVATED
+    LI_CALLBACK --> ACTIVATED
+
+    %% ── Activation bypass rules ──
+    %% activated = !invite_code_required OR is_admin OR signup_code != null
 
     ORB_VIEW --> IMPORT{Import document}
     IMPORT --> DOC_COUNT{Documents >= 3?}
@@ -177,6 +197,8 @@ flowchart TD
 | `ORB_VIEW` | `/myorbis` | Yes | Main orb editor/dashboard |
 | `SHARED_ORB` | `/:orbId` | No | Public read-only orb view |
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
+| `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Blocks platform access until valid code entered. Admins bypass. |
+| `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users, beta config toggle |
 | `ABOUT` | `/about` | No | About page |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
@@ -202,5 +224,6 @@ flowchart TD
 | `API_ERROR` | Network/server failure | Toast notification | Retry action |
 | `SESSION_EXPIRED` | JWT invalidated | Toast + redirect to `/` | Re-login |
 | `ACCOUNT_PENDING_DELETION` | User deleted account | Banner + grayed features | Recover from Account tab |
+| `INVITE_CODE_INVALID` | User enters wrong/used code on /activate | Inline error message | Try different code |
 | `CV_NO_TEXT` | PDF has no extractable text | Error message | Try different file |
 | `CV_TIMEOUT` | Extraction takes >30min | 504 timeout error | Retry with smaller file |

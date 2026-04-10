@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 
 def test_get_me_success(client, mock_db):
@@ -6,7 +6,10 @@ def test_get_me_success(client, mock_db):
         AsyncMock(return_value={"p": {"user_id": "test-user", "name": "Test User"}})
     )
 
-    response = client.get("/auth/me")
+    with patch(
+        "app.auth.router.is_invite_code_required", AsyncMock(return_value=False)
+    ):
+        response = client.get("/auth/me")
     assert response.status_code == 200
     assert response.json()["user_id"] == "test-user"
     assert response.json()["name"] == "Test User"

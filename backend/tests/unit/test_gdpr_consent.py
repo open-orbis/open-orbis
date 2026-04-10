@@ -4,6 +4,12 @@ from unittest.mock import AsyncMock, patch
 from tests.unit.conftest import MockNode
 
 
+def _patch_invite():
+    return patch(
+        "app.auth.router.is_invite_code_required", AsyncMock(return_value=False)
+    )
+
+
 def test_grant_gdpr_consent(client, mock_db):
     session_mock = mock_db.session.return_value.__aenter__.return_value
     session_mock.run.return_value = AsyncMock()
@@ -28,7 +34,8 @@ def test_get_me_returns_gdpr_consent(client, mock_db):
         )
     )
 
-    response = client.get("/auth/me")
+    with _patch_invite():
+        response = client.get("/auth/me")
     assert response.status_code == 200
     assert response.json()["gdpr_consent"] is True
 
@@ -40,7 +47,8 @@ def test_get_me_defaults_consent_to_false(client, mock_db):
         )
     )
 
-    response = client.get("/auth/me")
+    with _patch_invite():
+        response = client.get("/auth/me")
     assert response.status_code == 200
     assert response.json()["gdpr_consent"] is False
 

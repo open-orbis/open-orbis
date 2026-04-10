@@ -6,7 +6,7 @@
 
 - **Backend:** FastAPI (Python 3.10+), Neo4j 5 (Community), Anthropic Claude API, Ollama (local fallback)
 - **Frontend:** React 19 + TypeScript, Vite 8, Three.js / React Three Fiber, Tailwind CSS v4, Zustand 5
-- **Auth:** JWT (HS256) — dev-login only for now, Google OAuth scaffolded but not wired
+- **Auth:** JWT (HS256) — Google + LinkedIn OAuth, invite-code activation gate for closed beta
 - **Package managers:** uv (backend), npm (frontend)
 - **Linting:** Ruff (backend, line-length 88), ESLint flat config (frontend)
 - **CI:** GitHub Actions — lint (both stacks), unit tests (75% coverage min), CV extraction quality regression
@@ -16,7 +16,8 @@
 ```
 backend/
   app/
-    auth/        # JWT auth, dev-login, GDPR consent, account lifecycle
+    auth/        # JWT auth, Google/LinkedIn OAuth, GDPR consent, account lifecycle, invite code activation
+    admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users
     cv/          # CV PDF parsing (PyMuPDF), LLM classification (Ollama/Claude CLI), rule-based fallback
     graph/       # Neo4j async driver, Cypher queries, Fernet encryption, embeddings (placeholder)
     orbs/        # Orb (knowledge graph) CRUD, filter tokens for privacy-aware sharing
@@ -26,7 +27,7 @@ backend/
     main.py      # FastAPI app factory, middleware (CORS, SlowAPI), router registration
     config.py    # Pydantic Settings (env-based)
     rate_limit.py # SlowAPI limiter (30/min on public endpoints)
-    dependencies.py # get_db, get_current_user (JWT bearer)
+    dependencies.py # get_db, get_current_user (JWT bearer), require_admin
   mcp_server/    # MCP server exposing orb graph to AI agents (6 tools)
   tests/
     unit/        # pytest unit tests (mocked Neo4j, no external deps)
@@ -37,7 +38,7 @@ frontend/
   src/
     api/         # Axios client (baseURL /api, auth interceptor, 401 redirect)
     components/  # React components by domain (graph/, editor/, chat/, cv/, drafts/, landing/, onboarding/)
-    pages/       # Page-level components (Landing, CreateOrb, OrbView, SharedOrb, CvExport, About, Privacy)
+    pages/       # Page-level components (Landing, CreateOrb, OrbView, SharedOrb, CvExport, About, Privacy, Activate, Admin)
     stores/      # Zustand stores (auth, orb, filter, dateFilter, toast)
 docs/            # Detailed documentation (see below)
 infra/           # Neo4j init script (constraints, indexes, vector indexes)

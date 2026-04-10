@@ -1,0 +1,120 @@
+{
+  "hash": "2f232a31",
+  "configHash": "03b1493d",
+  "lockfileHash": "69c08045",
+  "browserHash": "23a15833",
+  "optimized": {
+    "@react-three/fiber": {
+      "src": "../../node_modules/@react-three/fiber/dist/react-three-fiber.esm.js",
+      "file": "@react-three_fiber.js",
+      "fileHash": "e209da41",
+      "needsInterop": false
+    },
+    "@react-three/postprocessing": {
+      "src": "../../node_modules/@react-three/postprocessing/dist/index.js",
+      "file": "@react-three_postprocessing.js",
+      "fileHash": "68e1fec8",
+      "needsInterop": false
+    },
+    "axios": {
+      "src": "../../node_modules/axios/index.js",
+      "file": "axios.js",
+      "fileHash": "08e57a16",
+      "needsInterop": false
+    },
+    "framer-motion": {
+      "src": "../../node_modules/framer-motion/dist/es/index.mjs",
+      "file": "framer-motion.js",
+      "fileHash": "a61d890a",
+      "needsInterop": false
+    },
+    "qrcode.react": {
+      "src": "../../node_modules/qrcode.react/lib/esm/index.js",
+      "file": "qrcode__react.js",
+      "fileHash": "1e30002f",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "ba98829a",
+      "needsInterop": true
+    },
+    "react-force-graph-3d": {
+      "src": "../../node_modules/react-force-graph-3d/dist/react-force-graph-3d.mjs",
+      "file": "react-force-graph-3d.js",
+      "fileHash": "bd278b00",
+      "needsInterop": false
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "3e5107d9",
+      "needsInterop": false
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "4bef5113",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "19492076",
+      "needsInterop": true
+    },
+    "three": {
+      "src": "../../node_modules/three/build/three.module.js",
+      "file": "three.js",
+      "fileHash": "6b627d02",
+      "needsInterop": false
+    },
+    "zustand": {
+      "src": "../../node_modules/zustand/esm/index.mjs",
+      "file": "zustand.js",
+      "fileHash": "835c7caa",
+      "needsInterop": false
+    },
+    "zustand/middleware": {
+      "src": "../../node_modules/zustand/esm/middleware.mjs",
+      "file": "zustand_middleware.js",
+      "fileHash": "14302237",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "Pass-BugyYvhO": {
+      "file": "Pass-BugyYvhO.js",
+      "isDynamicEntry": false
+    },
+    "chunk-BoAXSpZd": {
+      "file": "chunk-BoAXSpZd.js",
+      "isDynamicEntry": false
+    },
+    "jsx-runtime-DG5Mklib": {
+      "file": "jsx-runtime-DG5Mklib.js",
+      "isDynamicEntry": false
+    },
+    "react-dom-BjPBJlww": {
+      "file": "react-dom-BjPBJlww.js",
+      "isDynamicEntry": false
+    },
+    "react-three-fiber.esm-GDPJ0UiV": {
+      "file": "react-three-fiber.esm-GDPJ0UiV.js",
+      "isDynamicEntry": false
+    },
+    "scheduler-DerDJC_6": {
+      "file": "scheduler-DerDJC_6.js",
+      "isDynamicEntry": false
+    },
+    "three.module-CJ_QJ6Hn": {
+      "file": "three.module-CJ_QJ6Hn.js",
+      "isDynamicEntry": false
+    },
+    "vanilla-BGp_ExrV": {
+      "file": "vanilla-BGp_ExrV.js",
+      "isDynamicEntry": false
+    }
+  }
+}

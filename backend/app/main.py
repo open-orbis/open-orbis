@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.router import router as cv_router
@@ -119,6 +120,7 @@ app.include_router(export_router)
 app.include_router(notes_router)
 app.include_router(drafts_router)
 app.include_router(search_router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

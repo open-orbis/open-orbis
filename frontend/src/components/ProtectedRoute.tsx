@@ -18,5 +18,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
+  // User is authenticated but not activated → redirect to activation page
+  if (!user.activated) {
+    return <Navigate to="/activate" replace />;
+  }
+
   return <>{children}</>;
 }

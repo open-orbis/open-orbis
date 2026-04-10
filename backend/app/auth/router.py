@@ -3,7 +3,14 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
+from pydantic import BaseModel
 
+from app.admin.service import (
+    activate_person,
+    consume_access_code,
+    is_invite_code_required,
+    validate_access_code,
+)
 from app.auth.models import (
     OAuthCodeRequest,
     TokenResponse,
@@ -27,19 +34,31 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 async def _get_or_create_person(
     db: AsyncDriver,
+    *,
     user_id: str,
     email: str,
     name: str,
     picture: str,
     provider: str,
 ) -> None:
-    """Create a Person node if it doesn't exist yet."""
+    """Create a Person node if it doesn't exist yet.
+
+    In the new flow, registration always succeeds — the invite code gate
+    happens later on the /auth/activate endpoint, not at signup time.
+    If the platform is open (invite code not required), the user is
+    auto-activated with a special signup_code so they stay activated
+    even if the admin later closes the platform.
+    """
     async with db.session() as session:
         result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
         if await result.single() is not None:
             return
 
-        orb_id = await generate_orb_id(name, db)
+    invite_required = await is_invite_code_required(db)
+    signup_code = None if invite_required else "open-registration"
+
+    orb_id = await generate_orb_id(name, db)
+    async with db.session() as session:
         await session.run(
             CREATE_PERSON,
             user_id=user_id,
@@ -48,6 +67,7 @@ async def _get_or_create_person(
             orb_id=orb_id,
             picture=picture,
             provider=provider,
+            signup_code=signup_code,
         )
 
 
@@ -70,7 +90,9 @@ async def google_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    await _get_or_create_person(db, user_id, email, name, picture, "google")
+    await _get_or_create_person(
+        db, user_id=user_id, email=email, name=name, picture=picture, provider="google"
+    )
 
     token = create_jwt(user_id, email)
     return TokenResponse(
@@ -100,7 +122,14 @@ async def linkedin_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    await _get_or_create_person(db, user_id, email, name, picture, "linkedin")
+    await _get_or_create_person(
+        db,
+        user_id=user_id,
+        email=email,
+        name=name,
+        picture=picture,
+        provider="linkedin",
+    )
 
     token = create_jwt(user_id, email)
     return TokenResponse(
@@ -123,8 +152,13 @@ async def get_me(
             raise HTTPException(status_code=404, detail="User not found")
 
         person = dict(record["p"])
+        is_admin_user = bool(person.get("is_admin", False))
+        has_code = person.get("signup_code") is not None
+        invite_required = await is_invite_code_required(db)
+        activated = not invite_required or is_admin_user or has_code
         deletion_at = person.get("deletion_requested_at")
         days_left = _days_remaining(str(deletion_at)) if deletion_at else None
+
         return UserInfo(
             user_id=person["user_id"],
             email=current_user["email"],
@@ -132,9 +166,48 @@ async def get_me(
             picture=person.get("picture", ""),
             profile_image=person.get("profile_image", ""),
             gdpr_consent=bool(person.get("gdpr_consent", False)),
+            is_admin=is_admin_user,
+            activated=activated,
             deletion_requested_at=str(deletion_at) if deletion_at else None,
             deletion_days_remaining=days_left,
         )
+
+
+class ActivateRequest(BaseModel):
+    code: str
+
+
+@router.post("/activate")
+async def activate(
+    body: ActivateRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Validate and consume an invite code, activating the current user.
+
+    This is the gate that blocks platform access after login: the frontend
+    redirects non-activated users here until they provide a valid code.
+    """
+    user_id = current_user["user_id"]
+
+    # Validate (non-atomic, for a precise error message)
+    rejection = await validate_access_code(db, body.code)
+    if rejection is not None:
+        detail = (
+            "code_already_used"
+            if rejection == "code_already_used"
+            else "invalid_access_code"
+        )
+        raise HTTPException(status_code=403, detail=detail)
+
+    # Atomically consume (race-safe)
+    consumed = await consume_access_code(db, body.code, user_id)
+    if not consumed:
+        raise HTTPException(status_code=403, detail="code_already_used")
+
+    # Mark the Person as activated
+    await activate_person(db, user_id, body.code)
+    return {"status": "activated"}
 
 
 @router.post("/gdpr-consent")

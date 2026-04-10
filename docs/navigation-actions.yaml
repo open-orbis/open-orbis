@@ -62,6 +62,26 @@
   next_state: ORB_VIEW | CREATE
   fallback_on_failure: Redirect to LANDING with error
 
+# ── Account Activation (closed beta) ──
+
+- id: ACTIVATION_SUBMIT_CODE
+  from_state: ACTIVATION
+  action: Enter invite code and click "Attiva il mio account"
+  selector_or_control: "code input field + purple submit button"
+  preconditions: [authenticated, not_activated, code_not_empty]
+  expected_effect: Validates code via POST /auth/activate, consumes code, sets signup_code on Person, redirects to ORB_VIEW or CREATE
+  next_state: ORB_VIEW | CREATE
+  fallback_on_failure: Inline error "Codice di invito non valido" or "Questo codice è già stato utilizzato"
+
+- id: ACTIVATION_LOGOUT
+  from_state: ACTIVATION
+  action: Click "Esci e torna alla home"
+  selector_or_control: "underlined link at bottom of page"
+  preconditions: [authenticated]
+  expected_effect: Clears JWT, redirects to landing
+  next_state: LANDING
+  fallback_on_failure: null
+
 # ── GDPR Consent Gate ──
 
 - id: CONSENT_GRANT
@@ -530,6 +550,17 @@
   next_state: ORB_VIEW
   fallback_on_failure: null
 
+# ── User Menu Admin ──
+
+- id: USER_MENU_ADMIN
+  from_state: ORB_VIEW
+  action: Click "Admin Dashboard" in UserMenu dropdown
+  selector_or_control: "purple admin link in avatar dropdown (visible only for is_admin users)"
+  preconditions: [authenticated, is_admin]
+  expected_effect: Navigates to /admin
+  next_state: ADMIN
+  fallback_on_failure: null
+
 # ── User Menu CVs ──
 
 - id: USER_MENU_VIEW_CVS
@@ -540,3 +571,86 @@
   expected_effect: Expands to show list of uploaded documents (up to 3) with filename, date, node/edge counts. Each clickable to download.
   next_state: ORB_VIEW (dropdown expanded)
   fallback_on_failure: "No documents uploaded yet" message
+
+# ── Admin Dashboard ──
+
+- id: ADMIN_VIEW_STATS
+  from_state: ADMIN
+  action: Page loads and fetches stats
+  selector_or_control: null (auto-loaded)
+  preconditions: [authenticated, is_admin]
+  expected_effect: Shows stat cards (registered, pending activation, codes available/used/total)
+  next_state: ADMIN
+  fallback_on_failure: Error message "Errore nel caricamento dei dati"
+
+- id: ADMIN_TOGGLE_INVITE_REQUIREMENT
+  from_state: ADMIN
+  action: Click "Codice invito: OBBLIGATORIO" / "Piattaforma: APERTA A TUTTI" toggle button
+  selector_or_control: "toggle button in overview header"
+  preconditions: [authenticated, is_admin]
+  expected_effect: Shows confirmation dialog. On confirm, toggles invite_code_required in BetaConfig. When off, all users are activated immediately.
+  next_state: ADMIN (stats refreshed)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_CREATE_CODE
+  from_state: ADMIN
+  action: Fill code name + optional label, click "Crea"
+  selector_or_control: "single code creation form in Codici invito tab"
+  preconditions: [authenticated, is_admin, code_not_empty]
+  expected_effect: Creates single AccessCode node, refreshes code list
+  next_state: ADMIN (code list updated)
+  fallback_on_failure: Error toast (409 if code already exists)
+
+- id: ADMIN_CREATE_BATCH_CODES
+  from_state: ADMIN
+  action: Fill prefix + count + optional label, click "Genera N"
+  selector_or_control: "batch creation form in Codici invito tab"
+  preconditions: [authenticated, is_admin, prefix_not_empty]
+  expected_effect: Creates N AccessCode nodes with auto-generated suffixes, refreshes list
+  next_state: ADMIN (code list updated)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_COPY_CODE
+  from_state: ADMIN
+  action: Click a code value in the table
+  selector_or_control: "purple monospace code text in table row"
+  preconditions: []
+  expected_effect: Copies code to clipboard, shows "Copiato!" feedback for 1.5s
+  next_state: ADMIN
+  fallback_on_failure: null
+
+- id: ADMIN_FILTER_CODES
+  from_state: ADMIN
+  action: Click Tutti / Disponibili / Usati filter buttons
+  selector_or_control: "filter buttons above code table"
+  preconditions: []
+  expected_effect: Filters code table by status
+  next_state: ADMIN (filtered view)
+  fallback_on_failure: null
+
+- id: ADMIN_TOGGLE_CODE
+  from_state: ADMIN
+  action: Click "Disattiva" / "Attiva" on an unused code
+  selector_or_control: "action button in code table row"
+  preconditions: [code_not_used]
+  expected_effect: Toggles code active state, refreshes list
+  next_state: ADMIN (code list updated)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_DELETE_CODE
+  from_state: ADMIN
+  action: Click "Elimina" on an unused code
+  selector_or_control: "red action button in code table row"
+  preconditions: [code_not_used]
+  expected_effect: Deletes AccessCode node, refreshes list
+  next_state: ADMIN (code list updated)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_VIEW_PENDING_USERS
+  from_state: ADMIN
+  action: Click "Utenti in attesa" tab
+  selector_or_control: "tab button next to 'Codici invito'"
+  preconditions: [authenticated, is_admin]
+  expected_effect: Shows table of registered users without signup_code (name, email, provider, registration date)
+  next_state: ADMIN (pending users tab)
+  fallback_on_failure: "Nessun utente in attesa di attivazione"

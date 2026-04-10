@@ -38,6 +38,14 @@ class Settings(BaseSettings):
     # URLs
     frontend_url: str = "http://localhost:5173"
 
+    # Closed-beta invitation system. When True, signups (first-time logins)
+    # require a valid AccessCode AND a free seat under the cap stored in the
+    # singleton :BetaConfig node. The cap itself is modified at runtime via
+    # the /admin/beta-config endpoint; `beta_default_cap` is only used to
+    # seed the BetaConfig node on first read after a fresh deploy.
+    invite_only_registration: bool = True
+    beta_default_cap: int = 2000
+
     model_config = {
         "env_file": ["../.env", ".env"],
         "env_file_encoding": "utf-8",
