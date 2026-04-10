@@ -4,7 +4,7 @@
 
 ## Tech Stack
 
-- **Backend:** FastAPI (Python 3.10+), Neo4j 5 (Community), Anthropic Claude API, Ollama (local fallback)
+- **Backend:** FastAPI (Python 3.10+), Neo4j 5 (Community), Anthropic Claude API, Ollama (local fallback), Resend (transactional email)
 - **Frontend:** React 19 + TypeScript, Vite 8, Three.js / React Three Fiber, Tailwind CSS v4, Zustand 5
 - **Auth:** JWT (HS256) — Google + LinkedIn OAuth, invite-code activation gate for closed beta
 - **Package managers:** uv (backend), npm (frontend)
@@ -17,7 +17,8 @@
 backend/
   app/
     auth/        # JWT auth, Google/LinkedIn OAuth, GDPR consent, account lifecycle, invite code activation
-    admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users
+    admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users, funnel metrics, insights
+    email/       # Transactional email via Resend (activation notifications, invite codes)
     cv/          # CV PDF parsing (PyMuPDF), LLM classification (Ollama/Claude CLI), rule-based fallback
     graph/       # Neo4j async driver, Cypher queries, Fernet encryption, embeddings (placeholder)
     orbs/        # Orb (knowledge graph) CRUD, filter tokens for privacy-aware sharing
@@ -62,6 +63,7 @@ infra/           # Neo4j init script (constraints, indexes, vector indexes)
 - **Ollama:** port 11434
 - **Backend API:** port 8000 (run locally, not in Docker)
 - **Frontend dev:** port 5173 (Vite dev server with /api proxy to backend)
+- **Resend:** transactional email (no self-hosted service — SaaS via API key)
 
 ## Quick Commands
 

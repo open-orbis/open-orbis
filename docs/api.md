@@ -41,6 +41,8 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | PATCH | `/admin/access-codes/{code}` | Admin | Toggle code active/inactive |
 | DELETE | `/admin/access-codes/{code}` | Admin | Delete unused code |
 | GET | `/admin/pending-users` | Admin | List users registered but not yet activated |
+| GET | `/admin/funnel` | Admin | Waitlist funnel metrics: daily signups/activations, conversion rate (`?days=30`) |
+| GET | `/admin/insights` | Admin | Provider breakdown, avg activation time, code attribution, engagement distribution |
 
 ## Orbs (`/orbs`)
 
