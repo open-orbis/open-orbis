@@ -3,11 +3,12 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
+from pydantic import BaseModel
 
 from app.admin.service import (
+    activate_person,
     consume_access_code,
-    get_beta_config,
-    upsert_waitlist,
+    is_invite_code_required,
     validate_access_code,
 )
 from app.auth.models import (
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-async def _enforce_invite_and_create_person(
+async def _get_or_create_person(
     db: AsyncDriver,
     *,
     user_id: str,
@@ -39,92 +40,17 @@ async def _enforce_invite_and_create_person(
     name: str,
     picture: str,
     provider: str,
-    access_code: str | None,
 ) -> None:
-    """Get-or-create the Person, enforcing closed-beta rules on first signup.
+    """Create a Person node if it doesn't exist yet.
 
-    Existing users (Person already exists) are returned untouched — login is
-    always allowed regardless of invite codes. Only first-time signups go
-    through the invitation gate.
-
-    Each invite code is **single-use**: it is atomically consumed during
-    signup so that no two users can register with the same code.
-
-    Rejection paths always write to the Waitlist before raising, so we can
-    follow up later. Errors are returned with structured detail codes so the
-    frontend can show targeted messages:
-
-      - `registration_closed`  — master switch is off
-      - `invalid_access_code`  — code missing, unknown, or inactive
-      - `code_already_used`    — code exists but was already consumed
+    In the new flow, registration always succeeds — the invite code gate
+    happens later on the /auth/activate endpoint, not at signup time.
     """
-    # Login path: existing user, always allowed.
     async with db.session() as session:
         result = await session.run(GET_PERSON_BY_USER_ID, user_id=user_id)
         if await result.single() is not None:
             return
 
-    # Signup path: enforce the closed-beta rules.
-    if not settings.invite_only_registration:
-        await _create_person(db, user_id, email, name, picture, provider, None)
-        return
-
-    config = await get_beta_config(db)
-    if not bool(config.get("registration_enabled", True)):
-        await upsert_waitlist(
-            db,
-            email=email,
-            name=name,
-            provider=provider,
-            attempted_code=access_code,
-            reason="registration_closed",
-        )
-        raise HTTPException(status_code=403, detail="registration_closed")
-
-    # Validate the code (non-atomic read for a precise error message).
-    rejection = await validate_access_code(db, access_code)
-    if rejection is not None:
-        detail = (
-            "code_already_used"
-            if rejection == "code_already_used"
-            else "invalid_access_code"
-        )
-        await upsert_waitlist(
-            db,
-            email=email,
-            name=name,
-            provider=provider,
-            attempted_code=access_code,
-            reason=rejection,
-        )
-        raise HTTPException(status_code=403, detail=detail)
-
-    # Atomically consume the code — guards against a race where two users
-    # validated the same code before either consumed it.
-    consumed = await consume_access_code(db, access_code, user_id)
-    if not consumed:
-        await upsert_waitlist(
-            db,
-            email=email,
-            name=name,
-            provider=provider,
-            attempted_code=access_code,
-            reason="code_already_used",
-        )
-        raise HTTPException(status_code=403, detail="code_already_used")
-
-    await _create_person(db, user_id, email, name, picture, provider, access_code)
-
-
-async def _create_person(
-    db: AsyncDriver,
-    user_id: str,
-    email: str,
-    name: str,
-    picture: str,
-    provider: str,
-    signup_code: str | None,
-) -> None:
     orb_id = await generate_orb_id(name, db)
     async with db.session() as session:
         await session.run(
@@ -135,7 +61,7 @@ async def _create_person(
             orb_id=orb_id,
             picture=picture,
             provider=provider,
-            signup_code=signup_code,
+            signup_code=None,
         )
 
 
@@ -158,14 +84,8 @@ async def google_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    await _enforce_invite_and_create_person(
-        db,
-        user_id=user_id,
-        email=email,
-        name=name,
-        picture=picture,
-        provider="google",
-        access_code=body.access_code,
+    await _get_or_create_person(
+        db, user_id=user_id, email=email, name=name, picture=picture, provider="google"
     )
 
     token = create_jwt(user_id, email)
@@ -196,14 +116,13 @@ async def linkedin_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    await _enforce_invite_and_create_person(
+    await _get_or_create_person(
         db,
         user_id=user_id,
         email=email,
         name=name,
         picture=picture,
         provider="linkedin",
-        access_code=body.access_code,
     )
 
     token = create_jwt(user_id, email)
@@ -227,8 +146,13 @@ async def get_me(
             raise HTTPException(status_code=404, detail="User not found")
 
         person = dict(record["p"])
+        is_admin_user = bool(person.get("is_admin", False))
+        has_code = person.get("signup_code") is not None
+        invite_required = await is_invite_code_required(db)
+        activated = not invite_required or is_admin_user or has_code
         deletion_at = person.get("deletion_requested_at")
         days_left = _days_remaining(str(deletion_at)) if deletion_at else None
+
         return UserInfo(
             user_id=person["user_id"],
             email=current_user["email"],
@@ -236,10 +160,48 @@ async def get_me(
             picture=person.get("picture", ""),
             profile_image=person.get("profile_image", ""),
             gdpr_consent=bool(person.get("gdpr_consent", False)),
-            is_admin=bool(person.get("is_admin", False)),
+            is_admin=is_admin_user,
+            activated=activated,
             deletion_requested_at=str(deletion_at) if deletion_at else None,
             deletion_days_remaining=days_left,
         )
+
+
+class ActivateRequest(BaseModel):
+    code: str
+
+
+@router.post("/activate")
+async def activate(
+    body: ActivateRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Validate and consume an invite code, activating the current user.
+
+    This is the gate that blocks platform access after login: the frontend
+    redirects non-activated users here until they provide a valid code.
+    """
+    user_id = current_user["user_id"]
+
+    # Validate (non-atomic, for a precise error message)
+    rejection = await validate_access_code(db, body.code)
+    if rejection is not None:
+        detail = (
+            "code_already_used"
+            if rejection == "code_already_used"
+            else "invalid_access_code"
+        )
+        raise HTTPException(status_code=403, detail=detail)
+
+    # Atomically consume (race-safe)
+    consumed = await consume_access_code(db, body.code, user_id)
+    if not consumed:
+        raise HTTPException(status_code=403, detail="code_already_used")
+
+    # Mark the Person as activated
+    await activate_person(db, user_id, body.code)
+    return {"status": "activated"}
 
 
 @router.post("/gdpr-consent")

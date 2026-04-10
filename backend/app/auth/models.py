@@ -9,6 +9,7 @@ class UserInfo(BaseModel):
     profile_image: str = ""
     gdpr_consent: bool = False
     is_admin: bool = False
+    activated: bool = False
     deletion_requested_at: str | None = None
     deletion_days_remaining: int | None = None
 
@@ -21,4 +22,3 @@ class TokenResponse(BaseModel):
 
 class OAuthCodeRequest(BaseModel):
     code: str
-    access_code: str | None = None

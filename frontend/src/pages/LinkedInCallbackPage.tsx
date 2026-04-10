@@ -1,11 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { InviteError, useAuthStore } from '../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
-
-// Bridge invite errors from the LinkedIn round-trip back to the landing page,
-// since this component unmounts before it can render anything.
-export const LINKEDIN_INVITE_ERROR_KEY = 'orbis_linkedin_invite_error';
 
 export default function LinkedInCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -28,12 +24,7 @@ export default function LinkedInCallbackPage() {
         const hasContent = await hasOrbContent();
         navigate(hasContent ? '/myorbis' : '/create');
       })
-      .catch((e) => {
-        if (e instanceof InviteError) {
-          sessionStorage.setItem(LINKEDIN_INVITE_ERROR_KEY, e.code);
-        }
-        navigate('/');
-      });
+      .catch(() => navigate('/'));
   }, [searchParams, loginLinkedIn, navigate]);
 
   return (

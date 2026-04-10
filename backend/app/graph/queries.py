@@ -227,57 +227,38 @@ RETURN
     count(CASE WHEN a.used_at IS NULL AND a.active = true THEN 1 END) AS available
 """
 
-# Waitlist: people who tried to register but were rejected. MERGE on email so
-# repeated attempts (same person retrying via Google then LinkedIn) collapse
-# into a single row with bumped attempts/last_attempt_at.
+# Pending users: registered but not yet activated (no signup_code, not admin).
+# These replace the old Waitlist concept — since everyone now registers, the
+# "waiting" users are simply Persons without a code.
 
-UPSERT_WAITLIST = """
-MERGE (w:Waitlist {email: $email})
-ON CREATE SET
-    w.name = $name,
-    w.provider = $provider,
-    w.attempted_code = $attempted_code,
-    w.reason = $reason,
-    w.first_attempt_at = datetime(),
-    w.last_attempt_at = datetime(),
-    w.attempts = 1,
-    w.contacted = false
-ON MATCH SET
-    w.name = $name,
-    w.provider = $provider,
-    w.attempted_code = $attempted_code,
-    w.reason = $reason,
-    w.last_attempt_at = datetime(),
-    w.attempts = w.attempts + 1
-RETURN w
+LIST_PENDING_PERSONS = """
+MATCH (p:Person)
+WHERE p.signup_code IS NULL AND coalesce(p.is_admin, false) = false
+RETURN p
+ORDER BY p.created_at DESC
 """
 
-LIST_WAITLIST = """
-MATCH (w:Waitlist)
-RETURN w
-ORDER BY w.last_attempt_at DESC
+COUNT_PENDING_PERSONS = """
+MATCH (p:Person)
+WHERE p.signup_code IS NULL AND coalesce(p.is_admin, false) = false
+RETURN count(p) AS total
 """
 
-MARK_WAITLIST_CONTACTED = """
-MATCH (w:Waitlist {email: $email})
-SET w.contacted = $contacted, w.contacted_at = datetime()
-RETURN w
+# Activate a person by setting their signup_code after code validation.
+ACTIVATE_PERSON = """
+MATCH (p:Person {user_id: $user_id})
+SET p.signup_code = $code, p.activated_at = datetime()
+RETURN p
 """
 
-WAITLIST_STATS = """
-MATCH (w:Waitlist)
-RETURN w.reason AS reason, count(w) AS count
-"""
-
-# BetaConfig: a singleton node holding the runtime-modifiable cap and master
-# switch. We use a constant `singleton` field with a unique constraint so it
-# is structurally impossible to create a second config row.
+# BetaConfig: singleton node holding the runtime-modifiable invite gate.
+# `invite_code_required = true` means users need a valid code to access the
+# platform. When the admin flips it to false, everyone gets in freely.
 
 INIT_BETA_CONFIG = """
 MERGE (c:BetaConfig {singleton: 'global'})
 ON CREATE SET
-    c.max_users = $max_users,
-    c.registration_enabled = true,
+    c.invite_code_required = $invite_code_required,
     c.created_at = datetime(),
     c.updated_at = datetime()
 RETURN c

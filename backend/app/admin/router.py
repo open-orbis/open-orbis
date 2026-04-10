@@ -1,9 +1,4 @@
-"""Admin endpoints for the closed-beta invitation system.
-
-All endpoints require an authenticated user whose Person node has
-`is_admin = true`. The first admin must be granted out-of-band via
-`backend/scripts/grant_admin.py`.
-"""
+"""Admin endpoints for the closed-beta invitation system."""
 
 from __future__ import annotations
 
@@ -20,13 +15,12 @@ from app.admin.models import (
     BetaConfigResponse,
     BetaConfigUpdate,
     InviteCodeCounts,
+    PendingUser,
     StatsResponse,
-    WaitlistContactedUpdate,
-    WaitlistEntry,
-    WaitlistReasonCounts,
 )
 from app.admin.service import (
     count_access_codes,
+    count_pending_persons,
     count_persons,
     create_access_code,
     create_batch_access_codes,
@@ -34,11 +28,9 @@ from app.admin.service import (
     get_access_code,
     get_beta_config,
     list_access_codes,
-    list_waitlist,
-    mark_waitlist_contacted,
+    list_pending_persons,
     set_access_code_active,
     update_beta_config,
-    waitlist_stats,
 )
 from app.dependencies import get_db, require_admin
 
@@ -49,8 +41,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 def _serialize_beta_config(node: dict) -> BetaConfigResponse:
     return BetaConfigResponse(
-        max_users=int(node.get("max_users", 0)),
-        registration_enabled=bool(node.get("registration_enabled", True)),
+        invite_code_required=bool(node.get("invite_code_required", True)),
         updated_at=str(node.get("updated_at", "")),
     )
 
@@ -67,18 +58,13 @@ def _serialize_access_code(node: dict) -> AccessCodeResponse:
     )
 
 
-def _serialize_waitlist(node: dict) -> WaitlistEntry:
-    return WaitlistEntry(
-        email=node.get("email", ""),
+def _serialize_pending_user(node: dict) -> PendingUser:
+    return PendingUser(
+        user_id=node.get("user_id", ""),
         name=node.get("name", "") or "",
+        email=node.get("email", ""),
         provider=node.get("provider", "") or "",
-        attempted_code=node.get("attempted_code"),
-        reason=node.get("reason", ""),
-        first_attempt_at=str(node.get("first_attempt_at", "")),
-        last_attempt_at=str(node.get("last_attempt_at", "")),
-        attempts=int(node.get("attempts", 1)),
-        contacted=bool(node.get("contacted", False)),
-        contacted_at=(str(node["contacted_at"]) if node.get("contacted_at") else None),
+        created_at=str(node.get("created_at", "")),
     )
 
 
@@ -92,20 +78,13 @@ async def get_stats(
 ):
     config = await get_beta_config(db)
     registered = await count_persons(db)
+    pending = await count_pending_persons(db)
     code_counts = await count_access_codes(db)
-    by_reason_raw = await waitlist_stats(db)
-    by_reason = WaitlistReasonCounts(
-        no_code=by_reason_raw.get("no_code", 0),
-        invalid_code=by_reason_raw.get("invalid_code", 0),
-        code_already_used=by_reason_raw.get("code_already_used", 0),
-        registration_closed=by_reason_raw.get("registration_closed", 0),
-    )
     return StatsResponse(
         registered=registered,
-        registration_enabled=bool(config.get("registration_enabled", True)),
+        pending_activation=pending,
+        invite_code_required=bool(config.get("invite_code_required", True)),
         invite_codes=InviteCodeCounts(**code_counts),
-        waitlist_total=sum(by_reason_raw.values()),
-        waitlist_by_reason=by_reason,
     )
 
 
@@ -127,10 +106,8 @@ async def patch_beta_config(
     db: AsyncDriver = Depends(get_db),
 ):
     properties: dict = {}
-    if body.max_users is not None:
-        properties["max_users"] = body.max_users
-    if body.registration_enabled is not None:
-        properties["registration_enabled"] = body.registration_enabled
+    if body.invite_code_required is not None:
+        properties["invite_code_required"] = body.invite_code_required
     if not properties:
         raise HTTPException(status_code=400, detail="No fields to update")
     return _serialize_beta_config(await update_beta_config(db, properties))
@@ -172,7 +149,6 @@ async def create_codes_batch(
     admin: dict = Depends(require_admin),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Generate `count` unique single-use codes with auto-generated suffixes."""
     nodes = await create_batch_access_codes(
         db,
         prefix=body.prefix,
@@ -209,25 +185,12 @@ async def remove_code(
     return None
 
 
-# ── Waitlist ──
+# ── Pending Users (registered but not activated) ──
 
 
-@router.get("/waitlist", response_model=list[WaitlistEntry])
-async def get_waitlist(
+@router.get("/pending-users", response_model=list[PendingUser])
+async def get_pending_users(
     _admin: dict = Depends(require_admin),
     db: AsyncDriver = Depends(get_db),
 ):
-    return [_serialize_waitlist(w) for w in await list_waitlist(db)]
-
-
-@router.patch("/waitlist/{email}", response_model=WaitlistEntry)
-async def patch_waitlist_contacted(
-    email: str,
-    body: WaitlistContactedUpdate,
-    _admin: dict = Depends(require_admin),
-    db: AsyncDriver = Depends(get_db),
-):
-    node = await mark_waitlist_contacted(db, email, body.contacted)
-    if node is None:
-        raise HTTPException(status_code=404, detail="Waitlist entry not found")
-    return _serialize_waitlist(node)
+    return [_serialize_pending_user(p) for p in await list_pending_persons(db)]

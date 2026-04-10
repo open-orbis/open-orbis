@@ -1,25 +1,24 @@
 """Service layer for the closed-beta invitation system.
 
 Functions here are shared by:
-- the admin router (CRUD on access codes, beta config, waitlist)
-- the auth router (signup-time validation: code check, cap check, waitlist write)
-
-Keeping the data access in one place avoids duplicating Cypher across two
-modules and makes the invariants ("a signup needs a valid code AND a free
-seat OR it goes to waitlist") easier to reason about.
+- the admin router (CRUD on access codes, beta config, pending users)
+- the auth router (activation: code validation + consumption)
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
 
 from neo4j import AsyncDriver
 
 from app.config import settings
-from app.graph.encryption import decrypt_value, encrypt_value
+from app.graph.encryption import decrypt_value
 from app.graph.queries import (
+    ACTIVATE_PERSON,
     CONSUME_ACCESS_CODE,
     COUNT_ACCESS_CODES,
+    COUNT_PENDING_PERSONS,
     COUNT_PERSONS,
     CREATE_ACCESS_CODE,
     DELETE_ACCESS_CODE,
@@ -28,12 +27,9 @@ from app.graph.queries import (
     INIT_BETA_CONFIG,
     IS_ADMIN,
     LIST_ACCESS_CODES,
-    LIST_WAITLIST,
-    MARK_WAITLIST_CONTACTED,
+    LIST_PENDING_PERSONS,
     SET_ACCESS_CODE_ACTIVE,
     UPDATE_BETA_CONFIG,
-    UPSERT_WAITLIST,
-    WAITLIST_STATS,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,33 +39,35 @@ logger = logging.getLogger(__name__)
 
 
 async def get_beta_config(db: AsyncDriver) -> dict:
-    """Return the singleton BetaConfig, creating it on first read.
-
-    The default cap is taken from settings.beta_default_cap, so a fresh
-    deployment behaves predictably without manual seeding.
-    """
+    """Return the singleton BetaConfig, creating it on first read."""
     async with db.session() as session:
         result = await session.run(GET_BETA_CONFIG)
         record = await result.single()
         if record is not None:
             return dict(record["c"])
 
-        # Lazy init
         result = await session.run(
-            INIT_BETA_CONFIG, max_users=settings.beta_default_cap
+            INIT_BETA_CONFIG,
+            invite_code_required=settings.invite_only_registration,
         )
         record = await result.single()
         return dict(record["c"])
 
 
 async def update_beta_config(db: AsyncDriver, properties: dict) -> dict:
-    """Update fields on the singleton BetaConfig and return the new state."""
-    # Make sure the singleton exists before we try to SET on it.
     await get_beta_config(db)
     async with db.session() as session:
         result = await session.run(UPDATE_BETA_CONFIG, properties=properties)
         record = await result.single()
         return dict(record["c"])
+
+
+async def is_invite_code_required(db: AsyncDriver) -> bool:
+    """Check if the invite code gate is active."""
+    if not settings.invite_only_registration:
+        return False
+    config = await get_beta_config(db)
+    return bool(config.get("invite_code_required", True))
 
 
 # ── Person count + admin flag ──
@@ -87,6 +85,41 @@ async def is_admin(db: AsyncDriver, user_id: str) -> bool:
         result = await session.run(IS_ADMIN, user_id=user_id)
         record = await result.single()
         return bool(record["is_admin"]) if record else False
+
+
+# ── Pending users (registered but not activated) ──
+
+
+async def count_pending_persons(db: AsyncDriver) -> int:
+    async with db.session() as session:
+        result = await session.run(COUNT_PENDING_PERSONS)
+        record = await result.single()
+        return int(record["total"]) if record else 0
+
+
+async def list_pending_persons(db: AsyncDriver) -> list[dict]:
+    async with db.session() as session:
+        result = await session.run(LIST_PENDING_PERSONS)
+        records = [r async for r in result]
+    out = []
+    for r in records:
+        person = dict(r["p"])
+        email = person.get("email", "")
+        if email:
+            with contextlib.suppress(Exception):
+                email = decrypt_value(email)
+        out.append({**person, "email": email})
+    return out
+
+
+# ── Activation ──
+
+
+async def activate_person(db: AsyncDriver, user_id: str, code: str) -> bool:
+    """Set signup_code on a Person after successful code consumption."""
+    async with db.session() as session:
+        result = await session.run(ACTIVATE_PERSON, user_id=user_id, code=code)
+        return await result.single() is not None
 
 
 # ── AccessCode ──
@@ -135,14 +168,7 @@ async def delete_access_code(db: AsyncDriver, code: str) -> None:
 
 
 async def validate_access_code(db: AsyncDriver, code: str | None) -> str | None:
-    """Validate a code and return the rejection reason, or None if valid.
-
-    Returns:
-        None — code exists, is active, and unused (ready to consume)
-        'no_code' — no code provided
-        'invalid_code' — code does not exist or is deactivated
-        'code_already_used' — code exists but was already consumed
-    """
+    """Validate a code. Returns rejection reason, or None if valid."""
     if not code:
         return "no_code"
     record = await get_access_code(db, code)
@@ -154,12 +180,7 @@ async def validate_access_code(db: AsyncDriver, code: str | None) -> str | None:
 
 
 async def consume_access_code(db: AsyncDriver, code: str, user_id: str) -> bool:
-    """Atomically consume an unused code. Returns True on success.
-
-    The Cypher WHERE clause ensures that if two concurrent signups hit the
-    same code, only the first one succeeds. The second sees used_at is no
-    longer null and gets an empty result.
-    """
+    """Atomically consume an unused code. Returns True on success."""
     async with db.session() as session:
         result = await session.run(CONSUME_ACCESS_CODE, code=code, user_id=user_id)
         return await result.single() is not None
@@ -186,7 +207,6 @@ async def create_batch_access_codes(
     label: str,
     created_by: str,
 ) -> list[dict]:
-    """Create `count` unique codes with the form `{prefix}-{random4hex}`."""
     import uuid
 
     codes = []
@@ -203,66 +223,3 @@ async def create_batch_access_codes(
             if record:
                 codes.append(dict(record["a"]))
     return codes
-
-
-# ── Waitlist ──
-
-
-def _decrypt_waitlist_node(node: dict) -> dict:
-    """Decrypt the email field on a Waitlist node for outbound responses."""
-    out = dict(node)
-    if out.get("email"):
-        try:
-            out["email"] = decrypt_value(out["email"])
-        except Exception as e:
-            logger.warning("Failed to decrypt waitlist email: %s", e)
-    return out
-
-
-async def upsert_waitlist(
-    db: AsyncDriver,
-    *,
-    email: str,
-    name: str,
-    provider: str,
-    attempted_code: str | None,
-    reason: str,
-) -> None:
-    """Record a rejected signup attempt. Email is stored Fernet-encrypted."""
-    async with db.session() as session:
-        await session.run(
-            UPSERT_WAITLIST,
-            email=encrypt_value(email),
-            name=name or "",
-            provider=provider,
-            attempted_code=attempted_code,
-            reason=reason,
-        )
-
-
-async def list_waitlist(db: AsyncDriver) -> list[dict]:
-    async with db.session() as session:
-        result = await session.run(LIST_WAITLIST)
-        records = [r async for r in result]
-    return [_decrypt_waitlist_node(dict(r["w"])) for r in records]
-
-
-async def mark_waitlist_contacted(
-    db: AsyncDriver, email: str, contacted: bool
-) -> dict | None:
-    async with db.session() as session:
-        result = await session.run(
-            MARK_WAITLIST_CONTACTED,
-            email=encrypt_value(email),
-            contacted=contacted,
-        )
-        record = await result.single()
-        return _decrypt_waitlist_node(dict(record["w"])) if record else None
-
-
-async def waitlist_stats(db: AsyncDriver) -> dict[str, int]:
-    """Return waitlist counts grouped by reason."""
-    async with db.session() as session:
-        result = await session.run(WAITLIST_STATS)
-        records = [r async for r in result]
-    return {r["reason"]: int(r["count"]) for r in records if r["reason"]}

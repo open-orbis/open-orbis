@@ -8,6 +8,7 @@ export interface UserInfo {
   profile_image?: string;
   gdpr_consent: boolean;
   is_admin: boolean;
+  activated: boolean;
   deletion_requested_at?: string | null;
   deletion_days_remaining?: number | null;
 }
@@ -23,23 +24,22 @@ export async function deleteAccount(): Promise<void> {
 
 export async function googleLogin(
   code: string,
-  accessCode?: string,
 ): Promise<{ access_token: string; user: UserInfo }> {
-  const { data } = await client.post('/auth/google', {
-    code,
-    access_code: accessCode || null,
-  });
+  const { data } = await client.post('/auth/google', { code });
   return data;
 }
 
 export async function linkedinLogin(
   code: string,
-  accessCode?: string,
 ): Promise<{ access_token: string; user: UserInfo }> {
-  const { data } = await client.post('/auth/linkedin', {
-    code,
-    access_code: accessCode || null,
-  });
+  const { data } = await client.post('/auth/linkedin', { code });
+  return data;
+}
+
+export async function activateAccount(
+  code: string,
+): Promise<{ status: string }> {
+  const { data } = await client.post('/auth/activate', { code });
   return data;
 }
 

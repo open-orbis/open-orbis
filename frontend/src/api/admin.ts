@@ -8,19 +8,11 @@ export interface InviteCodeCounts {
   available: number;
 }
 
-export interface WaitlistReasonCounts {
-  no_code: number;
-  invalid_code: number;
-  code_already_used: number;
-  registration_closed: number;
-}
-
 export interface AdminStats {
   registered: number;
-  registration_enabled: boolean;
+  pending_activation: number;
+  invite_code_required: boolean;
   invite_codes: InviteCodeCounts;
-  waitlist_total: number;
-  waitlist_by_reason: WaitlistReasonCounts;
 }
 
 export interface AccessCode {
@@ -33,22 +25,16 @@ export interface AccessCode {
   used_by: string | null;
 }
 
-export interface WaitlistEntry {
-  email: string;
+export interface PendingUser {
+  user_id: string;
   name: string;
+  email: string;
   provider: string;
-  attempted_code: string | null;
-  reason: string;
-  first_attempt_at: string;
-  last_attempt_at: string;
-  attempts: number;
-  contacted: boolean;
-  contacted_at: string | null;
+  created_at: string;
 }
 
 export interface BetaConfig {
-  max_users: number;
-  registration_enabled: boolean;
+  invite_code_required: boolean;
   updated_at: string;
 }
 
@@ -67,7 +53,7 @@ export async function getBetaConfig(): Promise<BetaConfig> {
 }
 
 export async function updateBetaConfig(
-  updates: Partial<Pick<BetaConfig, 'max_users' | 'registration_enabled'>>,
+  updates: Partial<Pick<BetaConfig, 'invite_code_required'>>,
 ): Promise<BetaConfig> {
   const { data } = await client.patch('/admin/beta-config', updates);
   return data;
@@ -115,19 +101,9 @@ export async function deleteAccessCode(code: string): Promise<void> {
   await client.delete(`/admin/access-codes/${code}`);
 }
 
-// ── Waitlist ──
+// ── Pending Users ──
 
-export async function listWaitlist(): Promise<WaitlistEntry[]> {
-  const { data } = await client.get('/admin/waitlist');
-  return data;
-}
-
-export async function markWaitlistContacted(
-  email: string,
-  contacted: boolean,
-): Promise<WaitlistEntry> {
-  const { data } = await client.patch(`/admin/waitlist/${email}`, {
-    contacted,
-  });
+export async function listPendingUsers(): Promise<PendingUser[]> {
+  const { data } = await client.get('/admin/pending-users');
   return data;
 }

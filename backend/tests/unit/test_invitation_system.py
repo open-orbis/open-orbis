@@ -1,10 +1,10 @@
-"""Tests for the closed-beta invitation system.
+"""Tests for the closed-beta invitation system (v2: always-register + activate flow).
 
-Two surfaces under test:
-1. The signup gate in app.auth.router._enforce_invite_and_create_person —
-   exercised end-to-end via POST /auth/google with mocked OAuth + service.
-2. The /admin/* endpoints — exercised via TestClient with require_admin
-   overridden so they accept the conftest test user.
+Surfaces under test:
+1. Registration (POST /auth/google) — always creates Person, no code check.
+2. Activation (POST /auth/activate) — validates + consumes code, sets signup_code.
+3. /auth/me — returns `activated` flag based on invite_code_required, is_admin, signup_code.
+4. /admin/* — stats, beta config toggle, access codes CRUD, pending users.
 """
 
 from unittest.mock import AsyncMock, patch
@@ -24,13 +24,12 @@ GOOGLE_USERINFO = {
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Signup gate (auth flow)
+# Registration (always succeeds)
 # ─────────────────────────────────────────────────────────────────────────
 
 
 @pytest.fixture
 def google_oauth_mock():
-    """Patch Google token exchange to return a fixed userinfo dict."""
     with patch(
         "app.auth.router.exchange_google_code",
         AsyncMock(return_value=GOOGLE_USERINFO),
@@ -39,163 +38,38 @@ def google_oauth_mock():
 
 
 def _stub_existing_person(mock_db, exists: bool):
-    """Stub the GET_PERSON_BY_USER_ID lookup at the start of the gate."""
     record = MockNode({"user_id": "google-1234567890"}) if exists else None
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value={"p": record} if record else None)
     )
 
 
-def test_existing_user_login_bypasses_invite_gate(client, mock_db, google_oauth_mock):
-    """Returning users must keep logging in even when all codes are consumed."""
-    _stub_existing_person(mock_db, exists=True)
+def test_registration_always_creates_person(client, mock_db, google_oauth_mock):
+    """New users are always registered — no code check at signup time."""
+    _stub_existing_person(mock_db, exists=False)
 
-    with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(side_effect=AssertionError("gate must be bypassed")),
-        ),
-        patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(side_effect=AssertionError("gate must be bypassed")),
-        ),
-    ):
+    with patch("app.auth.router.generate_orb_id", AsyncMock(return_value="new-user")):
         response = client.post("/auth/google", json={"code": "fake"})
 
     assert response.status_code == 200
     assert response.json()["user"]["user_id"] == "google-1234567890"
 
 
-def test_signup_with_no_code_is_rejected_and_waitlisted(
-    client, mock_db, google_oauth_mock
-):
-    _stub_existing_person(mock_db, exists=False)
+def test_existing_user_login_works(client, mock_db, google_oauth_mock):
+    _stub_existing_person(mock_db, exists=True)
 
-    waitlist_mock = AsyncMock()
+    response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    assert response.json()["user"]["user_id"] == "google-1234567890"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Activation (POST /auth/activate)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_activate_with_valid_unused_code(client, mock_db):
     with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": True}),
-        ),
-        patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(return_value="no_code"),
-        ),
-        patch("app.auth.router.upsert_waitlist", waitlist_mock),
-    ):
-        response = client.post("/auth/google", json={"code": "fake"})
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "invalid_access_code"
-    waitlist_mock.assert_awaited_once()
-    assert waitlist_mock.await_args.kwargs["reason"] == "no_code"
-
-
-def test_signup_with_invalid_code_is_rejected_and_waitlisted(
-    client, mock_db, google_oauth_mock
-):
-    _stub_existing_person(mock_db, exists=False)
-
-    waitlist_mock = AsyncMock()
-    with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": True}),
-        ),
-        patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(return_value="invalid_code"),
-        ),
-        patch("app.auth.router.upsert_waitlist", waitlist_mock),
-    ):
-        response = client.post(
-            "/auth/google",
-            json={"code": "fake", "access_code": "wrong-code"},
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "invalid_access_code"
-    waitlist_mock.assert_awaited_once()
-    assert waitlist_mock.await_args.kwargs["reason"] == "invalid_code"
-    assert waitlist_mock.await_args.kwargs["attempted_code"] == "wrong-code"
-
-
-def test_signup_with_already_used_code_is_waitlisted(
-    client, mock_db, google_oauth_mock
-):
-    """A code that was already consumed by another user should be rejected."""
-    _stub_existing_person(mock_db, exists=False)
-
-    waitlist_mock = AsyncMock()
-    with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": True}),
-        ),
-        patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(return_value="code_already_used"),
-        ),
-        patch("app.auth.router.upsert_waitlist", waitlist_mock),
-    ):
-        response = client.post(
-            "/auth/google",
-            json={"code": "fake", "access_code": "used-code"},
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "code_already_used"
-    waitlist_mock.assert_awaited_once()
-    assert waitlist_mock.await_args.kwargs["reason"] == "code_already_used"
-
-
-def test_signup_race_condition_consume_fails_is_waitlisted(
-    client, mock_db, google_oauth_mock
-):
-    """If validate passes but consume fails (race — someone used the code
-    between validate and consume), the user is waitlisted."""
-    _stub_existing_person(mock_db, exists=False)
-
-    waitlist_mock = AsyncMock()
-    with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": True}),
-        ),
-        patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(return_value=None),
-        ),
-        patch(
-            "app.auth.router.consume_access_code",
-            AsyncMock(return_value=False),
-        ),
-        patch("app.auth.router.upsert_waitlist", waitlist_mock),
-    ):
-        response = client.post(
-            "/auth/google",
-            json={"code": "fake", "access_code": "raced-code"},
-        )
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "code_already_used"
-    waitlist_mock.assert_awaited_once()
-    assert waitlist_mock.await_args.kwargs["reason"] == "code_already_used"
-
-
-def test_signup_with_valid_unused_code_creates_person(
-    client, mock_db, google_oauth_mock
-):
-    """Happy path: valid + unused code → consume succeeds → Person created."""
-    _stub_existing_person(mock_db, exists=False)
-
-    waitlist_mock = AsyncMock()
-    create_mock = AsyncMock()
-    with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": True}),
-        ),
         patch(
             "app.auth.router.validate_access_code",
             AsyncMock(return_value=None),
@@ -204,66 +78,128 @@ def test_signup_with_valid_unused_code_creates_person(
             "app.auth.router.consume_access_code",
             AsyncMock(return_value=True),
         ),
-        patch("app.auth.router.upsert_waitlist", waitlist_mock),
-        patch("app.auth.router._create_person", create_mock),
+        patch(
+            "app.auth.router.activate_person",
+            AsyncMock(return_value=True),
+        ) as activate_mock,
     ):
-        response = client.post(
-            "/auth/google",
-            json={"code": "fake", "access_code": "fresh-code"},
-        )
+        response = client.post("/auth/activate", json={"code": "fresh-code"})
 
     assert response.status_code == 200
-    assert response.json()["user"]["email"] == "newuser@example.com"
-    create_mock.assert_awaited_once()
-    waitlist_mock.assert_not_awaited()
-    # signup_code is recorded on the new Person
-    assert create_mock.await_args[0][6] == "fresh-code"
+    assert response.json()["status"] == "activated"
+    activate_mock.assert_awaited_once_with(mock_db, "test-user", "fresh-code")
 
 
-def test_registration_disabled_globally_waitlists(client, mock_db, google_oauth_mock):
-    _stub_existing_person(mock_db, exists=False)
-
-    waitlist_mock = AsyncMock()
-    with (
-        patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": False}),
-        ),
-        patch("app.auth.router.upsert_waitlist", waitlist_mock),
+def test_activate_with_invalid_code(client, mock_db):
+    with patch(
+        "app.auth.router.validate_access_code",
+        AsyncMock(return_value="invalid_code"),
     ):
-        response = client.post(
-            "/auth/google",
-            json={"code": "fake", "access_code": "valid-code"},
-        )
+        response = client.post("/auth/activate", json={"code": "bad-code"})
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "registration_closed"
-    waitlist_mock.assert_awaited_once()
-    assert waitlist_mock.await_args.kwargs["reason"] == "registration_closed"
+    assert response.json()["detail"] == "invalid_access_code"
 
 
-def test_invite_only_disabled_skips_gate_entirely(
-    client, mock_db, google_oauth_mock, monkeypatch
-):
-    """When invite_only_registration=False, anyone can sign up — useful for the
-    public-launch flip later."""
-    from app.config import settings
+def test_activate_with_already_used_code(client, mock_db):
+    with patch(
+        "app.auth.router.validate_access_code",
+        AsyncMock(return_value="code_already_used"),
+    ):
+        response = client.post("/auth/activate", json={"code": "used-code"})
 
-    monkeypatch.setattr(settings, "invite_only_registration", False)
-    _stub_existing_person(mock_db, exists=False)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "code_already_used"
 
-    create_mock = AsyncMock()
+
+def test_activate_race_condition(client, mock_db):
+    """Validate passes but consume fails (someone else grabbed it)."""
     with (
-        patch("app.auth.router._create_person", create_mock),
         patch(
-            "app.auth.router.get_beta_config",
-            AsyncMock(side_effect=AssertionError("gate must be skipped")),
+            "app.auth.router.validate_access_code",
+            AsyncMock(return_value=None),
+        ),
+        patch(
+            "app.auth.router.consume_access_code",
+            AsyncMock(return_value=False),
         ),
     ):
-        response = client.post("/auth/google", json={"code": "fake"})
+        response = client.post("/auth/activate", json={"code": "raced-code"})
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "code_already_used"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# GET /auth/me — activated flag
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_me_activated_when_has_signup_code(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(
+            return_value={
+                "p": MockNode(
+                    {"user_id": "test-user", "name": "Test", "signup_code": "abc"}
+                )
+            }
+        )
+    )
+
+    with patch("app.auth.router.is_invite_code_required", AsyncMock(return_value=True)):
+        response = client.get("/auth/me")
 
     assert response.status_code == 200
-    create_mock.assert_awaited_once()
+    assert response.json()["activated"] is True
+
+
+def test_me_activated_when_admin(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(
+            return_value={
+                "p": MockNode(
+                    {"user_id": "test-user", "name": "Test", "is_admin": True}
+                )
+            }
+        )
+    )
+
+    with patch("app.auth.router.is_invite_code_required", AsyncMock(return_value=True)):
+        response = client.get("/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["activated"] is True
+    assert response.json()["is_admin"] is True
+
+
+def test_me_activated_when_invite_not_required(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(
+            return_value={"p": MockNode({"user_id": "test-user", "name": "Test"})}
+        )
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required", AsyncMock(return_value=False)
+    ):
+        response = client.get("/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["activated"] is True
+
+
+def test_me_not_activated_when_no_code_and_required(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(
+            return_value={"p": MockNode({"user_id": "test-user", "name": "Test"})}
+        )
+    )
+
+    with patch("app.auth.router.is_invite_code_required", AsyncMock(return_value=True)):
+        response = client.get("/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["activated"] is False
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -273,7 +209,6 @@ def test_invite_only_disabled_skips_gate_entirely(
 
 @pytest.fixture
 def admin_client(mock_db, mock_neo4j_driver):
-    """TestClient with require_admin overridden to always pass."""
     from fastapi.testclient import TestClient
 
     app.dependency_overrides[get_db] = lambda: mock_db
@@ -291,8 +226,6 @@ def admin_client(mock_db, mock_neo4j_driver):
 
 
 def test_admin_endpoints_require_admin_flag(client, mock_db):
-    """Without the require_admin override, /admin/stats must reject the test
-    user (whose Person has no is_admin flag)."""
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value={"is_admin": False})
     )
@@ -300,20 +233,17 @@ def test_admin_endpoints_require_admin_flag(client, mock_db):
     assert response.status_code == 403
 
 
-def test_admin_stats_returns_aggregated_view(admin_client):
+def test_admin_stats(admin_client):
     with (
         patch(
             "app.admin.router.get_beta_config",
-            AsyncMock(return_value={"registration_enabled": True}),
+            AsyncMock(return_value={"invite_code_required": True}),
         ),
         patch("app.admin.router.count_persons", AsyncMock(return_value=47)),
+        patch("app.admin.router.count_pending_persons", AsyncMock(return_value=12)),
         patch(
             "app.admin.router.count_access_codes",
             AsyncMock(return_value={"total": 200, "used": 47, "available": 153}),
-        ),
-        patch(
-            "app.admin.router.waitlist_stats",
-            AsyncMock(return_value={"no_code": 5, "code_already_used": 3}),
         ),
     ):
         response = admin_client.get("/admin/stats")
@@ -321,33 +251,28 @@ def test_admin_stats_returns_aggregated_view(admin_client):
     assert response.status_code == 200
     body = response.json()
     assert body["registered"] == 47
-    assert body["registration_enabled"] is True
-    assert body["invite_codes"]["total"] == 200
-    assert body["invite_codes"]["used"] == 47
+    assert body["pending_activation"] == 12
+    assert body["invite_code_required"] is True
     assert body["invite_codes"]["available"] == 153
-    assert body["waitlist_total"] == 8
-    assert body["waitlist_by_reason"]["no_code"] == 5
-    assert body["waitlist_by_reason"]["code_already_used"] == 3
 
 
-def test_admin_patch_beta_config_updates_registration(admin_client):
+def test_admin_toggle_invite_code(admin_client):
     with patch(
         "app.admin.router.update_beta_config",
         AsyncMock(
             return_value={
-                "max_users": 2000,
-                "registration_enabled": False,
-                "updated_at": "2026-04-09T12:00:00",
+                "invite_code_required": False,
+                "updated_at": "2026-04-10T12:00:00",
             }
         ),
-    ) as update_mock:
+    ) as mock:
         response = admin_client.patch(
-            "/admin/beta-config", json={"registration_enabled": False}
+            "/admin/beta-config", json={"invite_code_required": False}
         )
 
     assert response.status_code == 200
-    assert response.json()["registration_enabled"] is False
-    update_mock.assert_awaited_once()
+    assert response.json()["invite_code_required"] is False
+    mock.assert_awaited_once()
 
 
 def test_admin_patch_beta_config_rejects_empty(admin_client):
@@ -367,7 +292,7 @@ def test_admin_create_access_code(admin_client):
                     "active": True,
                     "used_at": None,
                     "used_by": None,
-                    "created_at": "2026-04-09T12:00:00",
+                    "created_at": "2026-04-10T12:00:00",
                     "created_by": "admin-user",
                 }
             ),
@@ -383,7 +308,7 @@ def test_admin_create_access_code(admin_client):
     assert response.json()["used_at"] is None
 
 
-def test_admin_create_batch_access_codes(admin_client):
+def test_admin_create_batch(admin_client):
     with patch(
         "app.admin.router.create_batch_access_codes",
         AsyncMock(
@@ -394,118 +319,38 @@ def test_admin_create_batch_access_codes(admin_client):
                     "active": True,
                     "used_at": None,
                     "used_by": None,
-                    "created_at": "2026-04-09T12:00:00",
+                    "created_at": "2026-04-10T12:00:00",
                     "created_by": "admin-user",
-                },
-                {
-                    "code": "launch-d4e5f6",
-                    "label": "launch",
-                    "active": True,
-                    "used_at": None,
-                    "used_by": None,
-                    "created_at": "2026-04-09T12:00:00",
-                    "created_by": "admin-user",
-                },
+                }
             ]
         ),
     ):
         response = admin_client.post(
             "/admin/access-codes/batch",
-            json={"prefix": "launch", "count": 2, "label": "launch"},
+            json={"prefix": "launch", "count": 1, "label": "launch"},
         )
 
     assert response.status_code == 201
-    body = response.json()
-    assert len(body) == 2
-    assert body[0]["code"] == "launch-a1b2c3"
-    assert body[1]["code"] == "launch-d4e5f6"
+    assert len(response.json()) == 1
 
 
-def test_admin_create_access_code_conflict(admin_client):
+def test_admin_pending_users(admin_client):
     with patch(
-        "app.admin.router.get_access_code",
-        AsyncMock(return_value={"code": "invite-abc123"}),
-    ):
-        response = admin_client.post(
-            "/admin/access-codes",
-            json={"code": "invite-abc123", "label": "newsletter"},
-        )
-
-    assert response.status_code == 409
-
-
-def test_admin_list_access_codes(admin_client):
-    with patch(
-        "app.admin.router.list_access_codes",
+        "app.admin.router.list_pending_persons",
         AsyncMock(
             return_value=[
                 {
-                    "code": "alpha",
-                    "label": "twitter",
-                    "active": True,
-                    "used_at": "2026-04-09T10:00:00",
-                    "used_by": "google-9999",
-                    "created_at": "2026-04-09T08:00:00",
-                    "created_by": "admin-user",
-                }
-            ]
-        ),
-    ):
-        response = admin_client.get("/admin/access-codes")
-
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body) == 1
-    assert body[0]["used_at"] == "2026-04-09T10:00:00"
-    assert body[0]["used_by"] == "google-9999"
-
-
-def test_admin_waitlist_endpoint(admin_client):
-    with patch(
-        "app.admin.router.list_waitlist",
-        AsyncMock(
-            return_value=[
-                {
-                    "email": "decrypted@example.com",
-                    "name": "Some Person",
+                    "user_id": "google-999",
+                    "name": "Pending User",
+                    "email": "pending@example.com",
                     "provider": "google",
-                    "attempted_code": None,
-                    "reason": "no_code",
-                    "first_attempt_at": "2026-04-09T12:00:00",
-                    "last_attempt_at": "2026-04-09T12:00:00",
-                    "attempts": 1,
-                    "contacted": False,
+                    "created_at": "2026-04-10T12:00:00",
                 }
             ]
         ),
     ):
-        response = admin_client.get("/admin/waitlist")
+        response = admin_client.get("/admin/pending-users")
 
     assert response.status_code == 200
-    assert response.json()[0]["email"] == "decrypted@example.com"
-
-
-def test_admin_mark_waitlist_contacted(admin_client):
-    with patch(
-        "app.admin.router.mark_waitlist_contacted",
-        AsyncMock(
-            return_value={
-                "email": "decrypted@example.com",
-                "name": "Some Person",
-                "provider": "google",
-                "reason": "no_code",
-                "first_attempt_at": "2026-04-09T12:00:00",
-                "last_attempt_at": "2026-04-09T12:00:00",
-                "attempts": 1,
-                "contacted": True,
-                "contacted_at": "2026-04-09T13:00:00",
-            }
-        ),
-    ):
-        response = admin_client.patch(
-            "/admin/waitlist/decrypted@example.com",
-            json={"contacted": True},
-        )
-
-    assert response.status_code == 200
-    assert response.json()["contacted"] is True
+    assert len(response.json()) == 1
+    assert response.json()[0]["name"] == "Pending User"

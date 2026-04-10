@@ -5,13 +5,6 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 
-class WaitlistReasonCounts(BaseModel):
-    no_code: int = 0
-    invalid_code: int = 0
-    code_already_used: int = 0
-    registration_closed: int = 0
-
-
 class InviteCodeCounts(BaseModel):
     total: int = 0
     used: int = 0
@@ -20,27 +13,17 @@ class InviteCodeCounts(BaseModel):
 
 class StatsResponse(BaseModel):
     registered: int
-    registration_enabled: bool
+    pending_activation: int
+    invite_code_required: bool
     invite_codes: InviteCodeCounts
-    waitlist_total: int
-    waitlist_by_reason: WaitlistReasonCounts
 
 
-class WaitlistEntry(BaseModel):
-    email: str
+class PendingUser(BaseModel):
+    user_id: str
     name: str = ""
+    email: str = ""
     provider: str = ""
-    attempted_code: str | None = None
-    reason: str
-    first_attempt_at: str
-    last_attempt_at: str
-    attempts: int
-    contacted: bool = False
-    contacted_at: str | None = None
-
-
-class WaitlistContactedUpdate(BaseModel):
-    contacted: bool
+    created_at: str = ""
 
 
 class AccessCodeCreate(BaseModel):
@@ -69,11 +52,9 @@ class AccessCodeUpdate(BaseModel):
 
 
 class BetaConfigResponse(BaseModel):
-    max_users: int
-    registration_enabled: bool
+    invite_code_required: bool
     updated_at: str
 
 
 class BetaConfigUpdate(BaseModel):
-    max_users: int | None = Field(default=None, ge=0)
-    registration_enabled: bool | None = None
+    invite_code_required: bool | None = None
