@@ -18,26 +18,40 @@ from app.graph.queries import (
     ACTIVATE_ALL_PENDING,
     ACTIVATE_PERSON,
     ACTIVATE_PERSON_BY_ADMIN,
+    ACTIVATION_STAGES,
+    AVG_ACTIVATION_TIME,
+    CODE_ATTRIBUTION,
+    CODE_EFFICIENCY,
     CONSUME_ACCESS_CODE,
     COUNT_ACCESS_CODES,
     COUNT_PENDING_PERSONS,
     COUNT_PERSONS,
     CREATE_ACCESS_CODE,
+    CUMULATIVE_GROWTH,
     DELETE_ACCESS_CODE,
     DELETE_PERSON_FULL,
     DELETE_PERSON_NODE,
+    ENGAGEMENT_DISTRIBUTION,
+    FUNNEL_ACTIVATIONS_PER_DAY,
+    FUNNEL_SIGNUPS_PER_DAY,
     GET_ACCESS_CODE,
     GET_BETA_CONFIG,
     GET_PERSON_BY_USER_ID,
     GET_PERSON_DETAIL,
     GRANT_ADMIN_BY_USER_ID,
+    GRAPH_RICHNESS,
     INIT_BETA_CONFIG,
     IS_ADMIN,
     LIST_ACCESS_CODES,
     LIST_ALL_PERSONS,
     LIST_PENDING_PERSONS,
+    NODE_TYPE_DISTRIBUTION,
+    PROFILE_COMPLETENESS,
+    PROVIDER_BREAKDOWN,
+    RECENTLY_ACTIVE_USERS,
     REVOKE_ADMIN_BY_USER_ID,
     SET_ACCESS_CODE_ACTIVE,
+    TOP_SKILLS,
     UPDATE_BETA_CONFIG,
 )
 
@@ -344,3 +358,146 @@ async def revoke_admin(db: AsyncDriver, user_id: str) -> dict | None:
         with contextlib.suppress(Exception):
             email = decrypt_value(email)
     return {**person, "email": email}
+
+
+# ── Funnel metrics ──
+
+
+async def get_funnel_metrics(db: AsyncDriver, days: int = 30) -> dict:
+    """Return signup and activation time-series for the last N days."""
+    async with db.session() as session:
+        result = await session.run(FUNNEL_SIGNUPS_PER_DAY, days=days)
+        signups = [{"date": r["date"], "count": int(r["count"])} async for r in result]
+
+        result = await session.run(FUNNEL_ACTIVATIONS_PER_DAY, days=days)
+        activations = [
+            {"date": r["date"], "count": int(r["count"])} async for r in result
+        ]
+
+    total_signups = sum(s["count"] for s in signups)
+    total_activations = sum(a["count"] for a in activations)
+    conversion_rate = (
+        round(total_activations / total_signups, 4) if total_signups else 0.0
+    )
+
+    return {
+        "signups": signups,
+        "activations": activations,
+        "total_signups": total_signups,
+        "total_activations": total_activations,
+        "conversion_rate": conversion_rate,
+    }
+
+
+# ── Insights ──
+
+
+async def get_insights(db: AsyncDriver) -> dict:
+    """Return all platform insights."""
+    async with db.session() as session:
+        result = await session.run(PROVIDER_BREAKDOWN)
+        providers = [
+            {"provider": r["provider"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(AVG_ACTIVATION_TIME)
+        record = await result.single()
+        activation_time = {
+            "total": int(record["total"]) if record else 0,
+            "avg_hours": round(float(record["avg_hours"]), 2)
+            if record and record["avg_hours"] is not None
+            else None,
+            "min_hours": round(float(record["min_hours"]), 2)
+            if record and record["min_hours"] is not None
+            else None,
+            "max_hours": round(float(record["max_hours"]), 2)
+            if record and record["max_hours"] is not None
+            else None,
+        }
+
+        result = await session.run(CODE_ATTRIBUTION)
+        code_attribution = [
+            {"label": r["label"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(ENGAGEMENT_DISTRIBUTION)
+        engagement = [
+            {"bucket": r["bucket"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(CUMULATIVE_GROWTH)
+        cumulative_growth = [
+            {"date": r["date"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(ACTIVATION_STAGES)
+        record = await result.single()
+        activation_stages = {
+            "registered": int(record["registered"]) if record else 0,
+            "activated": int(record["activated"]) if record else 0,
+            "built_orb": int(record["built_orb"]) if record else 0,
+            "rich_orb": int(record["rich_orb"]) if record else 0,
+        }
+
+        result = await session.run(TOP_SKILLS)
+        top_skills = [
+            {"name": r["name"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(NODE_TYPE_DISTRIBUTION)
+        node_type_distribution = [
+            {"label": r["label"], "count": int(r["count"])} async for r in result
+        ]
+
+        result = await session.run(PROFILE_COMPLETENESS)
+        record = await result.single()
+        profile_completeness = {
+            "empty": int(record["empty"]) if record else 0,
+            "partial": int(record["partial"]) if record else 0,
+            "good": int(record["good"]) if record else 0,
+            "complete": int(record["complete"]) if record else 0,
+        }
+
+        result = await session.run(GRAPH_RICHNESS)
+        record = await result.single()
+        graph_richness = {
+            "total_users": int(record["total_users"]) if record else 0,
+            "avg_nodes": round(float(record["avg_nodes"]), 1)
+            if record and record["avg_nodes"] is not None
+            else 0.0,
+            "min_nodes": int(record["min_nodes"]) if record else 0,
+            "max_nodes": int(record["max_nodes"]) if record else 0,
+            "median_nodes": round(float(record["median_nodes"]), 1)
+            if record and record["median_nodes"] is not None
+            else 0.0,
+        }
+
+        result = await session.run(RECENTLY_ACTIVE_USERS, days=7)
+        record = await result.single()
+        recently_active_7d = int(record["count"]) if record else 0
+
+        result = await session.run(CODE_EFFICIENCY)
+        code_efficiency = [
+            {
+                "label": r["label"] or "unlabeled",
+                "created": int(r["created"]),
+                "used": int(r["used"]),
+                "rate": round(float(r["rate"]), 3),
+            }
+            async for r in result
+        ]
+
+    return {
+        "providers": providers,
+        "activation_time": activation_time,
+        "code_attribution": code_attribution,
+        "engagement": engagement,
+        "cumulative_growth": cumulative_growth,
+        "activation_stages": activation_stages,
+        "top_skills": top_skills,
+        "node_type_distribution": node_type_distribution,
+        "profile_completeness": profile_completeness,
+        "graph_richness": graph_richness,
+        "recently_active_7d": recently_active_7d,
+        "code_efficiency": code_efficiency,
+    }

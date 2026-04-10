@@ -24,6 +24,7 @@ from app.auth.service import (
 )
 from app.config import settings
 from app.dependencies import get_current_user, get_db
+from app.email.service import send_activation_email
 from app.graph.encryption import encrypt_value
 from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
 
@@ -207,6 +208,12 @@ async def activate(
 
     # Mark the Person as activated
     await activate_person(db, user_id, body.code)
+
+    # Best-effort confirmation email
+    email = current_user.get("email")
+    if email:
+        await send_activation_email(to=email, frontend_url=settings.frontend_url)
+
     return {"status": "activated"}
 
 

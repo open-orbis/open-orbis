@@ -186,3 +186,113 @@ export async function listIdeas(): Promise<Idea[]> {
 export async function deleteIdea(ideaId: string): Promise<void> {
   await client.delete(`/admin/ideas/${ideaId}`);
 }
+
+// ── Funnel Metrics ──
+
+export interface DailyCount {
+  date: string;
+  count: number;
+}
+
+export interface FunnelMetrics {
+  signups: DailyCount[];
+  activations: DailyCount[];
+  total_signups: number;
+  total_activations: number;
+  conversion_rate: number;
+}
+
+export async function getFunnelMetrics(
+  days: number = 30,
+): Promise<FunnelMetrics> {
+  const { data } = await client.get('/admin/funnel', { params: { days } });
+  return data;
+}
+
+// ── Insights ──
+
+export interface ProviderCount {
+  provider: string;
+  count: number;
+}
+
+export interface ActivationTimeStats {
+  total: number;
+  avg_hours: number | null;
+  min_hours: number | null;
+  max_hours: number | null;
+}
+
+export interface CodeAttributionEntry {
+  label: string;
+  count: number;
+}
+
+export interface EngagementBucket {
+  bucket: string;
+  count: number;
+}
+
+export interface CumulativePoint {
+  date: string;
+  count: number;
+}
+
+export interface ActivationStages {
+  registered: number;
+  activated: number;
+  built_orb: number;
+  rich_orb: number;
+}
+
+export interface SkillCount {
+  name: string;
+  count: number;
+}
+
+export interface NodeTypeCount {
+  label: string;
+  count: number;
+}
+
+export interface ProfileCompletenessStats {
+  empty: number;
+  partial: number;
+  good: number;
+  complete: number;
+}
+
+export interface GraphRichnessStats {
+  total_users: number;
+  avg_nodes: number;
+  min_nodes: number;
+  max_nodes: number;
+  median_nodes: number;
+}
+
+export interface CodeEfficiencyEntry {
+  label: string;
+  created: number;
+  used: number;
+  rate: number;
+}
+
+export interface Insights {
+  providers: ProviderCount[];
+  activation_time: ActivationTimeStats;
+  code_attribution: CodeAttributionEntry[];
+  engagement: EngagementBucket[];
+  cumulative_growth: CumulativePoint[];
+  activation_stages: ActivationStages;
+  top_skills: SkillCount[];
+  node_type_distribution: NodeTypeCount[];
+  profile_completeness: ProfileCompletenessStats;
+  graph_richness: GraphRichnessStats;
+  recently_active_7d: number;
+  code_efficiency: CodeEfficiencyEntry[];
+}
+
+export async function getInsights(): Promise<Insights> {
+  const { data } = await client.get('/admin/insights');
+  return data;
+}

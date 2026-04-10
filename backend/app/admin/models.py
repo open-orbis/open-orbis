@@ -86,3 +86,103 @@ class UserDetailResponse(UserResponse):
 
 class BatchActivateRequest(BaseModel):
     user_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+# ── Insights ──
+
+
+class ProviderCount(BaseModel):
+    provider: str
+    count: int
+
+
+class ActivationTimeStats(BaseModel):
+    total: int
+    avg_hours: float | None
+    min_hours: float | None
+    max_hours: float | None
+
+
+class CodeAttributionEntry(BaseModel):
+    label: str
+    count: int
+
+
+class EngagementBucket(BaseModel):
+    bucket: str
+    count: int
+
+
+class CumulativePoint(BaseModel):
+    date: str
+    count: int
+
+
+class ActivationStages(BaseModel):
+    registered: int
+    activated: int
+    built_orb: int
+    rich_orb: int
+
+
+class SkillCount(BaseModel):
+    name: str
+    count: int
+
+
+class NodeTypeCount(BaseModel):
+    label: str
+    count: int
+
+
+class ProfileCompletenessStats(BaseModel):
+    empty: int
+    partial: int
+    good: int
+    complete: int
+
+
+class GraphRichnessStats(BaseModel):
+    total_users: int
+    avg_nodes: float
+    min_nodes: int
+    max_nodes: int
+    median_nodes: float
+
+
+class CodeEfficiencyEntry(BaseModel):
+    label: str
+    created: int
+    used: int
+    rate: float
+
+
+class InsightsResponse(BaseModel):
+    providers: list[ProviderCount]
+    activation_time: ActivationTimeStats
+    code_attribution: list[CodeAttributionEntry]
+    engagement: list[EngagementBucket]
+    cumulative_growth: list[CumulativePoint]
+    activation_stages: ActivationStages
+    top_skills: list[SkillCount]
+    node_type_distribution: list[NodeTypeCount]
+    profile_completeness: ProfileCompletenessStats
+    graph_richness: GraphRichnessStats
+    recently_active_7d: int
+    code_efficiency: list[CodeEfficiencyEntry]
+
+
+# ── Funnel metrics ──
+
+
+class DailyCount(BaseModel):
+    date: str
+    count: int
+
+
+class FunnelResponse(BaseModel):
+    signups: list[DailyCount]
+    activations: list[DailyCount]
+    total_signups: int
+    total_activations: int
+    conversion_rate: float
