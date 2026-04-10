@@ -26,3 +26,11 @@ CREATE VECTOR INDEX publication_embedding IF NOT EXISTS
 CREATE VECTOR INDEX project_embedding IF NOT EXISTS
   FOR (p:Project) ON (p.embedding)
   OPTIONS {indexConfig: {`vector.dimensions`: 1536, `vector.similarity_function`: 'cosine'}};
+
+// Ontology versioning
+CREATE CONSTRAINT ontology_version_id IF NOT EXISTS FOR (ov:OntologyVersion) REQUIRE ov.version_id IS UNIQUE;
+CREATE INDEX ontology_content_hash IF NOT EXISTS FOR (ov:OntologyVersion) ON (ov.content_hash);
+
+// Processing records
+CREATE CONSTRAINT processing_record_id IF NOT EXISTS FOR (pr:ProcessingRecord) REQUIRE pr.record_id IS UNIQUE;
+CREATE INDEX processing_record_document IF NOT EXISTS FOR (pr:ProcessingRecord) ON (pr.document_id);
