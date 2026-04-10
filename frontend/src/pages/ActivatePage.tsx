@@ -129,10 +129,12 @@ export default function ActivatePage() {
           </motion.div>
         )}
 
-        {/* Info */}
-        <p className="text-white/20 text-xs mb-4">
-          Non hai un codice? Contattaci per richiedere l'accesso.
-        </p>
+        {/* Waitlist info */}
+        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 mb-4 text-left">
+          <p className="text-white/50 text-xs leading-relaxed">
+            Non hai un codice? Nessun problema — registrandoti sei stato aggiunto alla nostra waiting list. Ti contatteremo non appena il tuo accesso sarà abilitato.
+          </p>
+        </div>
 
         {/* Logout link */}
         <button
