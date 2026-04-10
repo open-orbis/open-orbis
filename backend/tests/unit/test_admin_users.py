@@ -113,7 +113,11 @@ def test_get_user_detail_not_found(admin_client):
 
 
 def test_activate_user(admin_client):
-    activated = {**PENDING_USER, "signup_code": "admin-abc12345", "activated_at": "2026-04-10T12:00:00"}
+    activated = {
+        **PENDING_USER,
+        "signup_code": "admin-abc12345",
+        "activated_at": "2026-04-10T12:00:00",
+    }
     with (
         patch("app.admin.router.create_access_code", AsyncMock(return_value={})),
         patch(
@@ -145,7 +149,11 @@ def test_activate_already_activated_user(admin_client):
 
 
 def test_activate_batch(admin_client):
-    activated = {**PENDING_USER, "signup_code": "admin-xyz", "activated_at": "2026-04-10T12:00:00"}
+    activated = {
+        **PENDING_USER,
+        "signup_code": "admin-xyz",
+        "activated_at": "2026-04-10T12:00:00",
+    }
     with (
         patch("app.admin.router.create_access_code", AsyncMock(return_value={})),
         patch(

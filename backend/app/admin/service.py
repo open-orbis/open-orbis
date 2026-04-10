@@ -290,9 +290,7 @@ async def activate_user_by_admin(
 ) -> dict | None:
     """Activate a pending user by admin, assigning a code."""
     async with db.session() as session:
-        result = await session.run(
-            ACTIVATE_PERSON_BY_ADMIN, user_id=user_id, code=code
-        )
+        result = await session.run(ACTIVATE_PERSON_BY_ADMIN, user_id=user_id, code=code)
         record = await result.single()
     if not record:
         return None

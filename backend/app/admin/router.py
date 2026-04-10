@@ -275,7 +275,9 @@ async def activate_user(
 ):
     """Activate a pending user by generating an admin-assigned code."""
     code = f"admin-{uuid.uuid4().hex[:8]}"
-    await create_access_code(db, code=code, label="admin-grant", created_by=admin["user_id"])
+    await create_access_code(
+        db, code=code, label="admin-grant", created_by=admin["user_id"]
+    )
     user = await activate_user_by_admin(db, user_id, code)
     if user is None:
         raise HTTPException(
