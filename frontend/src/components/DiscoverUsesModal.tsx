@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
+import { submitIdea } from '../api/orbs';
 
 interface DiscoverUsesModalProps {
   open: boolean;
@@ -60,6 +61,9 @@ const LINK_USES = [
 
 type Tab = 'mcp' | 'link';
 
+// Persist draft text across modal open/close (clears on page refresh)
+let _ideaDraft = '';
+
 function UseCard({ title, desc, icon }: { title: string; desc: string; icon: string }) {
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-colors">
@@ -80,6 +84,10 @@ export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUses
   const [tab, setTab] = useState<Tab>('mcp');
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [ideaOpen, setIdeaOpen] = useState(_ideaDraft.length > 0);
+  const [ideaText, setIdeaText] = useState(_ideaDraft);
+  const [ideaSending, setIdeaSending] = useState(false);
+  const [ideaSent, setIdeaSent] = useState(false);
 
   const shareUrl = `${window.location.origin}/${orbId}`;
   const mcpUri = `orb://${orbId}`;
@@ -189,19 +197,78 @@ export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUses
             )}
 
             {/* CTA — suggest a use case */}
-            <a
-              href="https://github.com/Brotherhood94/orb_project/issues/new?title=Orbis+use+case+idea&labels=enhancement&body=Describe+how+you+would+use+your+Orbis+with+an+external+service..."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 mt-4 p-3 rounded-xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] hover:bg-yellow-500/[0.06] transition-colors group"
-            >
-              <svg className="w-4 h-4 text-yellow-400/60 group-hover:text-yellow-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-              </svg>
-              <p className="text-xs text-white/40 group-hover:text-white/60 transition-colors">
-                Have another use case in mind? <span className="text-yellow-400/70 group-hover:text-yellow-400">Share your idea</span>
-              </p>
-            </a>
+            <div className="mt-4">
+              {!ideaOpen && !ideaSent && (
+                <button
+                  onClick={() => setIdeaOpen(true)}
+                  className="flex items-center gap-2 w-full p-3 rounded-xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] hover:bg-yellow-500/[0.06] transition-colors group animate-pulse cursor-pointer"
+                >
+                  <svg className="w-4 h-4 text-yellow-400/60 group-hover:text-yellow-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  <p className="text-xs text-yellow-400/70 group-hover:text-yellow-400 transition-colors">
+                    Have another use case in mind?
+                  </p>
+                </button>
+              )}
+              {ideaOpen && !ideaSent && (
+                <div className="p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/[0.03] space-y-2">
+                  <textarea
+                    value={ideaText}
+                    onChange={(e) => { setIdeaText(e.target.value); _ideaDraft = e.target.value; }}
+                    onKeyDown={(e) => {
+                      if (e.shiftKey && e.key === 'Enter') {
+                        e.preventDefault();
+                        if (ideaText.trim() && !ideaSending) {
+                          setIdeaSending(true);
+                          submitIdea(ideaText.trim())
+                            .then(() => { setIdeaSent(true); setIdeaText(''); _ideaDraft = ''; setIdeaOpen(false); })
+                            .catch(() => {})
+                            .finally(() => setIdeaSending(false));
+                        }
+                      }
+                    }}
+                    placeholder="Describe your use case... (Shift+Enter to submit)"
+                    rows={3}
+                    className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-yellow-500/40 resize-none"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => { setIdeaOpen(false); setIdeaText(''); _ideaDraft = ''; }}
+                      className="px-3 py-1.5 text-xs text-white/40 hover:text-white/60 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!ideaText.trim()) return;
+                        setIdeaSending(true);
+                        try {
+                          await submitIdea(ideaText.trim());
+                          setIdeaSent(true);
+                          setIdeaText('');
+                          _ideaDraft = '';
+                          setIdeaOpen(false);
+                        } catch { /* ignore */ }
+                        setIdeaSending(false);
+                      }}
+                      disabled={!ideaText.trim() || ideaSending}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 disabled:opacity-40 transition-all"
+                    >
+                      {ideaSending ? 'Sending...' : 'Submit'}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {ideaSent && (
+                <div className="flex items-center gap-2 p-3 rounded-xl border border-green-500/20 bg-green-500/[0.03]">
+                  <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <p className="text-xs text-green-300/70">Thanks for sharing!</p>
+                </div>
+              )}
+            </div>
           </motion.div>
         </div>
       )}

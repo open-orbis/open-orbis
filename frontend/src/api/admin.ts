@@ -168,3 +168,21 @@ export async function demoteUser(userId: string): Promise<AdminUser> {
 export async function deleteUser(userId: string): Promise<void> {
   await client.delete(`/admin/users/${userId}`);
 }
+
+// ── Ideas ──
+
+export interface Idea {
+  idea_id: string;
+  user_id: string;
+  text: string;
+  created_at: string;
+}
+
+export async function listIdeas(): Promise<Idea[]> {
+  const { data } = await client.get<Idea[]>('/admin/ideas');
+  return data;
+}
+
+export async function deleteIdea(ideaId: string): Promise<void> {
+  await client.delete(`/admin/ideas/${ideaId}`);
+}

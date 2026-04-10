@@ -146,3 +146,7 @@ export async function restoreVersion(snapshotId: string): Promise<void> {
 export async function deleteVersion(snapshotId: string): Promise<void> {
   await client.delete(`/orbs/me/versions/${snapshotId}`);
 }
+
+export async function submitIdea(text: string): Promise<void> {
+  await client.post('/ideas', { text });
+}

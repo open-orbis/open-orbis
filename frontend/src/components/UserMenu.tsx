@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useAuthStore } from '../stores/authStore';
@@ -22,6 +22,8 @@ export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: 
   const { user, logout } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const navigate = useNavigate();
+  const location = useLocation();
+  const onAdminPage = location.pathname === '/admin';
   const [open, setOpen] = useState(false);
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [showCVs, setShowCVs] = useState(false);
@@ -127,18 +129,22 @@ export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: 
             {user.is_admin && (
               <div className="px-1 pb-1">
                 <button
-                  onClick={() => { setOpen(false); navigate('/admin'); }}
+                  onClick={() => { setOpen(false); navigate(onAdminPage ? '/myorbis' : '/admin'); }}
                   className="group w-full h-10 flex items-center gap-3 px-2.5 rounded-lg text-sm text-purple-400/80 hover:bg-white/8 hover:text-purple-300 transition-colors cursor-pointer"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                    {onAdminPage ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7.5 10.5a3 3 0 11-6 0 3 3 0 016 0zm15 0a3 3 0 11-6 0 3 3 0 016 0zm-7.5 9a3 3 0 11-6 0 3 3 0 016 0zM7.5 10.5l4.5 6m4.5-6l-4.5 6" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                    )}
                   </svg>
-                  <span className="flex-1 text-left">Admin Dashboard</span>
+                  <span className="flex-1 text-left">{onAdminPage ? 'My Orbis' : 'Admin Dashboard'}</span>
                 </button>
               </div>
             )}
 
-            <div className="px-1 pb-1">
+            {!onAdminPage && <div className="px-1 pb-1">
               <p className="text-[10px] uppercase tracking-[0.14em] text-white/30 font-semibold px-2">Account</p>
               <div className="mt-1 space-y-1">
                 <button
@@ -169,9 +175,9 @@ export default function UserMenu({ orbId, onOrbIdChanged, label, onStartTour }: 
                   </svg>
                 </button>
               </div>
-            </div>
+            </div>}
 
-            {showCVs && (
+            {!onAdminPage && showCVs && (
               <div className="mx-1 mb-2 rounded-xl border border-white/10 bg-white/[0.02] p-2">
                 {docsLoading ? (
                   <p className="text-white/35 text-xs px-1 py-2">Loading uploaded CVs...</p>

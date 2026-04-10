@@ -16,6 +16,7 @@ from app.drafts.db import delete_all_for_user as delete_user_drafts
 from app.drafts.router import router as drafts_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
+from app.ideas.router import router as ideas_router
 from app.notes.router import router as notes_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
@@ -121,6 +122,7 @@ app.include_router(notes_router)
 app.include_router(drafts_router)
 app.include_router(search_router)
 app.include_router(admin_router)
+app.include_router(ideas_router)
 
 
 @app.get("/health")
