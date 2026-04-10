@@ -31,7 +31,6 @@ class ExtractedProfile(BaseModel):
     twitter_url: str | None = None
     website_url: str | None = None
     scholar_url: str | None = None
-    orcid_url: str | None = None
 
 
 class ExtractedData(BaseModel):

@@ -38,7 +38,6 @@ Extract the following about the CV owner (all optional, include only if found):
 - twitter_url: X/Twitter profile URL
 - website_url: personal website URL
 - scholar_url: Google Scholar URL
-- orcid_url: ORCID URL (https://orcid.org/...)
 
 For the headline: if no explicit tagline is given, infer it from the most recent job title
 and company (e.g. "Postdoc Researcher @ University of Pisa").
@@ -123,9 +122,9 @@ You MUST return valid JSON in exactly this format:
   "phone": "+1234567890",
   "linkedin_url": "https://linkedin.com/in/...",
   "github_url": "https://github.com/...",
+  "twitter_url": "https://x.com/...",
   "website_url": "https://...",
   "scholar_url": "https://scholar.google.com/...",
-  "orcid_url": "https://orcid.org/...",
   "nodes": [
     {"node_type": "work_experience", "properties": {"company": "...", "title": "...", ...}},
     {"node_type": "skill", "properties": {"name": "Python", "category": "Programming"}},
@@ -448,7 +447,6 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
         "twitter_url",
         "website_url",
         "scholar_url",
-        "orcid_url",
     ]
     profile = {k: parsed[k] for k in profile_keys if parsed.get(k)}
     profile = profile if profile else None
