@@ -42,6 +42,11 @@ class ExtractedData(BaseModel):
     cv_owner_name: str | None = None
     profile: ExtractedProfile | None = None
     document_id: str | None = None
+    # Provenance metadata
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    extraction_method: str | None = None
+    prompt_hash: str | None = None
 
 
 class ExtractionMetadata(BaseModel):
@@ -63,3 +68,9 @@ class ConfirmRequest(BaseModel):
     original_filename: str | None = None
     file_size_bytes: int | None = None
     page_count: int | None = None
+    # Provenance metadata
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    extraction_method: str | None = None
+    prompt_hash: str | None = None
+    prompt_content: str | None = None

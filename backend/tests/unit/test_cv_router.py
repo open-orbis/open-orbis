@@ -14,6 +14,7 @@ def test_upload_cv_success(mock_counter, mock_classify, mock_pdf_extract, client
         relationships=[],
         truncated=False,
         cv_owner_name="Test User",
+        metadata=None,
     )
 
     file_content = b"%PDF-1.4 test content"

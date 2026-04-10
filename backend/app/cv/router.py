@@ -135,6 +135,10 @@ async def upload_cv(
             cv_owner_name=result.cv_owner_name,
             profile=extracted_profile,
             document_id=document_id,
+            llm_provider=result.metadata.llm_provider if result.metadata else None,
+            llm_model=result.metadata.llm_model if result.metadata else None,
+            extraction_method=result.metadata.extraction_method if result.metadata else None,
+            prompt_hash=result.metadata.prompt_hash if result.metadata else None,
         )
 
     except HTTPException:
@@ -277,6 +281,10 @@ async def import_document(
             cv_owner_name=result.cv_owner_name,
             profile=extracted_profile,
             document_id=document_id,
+            llm_provider=result.metadata.llm_provider if result.metadata else None,
+            llm_model=result.metadata.llm_model if result.metadata else None,
+            extraction_method=result.metadata.extraction_method if result.metadata else None,
+            prompt_hash=result.metadata.prompt_hash if result.metadata else None,
         )
     except HTTPException:
         raise

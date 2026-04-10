@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.cv.models import ExtractionMetadata
+from app.cv.models import ConfirmRequest, ExtractedData, ExtractedNode, ExtractionMetadata
 from app.cv.ollama_classifier import classify_entries, SYSTEM_PROMPT
 
 
@@ -90,3 +90,28 @@ async def test_classify_entries_metadata_fallback_rule_based():
         assert result.metadata.llm_provider == "rule_based"
         assert result.metadata.llm_model == "rule_based_parser"
         assert result.metadata.extraction_method == "fallback_rule_based"
+
+
+def test_extracted_data_carries_metadata():
+    data = ExtractedData(
+        nodes=[ExtractedNode(node_type="skill", properties={"name": "Python"})],
+        llm_provider="claude",
+        llm_model="claude-opus-4-6",
+        extraction_method="primary",
+        prompt_hash="abc123",
+    )
+    assert data.llm_provider == "claude"
+    assert data.llm_model == "claude-opus-4-6"
+
+
+def test_confirm_request_carries_metadata():
+    req = ConfirmRequest(
+        nodes=[ExtractedNode(node_type="skill", properties={"name": "Python"})],
+        llm_provider="claude",
+        llm_model="claude-opus-4-6",
+        extraction_method="primary",
+        prompt_hash="abc123",
+        prompt_content="You are a CV parser...",
+    )
+    assert req.llm_provider == "claude"
+    assert req.prompt_content == "You are a CV parser..."
