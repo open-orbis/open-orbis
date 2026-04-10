@@ -84,7 +84,7 @@ function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: {
             onClick={onCancel}
             className="text-sm text-white/50 hover:text-white/70 px-4 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
           >
-            Annulla
+            Cancel
           </button>
           <button
             onClick={onConfirm}
@@ -163,7 +163,7 @@ export default function AdminPage() {
       setUsers(u);
       setError(null);
     } catch {
-      setError('Errore nel caricamento dei dati.');
+      setError('Error loading data.');
     } finally {
       setLoading(false);
     }
@@ -179,19 +179,19 @@ export default function AdminPage() {
     const turning = stats.invite_code_required ? 'off' : 'on';
     setConfirmAction({
       title: turning === 'off'
-        ? 'Disattivare il codice invito?'
-        : 'Attivare il codice invito?',
+        ? 'Disable invite code requirement?'
+        : 'Enable invite code requirement?',
       message: turning === 'off'
-        ? 'Tutti gli utenti potranno accedere alla piattaforma senza codice. Sei sicuro di voler aprire la piattaforma a tutti?'
-        : 'Gli utenti non ancora attivati dovranno inserire un codice di invito per accedere alla piattaforma.',
-      confirmLabel: turning === 'off' ? 'Apri la piattaforma' : 'Richiedi codice',
+        ? 'All users will be able to access the platform without a code. Are you sure you want to open the platform to everyone?'
+        : 'Unactivated users will need to enter an invite code to access the platform.',
+      confirmLabel: turning === 'off' ? 'Open platform' : 'Require code',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await updateBetaConfig({ invite_code_required: !stats.invite_code_required });
           await refresh();
         } catch {
-          setError('Errore nel toggle.');
+          setError('Error toggling setting.');
         }
       },
     });
@@ -206,7 +206,7 @@ export default function AdminPage() {
       setNewLabel('');
       await refresh();
     } catch {
-      setError('Errore nella creazione del codice.');
+      setError('Error creating code.');
     } finally {
       setCreating(false);
     }
@@ -222,7 +222,7 @@ export default function AdminPage() {
       setBatchLabel('');
       await refresh();
     } catch {
-      setError('Errore nella creazione batch.');
+      setError('Error creating batch.');
     } finally {
       setBatchCreating(false);
     }
@@ -230,18 +230,18 @@ export default function AdminPage() {
 
   const handleToggleCode = (code: string, active: boolean) => {
     setConfirmAction({
-      title: active ? 'Attivare codice?' : 'Disattivare codice?',
+      title: active ? 'Enable code?' : 'Disable code?',
       message: active
-        ? `Il codice "${code}" tornerà utilizzabile.`
-        : `Il codice "${code}" non potrà essere utilizzato finché non verrà riattivato.`,
-      confirmLabel: active ? 'Attiva' : 'Disattiva',
+        ? `Code "${code}" will become usable again.`
+        : `Code "${code}" will not be usable until re-enabled.`,
+      confirmLabel: active ? 'Enable' : 'Disable',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await toggleAccessCode(code, active);
           await refresh();
         } catch {
-          setError('Errore nel toggle del codice.');
+          setError('Error toggling code.');
         }
       },
     });
@@ -249,16 +249,16 @@ export default function AdminPage() {
 
   const handleDeleteCode = (code: string) => {
     setConfirmAction({
-      title: 'Eliminare codice?',
-      message: `Il codice "${code}" verrà eliminato permanentemente.`,
-      confirmLabel: 'Elimina',
+      title: 'Delete code?',
+      message: `Code "${code}" will be permanently deleted.`,
+      confirmLabel: 'Delete',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await deleteAccessCode(code);
           await refresh();
         } catch {
-          setError('Errore nella cancellazione del codice.');
+          setError('Error deleting code.');
         }
       },
     });
@@ -267,9 +267,9 @@ export default function AdminPage() {
   const handleBatchDeleteCodes = () => {
     if (selectedCodes.size === 0) return;
     setConfirmAction({
-      title: `Eliminare ${selectedCodes.size} codici?`,
-      message: 'Tutti i codici selezionati verranno eliminati permanentemente.',
-      confirmLabel: `Elimina ${selectedCodes.size}`,
+      title: `Delete ${selectedCodes.size} codes?`,
+      message: 'All selected codes will be permanently deleted.',
+      confirmLabel: `Delete ${selectedCodes.size}`,
       onConfirm: async () => {
         setConfirmAction(null);
         const deleted: string[] = [];
@@ -279,7 +279,7 @@ export default function AdminPage() {
             await deleteAccessCode(code);
             deleted.push(code);
           } catch (err: unknown) {
-            let reason = 'Errore sconosciuto';
+            let reason = 'Unknown error';
             if (err && typeof err === 'object' && 'response' in err) {
               const resp = (err as { response?: { data?: { detail?: string } } }).response;
               if (resp?.data?.detail) reason = resp.data.detail;
@@ -289,7 +289,7 @@ export default function AdminPage() {
         }
         setSelectedCodes(new Set());
         await refresh();
-        setBatchReport({ title: 'Risultato eliminazione codici', deleted, failed });
+        setBatchReport({ title: 'Code deletion results', deleted, failed });
       },
     });
   };
@@ -313,16 +313,16 @@ export default function AdminPage() {
 
   const handleActivateUser = (userId: string, userName: string) => {
     setConfirmAction({
-      title: 'Attivare utente?',
-      message: `Verrà generato un codice invito e assegnato automaticamente a ${userName || userId}.`,
-      confirmLabel: 'Attiva',
+      title: 'Activate user?',
+      message: `An invite code will be generated and automatically assigned to ${userName || userId}.`,
+      confirmLabel: 'Activate',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await activateUser(userId);
           await refresh();
         } catch {
-          setError("Errore nell'attivazione dell'utente.");
+          setError('Error activating user.');
         }
       },
     });
@@ -334,9 +334,9 @@ export default function AdminPage() {
     );
     if (pending.length === 0) return;
     setConfirmAction({
-      title: `Attivare ${pending.length} utenti?`,
-      message: 'Verrà generato un codice invito per ciascun utente selezionato.',
-      confirmLabel: `Attiva ${pending.length}`,
+      title: `Activate ${pending.length} users?`,
+      message: 'An invite code will be generated for each selected user.',
+      confirmLabel: `Activate ${pending.length}`,
       onConfirm: async () => {
         setConfirmAction(null);
         try {
@@ -344,7 +344,7 @@ export default function AdminPage() {
           setSelectedUsers(new Set());
           await refresh();
         } catch {
-          setError("Errore nell'attivazione batch.");
+          setError('Error in batch activation.');
         }
       },
     });
@@ -353,9 +353,9 @@ export default function AdminPage() {
   const handleBatchDelete = () => {
     if (selectedUsers.size === 0) return;
     setConfirmAction({
-      title: `Eliminare ${selectedUsers.size} utenti?`,
-      message: 'Tutti gli account selezionati e i loro dati verranno eliminati permanentemente. Questa azione è irreversibile.',
-      confirmLabel: `Elimina ${selectedUsers.size}`,
+      title: `Delete ${selectedUsers.size} users?`,
+      message: 'All selected accounts and their data will be permanently deleted. This action is irreversible.',
+      confirmLabel: `Delete ${selectedUsers.size}`,
       onConfirm: async () => {
         setConfirmAction(null);
         const deleted: string[] = [];
@@ -367,12 +367,12 @@ export default function AdminPage() {
             await deleteUser(uid);
             deleted.push(name);
           } catch (err: unknown) {
-            let reason = 'Errore sconosciuto';
+            let reason = 'Unknown error';
             if (err && typeof err === 'object' && 'response' in err) {
               const resp = (err as { response?: { data?: { detail?: string } } }).response;
               if (resp?.data?.detail) {
                 reason = resp.data.detail === 'Cannot delete yourself'
-                  ? 'Non puoi eliminare te stesso'
+                  ? 'Cannot delete yourself'
                   : resp.data.detail;
               }
             }
@@ -382,7 +382,7 @@ export default function AdminPage() {
         setSelectedUsers(new Set());
         await refresh();
         setBatchReport({
-          title: 'Risultato eliminazione',
+          title: 'Deletion results',
           deleted,
           failed,
         });
@@ -392,16 +392,16 @@ export default function AdminPage() {
 
   const handlePromoteUser = (userId: string, userName: string) => {
     setConfirmAction({
-      title: 'Promuovere ad admin?',
-      message: `${userName || userId} avrà accesso completo alla dashboard di amministrazione.`,
-      confirmLabel: 'Promuovi',
+      title: 'Promote to admin?',
+      message: `${userName || userId} will have full access to the admin dashboard.`,
+      confirmLabel: 'Promote',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await promoteUser(userId);
           await refresh();
         } catch {
-          setError('Errore nella promozione.');
+          setError('Error promoting user.');
         }
       },
     });
@@ -409,16 +409,16 @@ export default function AdminPage() {
 
   const handleDemoteUser = (userId: string, userName: string) => {
     setConfirmAction({
-      title: 'Revocare admin?',
-      message: `${userName || userId} perderà i privilegi di amministrazione.`,
-      confirmLabel: 'Revoca',
+      title: 'Revoke admin?',
+      message: `${userName || userId} will lose admin privileges.`,
+      confirmLabel: 'Revoke',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await demoteUser(userId);
           await refresh();
         } catch {
-          setError('Errore nella revoca.');
+          setError('Error revoking admin.');
         }
       },
     });
@@ -426,9 +426,9 @@ export default function AdminPage() {
 
   const handleDeleteUser = (userId: string, userName: string) => {
     setConfirmAction({
-      title: 'Eliminare utente?',
-      message: `L'account di ${userName || userId} e tutti i suoi dati verranno eliminati permanentemente. Questa azione è irreversibile.`,
-      confirmLabel: 'Elimina definitivamente',
+      title: 'Delete user?',
+      message: `The account of ${userName || userId} and all their data will be permanently deleted. This action is irreversible.`,
+      confirmLabel: 'Delete permanently',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
@@ -437,7 +437,7 @@ export default function AdminPage() {
           setUserDetail(null);
           await refresh();
         } catch {
-          setError("Errore nell'eliminazione dell'utente.");
+          setError('Error deleting user.');
         }
       },
     });
@@ -449,7 +449,7 @@ export default function AdminPage() {
       setUserDetail(detail);
       setShowDetail(true);
     } catch {
-      setError('Errore nel caricamento dei dettagli utente.');
+      setError('Error loading user details.');
     }
   };
 
@@ -522,14 +522,14 @@ export default function AdminPage() {
                     : 'bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500/20'
                 }`}
               >
-                {stats.invite_code_required ? 'Codice invito: OBBLIGATORIO' : 'Piattaforma: APERTA A TUTTI'}
+                {stats.invite_code_required ? 'Invite code: REQUIRED' : 'Platform: OPEN TO ALL'}
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Utenti registrati" value={stats.registered} />
-              <StatCard label="In attesa di codice" value={stats.pending_activation} />
-              <StatCard label="Codici disponibili" value={stats.invite_codes.available} sub={`${stats.invite_codes.used} usati su ${stats.invite_codes.total}`} />
-              <StatCard label="Codici totali" value={stats.invite_codes.total} />
+              <StatCard label="Registered users" value={stats.registered} />
+              <StatCard label="Pending activation" value={stats.pending_activation} />
+              <StatCard label="Available codes" value={stats.invite_codes.available} sub={`${stats.invite_codes.used} used of ${stats.invite_codes.total}`} />
+              <StatCard label="Total codes" value={stats.invite_codes.total} />
             </div>
           </motion.div>
         )}
@@ -542,7 +542,7 @@ export default function AdminPage() {
               tab === 'codes' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
             }`}
           >
-            Codici invito ({codes.length})
+            Invite codes ({codes.length})
           </button>
           <button
             onClick={() => setTab('pending')}
@@ -558,7 +558,7 @@ export default function AdminPage() {
               tab === 'users' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
             }`}
           >
-            Utenti ({users.length})
+            Users ({users.length})
           </button>
         </div>
 
@@ -567,22 +567,22 @@ export default function AdminPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {/* Create single */}
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-4">
-              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-3">Crea codice singolo</h3>
+              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-3">Create single code</h3>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input type="text" value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Codice (es. invito-mario)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
-                <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (opz.)" className="sm:w-40 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
-                <button onClick={handleCreateCode} disabled={creating || !newCode.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{creating ? '...' : 'Crea'}</button>
+                <input type="text" value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Code (e.g. invite-john)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (opt.)" className="sm:w-40 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <button onClick={handleCreateCode} disabled={creating || !newCode.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{creating ? '...' : 'Create'}</button>
               </div>
             </div>
 
             {/* Create batch */}
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-4">
-              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-3">Genera codici in batch</h3>
+              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-3">Generate batch codes</h3>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input type="text" value={batchPrefix} onChange={(e) => setBatchPrefix(e.target.value)} placeholder="Prefisso (es. launch)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <input type="text" value={batchPrefix} onChange={(e) => setBatchPrefix(e.target.value)} placeholder="Prefix (e.g. launch)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
                 <input type="number" value={batchCount} onChange={(e) => setBatchCount(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={500} className="sm:w-24 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none" />
-                <input type="text" value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="Label (opz.)" className="sm:w-36 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
-                <button onClick={handleCreateBatch} disabled={batchCreating || !batchPrefix.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{batchCreating ? '...' : `Genera ${batchCount}`}</button>
+                <input type="text" value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="Label (opt.)" className="sm:w-36 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <button onClick={handleCreateBatch} disabled={batchCreating || !batchPrefix.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{batchCreating ? '...' : `Generate ${batchCount}`}</button>
               </div>
             </div>
 
@@ -590,7 +590,7 @@ export default function AdminPage() {
             <div className="flex gap-2 mb-3">
               {(['all', 'available', 'used'] as const).map((f) => (
                 <button key={f} onClick={() => setCodeFilter(f)} className={`text-xs px-3 py-1 rounded-md border transition-colors ${codeFilter === f ? 'bg-white/[0.08] border-white/[0.15] text-white' : 'border-white/[0.06] text-white/30 hover:text-white/50'}`}>
-                  {f === 'all' ? `Tutti (${codes.length})` : f === 'available' ? `Disponibili (${codes.filter((c) => !c.used_at && c.active).length})` : `Usati (${codes.filter((c) => c.used_at).length})`}
+                  {f === 'all' ? `All (${codes.length})` : f === 'available' ? `Available (${codes.filter((c) => !c.used_at && c.active).length})` : `Used (${codes.filter((c) => c.used_at).length})`}
                 </button>
               ))}
             </div>
@@ -612,23 +612,23 @@ export default function AdminPage() {
                           className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-purple-500"
                         />
                       </th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Codice</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Code</th>
                       <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Label</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Stato</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Usato da</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Creato</th>
-                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Azioni</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Status</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Used by</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Created</th>
+                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Actions</th>
                     </tr>
                     {selectedCodes.size > 0 && (
                       <tr className="border-b border-purple-500/20 bg-purple-500/[0.06]">
                         <td colSpan={7} className="px-4 py-2">
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-purple-300">{selectedCodes.size} selezionati</span>
+                            <span className="text-sm text-purple-300">{selectedCodes.size} selected</span>
                             <button
                               onClick={handleBatchDeleteCodes}
                               className="text-xs bg-red-600 hover:bg-red-500 text-white font-medium px-3 py-1 rounded-md transition-colors"
                             >
-                              Elimina selezionati
+                              Delete selected
                             </button>
                           </div>
                         </td>
@@ -637,7 +637,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {filteredCodes.length === 0 && (
-                      <tr><td colSpan={7} className="text-center text-white/20 py-8">Nessun codice trovato.</td></tr>
+                      <tr><td colSpan={7} className="text-center text-white/20 py-8">No codes found.</td></tr>
                     )}
                     {filteredCodes.map((c) => (
                       <tr key={c.code} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
@@ -650,18 +650,18 @@ export default function AdminPage() {
                           />
                         </td>
                         <td className="px-4 py-2.5 font-mono text-xs text-purple-300">
-                          <button onClick={() => handleCopy(c.code)} title="Copia codice" className="hover:text-purple-200 transition-colors">
-                            {copiedCode === c.code ? <span className="text-green-400">Copiato!</span> : c.code}
+                          <button onClick={() => handleCopy(c.code)} title="Copy code" className="hover:text-purple-200 transition-colors">
+                            {copiedCode === c.code ? <span className="text-green-400">Copied!</span> : c.code}
                           </button>
                         </td>
                         <td className="px-4 py-2.5 text-white/40">{c.label || '—'}</td>
                         <td className="px-4 py-2.5">
                           {c.used_at ? (
-                            <span className="text-xs bg-white/[0.06] text-white/40 px-2 py-0.5 rounded-md">usato</span>
+                            <span className="text-xs bg-white/[0.06] text-white/40 px-2 py-0.5 rounded-md">used</span>
                           ) : c.active ? (
-                            <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">disponibile</span>
+                            <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">available</span>
                           ) : (
-                            <span className="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-md">disattivato</span>
+                            <span className="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-md">disabled</span>
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-white/30 text-xs font-mono">{c.used_by || '—'}</td>
@@ -669,9 +669,9 @@ export default function AdminPage() {
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1">
                             {!c.used_at && (
-                              <button onClick={() => handleToggleCode(c.code, !c.active)} className="text-xs text-white/30 hover:text-white/60 px-2 py-1 rounded transition-colors">{c.active ? 'Disattiva' : 'Attiva'}</button>
+                              <button onClick={() => handleToggleCode(c.code, !c.active)} className="text-xs text-white/30 hover:text-white/60 px-2 py-1 rounded transition-colors">{c.active ? 'Disable' : 'Enable'}</button>
                             )}
-                            <button onClick={() => handleDeleteCode(c.code)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Elimina</button>
+                            <button onClick={() => handleDeleteCode(c.code)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Delete</button>
                           </div>
                         </td>
                       </tr>
@@ -691,16 +691,16 @@ export default function AdminPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.06]">
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Nome</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Name</th>
                       <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Email</th>
                       <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Provider</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Registrato il</th>
-                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Azioni</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Registered on</th>
+                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pendingUsers.length === 0 && (
-                      <tr><td colSpan={5} className="text-center text-white/20 py-8">Nessun utente in attesa di attivazione.</td></tr>
+                      <tr><td colSpan={5} className="text-center text-white/20 py-8">No users pending activation.</td></tr>
                     )}
                     {pendingUsers.map((u) => (
                       <tr key={u.user_id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
@@ -710,8 +710,8 @@ export default function AdminPage() {
                         <td className="px-4 py-2.5 text-white/30 text-xs">{formatDate(u.created_at)}</td>
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Attiva</button>
-                            <button onClick={() => handleDeleteUser(u.user_id, u.name)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Elimina</button>
+                            <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Activate</button>
+                            <button onClick={() => handleDeleteUser(u.user_id, u.name)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Delete</button>
                           </div>
                         </td>
                       </tr>
@@ -732,7 +732,7 @@ export default function AdminPage() {
                 type="text"
                 value={userSearch}
                 onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="Cerca per nome, email o ID..."
+                placeholder="Search by name, email or ID..."
                 className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20"
               />
               <div className="flex gap-2">
@@ -746,7 +746,7 @@ export default function AdminPage() {
                         : 'border-white/[0.06] text-white/30 hover:text-white/50'
                     }`}
                   >
-                    {f === 'all' ? 'Tutti' : f === 'active' ? 'Attivi' : f === 'pending' ? 'In attesa' : 'Admin'}
+                    {f === 'all' ? 'All' : f === 'active' ? 'Active' : f === 'pending' ? 'Pending' : 'Admin'}
                   </button>
                 ))}
               </div>
@@ -769,32 +769,32 @@ export default function AdminPage() {
                           className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-purple-500"
                         />
                       </th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Nome</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Name</th>
                       <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Email</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Stato</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Codice</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Status</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Code</th>
                       <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Provider</th>
-                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Registrato</th>
-                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Azioni</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Registered</th>
+                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Actions</th>
                     </tr>
                     {selectedUsers.size > 0 && (
                       <tr className="border-b border-purple-500/20 bg-purple-500/[0.06]">
                         <td colSpan={8} className="px-4 py-2">
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-purple-300">{selectedUsers.size} selezionati</span>
+                            <span className="text-sm text-purple-300">{selectedUsers.size} selected</span>
                             {hasPendingSelected && (
                               <button
                                 onClick={handleBatchActivate}
                                 className="text-xs bg-green-600 hover:bg-green-500 text-white font-medium px-3 py-1 rounded-md transition-colors"
                               >
-                                Attiva selezionati
+                                Activate selected
                               </button>
                             )}
                             <button
                               onClick={handleBatchDelete}
                               className="text-xs bg-red-600 hover:bg-red-500 text-white font-medium px-3 py-1 rounded-md transition-colors"
                             >
-                              Elimina selezionati
+                              Delete selected
                             </button>
                           </div>
                         </td>
@@ -803,7 +803,7 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {filteredUsers.length === 0 && (
-                      <tr><td colSpan={8} className="text-center text-white/20 py-8">Nessun utente trovato.</td></tr>
+                      <tr><td colSpan={8} className="text-center text-white/20 py-8">No users found.</td></tr>
                     )}
                     {filteredUsers.map((u) => {
                       const isPending = !u.signup_code && !u.is_admin;
@@ -830,9 +830,9 @@ export default function AdminPage() {
                             {u.is_admin ? (
                               <span className="text-xs bg-purple-500/15 text-purple-400 px-2 py-0.5 rounded-md">admin</span>
                             ) : u.signup_code ? (
-                              <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">attivo</span>
+                              <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">active</span>
                             ) : (
-                              <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md">in attesa</span>
+                              <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md">pending</span>
                             )}
                           </td>
                           <td className="px-4 py-2.5 text-white/30 font-mono text-xs">{u.signup_code || '—'}</td>
@@ -841,14 +841,14 @@ export default function AdminPage() {
                           <td className="px-4 py-2.5 text-right">
                             <div className="flex items-center justify-end gap-1">
                               {isPending && (
-                                <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Attiva</button>
+                                <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Activate</button>
                               )}
                               {!u.is_admin ? (
                                 <button onClick={() => handlePromoteUser(u.user_id, u.name)} className="text-xs text-purple-400/70 hover:text-purple-400 px-2 py-1 rounded transition-colors">Admin</button>
                               ) : (
-                                <button onClick={() => handleDemoteUser(u.user_id, u.name)} className="text-xs text-amber-400/70 hover:text-amber-400 px-2 py-1 rounded transition-colors">Revoca</button>
+                                <button onClick={() => handleDemoteUser(u.user_id, u.name)} className="text-xs text-amber-400/70 hover:text-amber-400 px-2 py-1 rounded transition-colors">Revoke</button>
                               )}
-                              <button onClick={() => handleDeleteUser(u.user_id, u.name)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Elimina</button>
+                              <button onClick={() => handleDeleteUser(u.user_id, u.name)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Delete</button>
                             </div>
                           </td>
                         </tr>
@@ -906,36 +906,36 @@ export default function AdminPage() {
                   <div className="text-white/70">{userDetail.provider}</div>
                 </div>
                 <div className="bg-white/[0.03] rounded-lg p-3">
-                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Stato</div>
+                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Status</div>
                   <div>
                     {userDetail.is_admin ? (
                       <span className="text-xs bg-purple-500/15 text-purple-400 px-2 py-0.5 rounded-md">admin</span>
                     ) : userDetail.signup_code ? (
-                      <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">attivo</span>
+                      <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">active</span>
                     ) : (
-                      <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md">in attesa</span>
+                      <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md">pending</span>
                     )}
                   </div>
                 </div>
                 <div className="bg-white/[0.03] rounded-lg p-3">
-                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Nodi nel grafo</div>
+                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Graph nodes</div>
                   <div className="text-white text-lg font-bold">{userDetail.node_count}</div>
                 </div>
                 <div className="bg-white/[0.03] rounded-lg p-3">
                   <div className="text-white/40 text-xs uppercase tracking-wider mb-1">GDPR</div>
-                  <div className="text-white/70">{userDetail.gdpr_consent ? 'Consenso dato' : 'Non dato'}</div>
+                  <div className="text-white/70">{userDetail.gdpr_consent ? 'Consent given' : 'Not given'}</div>
                 </div>
                 <div className="bg-white/[0.03] rounded-lg p-3">
-                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Registrato</div>
+                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Registered</div>
                   <div className="text-white/70 text-xs">{formatDate(userDetail.created_at)}</div>
                 </div>
                 <div className="bg-white/[0.03] rounded-lg p-3">
-                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Attivato</div>
+                  <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Activated</div>
                   <div className="text-white/70 text-xs">{formatDate(userDetail.activated_at)}</div>
                 </div>
                 {userDetail.signup_code && (
                   <div className="bg-white/[0.03] rounded-lg p-3 col-span-2">
-                    <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Codice usato</div>
+                    <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Code used</div>
                     <div className="text-purple-300 font-mono text-xs">{userDetail.signup_code}</div>
                   </div>
                 )}
@@ -953,7 +953,7 @@ export default function AdminPage() {
                 )}
                 {userDetail.deletion_requested_at && (
                   <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 col-span-2">
-                    <div className="text-red-400 text-xs uppercase tracking-wider mb-1">Cancellazione richiesta</div>
+                    <div className="text-red-400 text-xs uppercase tracking-wider mb-1">Deletion requested</div>
                     <div className="text-red-300 text-xs">{formatDate(userDetail.deletion_requested_at)}</div>
                   </div>
                 )}
@@ -966,7 +966,7 @@ export default function AdminPage() {
                     onClick={() => { setShowDetail(false); handleActivateUser(userDetail.user_id, userDetail.name); }}
                     className="text-xs bg-green-600 hover:bg-green-500 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    Attiva
+                    Activate
                   </button>
                 )}
                 {!userDetail.is_admin ? (
@@ -974,21 +974,21 @@ export default function AdminPage() {
                     onClick={() => { setShowDetail(false); handlePromoteUser(userDetail.user_id, userDetail.name); }}
                     className="text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    Promuovi admin
+                    Promote to admin
                   </button>
                 ) : (
                   <button
                     onClick={() => { setShowDetail(false); handleDemoteUser(userDetail.user_id, userDetail.name); }}
                     className="text-xs bg-amber-600 hover:bg-amber-500 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    Revoca admin
+                    Revoke admin
                   </button>
                 )}
                 <button
                   onClick={() => { setShowDetail(false); handleDeleteUser(userDetail.user_id, userDetail.name); }}
                   className="text-xs bg-red-600 hover:bg-red-500 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"
                 >
-                  Elimina utente
+                  Delete user
                 </button>
               </div>
             </motion.div>
@@ -1018,7 +1018,7 @@ export default function AdminPage() {
               {batchReport.deleted.length > 0 && (
                 <div className="mb-4">
                   <div className="text-green-400 text-xs uppercase tracking-wider font-medium mb-2">
-                    Eliminati ({batchReport.deleted.length})
+                    Deleted ({batchReport.deleted.length})
                   </div>
                   <ul className="space-y-1">
                     {batchReport.deleted.map((name) => (
@@ -1033,7 +1033,7 @@ export default function AdminPage() {
               {batchReport.failed.length > 0 && (
                 <div className="mb-4">
                   <div className="text-red-400 text-xs uppercase tracking-wider font-medium mb-2">
-                    Non eliminati ({batchReport.failed.length})
+                    Not deleted ({batchReport.failed.length})
                   </div>
                   <ul className="space-y-1">
                     {batchReport.failed.map((f) => (
@@ -1054,7 +1054,7 @@ export default function AdminPage() {
                   onClick={() => setBatchReport(null)}
                   className="text-sm bg-white/[0.06] hover:bg-white/[0.1] text-white/70 font-medium px-4 py-2 rounded-lg transition-colors"
                 >
-                  Chiudi
+                  Close
                 </button>
               </div>
             </motion.div>
