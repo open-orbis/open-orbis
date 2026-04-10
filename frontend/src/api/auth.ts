@@ -7,6 +7,7 @@ export interface UserInfo {
   picture?: string;
   profile_image?: string;
   gdpr_consent: boolean;
+  is_admin: boolean;
   deletion_requested_at?: string | null;
   deletion_days_remaining?: number | null;
 }

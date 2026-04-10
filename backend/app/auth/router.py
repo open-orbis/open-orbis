@@ -236,6 +236,7 @@ async def get_me(
             picture=person.get("picture", ""),
             profile_image=person.get("profile_image", ""),
             gdpr_consent=bool(person.get("gdpr_consent", False)),
+            is_admin=bool(person.get("is_admin", False)),
             deletion_requested_at=str(deletion_at) if deletion_at else None,
             deletion_days_remaining=days_left,
         )

@@ -14,6 +14,8 @@ import CvExportPage from './pages/CvExportPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
+import AdminPage from './pages/AdminPage';
 
 const scrollPositions: Record<string, number> = {};
 
@@ -69,6 +71,7 @@ function AppRoutes() {
       <Route path="/myorbis" element={<ProtectedRoute><OrbViewPage /></ProtectedRoute>} />
       <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
       <Route path="/:orbId" element={<SharedOrbPage />} />
     </Routes>
   );
