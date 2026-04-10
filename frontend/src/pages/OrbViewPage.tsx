@@ -13,6 +13,7 @@ import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
+import DiscoverUsesModal from '../components/DiscoverUsesModal';
 import DraftNotes from '../components/drafts/DraftNotes';
 import ExtractedDataReview from '../components/onboarding/ExtractedDataReview';
 import type { DraftNote } from '../components/drafts/DraftNotes';
@@ -528,6 +529,7 @@ export default function OrbViewPage() {
   const isPendingDeletion = user?.deletion_days_remaining != null;
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showDiscoverUses, setShowDiscoverUses] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [cameraDistance] = useState(getSavedCameraDistance);
@@ -587,11 +589,12 @@ export default function OrbViewPage() {
       }
       if (showProfile) { setShowProfile(false); return; }
       if (showShare) { setShowShare(false); return; }
+      if (showDiscoverUses) { setShowDiscoverUses(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, showProfile, showShare, showDrafts, showToolsMenu]);
+  }, [showInput, showProfile, showShare, showDiscoverUses, showDrafts, showToolsMenu]);
 
   useEffect(() => {
     if (!showToolsMenu) return;
@@ -1321,6 +1324,7 @@ export default function OrbViewPage() {
         onMessagesChange={setChatMessages}
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
+        onDiscover={() => setShowDiscoverUses(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
       />}
@@ -1336,6 +1340,7 @@ export default function OrbViewPage() {
       />
 
       {/* ── Animated Panels ── */}
+      <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
       <AnimatePresence>
         {showShare && <SharePanel key="share" orbId={orbId} onClose={() => setShowShare(false)} />}
       </AnimatePresence>

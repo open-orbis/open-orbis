@@ -19,6 +19,7 @@ interface ChatBoxProps {
   onMessagesChange: (msgs: ChatMessage[]) => void;
   onAdd?: () => void;
   onShare?: () => void;
+  onDiscover?: () => void;
   highlightAdd?: boolean;
   placeholder?: string;
   searchFn?: (query: string) => Promise<OrbNode[]>;
@@ -85,6 +86,7 @@ export default function ChatBox({
   onMessagesChange,
   onAdd,
   onShare,
+  onDiscover,
   highlightAdd,
   placeholder = 'Query your orbis...',
   searchFn = textSearch,
@@ -401,8 +403,20 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* Bottom bar — recenter + chat input + action buttons */}
+      {/* Bottom bar — discover + recenter + chat input + action buttons */}
       <div className="flex items-center gap-2">
+        {onDiscover && (
+          <button
+            type="button"
+            onClick={onDiscover}
+            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
+            title="Discover uses"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </button>
+        )}
         {onRecenter && (
           <button
             type="button"
