@@ -586,6 +586,7 @@ CREATE (p)-[:HAS_SHARE_TOKEN]->(st:ShareToken {
     token_id: $token_id,
     orb_id: p.orb_id,
     keywords: $keywords,
+    hidden_node_types: $hidden_node_types,
     label: $label,
     created_at: datetime(),
     expires_at: $expires_at,
@@ -599,7 +600,8 @@ VALIDATE_SHARE_TOKEN = """
 MATCH (st:ShareToken {token_id: $token_id})
 WHERE st.revoked = false
   AND (st.expires_at IS NULL OR st.expires_at > datetime())
-RETURN st.orb_id AS orb_id, st.keywords AS keywords
+RETURN st.orb_id AS orb_id, st.keywords AS keywords,
+       coalesce(st.hidden_node_types, []) AS hidden_node_types
 """
 
 LIST_SHARE_TOKENS = """

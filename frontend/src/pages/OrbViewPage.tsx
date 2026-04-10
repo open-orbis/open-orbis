@@ -44,12 +44,13 @@ function resolveImportStepLabel(step: string | null | undefined, detail: string 
 
 // ── Modals ──
 
-function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) {
+function SharePanel({ orbId, onClose, hiddenNodeTypes }: { orbId: string; onClose: () => void; hiddenNodeTypes: Set<string> }) {
   const [copied, setCopied] = useState(false);
   const [shareTokenId, setShareTokenId] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const { activeKeywords } = useFilterStore();
-  const hasActiveFilters = activeKeywords.length > 0;
+  const hiddenTypesArray = Array.from(hiddenNodeTypes);
+  const hasActiveFilters = activeKeywords.length > 0 || hiddenTypesArray.length > 0;
   const shareUrl = shareTokenId ? `${window.location.origin}/${orbId}?token=${shareTokenId}` : '';
   const mcpUri = `orb://${orbId}`;
 
@@ -57,12 +58,13 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
   useEffect(() => {
     if (orbId) {
       setGeneratingToken(true);
-      createShareToken(activeKeywords)
+      createShareToken(activeKeywords, hiddenTypesArray)
         .then((token) => setShareTokenId(token.token_id))
         .catch(() => setShareTokenId(null))
         .finally(() => setGeneratingToken(false));
     }
-  }, [activeKeywords, orbId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKeywords, orbId, hiddenNodeTypes.size]);
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -103,9 +105,19 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
           </label>
           {hasActiveFilters && (
             <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
-              This link hides nodes matching {activeKeywords.map((kw, i) => (
-                <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
-              ))} from the viewer.
+              This link hides
+              {hiddenTypesArray.length > 0 && (
+                <span> node types: {hiddenTypesArray.map((t, i) => (
+                  <span key={t}>{i > 0 && ', '}<span className="text-amber-400">{t}</span></span>
+                ))}</span>
+              )}
+              {hiddenTypesArray.length > 0 && activeKeywords.length > 0 && ' and'}
+              {activeKeywords.length > 0 && (
+                <span> keywords: {activeKeywords.map((kw, i) => (
+                  <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
+                ))}</span>
+              )}
+              {' '}from the viewer.
             </p>
           )}
           <div className="mt-1 flex items-center gap-2">
@@ -1034,7 +1046,7 @@ export default function OrbViewPage() {
       {/* ── Animated Panels ── */}
       <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
       <AnimatePresence>
-        {showShare && <SharePanel key="share" orbId={orbId} onClose={() => setShowShare(false)} />}
+        {showShare && <SharePanel key="share" orbId={orbId} hiddenNodeTypes={hiddenNodeTypes} onClose={() => setShowShare(false)} />}
       </AnimatePresence>
 
       {/* ── Import review overlay ── */}

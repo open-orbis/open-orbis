@@ -12,6 +12,9 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from neo4j import AsyncDriver
+from neo4j.time import Date as Neo4jDate
+from neo4j.time import DateTime as Neo4jDateTime
+from neo4j.time import Time as Neo4jTime
 
 from app.config import settings
 from app.graph.queries import (
@@ -23,10 +26,22 @@ from app.graph.queries import (
 )
 
 
+def _sanitize(d: dict) -> dict:
+    """Convert Neo4j temporal types to JSON-safe strings."""
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, (Neo4jDateTime, Neo4jDate, Neo4jTime)):
+            result[k] = v.iso_format()
+        else:
+            result[k] = v
+    return result
+
+
 async def create_share_token(
     db: AsyncDriver,
     user_id: str,
     keywords: list[str] | None = None,
+    hidden_node_types: list[str] | None = None,
     label: str | None = None,
     expires_in_days: int | None = None,
 ) -> dict | None:
@@ -47,19 +62,22 @@ async def create_share_token(
     if ttl > 0:
         expires_at = datetime.now(timezone.utc) + timedelta(days=ttl)
 
+    norm_types = list(hidden_node_types or [])
+
     async with db.session() as session:
         result = await session.run(
             CREATE_SHARE_TOKEN,
             user_id=user_id,
             token_id=token_id,
             keywords=normalized,
+            hidden_node_types=norm_types,
             label=label or "",
             expires_at=expires_at,
         )
         record = await result.single()
         if record is None:
             return None
-        return dict(record["st"])
+        return _sanitize(dict(record["st"]))
 
 
 async def validate_share_token(db: AsyncDriver, token_id: str) -> dict | None:
@@ -77,6 +95,7 @@ async def validate_share_token(db: AsyncDriver, token_id: str) -> dict | None:
         return {
             "orb_id": record["orb_id"],
             "keywords": list(record["keywords"]),
+            "hidden_node_types": list(record["hidden_node_types"]),
         }
 
 
@@ -86,7 +105,7 @@ async def list_share_tokens(db: AsyncDriver, user_id: str) -> list[dict]:
         result = await session.run(LIST_SHARE_TOKENS, user_id=user_id)
         tokens = []
         async for record in result:
-            tokens.append(dict(record["st"]))
+            tokens.append(_sanitize(dict(record["st"])))
         return tokens
 
 
@@ -101,7 +120,7 @@ async def revoke_share_token(
         record = await result.single()
         if record is None:
             return None
-        return dict(record["st"])
+        return _sanitize(dict(record["st"]))
 
 
 async def delete_share_token(db: AsyncDriver, user_id: str, token_id: str) -> bool:

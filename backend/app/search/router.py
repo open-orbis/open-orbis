@@ -281,6 +281,7 @@ async def public_text_search(  # noqa: C901
             status_code=403, detail="Token does not grant access to this orb."
         )
     filter_keywords = token_data["keywords"]
+    hidden_types = set(token_data.get("hidden_node_types", []))
 
     raw_term = data.query.strip().lower()
     terms = [t for t in raw_term.split() if len(t) >= 2]
@@ -308,6 +309,9 @@ async def public_text_search(  # noqa: C901
                     node["_labels"] = record["node_labels"]
                     node["score"] = _node_match_score(node, fields, raw_term, terms)
                     if node.get("uid") not in seen_uids:
+                        node_labels = set(node.get("_labels", []))
+                        if hidden_types and node_labels & hidden_types:
+                            continue
                         if filter_keywords and node_matches_filters(
                             node, filter_keywords
                         ):
@@ -336,6 +340,9 @@ async def public_text_search(  # noqa: C901
                         node = dict(record["n"])
                         uid = node.get("uid", "")
                         if uid in seen_uids:
+                            continue
+                        node_labels = set(record.get("node_labels", []))
+                        if hidden_types and node_labels & hidden_types:
                             continue
                         if filter_keywords and node_matches_filters(
                             node, filter_keywords

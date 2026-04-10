@@ -52,11 +52,13 @@ export interface ShareToken {
 
 export async function createShareToken(
   keywords: string[] = [],
+  hiddenNodeTypes: string[] = [],
   label?: string,
   expiresInDays?: number,
 ): Promise<ShareToken> {
   const { data } = await client.post('/orbs/me/share-tokens', {
     keywords,
+    hidden_node_types: hiddenNodeTypes,
     label: label || null,
     expires_in_days: expiresInDays ?? null,
   });

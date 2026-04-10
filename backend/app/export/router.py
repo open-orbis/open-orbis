@@ -239,10 +239,18 @@ async def export_orb(
             status_code=500, detail="Failed to process orb data"
         ) from None
 
-    # Apply keyword filters from the share token
+    # Apply filters from the share token (keywords + hidden node types)
     active_filters = token_data["keywords"]
-    if active_filters:
-        nodes = [n for n in nodes if not node_matches_filters(n, active_filters)]
+    hidden_types = set(token_data.get("hidden_node_types", []))
+    if active_filters or hidden_types:
+        nodes = [
+            n
+            for n in nodes
+            if not (
+                (hidden_types and n.get("_type", "") in hidden_types)
+                or (active_filters and node_matches_filters(n, active_filters))
+            )
+        ]
 
     client_ip = request.client.host if request.client else "unknown"
     logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=200", client_ip, orb_id)

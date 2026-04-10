@@ -398,6 +398,7 @@ async def create_share_token_endpoint(
         db=db,
         user_id=current_user["user_id"],
         keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
         label=data.label,
         expires_in_days=data.expires_in_days,
     )
@@ -463,13 +464,17 @@ async def get_public_orb(
 
     orb_data = _serialize_orb(record)
 
-    # Apply keyword filters (if any)
+    # Apply filters (keywords + hidden node types)
     keywords = token_data["keywords"]
-    if keywords:
+    hidden_types = set(token_data.get("hidden_node_types", []))
+    if keywords or hidden_types:
         filtered_nodes = []
         filtered_uids = set()
         for node in orb_data["nodes"]:
-            if node_matches_filters(node, keywords):
+            labels = set(node.get("_labels", []))
+            if (hidden_types and labels & hidden_types) or (
+                keywords and node_matches_filters(node, keywords)
+            ):
                 filtered_uids.add(node.get("uid"))
             else:
                 filtered_nodes.append(node)
