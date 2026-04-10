@@ -33,15 +33,43 @@ export async function hasOrbContent(): Promise<boolean> {
   }
 }
 
-export async function getPublicOrb(orbId: string, filterToken?: string): Promise<OrbData> {
-  const params = filterToken ? { filter_token: filterToken } : {};
-  const { data } = await client.get(`/orbs/${orbId}`, { params });
+export async function getPublicOrb(orbId: string, token: string): Promise<OrbData> {
+  const { data } = await client.get(`/orbs/${orbId}`, { params: { token } });
   return data;
 }
 
-export async function createFilterToken(keywords: string[]): Promise<{ token: string; keywords: string[] }> {
-  const { data } = await client.post('/orbs/me/filter-token', { keywords });
+// ── Share Tokens ──
+
+export interface ShareToken {
+  token_id: string;
+  orb_id: string;
+  keywords: string[];
+  label: string | null;
+  created_at: string;
+  expires_at: string | null;
+  revoked: boolean;
+}
+
+export async function createShareToken(
+  keywords: string[] = [],
+  label?: string,
+  expiresInDays?: number,
+): Promise<ShareToken> {
+  const { data } = await client.post('/orbs/me/share-tokens', {
+    keywords,
+    label: label || null,
+    expires_in_days: expiresInDays ?? null,
+  });
   return data;
+}
+
+export async function listShareTokens(): Promise<{ tokens: ShareToken[] }> {
+  const { data } = await client.get('/orbs/me/share-tokens');
+  return data;
+}
+
+export async function revokeShareToken(tokenId: string): Promise<void> {
+  await client.delete(`/orbs/me/share-tokens/${tokenId}`);
 }
 
 export async function addNode(nodeType: string, properties: Record<string, unknown>): Promise<OrbNode> {
@@ -83,8 +111,8 @@ export async function textSearch(query: string): Promise<OrbNode[]> {
   return data;
 }
 
-export async function publicTextSearch(query: string, orbId: string, filterToken?: string): Promise<OrbNode[]> {
-  const { data } = await client.post('/search/text/public', { query, orb_id: orbId, filter_token: filterToken });
+export async function publicTextSearch(query: string, orbId: string, token: string): Promise<OrbNode[]> {
+  const { data } = await client.post('/search/text/public', { query, orb_id: orbId, token });
   return data;
 }
 

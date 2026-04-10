@@ -14,7 +14,7 @@ const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'L
 export default function SharedOrbPage() {
   const { orbId } = useParams<{ orbId: string }>();
   const [searchParams] = useSearchParams();
-  const filterToken = searchParams.get('filter_token') || undefined;
+  const token = searchParams.get('token');
   const { data, loading, error, fetchPublicOrb } = useOrbStore();
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -49,15 +49,15 @@ export default function SharedOrbPage() {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
-  // Public search bound to this orb — respects filter_token privacy
+  // Public search bound to this orb — requires share token
   const searchFn = useCallback(
-    (query: string) => publicTextSearch(query, orbId || '', filterToken),
-    [orbId, filterToken]
+    (query: string) => publicTextSearch(query, orbId || '', token || ''),
+    [orbId, token]
   );
 
   useEffect(() => {
-    if (orbId) fetchPublicOrb(orbId, filterToken);
-  }, [orbId, filterToken, fetchPublicOrb]);
+    if (orbId && token) fetchPublicOrb(orbId, token);
+  }, [orbId, token, fetchPublicOrb]);
 
   useEffect(() => {
     const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -114,6 +114,17 @@ export default function SharedOrbPage() {
     [data?.nodes, data?.links, rangeStart, rangeEnd, dateBounds],
   );
 
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+          <p className="text-gray-400">This orbis requires a valid share link. Ask the owner for a new link.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -123,11 +134,18 @@ export default function SharedOrbPage() {
   }
 
   if (error || !data) {
+    const isForbidden = error?.includes('403') || error?.includes('share token');
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Orbis not found</h1>
-          <p className="text-gray-400">This orbis doesn't exist or is private.</p>
+          <h1 className="text-2xl font-bold mb-2">
+            {isForbidden ? 'Link Expired or Revoked' : 'Orbis not found'}
+          </h1>
+          <p className="text-gray-400">
+            {isForbidden
+              ? 'This share link is no longer valid. Ask the owner for a new link.'
+              : "This orbis doesn't exist or is private."}
+          </p>
         </div>
       </div>
     );

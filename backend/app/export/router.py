@@ -12,7 +12,7 @@ from neo4j import AsyncDriver
 from app.dependencies import get_db
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
-from app.orbs.filter_token import decode_filter_token, node_matches_filters
+from app.orbs.share_token import node_matches_filters, validate_share_token
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -202,11 +202,19 @@ async def export_orb(
     request: Request,
     orb_id: str,
     format: str = Query("json", pattern="^(json|jsonld|pdf)$"),
-    filter_token: str | None = Query(None),
-    filter_keyword: str | None = Query(None),
+    token: str = Query(..., description="Share token required for access"),
     include_photo: bool = Query(True),
     db: AsyncDriver = Depends(get_db),
 ):
+    # Validate the share token
+    token_data = await validate_share_token(db, token)
+    if token_data is None:
+        raise HTTPException(status_code=403, detail="Invalid or expired share token.")
+    if token_data["orb_id"] != orb_id:
+        raise HTTPException(
+            status_code=403, detail="Token does not grant access to this orb."
+        )
+
     async with db.session() as session:
         try:
             result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
@@ -219,10 +227,6 @@ async def export_orb(
                 status_code=500, detail="Failed to load orb data"
             ) from None
         if record is None:
-            client_ip = request.client.host if request.client else "unknown"
-            logger.info(
-                "PUBLIC_ACCESS | ip=%s | orb_id=%s | status=404", client_ip, orb_id
-            )
             raise HTTPException(status_code=404, detail="Orb not found")
 
     try:
@@ -235,17 +239,8 @@ async def export_orb(
             status_code=500, detail="Failed to process orb data"
         ) from None
 
-    # Apply filter: either via signed token or direct keywords (for owner exports)
-    active_filters: list[str] = []
-    if filter_token:
-        decoded = decode_filter_token(filter_token)
-        if decoded and decoded["orb_id"] == orb_id:
-            active_filters = decoded["filters"]
-    elif filter_keyword:
-        active_filters = [
-            kw.strip().lower() for kw in filter_keyword.split(",") if kw.strip()
-        ]
-
+    # Apply keyword filters from the share token
+    active_filters = token_data["keywords"]
     if active_filters:
         nodes = [n for n in nodes if not node_matches_filters(n, active_filters)]
 

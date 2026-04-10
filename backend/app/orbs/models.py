@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -27,3 +29,26 @@ class PersonUpdate(BaseModel):
 
 class OrbIdUpdate(BaseModel):
     orb_id: str
+
+
+# ── Share Tokens ──
+
+
+class ShareTokenCreate(BaseModel):
+    keywords: list[str] = []  # empty = full access, no filtering
+    label: str | None = None  # optional human-readable name
+    expires_in_days: int | None = None  # None = use server default
+
+
+class ShareTokenResponse(BaseModel):
+    token_id: str
+    orb_id: str
+    keywords: list[str]
+    label: str | None
+    created_at: datetime
+    expires_at: datetime | None
+    revoked: bool
+
+
+class ShareTokenListResponse(BaseModel):
+    tokens: list[ShareTokenResponse]

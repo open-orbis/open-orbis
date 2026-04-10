@@ -27,12 +27,22 @@ from app.graph.queries import (
     UPDATE_ORB_ID,
     UPDATE_PERSON,
 )
-from app.orbs.filter_token import (
-    create_filter_token,
-    decode_filter_token,
-    node_matches_filters,
+from app.orbs.models import (
+    NodeCreate,
+    NodeUpdate,
+    OrbIdUpdate,
+    PersonUpdate,
+    ShareTokenCreate,
+    ShareTokenListResponse,
+    ShareTokenResponse,
 )
-from app.orbs.models import NodeCreate, NodeUpdate, OrbIdUpdate, PersonUpdate
+from app.orbs.share_token import (
+    create_share_token,
+    list_share_tokens,
+    node_matches_filters,
+    revoke_share_token,
+    validate_share_token,
+)
 from app.rate_limit import limiter
 from app.snapshots import db as snap_db
 from app.snapshots.service import create_snapshot, restore_snapshot
@@ -43,10 +53,6 @@ logger = logging.getLogger(__name__)
 class SkillLinkRequest(BaseModel):
     node_uid: str
     skill_uid: str
-
-
-class FilterTokenRequest(BaseModel):
-    keywords: list[str]
 
 
 router = APIRouter(prefix="/orbs", tags=["orbs"])
@@ -381,25 +387,46 @@ async def delete_version(
     return {"status": "deleted"}
 
 
-@router.post("/me/filter-token")
-async def generate_filter_token(
-    data: FilterTokenRequest,
+@router.post("/me/share-tokens", response_model=ShareTokenResponse)
+async def create_share_token_endpoint(
+    data: ShareTokenCreate,
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Generate a shareable token that encodes a visibility filter for this user's orb."""
-    async with db.session() as session:
-        result = await session.run(GET_FULL_ORB, user_id=current_user["user_id"])
-        record = await result.single()
-        if record is None:
-            raise HTTPException(status_code=404, detail="Orb not found")
-        person = dict(record["p"])
-        orb_id = person.get("orb_id", "")
-        if not orb_id:
-            raise HTTPException(status_code=400, detail="Set an orb ID first")
+    """Create a shareable token for this user's orb."""
+    token = await create_share_token(
+        db=db,
+        user_id=current_user["user_id"],
+        keywords=data.keywords,
+        label=data.label,
+        expires_in_days=data.expires_in_days,
+    )
+    if token is None:
+        raise HTTPException(status_code=400, detail="Set an orb ID first")
+    return token
 
-    token = create_filter_token(orb_id, data.keywords)
-    return {"token": token, "keywords": [kw.strip().lower() for kw in data.keywords]}
+
+@router.get("/me/share-tokens", response_model=ShareTokenListResponse)
+async def list_share_tokens_endpoint(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List all share tokens for this user's orb."""
+    tokens = await list_share_tokens(db, current_user["user_id"])
+    return {"tokens": tokens}
+
+
+@router.delete("/me/share-tokens/{token_id}")
+async def revoke_share_token_endpoint(
+    token_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Revoke a share token."""
+    result = await revoke_share_token(db, current_user["user_id"], token_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Token not found")
+    return {"status": "revoked"}
 
 
 @router.get("/{orb_id}")
@@ -407,17 +434,26 @@ async def generate_filter_token(
 async def get_public_orb(
     request: Request,
     orb_id: str,
-    filter_token: str | None = Query(None),
+    token: str = Query(..., description="Share token required for access"),
     db: AsyncDriver = Depends(get_db),
 ):
+    # Validate the share token
+    token_data = await validate_share_token(db, token)
+    if token_data is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or expired share token.",
+        )
+    if token_data["orb_id"] != orb_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token does not grant access to this orb.",
+        )
+
     async with db.session() as session:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
         record = await result.single()
         if record is None:
-            client_ip = request.client.host if request.client else "unknown"
-            logger.info(
-                "PUBLIC_ACCESS | ip=%s | orb_id=%s | status=404", client_ip, orb_id
-            )
             raise HTTPException(status_code=404, detail="Orb not found")
 
     # Block access to accounts pending deletion
@@ -427,29 +463,30 @@ async def get_public_orb(
 
     orb_data = _serialize_orb(record)
 
-    # Apply filter if a valid filter token is provided
-    if filter_token:
-        decoded = decode_filter_token(filter_token)
-        if decoded and decoded["orb_id"] == orb_id:
-            keywords = decoded["filters"]
-            # Remove nodes that match any filter keyword
-            filtered_nodes = []
-            filtered_uids = set()
-            for node in orb_data["nodes"]:
-                if node_matches_filters(node, keywords):
-                    filtered_uids.add(node.get("uid"))
-                else:
-                    filtered_nodes.append(node)
-            # Remove links connected to filtered nodes
-            filtered_links = [
-                link
-                for link in orb_data["links"]
-                if link["target"] not in filtered_uids
-                and link["source"] not in filtered_uids
-            ]
-            orb_data["nodes"] = filtered_nodes
-            orb_data["links"] = filtered_links
+    # Apply keyword filters (if any)
+    keywords = token_data["keywords"]
+    if keywords:
+        filtered_nodes = []
+        filtered_uids = set()
+        for node in orb_data["nodes"]:
+            if node_matches_filters(node, keywords):
+                filtered_uids.add(node.get("uid"))
+            else:
+                filtered_nodes.append(node)
+        filtered_links = [
+            link
+            for link in orb_data["links"]
+            if link["target"] not in filtered_uids
+            and link["source"] not in filtered_uids
+        ]
+        orb_data["nodes"] = filtered_nodes
+        orb_data["links"] = filtered_links
 
     client_ip = request.client.host if request.client else "unknown"
-    logger.info("PUBLIC_ACCESS | ip=%s | orb_id=%s | status=200", client_ip, orb_id)
+    logger.info(
+        "PUBLIC_ACCESS | ip=%s | orb_id=%s | token=%s... | status=200",
+        client_ip,
+        orb_id,
+        token[:8],
+    )
     return orb_data

@@ -159,7 +159,10 @@ def test_delete_node_success(client, mock_db):
     assert response.json()["status"] == "deleted"
 
 
-def test_get_public_orb_success(client, mock_db):
+@patch("app.orbs.router.validate_share_token")
+def test_get_public_orb_success(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+
     person_node = MockNode({"orb_id": "test-orb", "name": "Test User"}, ["Person"])
     node1 = MockNode({"uid": "node-1", "name": "Python"}, ["Skill"])
 
@@ -174,18 +177,34 @@ def test_get_public_orb_success(client, mock_db):
         AsyncMock(return_value=record)
     )
 
-    response = client.get("/orbs/test-orb")
+    response = client.get("/orbs/test-orb?token=valid-token")
     assert response.status_code == 200
     assert response.json()["person"]["name"] == "Test User"
 
 
-def test_get_public_orb_not_found(client, mock_db):
+@patch("app.orbs.router.validate_share_token")
+def test_get_public_orb_not_found(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "nonexistent", "keywords": []}
+
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=None)
     )
 
-    response = client.get("/orbs/nonexistent")
+    response = client.get("/orbs/nonexistent?token=valid-token")
     assert response.status_code == 404
+
+
+def test_get_public_orb_no_token(client):
+    response = client.get("/orbs/test-orb")
+    assert response.status_code == 422
+
+
+@patch("app.orbs.router.validate_share_token")
+def test_get_public_orb_invalid_token(mock_validate, client, mock_db):
+    mock_validate.return_value = None
+
+    response = client.get("/orbs/test-orb?token=bad-token")
+    assert response.status_code == 403
 
 
 def test_add_node_invalid_type(client):
@@ -195,7 +214,13 @@ def test_add_node_invalid_type(client):
     assert response.status_code == 400
 
 
-def test_get_public_orb_with_filter_token(client, mock_db):
+@patch("app.orbs.router.validate_share_token")
+@patch("app.orbs.router.node_matches_filters")
+def test_get_public_orb_with_keyword_filters(
+    mock_matches, mock_validate, client, mock_db
+):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": ["secret"]}
+
     person_node = MockNode({"orb_id": "test-orb"}, ["Person"])
     node1 = MockNode({"uid": "node-1", "name": "Python"}, ["Skill"])
     node2 = MockNode({"uid": "node-2", "name": "Secret"}, ["Skill"])
@@ -214,19 +239,13 @@ def test_get_public_orb_with_filter_token(client, mock_db):
         AsyncMock(return_value=record)
     )
 
-    # Mock decoding filter token
-    with (
-        patch("app.orbs.router.decode_filter_token") as mock_decode,
-        patch("app.orbs.router.node_matches_filters") as mock_matches,
-    ):
-        mock_decode.return_value = {"orb_id": "test-orb", "filters": ["secret"]}
-        mock_matches.side_effect = lambda node, _filters: node.get("name") == "Secret"
+    mock_matches.side_effect = lambda node, _filters: node.get("name") == "Secret"
 
-        response = client.get("/orbs/test-orb?filter_token=valid")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["nodes"]) == 1
-        assert data["nodes"][0]["uid"] == "node-1"
+    response = client.get("/orbs/test-orb?token=valid-token")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["nodes"]) == 1
+    assert data["nodes"][0]["uid"] == "node-1"
 
 
 def test_serialize_orb_with_cross_links():
@@ -306,27 +325,65 @@ def test_unlink_skill_success(client, mock_db):
     assert response.status_code == 200
 
 
-@patch("app.orbs.router.create_filter_token")
-def test_generate_filter_token_success(mock_create, client, mock_db):
-    person_node = MockNode({"orb_id": "test-orb"}, ["Person"])
-    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value={"p": person_node})
-    )
-    mock_create.return_value = "secret-token"
+@patch("app.orbs.router.create_share_token")
+def test_create_share_token_success(mock_create, client, mock_db):
+    mock_create.return_value = {
+        "token_id": "abc123",
+        "orb_id": "test-orb",
+        "keywords": ["private"],
+        "label": "",
+        "created_at": "2026-01-01T00:00:00+00:00",
+        "expires_at": "2026-04-01T00:00:00+00:00",
+        "revoked": False,
+    }
 
-    response = client.post("/orbs/me/filter-token", json={"keywords": ["private"]})
+    response = client.post("/orbs/me/share-tokens", json={"keywords": ["private"]})
     assert response.status_code == 200
-    assert response.json()["token"] == "secret-token"
+    assert response.json()["token_id"] == "abc123"
 
 
-def test_generate_filter_token_no_orb_id(client, mock_db):
-    person_node = MockNode({"orb_id": ""}, ["Person"])
-    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value={"p": person_node})
-    )
+@patch("app.orbs.router.create_share_token")
+def test_create_share_token_no_orb_id(mock_create, client, mock_db):
+    mock_create.return_value = None
 
-    response = client.post("/orbs/me/filter-token", json={"keywords": ["private"]})
+    response = client.post("/orbs/me/share-tokens", json={"keywords": ["private"]})
     assert response.status_code == 400
+
+
+@patch("app.orbs.router.list_share_tokens")
+def test_list_share_tokens(mock_list, client, mock_db):
+    mock_list.return_value = [
+        {
+            "token_id": "abc123",
+            "orb_id": "test-orb",
+            "keywords": ["private"],
+            "label": "",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "expires_at": None,
+            "revoked": False,
+        }
+    ]
+
+    response = client.get("/orbs/me/share-tokens")
+    assert response.status_code == 200
+    assert len(response.json()["tokens"]) == 1
+
+
+@patch("app.orbs.router.revoke_share_token")
+def test_revoke_share_token_success(mock_revoke, client, mock_db):
+    mock_revoke.return_value = {"token_id": "abc123", "revoked": True}
+
+    response = client.delete("/orbs/me/share-tokens/abc123")
+    assert response.status_code == 200
+    assert response.json()["status"] == "revoked"
+
+
+@patch("app.orbs.router.revoke_share_token")
+def test_revoke_share_token_not_found(mock_revoke, client, mock_db):
+    mock_revoke.return_value = None
+
+    response = client.delete("/orbs/me/share-tokens/nonexistent")
+    assert response.status_code == 404
 
 
 def test_claim_orb_id_conflict(client, mock_db):

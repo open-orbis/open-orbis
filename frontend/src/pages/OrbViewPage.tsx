@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
-import { createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
+import { createShareToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -46,37 +46,28 @@ function resolveImportStepLabel(step: string | null | undefined, detail: string 
 
 function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
-  const [copiedFiltered, setCopiedFiltered] = useState(false);
-  const [filterToken, setFilterToken] = useState<string | null>(null);
+  const [shareTokenId, setShareTokenId] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const { activeKeywords } = useFilterStore();
   const hasActiveFilters = activeKeywords.length > 0;
-  const shareUrl = `${window.location.origin}/${orbId}`;
-  const filteredShareUrl = filterToken ? `${window.location.origin}/${orbId}?filter_token=${filterToken}` : '';
+  const shareUrl = shareTokenId ? `${window.location.origin}/${orbId}?token=${shareTokenId}` : '';
   const mcpUri = `orb://${orbId}`;
 
-  // Generate a filter token when the panel opens if filters are active
+  // Generate a share token when the panel opens
   useEffect(() => {
-    if (hasActiveFilters && orbId) {
+    if (orbId) {
       setGeneratingToken(true);
-      createFilterToken(activeKeywords)
-        .then(({ token }) => setFilterToken(token))
-        .catch(() => setFilterToken(null))
+      createShareToken(activeKeywords)
+        .then((token) => setShareTokenId(token.token_id))
+        .catch(() => setShareTokenId(null))
         .finally(() => setGeneratingToken(false));
-    } else {
-      setFilterToken(null);
     }
-  }, [activeKeywords, hasActiveFilters, orbId]);
+  }, [activeKeywords, orbId]);
 
-  const copy = (text: string, filtered = false) => {
+  const copy = (text: string) => {
     navigator.clipboard.writeText(text);
-    if (filtered) {
-      setCopiedFiltered(true);
-      setTimeout(() => setCopiedFiltered(false), 2000);
-    } else {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -102,45 +93,36 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
         {/* QR Code */}
         <div className="flex justify-center mb-5">
           <div className="bg-white p-3 rounded-xl">
-            <QRCodeSVG value={filteredShareUrl || shareUrl} size={140} level="M" />
+            <QRCodeSVG value={shareUrl || `${window.location.origin}/${orbId}`} size={140} level="M" />
           </div>
         </div>
 
         <div className="mb-4">
-          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Public Link</label>
-          <div className="mt-1 flex items-center gap-2">
-            <input readOnly value={shareUrl} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-            <button onClick={() => copy(shareUrl)} className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap">
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-        </div>
-
-        {/* Filtered share link — only shown when filters are active */}
-        {hasActiveFilters && (
-          <div className="mb-4">
-            <label className="text-xs text-amber-400/80 uppercase tracking-wide font-medium">Filtered Link</label>
+          <label className={`text-xs uppercase tracking-wide font-medium ${hasActiveFilters ? 'text-amber-400/80' : 'text-gray-500'}`}>
+            {hasActiveFilters ? 'Filtered Share Link' : 'Share Link'}
+          </label>
+          {hasActiveFilters && (
             <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
               This link hides nodes matching {activeKeywords.map((kw, i) => (
                 <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
               ))} from the viewer.
             </p>
-            <div className="flex items-center gap-2">
-              {generatingToken ? (
-                <div className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-500 text-sm">Generating...</div>
-              ) : (
-                <input readOnly value={filteredShareUrl} className="flex-1 bg-gray-800 border border-amber-600/30 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-              )}
-              <button
-                onClick={() => copy(filteredShareUrl, true)}
-                disabled={!filterToken}
-                className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
-              >
-                {copiedFiltered ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
+          )}
+          <div className="mt-1 flex items-center gap-2">
+            {generatingToken ? (
+              <div className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-500 text-sm">Generating link...</div>
+            ) : (
+              <input readOnly value={shareUrl} className={`flex-1 bg-gray-800 border rounded-lg px-3 py-2 text-white text-sm font-mono ${hasActiveFilters ? 'border-amber-600/30' : 'border-gray-600'}`} />
+            )}
+            <button
+              onClick={() => copy(shareUrl)}
+              disabled={!shareTokenId}
+              className={`${hasActiveFilters ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'} disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap`}
+            >
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
           </div>
-        )}
+        </div>
 
         <div className="mb-5">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>

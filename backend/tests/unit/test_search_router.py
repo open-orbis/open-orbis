@@ -63,7 +63,10 @@ def test_text_search_success(client, mock_db):
     assert data[0]["name"] == "Python"
 
 
-def test_public_text_search_success(client, mock_db):
+@patch("app.search.router.validate_share_token")
+def test_public_text_search_success(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+
     node_data = {"uid": "node-1", "name": "Python"}
     node_mock = MockNode(node_data, ["Skill"])
 
@@ -74,13 +77,16 @@ def test_public_text_search_success(client, mock_db):
     result_mock.__aiter__ = mock_async_iter
     mock_db.session.return_value.__aenter__.return_value.run.return_value = result_mock
 
-    payload = {"query": "Python", "orb_id": "test-orb"}
+    payload = {"query": "Python", "orb_id": "test-orb", "token": "valid-token"}
     response = client.post("/search/text/public", json=payload)
     assert response.status_code == 200
     assert len(response.json()) == 1
 
 
-def test_public_text_search_fuzzy_trigger(client, mock_db):
+@patch("app.search.router.validate_share_token")
+def test_public_text_search_fuzzy_trigger(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+
     node_data = {"uid": "node-fuzzy", "name": "Javascript"}
     node_mock = MockNode(node_data, ["Skill"])
 
@@ -102,7 +108,7 @@ def test_public_text_search_fuzzy_trigger(client, mock_db):
     n_labels = len(_SEARCH_FIELDS)
     run_mock.side_effect = [result_empty] * n_labels + [result_full] * n_labels
 
-    payload = {"query": "Javscript", "orb_id": "test-orb"}
+    payload = {"query": "Javscript", "orb_id": "test-orb", "token": "valid-token"}
     response = client.post("/search/text/public", json=payload)
     assert response.status_code == 200
     assert len(response.json()) >= 1
@@ -132,7 +138,10 @@ def test_text_search_short_query(client, mock_db):
     assert response.status_code == 200
 
 
-def test_public_text_search_short_query(client, mock_db):
+@patch("app.search.router.validate_share_token")
+def test_public_text_search_short_query(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "test", "keywords": []}
+
     async def mock_async_iter_empty(*args, **kwargs):
         if False:
             yield
@@ -142,16 +151,22 @@ def test_public_text_search_short_query(client, mock_db):
     result_empty.__aiter__ = mock_async_iter_empty
     mock_db.session.return_value.__aenter__.return_value.run.return_value = result_empty
 
-    response = client.post("/search/text/public", json={"query": "a", "orb_id": "test"})
+    response = client.post(
+        "/search/text/public",
+        json={"query": "a", "orb_id": "test", "token": "valid-token"},
+    )
     assert response.status_code == 200
 
 
-def test_public_text_search_query_error(client, mock_db):
+@patch("app.search.router.validate_share_token")
+def test_public_text_search_query_error(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "test", "keywords": []}
     mock_db.session.return_value.__aenter__.return_value.run.side_effect = Exception(
         "DB Error"
     )
     response = client.post(
-        "/search/text/public", json={"query": "test", "orb_id": "test"}
+        "/search/text/public",
+        json={"query": "test", "orb_id": "test", "token": "valid-token"},
     )
     assert response.status_code == 200
     assert response.json() == []
@@ -218,9 +233,9 @@ def test_text_search_fuzzy_trigger(client, mock_db):
     assert len(response.json()) >= 1
 
 
-@patch("app.search.router.decode_filter_token")
-def test_public_text_search_with_filter_token(mock_decode, client, mock_db):
-    mock_decode.return_value = {"orb_id": "test-orb", "filters": ["private"]}
+@patch("app.search.router.validate_share_token")
+def test_public_text_search_with_keyword_filters(mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": ["private"]}
 
     node_data = {
         "uid": "node-1",
@@ -236,7 +251,7 @@ def test_public_text_search_with_filter_token(mock_decode, client, mock_db):
     result_mock.__aiter__ = mock_async_iter
     mock_db.session.return_value.__aenter__.return_value.run.return_value = result_mock
 
-    payload = {"query": "Secret", "orb_id": "test-orb", "filter_token": "valid-token"}
+    payload = {"query": "Secret", "orb_id": "test-orb", "token": "valid-token"}
     response = client.post("/search/text/public", json=payload)
     assert response.status_code == 200
     assert len(response.json()) == 0  # Should be filtered out

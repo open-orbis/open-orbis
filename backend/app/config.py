@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     invite_only_registration: bool = True
     beta_default_cap: int = 2000
 
+    # Share token default TTL in days. Set to 0 for no expiry.
+    share_token_default_ttl_days: int = 90
+
     model_config = {
         "env_file": ["../.env", ".env"],
         "env_file_encoding": "utf-8",

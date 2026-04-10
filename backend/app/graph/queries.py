@@ -576,3 +576,47 @@ OPTIONAL MATCH (pr)-[:USED_ONTOLOGY]->(ov:OntologyVersion)
 RETURN pr, ov.version_number AS ontology_version
 ORDER BY pr.processed_at DESC
 """
+
+# ── Share Tokens ──
+
+CREATE_SHARE_TOKEN = """
+MATCH (p:Person {user_id: $user_id})
+WHERE p.orb_id IS NOT NULL AND p.orb_id <> ''
+CREATE (p)-[:HAS_SHARE_TOKEN]->(st:ShareToken {
+    token_id: $token_id,
+    orb_id: p.orb_id,
+    keywords: $keywords,
+    label: $label,
+    created_at: datetime(),
+    expires_at: $expires_at,
+    revoked: false,
+    revoked_at: null
+})
+RETURN st
+"""
+
+VALIDATE_SHARE_TOKEN = """
+MATCH (st:ShareToken {token_id: $token_id})
+WHERE st.revoked = false
+  AND (st.expires_at IS NULL OR st.expires_at > datetime())
+RETURN st.orb_id AS orb_id, st.keywords AS keywords
+"""
+
+LIST_SHARE_TOKENS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken)
+RETURN st
+ORDER BY st.created_at DESC
+"""
+
+REVOKE_SHARE_TOKEN = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_id: $token_id})
+WHERE st.revoked = false
+SET st.revoked = true, st.revoked_at = datetime()
+RETURN st
+"""
+
+DELETE_SHARE_TOKEN = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_id: $token_id})
+DETACH DELETE st
+RETURN true AS deleted
+"""

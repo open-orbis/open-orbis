@@ -4,6 +4,8 @@ import pytest
 
 from tests.unit.conftest import MockNode
 
+VALID_TOKEN_DATA = {"orb_id": "test-orb", "keywords": []}
+
 
 @pytest.fixture
 def mock_orb_record():
@@ -34,13 +36,15 @@ def mock_orb_record():
     }
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
-def test_export_orb_json(mock_decrypt, client, mock_db, mock_orb_record):
+def test_export_orb_json(mock_decrypt, mock_validate, client, mock_db, mock_orb_record):
+    mock_validate.return_value = VALID_TOKEN_DATA
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=mock_orb_record)
     )
 
-    response = client.get("/export/test-orb?format=json")
+    response = client.get("/export/test-orb?format=json&token=valid-token")
     assert response.status_code == 200
     data = response.json()
     assert data["orb_id"] == "test-orb"
@@ -48,13 +52,17 @@ def test_export_orb_json(mock_decrypt, client, mock_db, mock_orb_record):
     assert len(data["nodes"]) == 2
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
-def test_export_orb_jsonld(mock_decrypt, client, mock_db, mock_orb_record):
+def test_export_orb_jsonld(
+    mock_decrypt, mock_validate, client, mock_db, mock_orb_record
+):
+    mock_validate.return_value = VALID_TOKEN_DATA
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=mock_orb_record)
     )
 
-    response = client.get("/export/test-orb?format=jsonld")
+    response = client.get("/export/test-orb?format=jsonld&token=valid-token")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/ld+json"
     data = response.json()
@@ -62,26 +70,43 @@ def test_export_orb_jsonld(mock_decrypt, client, mock_db, mock_orb_record):
     assert len(data["orb:nodes"]) == 2
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
-def test_export_orb_pdf(mock_decrypt, client, mock_db, mock_orb_record):
+def test_export_orb_pdf(mock_decrypt, mock_validate, client, mock_db, mock_orb_record):
+    mock_validate.return_value = VALID_TOKEN_DATA
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=mock_orb_record)
     )
 
-    response = client.get("/export/test-orb?format=pdf")
+    response = client.get("/export/test-orb?format=pdf&token=valid-token")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
     assert len(response.content) > 0
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
-def test_export_orb_not_found(mock_decrypt, client, mock_db):
+def test_export_orb_not_found(mock_decrypt, mock_validate, client, mock_db):
+    mock_validate.return_value = {"orb_id": "nonexistent", "keywords": []}
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=None)
     )
 
-    response = client.get("/export/nonexistent")
+    response = client.get("/export/nonexistent?token=valid-token")
     assert response.status_code == 404
+
+
+def test_export_requires_token(client):
+    response = client.get("/export/test-orb?format=json")
+    assert response.status_code == 422
+
+
+@patch("app.export.router.validate_share_token")
+def test_export_invalid_token(mock_validate, client, mock_db):
+    mock_validate.return_value = None
+
+    response = client.get("/export/test-orb?format=json&token=bad-token")
+    assert response.status_code == 403
 
 
 @pytest.fixture
@@ -115,28 +140,33 @@ def mock_complex_orb_record():
     return {"p": person_node, "connections": connections}
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
-def test_export_orb_pdf_complex(mock_decrypt, client, mock_db, mock_complex_orb_record):
+def test_export_orb_pdf_complex(
+    mock_decrypt, mock_validate, client, mock_db, mock_complex_orb_record
+):
+    mock_validate.return_value = VALID_TOKEN_DATA
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=mock_complex_orb_record)
     )
-    response = client.get("/export/test-orb?format=pdf")
+    response = client.get("/export/test-orb?format=pdf&token=valid-token")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
 def test_export_orb_jsonld_types(
-    mock_decrypt, client, mock_db, mock_complex_orb_record
+    mock_decrypt, mock_validate, client, mock_db, mock_complex_orb_record
 ):
+    mock_validate.return_value = VALID_TOKEN_DATA
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=mock_complex_orb_record)
     )
-    response = client.get("/export/test-orb?format=jsonld")
+    response = client.get("/export/test-orb?format=jsonld&token=valid-token")
     assert response.status_code == 200
     data = response.json()
     types = [n.get("@type") for n in data["orb:nodes"]]
-    # Verify exact mapping from router's type_mapping dict
     assert "EducationalOccupationalCredential" in types  # Education
     assert "DefinedTerm" in types  # Skill
     assert "Language" in types  # Language
@@ -145,19 +175,20 @@ def test_export_orb_jsonld_types(
     assert "Thing" in types  # Patent (unmapped, falls back to Thing)
 
 
+@patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
 @patch("app.export.router.node_matches_filters")
 def test_export_orb_with_filters(
-    mock_matches, mock_decrypt, client, mock_db, mock_orb_record
+    mock_matches, mock_decrypt, mock_validate, client, mock_db, mock_orb_record
 ):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": ["python"]}
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=mock_orb_record)
     )
 
-    # Mock filtering: node-1 matches (is filtered out), node-2 doesn't
     mock_matches.side_effect = lambda node, _filters: node.get("uid") == "node-1"
 
-    response = client.get("/export/test-orb?filter_keyword=python")
+    response = client.get("/export/test-orb?format=json&token=valid-token")
     assert response.status_code == 200
     data = response.json()
     assert len(data["nodes"]) == 1
