@@ -152,6 +152,60 @@ Primary key: `(user_id, snapshot_id)`. Maximum 3 snapshots per user — oldest e
 
 Auto-created before destructive CV imports. Manually creatable from Settings > Versions tab.
 
+## Import Provenance Nodes
+
+These two node types record which ontology version was active during a CV import and what each import produced. They are created at `POST /cv/confirm` time.
+
+### OntologyVersion
+
+Captures a snapshot of the ontology file at the moment it was first seen, so every extraction can be linked to the exact schema that guided it.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `version_id` | string (UUID) | Unique identifier |
+| `version_number` | integer | Auto-incrementing (1, 2, 3…) |
+| `content_hash` | string | SHA-256 of ontology file content |
+| `schema_definition` | string (JSON) | Full ontology as JSON (node types, properties, relationships) |
+| `extraction_prompt` | string | System prompt template for this ontology version |
+| `source_file` | string | Path to source file (`ontology.md`) |
+| `prompt_reviewed` | boolean | Whether the prompt has been confirmed aligned with the ontology |
+| `created_at` | datetime | When the version was registered |
+
+### ProcessingRecord
+
+One node per confirmed CV import. Records which LLM was used, which prompt, and how many nodes/edges were produced.
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `record_id` | string (UUID) | Unique identifier |
+| `document_id` | string | References `cv_documents.document_id` in SQLite |
+| `llm_provider` | string | `"claude"`, `"ollama"`, or `"rule_based"` |
+| `llm_model` | string | e.g. `"claude-opus-4-6"`, `"llama3.2:3b"`, `"rule_based_parser"` |
+| `extraction_method` | string | `"primary"`, `"fallback_rule_based"`, or `"fallback_raw_text"` |
+| `prompt_hash` | string | SHA-256 of the system prompt used |
+| `nodes_extracted` | integer | Count of nodes produced |
+| `edges_extracted` | integer | Count of relationships produced |
+| `processed_at` | datetime | When the import was confirmed |
+
+### Provenance Relationships
+
+| Relationship | From | To | Description |
+|-------------|------|-----|-------------|
+| `USED_ONTOLOGY` | ProcessingRecord | OntologyVersion | Which ontology was active during extraction |
+| `EXTRACTED` | ProcessingRecord | any domain node | Links to each node produced by this import |
+| `HAS_PROCESSING_RECORD` | Person | ProcessingRecord | Easy traversal from the user's graph |
+| `SUPERSEDES` | OntologyVersion | OntologyVersion | Version chain (newer → older) |
+
+### Auto-detection Flow
+
+At `POST /cv/confirm`, the system:
+
+1. Hashes the current `ontology.md` file (SHA-256).
+2. Compares with the latest `OntologyVersion.content_hash` stored in Neo4j.
+3. If the hash differs, creates a new `OntologyVersion` node (incrementing `version_number`) and links it to the previous version via `SUPERSEDES`.
+4. Logs a warning if `prompt_reviewed` is `false` on the active version — this signals that the extraction prompt may not yet be aligned with the updated ontology.
+5. Creates a `ProcessingRecord` node, links it to the active `OntologyVersion` via `USED_ONTOLOGY`, to the `Person` via `HAS_PROCESSING_RECORD`, and to every extracted domain node via `EXTRACTED`.
+
 ## Constraints and Indexes
 
 Defined in `infra/neo4j/init.cypher`:
@@ -160,6 +214,10 @@ Defined in `infra/neo4j/init.cypher`:
 - Uniqueness constraint on `Person.orb_id`
 - Standard indexes on node `uid` fields
 - Vector indexes on embedding fields (1536 dimensions, cosine)
+- Uniqueness constraint on `OntologyVersion.version_id`
+- Uniqueness constraint on `ProcessingRecord.record_id`
+- Index on `OntologyVersion.content_hash`
+- Index on `ProcessingRecord.document_id`
 
 ## Query Patterns
 

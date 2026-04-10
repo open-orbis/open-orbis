@@ -87,6 +87,27 @@
 - `description` (string)
 - `affiliation` (string)
 
+### OntologyVersion
+- `version_id` (string)
+- `version_number` (integer)
+- `content_hash` (string)
+- `schema_definition` (string)
+- `extraction_prompt` (string)
+- `source_file` (string)
+- `prompt_reviewed` (boolean)
+- `created_at` (datetime)
+
+### ProcessingRecord
+- `record_id` (string)
+- `document_id` (string)
+- `llm_provider` (string)
+- `llm_model` (string)
+- `extraction_method` (string)
+- `prompt_hash` (string)
+- `nodes_extracted` (integer)
+- `edges_extracted` (integer)
+- `processed_at` (datetime)
+
 ## Relationships
 
 ### Person → Node
@@ -106,4 +127,12 @@
 | Relationship | Source                                                      | Target |
 |--------------|-------------------------------------------------------------|--------|
 | USED_SKILL   | Education, WorkExperience, Publication, Project, Patent     | Skill  |
+
+### Provenance
+| Relationship          | Source           | Target           |
+|-----------------------|------------------|------------------|
+| HAS_PROCESSING_RECORD | Person           | ProcessingRecord |
+| USED_ONTOLOGY         | ProcessingRecord | OntologyVersion  |
+| EXTRACTED             | ProcessingRecord | (any domain node)|
+| SUPERSEDES            | OntologyVersion  | OntologyVersion  |
 
