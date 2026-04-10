@@ -35,6 +35,7 @@ Extract the following about the CV owner (all optional, include only if found):
 - phone: phone number
 - linkedin_url: LinkedIn profile URL
 - github_url: GitHub profile URL
+- twitter_url: X/Twitter profile URL
 - website_url: personal website URL
 - scholar_url: Google Scholar URL
 - orcid_url: ORCID URL (https://orcid.org/...)
@@ -444,6 +445,7 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
         "phone",
         "linkedin_url",
         "github_url",
+        "twitter_url",
         "website_url",
         "scholar_url",
         "orcid_url",

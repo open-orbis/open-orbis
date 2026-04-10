@@ -28,6 +28,7 @@ class ExtractedProfile(BaseModel):
     phone: str | None = None
     linkedin_url: str | None = None
     github_url: str | None = None
+    twitter_url: str | None = None
     website_url: str | None = None
     scholar_url: str | None = None
     orcid_url: str | None = None

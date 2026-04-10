@@ -200,7 +200,7 @@ function ProfilePanel({ person, onClose, onSaved }: {
   }, [person]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const profileImage = (person.profile_image as string) || '';
+  const profileImage = (person.profile_image as string) || (person.picture as string) || '';
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
