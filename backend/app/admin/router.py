@@ -13,19 +13,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
 
 from app.admin.models import (
+    AccessCodeBatchCreate,
     AccessCodeCreate,
     AccessCodeResponse,
     AccessCodeUpdate,
     BetaConfigResponse,
     BetaConfigUpdate,
+    InviteCodeCounts,
     StatsResponse,
     WaitlistContactedUpdate,
     WaitlistEntry,
     WaitlistReasonCounts,
 )
 from app.admin.service import (
+    count_access_codes,
     count_persons,
     create_access_code,
+    create_batch_access_codes,
     delete_access_code,
     get_access_code,
     get_beta_config,
@@ -58,7 +62,8 @@ def _serialize_access_code(node: dict) -> AccessCodeResponse:
         active=bool(node.get("active", True)),
         created_at=str(node.get("created_at", "")),
         created_by=node.get("created_by", "") or "",
-        uses=int(node.get("uses", 0)),
+        used_at=str(node["used_at"]) if node.get("used_at") else None,
+        used_by=node.get("used_by"),
     )
 
 
@@ -87,19 +92,18 @@ async def get_stats(
 ):
     config = await get_beta_config(db)
     registered = await count_persons(db)
-    cap = int(config.get("max_users", 0))
+    code_counts = await count_access_codes(db)
     by_reason_raw = await waitlist_stats(db)
     by_reason = WaitlistReasonCounts(
         no_code=by_reason_raw.get("no_code", 0),
         invalid_code=by_reason_raw.get("invalid_code", 0),
-        cap_reached=by_reason_raw.get("cap_reached", 0),
+        code_already_used=by_reason_raw.get("code_already_used", 0),
         registration_closed=by_reason_raw.get("registration_closed", 0),
     )
     return StatsResponse(
         registered=registered,
-        cap=cap,
-        seats_left=max(0, cap - registered),
         registration_enabled=bool(config.get("registration_enabled", True)),
+        invite_codes=InviteCodeCounts(**code_counts),
         waitlist_total=sum(by_reason_raw.values()),
         waitlist_by_reason=by_reason,
     )
@@ -155,7 +159,28 @@ async def create_code(
     node = await create_access_code(
         db, code=body.code, label=body.label, created_by=admin["user_id"]
     )
-    return _serialize_access_code({**node, "uses": 0})
+    return _serialize_access_code(node)
+
+
+@router.post(
+    "/access-codes/batch",
+    response_model=list[AccessCodeResponse],
+    status_code=201,
+)
+async def create_codes_batch(
+    body: AccessCodeBatchCreate,
+    admin: dict = Depends(require_admin),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Generate `count` unique single-use codes with auto-generated suffixes."""
+    nodes = await create_batch_access_codes(
+        db,
+        prefix=body.prefix,
+        count=body.count,
+        label=body.label,
+        created_by=admin["user_id"],
+    )
+    return [_serialize_access_code(n) for n in nodes]
 
 
 @router.patch("/access-codes/{code}", response_model=AccessCodeResponse)
@@ -168,7 +193,7 @@ async def update_code(
     node = await set_access_code_active(db, code, body.active)
     if node is None:
         raise HTTPException(status_code=404, detail="Code not found")
-    return _serialize_access_code({**node, "uses": 0})
+    return _serialize_access_code(node)
 
 
 @router.delete("/access-codes/{code}", status_code=204)

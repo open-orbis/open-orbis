@@ -8,9 +8,9 @@ import { hasOrbContent } from '../api/orbs';
 import HeroOrb from '../components/landing/HeroOrb';
 
 const INVITE_ERROR_MESSAGES: Record<InviteError['code'], string> = {
-  invalid_access_code: 'Codice di accesso non valido. Controlla e riprova.',
-  beta_full:
-    "Siamo in beta chiusa e abbiamo raggiunto il numero massimo di utenti. Ti abbiamo aggiunto alla lista d'attesa e ti scriveremo appena liberiamo un posto.",
+  invalid_access_code: 'Codice di invito non valido. Controlla e riprova.',
+  code_already_used:
+    "Questo codice di invito è già stato utilizzato. Ogni codice può essere usato una sola volta.",
   registration_closed:
     "Le registrazioni sono temporaneamente chiuse. Ti abbiamo aggiunto alla lista d'attesa.",
   unknown: 'Qualcosa è andato storto durante il login. Riprova.',
@@ -101,7 +101,7 @@ function SignInButtons({
     <div className="flex flex-col gap-3 w-full max-w-xs">
       <div className="flex flex-col gap-1.5">
         <label htmlFor="beta-access-code" className="text-white/40 text-xs font-medium uppercase tracking-wider">
-          Codice di accesso (closed beta)
+          Codice di invito (closed beta)
         </label>
         <input
           id="beta-access-code"

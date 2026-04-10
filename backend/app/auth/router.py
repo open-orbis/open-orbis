@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from neo4j import AsyncDriver
 
 from app.admin.service import (
-    count_persons,
+    consume_access_code,
     get_beta_config,
-    is_access_code_valid,
     upsert_waitlist,
+    validate_access_code,
 )
 from app.auth.models import (
     OAuthCodeRequest,
@@ -44,16 +44,19 @@ async def _enforce_invite_and_create_person(
     """Get-or-create the Person, enforcing closed-beta rules on first signup.
 
     Existing users (Person already exists) are returned untouched — login is
-    always allowed regardless of cap or codes. Only first-time signups go
+    always allowed regardless of invite codes. Only first-time signups go
     through the invitation gate.
+
+    Each invite code is **single-use**: it is atomically consumed during
+    signup so that no two users can register with the same code.
 
     Rejection paths always write to the Waitlist before raising, so we can
     follow up later. Errors are returned with structured detail codes so the
     frontend can show targeted messages:
 
-      - `registration_closed` — registration_enabled flag is false
-      - `invalid_access_code` — code missing or unknown/inactive
-      - `beta_full`           — code valid but cap reached
+      - `registration_closed`  — master switch is off
+      - `invalid_access_code`  — code missing, unknown, or inactive
+      - `code_already_used`    — code exists but was already consumed
     """
     # Login path: existing user, always allowed.
     async with db.session() as session:
@@ -67,10 +70,7 @@ async def _enforce_invite_and_create_person(
         return
 
     config = await get_beta_config(db)
-    registration_enabled = bool(config.get("registration_enabled", True))
-    cap = int(config.get("max_users", 0))
-
-    if not registration_enabled:
+    if not bool(config.get("registration_enabled", True)):
         await upsert_waitlist(
             db,
             email=email,
@@ -81,28 +81,37 @@ async def _enforce_invite_and_create_person(
         )
         raise HTTPException(status_code=403, detail="registration_closed")
 
-    if not access_code or not await is_access_code_valid(db, access_code):
+    # Validate the code (non-atomic read for a precise error message).
+    rejection = await validate_access_code(db, access_code)
+    if rejection is not None:
+        detail = (
+            "code_already_used"
+            if rejection == "code_already_used"
+            else "invalid_access_code"
+        )
         await upsert_waitlist(
             db,
             email=email,
             name=name,
             provider=provider,
             attempted_code=access_code,
-            reason="no_code" if not access_code else "invalid_code",
+            reason=rejection,
         )
-        raise HTTPException(status_code=403, detail="invalid_access_code")
+        raise HTTPException(status_code=403, detail=detail)
 
-    current = await count_persons(db)
-    if current >= cap:
+    # Atomically consume the code — guards against a race where two users
+    # validated the same code before either consumed it.
+    consumed = await consume_access_code(db, access_code, user_id)
+    if not consumed:
         await upsert_waitlist(
             db,
             email=email,
             name=name,
             provider=provider,
             attempted_code=access_code,
-            reason="cap_reached",
+            reason="code_already_used",
         )
-        raise HTTPException(status_code=403, detail="beta_full")
+        raise HTTPException(status_code=403, detail="code_already_used")
 
     await _create_person(db, user_id, email, name, picture, provider, access_code)
 

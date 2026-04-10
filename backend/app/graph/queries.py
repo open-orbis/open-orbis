@@ -179,6 +179,8 @@ CREATE (a:AccessCode {
     code: $code,
     label: $label,
     active: true,
+    used_at: null,
+    used_by: null,
     created_at: datetime(),
     created_by: $created_by
 })
@@ -190,11 +192,19 @@ MATCH (a:AccessCode {code: $code})
 RETURN a
 """
 
+# Atomically consume an unused code: the WHERE clause prevents a race
+# condition — if two signups hit the same code concurrently, the second
+# transaction will see used_at is no longer null and return no rows.
+CONSUME_ACCESS_CODE = """
+MATCH (a:AccessCode {code: $code})
+WHERE a.active = true AND a.used_at IS NULL
+SET a.used_at = datetime(), a.used_by = $user_id
+RETURN a
+"""
+
 LIST_ACCESS_CODES = """
 MATCH (a:AccessCode)
-OPTIONAL MATCH (p:Person {signup_code: a.code})
-WITH a, count(p) AS uses
-RETURN a, uses
+RETURN a
 ORDER BY a.created_at DESC
 """
 
@@ -207,6 +217,14 @@ RETURN a
 DELETE_ACCESS_CODE = """
 MATCH (a:AccessCode {code: $code})
 DELETE a
+"""
+
+COUNT_ACCESS_CODES = """
+MATCH (a:AccessCode)
+RETURN
+    count(a) AS total,
+    count(CASE WHEN a.used_at IS NOT NULL THEN 1 END) AS used,
+    count(CASE WHEN a.used_at IS NULL AND a.active = true THEN 1 END) AS available
 """
 
 # Waitlist: people who tried to register but were rejected. MERGE on email so

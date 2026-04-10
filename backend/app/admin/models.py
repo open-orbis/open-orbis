@@ -8,15 +8,20 @@ from pydantic import BaseModel, Field
 class WaitlistReasonCounts(BaseModel):
     no_code: int = 0
     invalid_code: int = 0
-    cap_reached: int = 0
+    code_already_used: int = 0
     registration_closed: int = 0
+
+
+class InviteCodeCounts(BaseModel):
+    total: int = 0
+    used: int = 0
+    available: int = 0
 
 
 class StatsResponse(BaseModel):
     registered: int
-    cap: int
-    seats_left: int
     registration_enabled: bool
+    invite_codes: InviteCodeCounts
     waitlist_total: int
     waitlist_by_reason: WaitlistReasonCounts
 
@@ -49,7 +54,14 @@ class AccessCodeResponse(BaseModel):
     active: bool
     created_at: str
     created_by: str = ""
-    uses: int = 0
+    used_at: str | None = None
+    used_by: str | None = None
+
+
+class AccessCodeBatchCreate(BaseModel):
+    prefix: str = Field(min_length=2, max_length=32)
+    count: int = Field(ge=1, le=500)
+    label: str = ""
 
 
 class AccessCodeUpdate(BaseModel):

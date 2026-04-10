@@ -18,6 +18,8 @@ from neo4j import AsyncDriver
 from app.config import settings
 from app.graph.encryption import decrypt_value, encrypt_value
 from app.graph.queries import (
+    CONSUME_ACCESS_CODE,
+    COUNT_ACCESS_CODES,
     COUNT_PERSONS,
     CREATE_ACCESS_CODE,
     DELETE_ACCESS_CODE,
@@ -115,7 +117,7 @@ async def list_access_codes(db: AsyncDriver) -> list[dict]:
     async with db.session() as session:
         result = await session.run(LIST_ACCESS_CODES)
         records = [r async for r in result]
-    return [{**dict(r["a"]), "uses": int(r["uses"])} for r in records]
+    return [dict(r["a"]) for r in records]
 
 
 async def set_access_code_active(
@@ -132,12 +134,75 @@ async def delete_access_code(db: AsyncDriver, code: str) -> None:
         await session.run(DELETE_ACCESS_CODE, code=code)
 
 
-async def is_access_code_valid(db: AsyncDriver, code: str | None) -> bool:
-    """Return True iff the code exists and is currently active."""
+async def validate_access_code(db: AsyncDriver, code: str | None) -> str | None:
+    """Validate a code and return the rejection reason, or None if valid.
+
+    Returns:
+        None — code exists, is active, and unused (ready to consume)
+        'no_code' — no code provided
+        'invalid_code' — code does not exist or is deactivated
+        'code_already_used' — code exists but was already consumed
+    """
     if not code:
-        return False
+        return "no_code"
     record = await get_access_code(db, code)
-    return bool(record and record.get("active"))
+    if record is None or not record.get("active"):
+        return "invalid_code"
+    if record.get("used_at") is not None:
+        return "code_already_used"
+    return None
+
+
+async def consume_access_code(db: AsyncDriver, code: str, user_id: str) -> bool:
+    """Atomically consume an unused code. Returns True on success.
+
+    The Cypher WHERE clause ensures that if two concurrent signups hit the
+    same code, only the first one succeeds. The second sees used_at is no
+    longer null and gets an empty result.
+    """
+    async with db.session() as session:
+        result = await session.run(CONSUME_ACCESS_CODE, code=code, user_id=user_id)
+        return await result.single() is not None
+
+
+async def count_access_codes(db: AsyncDriver) -> dict[str, int]:
+    async with db.session() as session:
+        result = await session.run(COUNT_ACCESS_CODES)
+        record = await result.single()
+    if not record:
+        return {"total": 0, "used": 0, "available": 0}
+    return {
+        "total": int(record["total"]),
+        "used": int(record["used"]),
+        "available": int(record["available"]),
+    }
+
+
+async def create_batch_access_codes(
+    db: AsyncDriver,
+    *,
+    prefix: str,
+    count: int,
+    label: str,
+    created_by: str,
+) -> list[dict]:
+    """Create `count` unique codes with the form `{prefix}-{random4hex}`."""
+    import uuid
+
+    codes = []
+    async with db.session() as session:
+        for _ in range(count):
+            code = f"{prefix}-{uuid.uuid4().hex[:6]}"
+            result = await session.run(
+                CREATE_ACCESS_CODE,
+                code=code,
+                label=label,
+                created_by=created_by,
+            )
+            record = await result.single()
+            if record:
+                codes.append(dict(record["a"]))
+    return codes
 
 
 # ── Waitlist ──

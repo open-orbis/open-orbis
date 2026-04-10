@@ -7,7 +7,7 @@ import { getMe, googleLogin, linkedinLogin, type UserInfo } from '../api/auth';
 export const BETA_CODE_STORAGE_KEY = 'orbis_beta_access_code';
 
 export class InviteError extends Error {
-  code: 'invalid_access_code' | 'beta_full' | 'registration_closed' | 'unknown';
+  code: 'invalid_access_code' | 'code_already_used' | 'registration_closed' | 'unknown';
   constructor(code: InviteError['code'], message: string) {
     super(message);
     this.code = code;
@@ -27,7 +27,7 @@ function toInviteError(e: unknown, fallback: string): never {
     const detail = e.response.data?.detail;
     if (
       detail === 'invalid_access_code' ||
-      detail === 'beta_full' ||
+      detail === 'code_already_used' ||
       detail === 'registration_closed'
     ) {
       throw new InviteError(detail, detail);
