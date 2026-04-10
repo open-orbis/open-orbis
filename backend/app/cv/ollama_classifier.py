@@ -11,7 +11,12 @@ from datetime import datetime
 import httpx
 
 from app.config import settings
-from app.cv.models import ExtractedNode, ExtractedRelationship, SkippedNode
+from app.cv.models import (
+    ExtractedNode,
+    ExtractedRelationship,
+    ExtractionMetadata,
+    SkippedNode,
+)
 from app.graph.queries import NODE_TYPE_LABELS
 
 logger = logging.getLogger(__name__)
@@ -220,6 +225,7 @@ class ClassificationResult:
     truncated: bool = False
     cv_owner_name: str | None = None
     profile: dict | None = None
+    metadata: ExtractionMetadata | None = None
 
 
 MAX_RETRIES = 2

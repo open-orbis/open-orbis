@@ -44,6 +44,16 @@ class ExtractedData(BaseModel):
     document_id: str | None = None
 
 
+class ExtractionMetadata(BaseModel):
+    """Metadata about how a CV extraction was performed."""
+
+    llm_provider: str  # "claude", "ollama", "rule_based"
+    llm_model: str  # "claude-opus-4-6", "llama3.2:3b", "rule_based_parser"
+    extraction_method: str  # "primary", "fallback_rule_based", "fallback_raw_text"
+    prompt_content: str  # Full system prompt used (empty for rule_based)
+    prompt_hash: str  # SHA-256 of prompt_content
+
+
 class ConfirmRequest(BaseModel):
     nodes: list[ExtractedNode]
     relationships: list[ExtractedRelationship] = []
