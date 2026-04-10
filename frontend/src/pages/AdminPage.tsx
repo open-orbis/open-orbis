@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '../components/Navbar';
+import { useAuthStore } from '../stores/authStore';
 import {
   getStats,
   listAccessCodes,
@@ -22,6 +23,9 @@ import {
   type PendingUser,
   type AdminUser,
   type AdminUserDetail,
+  listIdeas,
+  deleteIdea,
+  type Idea,
 } from '../api/admin';
 
 // ── Helpers ──
@@ -101,12 +105,14 @@ function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: {
 // ── Main Page ──
 
 export default function AdminPage() {
+  const user = useAuthStore((s) => s.user);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [codes, setCodes] = useState<AccessCode[]>([]);
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'codes' | 'pending' | 'users'>('codes');
+  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas'>('codes');
+  const [ideas, setIdeas] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Create code form
@@ -151,15 +157,17 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, c, p, u] = await Promise.all([
+      const [s, c, p, u, i] = await Promise.all([
         getStats(),
         listAccessCodes(),
         listPendingUsers(),
         listUsers(),
+        listIdeas(),
       ]);
       setStats(s);
       setCodes(c);
       setPendingUsers(p);
+      setIdeas(i);
       setUsers(u);
       setError(null);
     } catch {
@@ -495,7 +503,12 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar center={<span className="text-white/50 text-sm font-medium">Admin Dashboard</span>} />
+      <Navbar center={
+        <div className="flex items-center gap-3">
+          <span className="text-white/50 text-sm font-medium">Admin Dashboard</span>
+          {user?.name && <span className="text-green-400/70 text-xs">Logged as {user.name}</span>}
+        </div>
+      } />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-16 pb-20">
         {error && (
@@ -559,6 +572,14 @@ export default function AdminPage() {
             }`}
           >
             Users ({users.length})
+          </button>
+          <button
+            onClick={() => setTab('ideas')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === 'ideas' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Ideas ({ideas.length})
           </button>
         </div>
 
@@ -858,6 +879,40 @@ export default function AdminPage() {
                 </table>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {/* ── Ideas Tab ── */}
+        {tab === 'ideas' && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            {ideas.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-8">No ideas submitted yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {ideas.map((idea) => (
+                  <div key={idea.idea_id} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm whitespace-pre-wrap">{idea.text}</p>
+                      <p className="text-white/30 text-xs mt-1.5">
+                        {idea.user_id} &middot; {formatDate(idea.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await deleteIdea(idea.idea_id);
+                        setIdeas((prev) => prev.filter((i) => i.idea_id !== idea.idea_id));
+                      }}
+                      className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+                      title="Delete idea"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </div>
