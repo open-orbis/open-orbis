@@ -294,3 +294,42 @@ MATCH (p:Person {user_id: $user_id})
 SET p.is_admin = false
 RETURN p
 """
+
+# ── Admin: user management ──
+
+LIST_ALL_PERSONS = """
+MATCH (p:Person)
+RETURN p
+ORDER BY p.created_at DESC
+"""
+
+GET_PERSON_DETAIL = """
+MATCH (p:Person {user_id: $user_id})
+OPTIONAL MATCH (p)-[r]->(n)
+WITH p, count(DISTINCT CASE WHEN NOT n:AccessCode AND NOT n:BetaConfig THEN n END) AS node_count
+RETURN p, node_count
+"""
+
+DELETE_PERSON_FULL = """
+MATCH (p:Person {user_id: $user_id})-[*1..]->(n)
+WITH DISTINCT n DETACH DELETE n
+"""
+
+DELETE_PERSON_NODE = """
+MATCH (p:Person {user_id: $user_id})
+DETACH DELETE p
+"""
+
+ACTIVATE_PERSON_BY_ADMIN = """
+MATCH (p:Person {user_id: $user_id})
+WHERE p.signup_code IS NULL
+SET p.signup_code = $code, p.activated_at = datetime()
+RETURN p
+"""
+
+ACTIVATE_ALL_PENDING = """
+MATCH (p:Person)
+WHERE p.signup_code IS NULL AND coalesce(p.is_admin, false) = false
+SET p.signup_code = $code, p.activated_at = datetime()
+RETURN count(p) AS activated
+"""

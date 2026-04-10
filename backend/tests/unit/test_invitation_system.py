@@ -48,7 +48,13 @@ def test_registration_always_creates_person(client, mock_db, google_oauth_mock):
     """New users are always registered — no code check at signup time."""
     _stub_existing_person(mock_db, exists=False)
 
-    with patch("app.auth.router.generate_orb_id", AsyncMock(return_value="new-user")):
+    with (
+        patch("app.auth.router.generate_orb_id", AsyncMock(return_value="new-user")),
+        patch(
+            "app.auth.router.is_invite_code_required",
+            AsyncMock(return_value=False),
+        ),
+    ):
         response = client.post("/auth/google", json={"code": "fake"})
 
     assert response.status_code == 200

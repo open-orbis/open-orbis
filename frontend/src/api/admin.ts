@@ -107,3 +107,64 @@ export async function listPendingUsers(): Promise<PendingUser[]> {
   const { data } = await client.get('/admin/pending-users');
   return data;
 }
+
+// ── User Management ──
+
+export interface AdminUser {
+  user_id: string;
+  name: string;
+  email: string;
+  provider: string;
+  is_admin: boolean;
+  signup_code: string | null;
+  activated_at: string | null;
+  created_at: string;
+}
+
+export interface AdminUserDetail extends AdminUser {
+  orb_id: string;
+  picture: string;
+  headline: string;
+  location: string;
+  node_count: number;
+  gdpr_consent: boolean;
+  deletion_requested_at: string | null;
+}
+
+export async function listUsers(): Promise<AdminUser[]> {
+  const { data } = await client.get('/admin/users');
+  return data;
+}
+
+export async function getUser(userId: string): Promise<AdminUserDetail> {
+  const { data } = await client.get(`/admin/users/${userId}`);
+  return data;
+}
+
+export async function activateUser(userId: string): Promise<AdminUser> {
+  const { data } = await client.post(`/admin/users/${userId}/activate`);
+  return data;
+}
+
+export async function activateUsersBatch(
+  userIds: string[],
+): Promise<AdminUser[]> {
+  const { data } = await client.post('/admin/users/activate-batch', {
+    user_ids: userIds,
+  });
+  return data;
+}
+
+export async function promoteUser(userId: string): Promise<AdminUser> {
+  const { data } = await client.post(`/admin/users/${userId}/promote`);
+  return data;
+}
+
+export async function demoteUser(userId: string): Promise<AdminUser> {
+  const { data } = await client.post(`/admin/users/${userId}/demote`);
+  return data;
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  await client.delete(`/admin/users/${userId}`);
+}
