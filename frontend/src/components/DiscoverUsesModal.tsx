@@ -58,13 +58,7 @@ const LINK_USES = [
   },
 ];
 
-const EXPORT_USES = [
-  {
-    title: 'JSON-LD for SEO',
-    desc: 'Export as JSON-LD to enrich your personal website with structured data that search engines understand.',
-    icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4',
-  },
-];
+type Tab = 'mcp' | 'link';
 
 function UseCard({ title, desc, icon }: { title: string; desc: string; icon: string }) {
   return (
@@ -83,6 +77,7 @@ function UseCard({ title, desc, icon }: { title: string; desc: string; icon: str
 }
 
 export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUsesModalProps) {
+  const [tab, setTab] = useState<Tab>('mcp');
   const [copiedId, setCopiedId] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -136,45 +131,77 @@ export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUses
               </button>
             </div>
 
-            {/* MCP Client section */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-medium text-white/30 uppercase tracking-wide">Via MCP Client</p>
-                <button
-                  onClick={() => copyText(mcpUri, 'id')}
-                  className="text-[10px] font-medium text-yellow-400/70 hover:text-yellow-400 transition-colors px-2 py-0.5 rounded-md bg-yellow-500/5 hover:bg-yellow-500/10"
-                >
-                  {copiedId ? 'Copied!' : `Copy ID: ${orbId}`}
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {MCP_USES.map((u) => <UseCard key={u.title} {...u} />)}
-              </div>
+            {/* Tabs */}
+            <div className="flex gap-1 mb-4 p-1 rounded-xl bg-white/[0.04]">
+              <button
+                onClick={() => setTab('mcp')}
+                className={`flex-1 text-xs font-medium py-2 rounded-lg transition-all ${
+                  tab === 'mcp'
+                    ? 'bg-yellow-500/15 text-yellow-400 shadow-sm'
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                Via MCP Client
+              </button>
+              <button
+                onClick={() => setTab('link')}
+                className={`flex-1 text-xs font-medium py-2 rounded-lg transition-all ${
+                  tab === 'link'
+                    ? 'bg-yellow-500/15 text-yellow-400 shadow-sm'
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                Via Link
+              </button>
             </div>
 
-            {/* Link section */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[10px] font-medium text-white/30 uppercase tracking-wide">Via Link</p>
-                <button
-                  onClick={() => copyText(shareUrl, 'link')}
-                  className="text-[10px] font-medium text-yellow-400/70 hover:text-yellow-400 transition-colors px-2 py-0.5 rounded-md bg-yellow-500/5 hover:bg-yellow-500/10"
-                >
-                  {copiedLink ? 'Copied!' : 'Copy link'}
-                </button>
+            {/* Tab content */}
+            {tab === 'mcp' && (
+              <div>
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => copyText(mcpUri, 'id')}
+                    className="text-[10px] font-medium text-yellow-400/70 hover:text-yellow-400 transition-colors px-2 py-0.5 rounded-md bg-yellow-500/5 hover:bg-yellow-500/10"
+                  >
+                    {copiedId ? 'Copied!' : `Copy ID: ${orbId}`}
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {MCP_USES.map((u) => <UseCard key={u.title} {...u} />)}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                {LINK_USES.map((u) => <UseCard key={u.title} {...u} />)}
-              </div>
-            </div>
+            )}
 
-            {/* Export section */}
-            <div>
-              <p className="text-[10px] font-medium text-white/30 uppercase tracking-wide mb-2">Via Export</p>
-              <div className="space-y-1.5">
-                {EXPORT_USES.map((u) => <UseCard key={u.title} {...u} />)}
+            {tab === 'link' && (
+              <div>
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => copyText(shareUrl, 'link')}
+                    className="text-[10px] font-medium text-yellow-400/70 hover:text-yellow-400 transition-colors px-2 py-0.5 rounded-md bg-yellow-500/5 hover:bg-yellow-500/10"
+                  >
+                    {copiedLink ? 'Copied!' : 'Copy link'}
+                  </button>
+                </div>
+                <div className="space-y-1.5">
+                  {LINK_USES.map((u) => <UseCard key={u.title} {...u} />)}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* CTA — suggest a use case */}
+            <a
+              href="https://github.com/Brotherhood94/orb_project/issues/new?title=Orbis+use+case+idea&labels=enhancement&body=Describe+how+you+would+use+your+Orbis+with+an+external+service..."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 mt-4 p-3 rounded-xl border border-dashed border-yellow-500/20 bg-yellow-500/[0.03] hover:bg-yellow-500/[0.06] transition-colors group"
+            >
+              <svg className="w-4 h-4 text-yellow-400/60 group-hover:text-yellow-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+              </svg>
+              <p className="text-xs text-white/40 group-hover:text-white/60 transition-colors">
+                Have another use case in mind? <span className="text-yellow-400/70 group-hover:text-yellow-400">Share your idea</span>
+              </p>
+            </a>
           </motion.div>
         </div>
       )}
