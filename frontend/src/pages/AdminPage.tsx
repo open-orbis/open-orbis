@@ -121,6 +121,9 @@ export default function AdminPage() {
     onConfirm: () => void;
   } | null>(null);
 
+  // Copy feedback
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
   const refresh = useCallback(async () => {
     try {
       const [s, c, p] = await Promise.all([getStats(), listAccessCodes(), listPendingUsers()]);
@@ -214,6 +217,8 @@ export default function AdminPage() {
 
   const handleCopy = (code: string) => {
     navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 1500);
   };
 
   const filteredCodes = codes.filter((c) => {
@@ -345,7 +350,9 @@ export default function AdminPage() {
                     {filteredCodes.map((c) => (
                       <tr key={c.code} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                         <td className="px-4 py-2.5 font-mono text-xs text-purple-300">
-                          <button onClick={() => handleCopy(c.code)} title="Copia codice" className="hover:text-purple-200 transition-colors">{c.code}</button>
+                          <button onClick={() => handleCopy(c.code)} title="Copia codice" className="hover:text-purple-200 transition-colors">
+                            {copiedCode === c.code ? <span className="text-green-400">Copiato!</span> : c.code}
+                          </button>
                         </td>
                         <td className="px-4 py-2.5 text-white/40">{c.label || '—'}</td>
                         <td className="px-4 py-2.5">
