@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
-import { updateProfile, uploadProfileImage, deleteProfileImage, createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
+import { createFilterToken, enhanceNote, linkSkill } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -157,301 +157,6 @@ function SharePanel({ orbId, onClose }: { orbId: string; onClose: () => void }) 
   );
 }
 
-// ── Social accounts config ──
-
-const SOCIAL_ACCOUNTS = [
-  { key: 'linkedin_url', label: 'LinkedIn', icon: 'M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z', color: '#0A66C2' },
-  { key: 'github_url', label: 'GitHub', icon: 'M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12', color: '#fff' },
-  { key: 'twitter_url', label: 'X / Twitter', icon: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z', color: '#fff' },
-  { key: 'website_url', label: 'Website', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z', color: '#60a5fa' },
-  { key: 'scholar_url', label: 'Google Scholar', icon: 'M5.242 13.769L0 9.5 12 0l12 9.5-5.242 4.269C17.548 11.249 14.978 9.5 12 9.5c-2.977 0-5.548 1.748-6.758 4.269zM12 10a7 7 0 100 14 7 7 0 000-14z', color: '#4285F4' },
-];
-
-function ProfilePanel({ person, onClose, onSaved }: {
-  person: Record<string, unknown>;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const addToast = useToastStore((s) => s.addToast);
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    const v: Record<string, string> = {};
-    for (const acc of SOCIAL_ACCOUNTS) {
-      v[acc.key] = (person[acc.key] as string) || '';
-    }
-    v.headline = (person.headline as string) || '';
-    v.location = (person.location as string) || '';
-    return v;
-  });
-  const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [showDeleteConfirmPhoto, setShowDeleteConfirmPhoto] = useState(false);
-
-  // Sync values when person data refreshes (e.g. after save + re-fetch)
-  useEffect(() => {
-    const v: Record<string, string> = {};
-    for (const acc of SOCIAL_ACCOUNTS) {
-      v[acc.key] = (person[acc.key] as string) || '';
-    }
-    v.headline = (person.headline as string) || '';
-    v.location = (person.location as string) || '';
-    setValues(v);
-  }, [person]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const profileImage = (person.profile_image as string) || (person.picture as string) || '';
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      addToast('Please select an image file', 'error');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      addToast('Image too large (max 2MB)', 'error');
-      return;
-    }
-    setUploadingImage(true);
-    try {
-      await uploadProfileImage(file);
-      addToast('Profile picture updated', 'success');
-      onSaved();
-    } catch {
-      addToast('Failed to upload profile picture', 'error');
-    } finally { setUploadingImage(false); }
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleImageDelete = async () => {
-    setUploadingImage(true);
-    try {
-      await deleteProfileImage();
-      addToast('Profile picture removed', 'info');
-      onSaved();
-    } catch {
-      addToast('Failed to remove profile picture', 'error');
-    } finally { setUploadingImage(false); setShowDeleteConfirmPhoto(false); }
-  };
-
-  const filledAccounts = SOCIAL_ACCOUNTS.filter((a) => values[a.key]?.trim());
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const props: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(values)) {
-        props[k] = v.trim();
-      }
-      await updateProfile(props);
-      addToast('Profile updated', 'success');
-      onSaved();
-      setEditing(false);
-    } catch {
-      addToast('Failed to update profile', 'error');
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
-        className="absolute inset-0 bg-black/60"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.92, y: 24 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: 24 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-950 border border-white/10 rounded-2xl p-6 sm:p-8 max-w-[95vw] sm:max-w-lg w-full mx-2 sm:mx-4 shadow-2xl backdrop-blur-xl">
-        {/* Header */}
-        <div className="flex items-center gap-5 mb-6">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingImage}
-            className="relative w-28 h-28 rounded-full bg-purple-600/30 border-2 border-purple-500/50 flex items-center justify-center flex-shrink-0 group cursor-pointer hover:border-purple-400/70 transition-all overflow-hidden"
-            title="Click to upload profile picture"
-          >
-            {profileImage ? (
-              <img src={profileImage} alt="Profile" className="w-full h-full object-cover rounded-full" />
-            ) : (
-              <span className="text-purple-300 text-xl font-bold">
-                {((person.name as string) || 'O').charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
-              {uploadingImage ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={handleImageUpload}
-            />
-          </button>
-          <div className="min-w-0">
-            <h2 className="text-white text-xl font-semibold truncate">{(person.name as string) || 'My Orbis'}</h2>
-            {values.headline && !editing && (
-              <p className="text-white/40 text-base truncate">{values.headline}</p>
-            )}
-            {values.location && !editing && (
-              <p className="text-white/30 text-sm">{values.location}</p>
-            )}
-          </div>
-          <button onClick={onClose} className="ml-auto text-white/30 hover:text-white/60 transition-colors flex-shrink-0">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {editing ? (
-          /* ── Edit mode ── */
-          <div className="max-h-[60vh] overflow-y-auto pr-1 -mr-1">
-            {/* Photo actions */}
-            {profileImage && (
-              <div className="mb-4">
-                {showDeleteConfirmPhoto ? (
-                  <div className="flex items-center gap-3 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
-                    <span className="text-xs text-red-400">Remove photo?</span>
-                    <button onClick={handleImageDelete} disabled={uploadingImage}
-                      className="text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors cursor-pointer">
-                      {uploadingImage ? 'Removing...' : 'Yes'}
-                    </button>
-                    <button onClick={() => setShowDeleteConfirmPhoto(false)}
-                      className="text-xs font-medium text-white/40 hover:text-white/60 transition-colors cursor-pointer">
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={() => setShowDeleteConfirmPhoto(true)}
-                    className="text-xs font-medium text-red-400/60 hover:text-red-400 transition-colors cursor-pointer">
-                    Remove profile photo
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Profile fields */}
-            <div className="space-y-4 mb-5">
-              <div>
-                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Headline</label>
-                <input value={values.headline} onChange={(e) => setValues({ ...values, headline: e.target.value })}
-                  placeholder="e.g. Senior Software Engineer"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-1.5">Location</label>
-                <input value={values.location} onChange={(e) => setValues({ ...values, location: e.target.value })}
-                  placeholder="e.g. San Francisco, CA"
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/20 focus:outline-none focus:ring-1 focus:ring-purple-500/50" />
-              </div>
-            </div>
-
-            {/* Social accounts */}
-            <div className="border-t border-white/5 pt-4">
-              <label className="block text-[10px] font-medium text-white/30 uppercase tracking-wide mb-3">Social Accounts</label>
-              <div className="space-y-2">
-                {SOCIAL_ACCOUNTS.map((acc) => (
-                  <div key={acc.key} className="flex items-center gap-2.5 bg-white/[0.02] rounded-lg px-2 py-1 hover:bg-white/[0.04] transition-colors">
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${acc.color}15` }}>
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill={acc.color}>
-                        <path d={acc.icon} />
-                      </svg>
-                    </div>
-                    <input
-                      value={values[acc.key]}
-                      onChange={(e) => setValues({ ...values, [acc.key]: e.target.value })}
-                      placeholder={`${acc.label} URL`}
-                      className="flex-1 bg-transparent border-none text-white text-xs placeholder:text-white/20 focus:outline-none min-w-0"
-                    />
-                    {values[acc.key]?.trim() && (
-                      <button onClick={() => setValues({ ...values, [acc.key]: '' })}
-                        className="text-white/15 hover:text-white/40 transition-colors flex-shrink-0 cursor-pointer">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-5 sticky bottom-0 bg-gray-950 pb-1">
-              <button onClick={handleSave} disabled={saving}
-                className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-              <button onClick={() => setEditing(false)}
-                className="flex-1 border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-2.5 rounded-lg transition-colors text-sm cursor-pointer">
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* ── View mode ── */
-          <div>
-            {filledAccounts.length > 0 ? (
-              <div className="space-y-2.5 mb-5">
-                {filledAccounts.map((acc) => (
-                  <a
-                    key={acc.key}
-                    href={values[acc.key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 px-4 py-3.5 rounded-xl bg-white/5 border border-white/5 hover:border-white/15 hover:bg-white/8 transition-all group"
-                  >
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${acc.color}20` }}>
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill={acc.color}>
-                        <path d={acc.icon} />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-white/80 text-base font-medium">{acc.label}</div>
-                      <div className="text-white/30 text-xs truncate">{values[acc.key]}</div>
-                    </div>
-                    <svg className="w-5 h-5 text-white/20 group-hover:text-white/50 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 mb-5">
-                <p className="text-white/20 text-base">No social accounts linked yet</p>
-              </div>
-            )}
-
-            <button onClick={() => setEditing(true)}
-              className="w-full border border-white/10 text-white/50 hover:text-white/70 hover:bg-white/5 font-medium py-3 rounded-lg transition-colors text-base flex items-center justify-center gap-2">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              Edit Profile & Accounts
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
 // ── Icon components ──
 
 function IconNotes() {
@@ -530,7 +235,6 @@ export default function OrbViewPage() {
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showDiscoverUses, setShowDiscoverUses] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [cameraDistance] = useState(getSavedCameraDistance);
 
@@ -587,14 +291,13 @@ export default function OrbViewPage() {
         setDraftReferenceText(null);
         return;
       }
-      if (showProfile) { setShowProfile(false); return; }
       if (showShare) { setShowShare(false); return; }
       if (showDiscoverUses) { setShowDiscoverUses(false); return; }
       if (showDrafts) { setShowDrafts(false); return; }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showInput, showProfile, showShare, showDiscoverUses, showDrafts, showToolsMenu]);
+  }, [showInput, showShare, showDiscoverUses, showDrafts, showToolsMenu]);
 
   useEffect(() => {
     if (!showToolsMenu) return;
@@ -688,7 +391,7 @@ export default function OrbViewPage() {
     if (!node) return;
     const labels = (node._labels as string[]) || [];
     if (labels[0] === 'Person') {
-      setShowProfile(true);
+      // Profile editing now lives in the top-right user menu.
       return;
     }
     const typeMap: Record<string, string> = {
@@ -1199,7 +902,14 @@ export default function OrbViewPage() {
 
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
-                <UserMenu orbId={data.person.orb_id as string} onOrbIdChanged={fetchOrb} label={(data.person.name as string) || user?.name || 'My Orbis'} onStartTour={startTour} />
+                <UserMenu
+                  orbId={data.person.orb_id as string}
+                  person={data.person}
+                  onOrbIdChanged={fetchOrb}
+                  onProfileSaved={fetchOrb}
+                  label={(data.person.name as string) || user?.name || 'My Orbis'}
+                  onStartTour={startTour}
+                />
               </div>
             </div>
           </div>
@@ -1343,9 +1053,6 @@ export default function OrbViewPage() {
       <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
       <AnimatePresence>
         {showShare && <SharePanel key="share" orbId={orbId} onClose={() => setShowShare(false)} />}
-      </AnimatePresence>
-      <AnimatePresence>
-        {showProfile && <ProfilePanel key="profile" person={data.person} onClose={() => setShowProfile(false)} onSaved={fetchOrb} />}
       </AnimatePresence>
 
       {/* ── Import review overlay ── */}

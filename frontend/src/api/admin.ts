@@ -121,6 +121,18 @@ export interface AdminUser {
   created_at: string;
 }
 
+export interface ProcessingRecord {
+  document_id: string;
+  original_filename: string;
+  llm_provider: string;
+  llm_model: string;
+  extraction_method: string;
+  nodes_extracted: number;
+  edges_extracted: number;
+  ontology_version: number | null;
+  processed_at: string;
+}
+
 export interface AdminUserDetail extends AdminUser {
   orb_id: string;
   picture: string;
@@ -129,6 +141,7 @@ export interface AdminUserDetail extends AdminUser {
   node_count: number;
   gdpr_consent: boolean;
   deletion_requested_at: string | null;
+  processing_records: ProcessingRecord[];
 }
 
 export async function listUsers(): Promise<AdminUser[]> {

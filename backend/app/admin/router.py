@@ -20,6 +20,7 @@ from app.admin.models import (
     InsightsResponse,
     InviteCodeCounts,
     PendingUser,
+    ProcessingRecordInfo,
     StatsResponse,
     UserDetailResponse,
     UserResponse,
@@ -119,6 +120,9 @@ def _serialize_user_detail(node: dict) -> UserDetailResponse:
             if node.get("deletion_requested_at")
             else None
         ),
+        processing_records=[
+            ProcessingRecordInfo(**pr) for pr in node.get("processing_records", [])
+        ],
     )
 
 
