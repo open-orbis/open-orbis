@@ -1,9 +1,9 @@
 """Tests for ontology file parsing and version detection."""
+
 import hashlib
 import json
 
-from app.graph.ontology import parse_ontology_markdown, hash_content
-
+from app.graph.ontology import hash_content, parse_ontology_markdown
 
 SAMPLE_ONTOLOGY = """# Orb Knowledge Graph Ontology
 

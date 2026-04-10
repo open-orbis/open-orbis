@@ -1,11 +1,17 @@
 """Tests for ExtractionResult metadata in classification pipeline."""
+
 import hashlib
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.cv.models import ConfirmRequest, ExtractedData, ExtractedNode, ExtractionMetadata
-from app.cv.ollama_classifier import classify_entries, SYSTEM_PROMPT
+from app.cv.models import (
+    ConfirmRequest,
+    ExtractedData,
+    ExtractedNode,
+    ExtractionMetadata,
+)
+from app.cv.ollama_classifier import SYSTEM_PROMPT, classify_entries
 
 
 def test_extraction_metadata_defaults():
@@ -44,7 +50,11 @@ async def test_classify_entries_returns_metadata_claude():
         mock_settings.llm_provider = "claude"
         mock_settings.claude_model = "claude-opus-4-6"
 
-        with patch("app.cv.claude_classifier.call_claude", new_callable=AsyncMock, return_value=mock_response):
+        with patch(
+            "app.cv.claude_classifier.call_claude",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
             result = await classify_entries("Some CV text")
 
     assert result.metadata is not None
@@ -66,7 +76,11 @@ async def test_classify_entries_returns_metadata_ollama():
         mock_settings.ollama_model = "llama3.2:3b"
         mock_settings.ollama_base_url = "http://localhost:11434"
 
-        with patch("app.cv.ollama_classifier._call_ollama", new_callable=AsyncMock, return_value=mock_response):
+        with patch(
+            "app.cv.ollama_classifier._call_ollama",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ):
             result = await classify_entries("Some CV text")
 
     assert result.metadata is not None
@@ -82,8 +96,14 @@ async def test_classify_entries_metadata_fallback_rule_based():
         mock_settings.llm_provider = "claude"
         mock_settings.claude_model = "claude-opus-4-6"
 
-        with patch("app.cv.claude_classifier.call_claude", new_callable=AsyncMock, side_effect=RuntimeError("fail")):
-            result = await classify_entries("Education\nMIT\nBSc Computer Science\n2020")
+        with patch(
+            "app.cv.claude_classifier.call_claude",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("fail"),
+        ):
+            result = await classify_entries(
+                "Education\nMIT\nBSc Computer Science\n2020"
+            )
 
     if result.nodes:
         assert result.metadata is not None

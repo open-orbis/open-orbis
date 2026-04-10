@@ -1,10 +1,10 @@
 """Tests for provenance service: ontology version detection and processing record creation."""
-import json
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.graph.provenance import ensure_ontology_version, create_processing_record
+from app.graph.provenance import create_processing_record, ensure_ontology_version
 
 
 @pytest.fixture
@@ -19,15 +19,21 @@ def sample_ontology_content():
 
 
 @pytest.mark.asyncio
-async def test_ensure_ontology_version_creates_first_version(mock_session, sample_ontology_content):
+async def test_ensure_ontology_version_creates_first_version(
+    mock_session, sample_ontology_content
+):
     """When no OntologyVersion exists, creates version 1."""
     # No existing version
     result_mock = AsyncMock()
     result_mock.single = AsyncMock(return_value=None)
     mock_session.run = AsyncMock(return_value=result_mock)
 
-    with patch("app.graph.provenance.read_ontology_file", return_value=sample_ontology_content):
-        version_id = await ensure_ontology_version(mock_session, "/fake/root", "test prompt")
+    with patch(
+        "app.graph.provenance.read_ontology_file", return_value=sample_ontology_content
+    ):
+        version_id = await ensure_ontology_version(
+            mock_session, "/fake/root", "test prompt"
+        )
 
     assert version_id is not None
     # Should have called run at least twice: GET_LATEST + CREATE
@@ -35,13 +41,15 @@ async def test_ensure_ontology_version_creates_first_version(mock_session, sampl
 
 
 @pytest.mark.asyncio
-async def test_ensure_ontology_version_reuses_existing(mock_session, sample_ontology_content):
+async def test_ensure_ontology_version_reuses_existing(
+    mock_session, sample_ontology_content
+):
     """When hash matches, reuses existing OntologyVersion."""
     from app.graph.ontology import hash_content
 
     existing_hash = hash_content(sample_ontology_content)
     existing_version = MagicMock()
-    existing_version.__getitem__ = lambda self, key: {
+    existing_version.__getitem__ = lambda _self, key: {
         "version_id": "existing-id",
         "content_hash": existing_hash,
         "version_number": 1,
@@ -52,8 +60,12 @@ async def test_ensure_ontology_version_reuses_existing(mock_session, sample_onto
     result_mock.single = AsyncMock(return_value={"ov": existing_version})
     mock_session.run = AsyncMock(return_value=result_mock)
 
-    with patch("app.graph.provenance.read_ontology_file", return_value=sample_ontology_content):
-        version_id = await ensure_ontology_version(mock_session, "/fake/root", "test prompt")
+    with patch(
+        "app.graph.provenance.read_ontology_file", return_value=sample_ontology_content
+    ):
+        version_id = await ensure_ontology_version(
+            mock_session, "/fake/root", "test prompt"
+        )
 
     assert version_id == "existing-id"
     # Only the GET query should have run
@@ -61,10 +73,12 @@ async def test_ensure_ontology_version_reuses_existing(mock_session, sample_onto
 
 
 @pytest.mark.asyncio
-async def test_ensure_ontology_version_warns_on_unchanged_prompt(mock_session, sample_ontology_content, caplog):
+async def test_ensure_ontology_version_warns_on_unchanged_prompt(
+    mock_session, sample_ontology_content, caplog
+):
     """When ontology changes but prompt doesn't, logs a warning."""
     existing_version = MagicMock()
-    existing_version.__getitem__ = lambda self, key: {
+    existing_version.__getitem__ = lambda _self, key: {
         "version_id": "old-id",
         "content_hash": "different-hash",
         "version_number": 1,
@@ -76,11 +90,17 @@ async def test_ensure_ontology_version_warns_on_unchanged_prompt(mock_session, s
     mock_session.run = AsyncMock(return_value=result_mock)
 
     import logging
+
     with (
-        patch("app.graph.provenance.read_ontology_file", return_value=sample_ontology_content),
+        patch(
+            "app.graph.provenance.read_ontology_file",
+            return_value=sample_ontology_content,
+        ),
         caplog.at_level(logging.WARNING),
     ):
-        version_id = await ensure_ontology_version(mock_session, "/fake/root", "test prompt")
+        version_id = await ensure_ontology_version(
+            mock_session, "/fake/root", "test prompt"
+        )
 
     assert version_id is not None
     assert version_id != "old-id"

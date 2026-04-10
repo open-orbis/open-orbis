@@ -1,4 +1,5 @@
 """Provenance tracking: ontology versioning and processing record management."""
+
 from __future__ import annotations
 
 import json
