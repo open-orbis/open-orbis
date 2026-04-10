@@ -52,9 +52,7 @@ async def send_activation_email(*, to: str, frontend_url: str) -> bool:
     )
 
 
-async def send_invite_code_email(
-    *, to: str, code: str, frontend_url: str
-) -> bool:
+async def send_invite_code_email(*, to: str, code: str, frontend_url: str) -> bool:
     """Send an invite code to a user so they can self-activate."""
     from app.email.templates import render_invite_code_email
 

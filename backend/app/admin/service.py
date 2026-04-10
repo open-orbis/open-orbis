@@ -359,9 +359,7 @@ async def get_funnel_metrics(db: AsyncDriver, days: int = 30) -> dict:
     """Return signup and activation time-series for the last N days."""
     async with db.session() as session:
         result = await session.run(FUNNEL_SIGNUPS_PER_DAY, days=days)
-        signups = [
-            {"date": r["date"], "count": int(r["count"])} async for r in result
-        ]
+        signups = [{"date": r["date"], "count": int(r["count"])} async for r in result]
 
         result = await session.run(FUNNEL_ACTIVATIONS_PER_DAY, days=days)
         activations = [
@@ -391,8 +389,7 @@ async def get_insights(db: AsyncDriver) -> dict:
     async with db.session() as session:
         result = await session.run(PROVIDER_BREAKDOWN)
         providers = [
-            {"provider": r["provider"], "count": int(r["count"])}
-            async for r in result
+            {"provider": r["provider"], "count": int(r["count"])} async for r in result
         ]
 
         result = await session.run(AVG_ACTIVATION_TIME)

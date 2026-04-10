@@ -140,4 +140,6 @@ async def test_send_invite_code_email():
     assert call_kwargs["to"] == "user@example.com"
     assert "invite" in call_kwargs["subject"].lower()
     assert "my-code-123" in call_kwargs["html_body"]
-    assert "https://app.example.com/activate?code=my-code-123" in call_kwargs["html_body"]
+    assert (
+        "https://app.example.com/activate?code=my-code-123" in call_kwargs["html_body"]
+    )

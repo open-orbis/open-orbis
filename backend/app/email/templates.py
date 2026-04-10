@@ -82,8 +82,7 @@ _BUTTON = """\
 
 # ── Activation email (admin activates user) ──
 
-_ACTIVATION_CONTENT = (
-    """\
+_ACTIVATION_CONTENT = """\
 <h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
   You're in.
 </h1>
@@ -106,14 +105,11 @@ _ACTIVATION_CONTENT = (
     </td>
   </tr>
 </table>
-"""
-    + _BUTTON.replace("{{ label }}", "Open OpenOrbis")
-)
+""" + _BUTTON.replace("{{ label }}", "Open OpenOrbis")
 
 # ── Invite code email ──
 
-_INVITE_CODE_CONTENT = (
-    """\
+_INVITE_CODE_CONTENT = """\
 <h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
   You're invited.
 </h1>
@@ -136,9 +132,7 @@ _INVITE_CODE_CONTENT = (
   Click the button below or enter the code manually on the activation page.
   This code is single-use.
 </p>
-"""
-    + _BUTTON.replace("{{ label }}", "Activate your account")
-)
+""" + _BUTTON.replace("{{ label }}", "Activate your account")
 
 # ── Compile templates ──
 
