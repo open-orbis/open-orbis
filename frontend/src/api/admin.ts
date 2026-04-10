@@ -233,11 +233,63 @@ export interface EngagementBucket {
   count: number;
 }
 
+export interface CumulativePoint {
+  date: string;
+  count: number;
+}
+
+export interface ActivationStages {
+  registered: number;
+  activated: number;
+  built_orb: number;
+  rich_orb: number;
+}
+
+export interface SkillCount {
+  name: string;
+  count: number;
+}
+
+export interface NodeTypeCount {
+  label: string;
+  count: number;
+}
+
+export interface ProfileCompletenessStats {
+  empty: number;
+  partial: number;
+  good: number;
+  complete: number;
+}
+
+export interface GraphRichnessStats {
+  total_users: number;
+  avg_nodes: number;
+  min_nodes: number;
+  max_nodes: number;
+  median_nodes: number;
+}
+
+export interface CodeEfficiencyEntry {
+  label: string;
+  created: number;
+  used: number;
+  rate: number;
+}
+
 export interface Insights {
   providers: ProviderCount[];
   activation_time: ActivationTimeStats;
   code_attribution: CodeAttributionEntry[];
   engagement: EngagementBucket[];
+  cumulative_growth: CumulativePoint[];
+  activation_stages: ActivationStages;
+  top_skills: SkillCount[];
+  node_type_distribution: NodeTypeCount[];
+  profile_completeness: ProfileCompletenessStats;
+  graph_richness: GraphRichnessStats;
+  recently_active_7d: number;
+  code_efficiency: CodeEfficiencyEntry[];
 }
 
 export async function getInsights(): Promise<Insights> {

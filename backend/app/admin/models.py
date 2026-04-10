@@ -113,11 +113,63 @@ class EngagementBucket(BaseModel):
     count: int
 
 
+class CumulativePoint(BaseModel):
+    date: str
+    count: int
+
+
+class ActivationStages(BaseModel):
+    registered: int
+    activated: int
+    built_orb: int
+    rich_orb: int
+
+
+class SkillCount(BaseModel):
+    name: str
+    count: int
+
+
+class NodeTypeCount(BaseModel):
+    label: str
+    count: int
+
+
+class ProfileCompletenessStats(BaseModel):
+    empty: int
+    partial: int
+    good: int
+    complete: int
+
+
+class GraphRichnessStats(BaseModel):
+    total_users: int
+    avg_nodes: float
+    min_nodes: int
+    max_nodes: int
+    median_nodes: float
+
+
+class CodeEfficiencyEntry(BaseModel):
+    label: str
+    created: int
+    used: int
+    rate: float
+
+
 class InsightsResponse(BaseModel):
     providers: list[ProviderCount]
     activation_time: ActivationTimeStats
     code_attribution: list[CodeAttributionEntry]
     engagement: list[EngagementBucket]
+    cumulative_growth: list[CumulativePoint]
+    activation_stages: ActivationStages
+    top_skills: list[SkillCount]
+    node_type_distribution: list[NodeTypeCount]
+    profile_completeness: ProfileCompletenessStats
+    graph_richness: GraphRichnessStats
+    recently_active_7d: int
+    code_efficiency: list[CodeEfficiencyEntry]
 
 
 # ── Funnel metrics ──

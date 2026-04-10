@@ -993,36 +993,91 @@ export default function AdminPage() {
 
         {/* ── Funnel Tab ── */}
         {tab === 'funnel' && funnel && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+
+            {/* ── Row 1: Key metrics ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <StatCard label="Signups (30d)" value={funnel.total_signups} />
               <StatCard label="Activations (30d)" value={funnel.total_activations} />
-              <StatCard
-                label="Conversion rate"
-                value={`${(funnel.conversion_rate * 100).toFixed(1)}%`}
-                sub={`${funnel.total_activations} of ${funnel.total_signups}`}
-              />
+              <StatCard label="Conversion" value={`${(funnel.conversion_rate * 100).toFixed(1)}%`} sub={`${funnel.total_activations} of ${funnel.total_signups}`} />
+              <StatCard label="Active (7d)" value={insights?.recently_active_7d ?? '—'} />
             </div>
 
-            {/* Chart */}
-            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5 mb-6">
-              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">
-                Daily signups &amp; activations (last 30 days)
-              </h3>
-              <FunnelChart signups={funnel.signups} activations={funnel.activations} />
-            </div>
+            {/* ── Row 2: Activation funnel stages ── */}
+            {insights?.activation_stages && (
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-5">Activation funnel</h3>
+                <div className="flex items-center gap-2">
+                  {[
+                    { label: 'Registered', value: insights.activation_stages.registered, color: 'bg-white/20' },
+                    { label: 'Activated', value: insights.activation_stages.activated, color: 'bg-purple-500/60' },
+                    { label: 'Built orb', value: insights.activation_stages.built_orb, color: 'bg-indigo-500/60' },
+                    { label: 'Rich orb (10+)', value: insights.activation_stages.rich_orb, color: 'bg-green-500/60' },
+                  ].map((stage, i) => {
+                    const maxVal = insights.activation_stages.registered || 1;
+                    const pct = Math.max(8, (stage.value / maxVal) * 100);
+                    return (
+                      <div key={stage.label} className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          {i > 0 && <div className="text-white/15 text-xs">→</div>}
+                          <span className="text-white/50 text-xs truncate">{stage.label}</span>
+                        </div>
+                        <div className={`${stage.color} rounded-lg text-center py-3 transition-all`} style={{ width: `${pct}%`, minWidth: '40px' }}>
+                          <span className="text-white font-bold text-lg">{stage.value}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-            {/* ── Insights ── */}
-            {insights && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Provider breakdown */}
+            {/* ── Row 3: Charts side by side ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Daily signups chart */}
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">
+                  Daily signups &amp; activations
+                </h3>
+                <FunnelChart signups={funnel.signups} activations={funnel.activations} />
+                <div className="flex gap-4 mt-3 justify-center">
+                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-purple-500/50" /><span className="text-white/30 text-xs">Signups</span></div>
+                  <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-green-500/50" /><span className="text-white/30 text-xs">Activations</span></div>
+                </div>
+              </div>
+
+              {/* Cumulative growth */}
+              {insights?.cumulative_growth && insights.cumulative_growth.length > 0 && (
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
-                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Signup providers</h3>
-                  {insights.providers.length === 0 ? (
-                    <div className="text-white/20 text-sm">No data.</div>
-                  ) : (
-                    <div className="space-y-2">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Cumulative user growth</h3>
+                  <div className="flex items-end gap-[2px] h-40">
+                    {insights.cumulative_growth.map((d) => {
+                      const maxC = insights.cumulative_growth[insights.cumulative_growth.length - 1]?.count || 1;
+                      const h = (d.count / maxC) * 100;
+                      return (
+                        <div key={d.date} className="flex-1 flex flex-col items-center justify-end group relative min-w-0 h-32">
+                          <div className="w-full bg-gradient-to-t from-purple-600/40 to-indigo-500/30 rounded-t-sm" style={{ height: `${h}%`, minHeight: '2px' }} />
+                          <span className="text-[8px] text-white/20 mt-0.5 truncate w-full text-center">{d.date.slice(5)}</span>
+                          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-neutral-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            <div className="text-white/60">{d.date}</div>
+                            <div className="text-purple-300">Total: {d.count}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Row 4: Provider + Activation time + Graph richness ── */}
+            {insights && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Providers */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Providers</h3>
+                  {insights.providers.length === 0 ? <div className="text-white/20 text-sm">No data.</div> : (
+                    <div className="space-y-3">
                       {insights.providers.map((p) => {
                         const total = insights.providers.reduce((s, x) => s + x.count, 0);
                         const pct = total > 0 ? (p.count / total) * 100 : 0;
@@ -1030,13 +1085,10 @@ export default function AdminPage() {
                           <div key={p.provider}>
                             <div className="flex justify-between text-sm mb-1">
                               <span className="text-white/70 capitalize">{p.provider}</span>
-                              <span className="text-white/40">{p.count} ({pct.toFixed(0)}%)</span>
+                              <span className="text-white/40">{p.count} <span className="text-white/20">({pct.toFixed(0)}%)</span></span>
                             </div>
-                            <div className="w-full bg-white/[0.04] rounded-full h-2">
-                              <div
-                                className="bg-purple-500/60 h-2 rounded-full transition-all"
-                                style={{ width: `${pct}%` }}
-                              />
+                            <div className="w-full bg-white/[0.04] rounded-full h-1.5">
+                              <div className="bg-purple-500/60 h-1.5 rounded-full transition-all" style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );
@@ -1048,69 +1100,61 @@ export default function AdminPage() {
                 {/* Activation time */}
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
                   <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Activation time</h3>
-                  {insights.activation_time.total === 0 ? (
-                    <div className="text-white/20 text-sm">No activations yet.</div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Average</div>
-                        <div className="text-white text-xl font-bold">{formatHours(insights.activation_time.avg_hours)}</div>
+                  {insights.activation_time.total === 0 ? <div className="text-white/20 text-sm">No activations yet.</div> : (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <div className="text-white text-3xl font-bold">{formatHours(insights.activation_time.avg_hours)}</div>
+                        <div className="text-white/30 text-xs mt-1">average wait</div>
                       </div>
-                      <div>
-                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Activated</div>
-                        <div className="text-white text-xl font-bold">{insights.activation_time.total}</div>
-                      </div>
-                      <div>
-                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Fastest</div>
-                        <div className="text-white/70 text-sm">{formatHours(insights.activation_time.min_hours)}</div>
-                      </div>
-                      <div>
-                        <div className="text-white/40 text-xs uppercase tracking-wider mb-1">Slowest</div>
-                        <div className="text-white/70 text-sm">{formatHours(insights.activation_time.max_hours)}</div>
+                      <div className="flex justify-between text-xs">
+                        <div className="text-center"><div className="text-green-400 font-semibold">{formatHours(insights.activation_time.min_hours)}</div><div className="text-white/25 mt-0.5">fastest</div></div>
+                        <div className="text-center"><div className="text-white/60 font-semibold">{insights.activation_time.total}</div><div className="text-white/25 mt-0.5">activated</div></div>
+                        <div className="text-center"><div className="text-amber-400 font-semibold">{formatHours(insights.activation_time.max_hours)}</div><div className="text-white/25 mt-0.5">slowest</div></div>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Code attribution */}
+                {/* Graph richness */}
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
-                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Code attribution</h3>
-                  {insights.code_attribution.length === 0 ? (
-                    <div className="text-white/20 text-sm">No codes used yet.</div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {insights.code_attribution.map((c) => (
-                        <div key={c.label} className="flex justify-between items-center text-sm">
-                          <span className="text-white/70 font-mono text-xs truncate mr-2">{c.label}</span>
-                          <span className="text-white/40 tabular-nums shrink-0">{c.count}</span>
-                        </div>
-                      ))}
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Graph richness</h3>
+                  {insights.graph_richness.total_users === 0 ? <div className="text-white/20 text-sm">No data.</div> : (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <div className="text-white text-3xl font-bold">{insights.graph_richness.avg_nodes}</div>
+                        <div className="text-white/30 text-xs mt-1">avg nodes per user</div>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <div className="text-center"><div className="text-white/60 font-semibold">{insights.graph_richness.min_nodes}</div><div className="text-white/25 mt-0.5">min</div></div>
+                        <div className="text-center"><div className="text-white/60 font-semibold">{insights.graph_richness.median_nodes}</div><div className="text-white/25 mt-0.5">median</div></div>
+                        <div className="text-center"><div className="text-white/60 font-semibold">{insights.graph_richness.max_nodes}</div><div className="text-white/25 mt-0.5">max</div></div>
+                      </div>
                     </div>
                   )}
                 </div>
+              </div>
+            )}
 
-                {/* Engagement */}
+            {/* ── Row 5: Node types + Top skills ── */}
+            {insights && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Node type distribution */}
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
-                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">User engagement</h3>
-                  {insights.engagement.length === 0 ? (
-                    <div className="text-white/20 text-sm">No data.</div>
-                  ) : (
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Node types</h3>
+                  {insights.node_type_distribution.length === 0 ? <div className="text-white/20 text-sm">No data.</div> : (
                     <div className="space-y-2">
-                      {insights.engagement.map((e) => {
-                        const total = insights.engagement.reduce((s, x) => s + x.count, 0);
-                        const pct = total > 0 ? (e.count / total) * 100 : 0;
-                        const label = e.bucket === '0' ? 'No nodes' : `${e.bucket} nodes`;
+                      {insights.node_type_distribution.map((n) => {
+                        const maxN = insights.node_type_distribution[0]?.count || 1;
+                        const pct = (n.count / maxN) * 100;
+                        const colors: Record<string, string> = { Skill: 'bg-teal-500/50', WorkExperience: 'bg-indigo-500/50', Collaborator: 'bg-pink-500/50', Education: 'bg-amber-500/50', Project: 'bg-purple-500/50' };
                         return (
-                          <div key={e.bucket}>
+                          <div key={n.label}>
                             <div className="flex justify-between text-sm mb-1">
-                              <span className="text-white/70">{label}</span>
-                              <span className="text-white/40">{e.count} ({pct.toFixed(0)}%)</span>
+                              <span className="text-white/70">{n.label}</span>
+                              <span className="text-white/40 tabular-nums">{n.count}</span>
                             </div>
-                            <div className="w-full bg-white/[0.04] rounded-full h-2">
-                              <div
-                                className="bg-green-500/50 h-2 rounded-full transition-all"
-                                style={{ width: `${pct}%` }}
-                              />
+                            <div className="w-full bg-white/[0.04] rounded-full h-1.5">
+                              <div className={`${colors[n.label] || 'bg-white/20'} h-1.5 rounded-full transition-all`} style={{ width: `${pct}%` }} />
                             </div>
                           </div>
                         );
@@ -1118,8 +1162,101 @@ export default function AdminPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Top skills */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Top skills</h3>
+                  {insights.top_skills.length === 0 ? <div className="text-white/20 text-sm">No skills yet.</div> : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {insights.top_skills.map((s, i) => (
+                        <span key={s.name} className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors ${i < 3 ? 'bg-purple-500/10 border-purple-500/20 text-purple-300' : i < 7 ? 'bg-white/[0.04] border-white/[0.08] text-white/60' : 'bg-white/[0.02] border-white/[0.05] text-white/40'}`}>
+                          {s.name}
+                          <span className="text-white/25">{s.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
+
+            {/* ── Row 6: Profile completeness + Engagement + Code efficiency ── */}
+            {insights && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Profile completeness */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Profile completeness</h3>
+                  <div className="space-y-2">
+                    {[
+                      { label: 'Complete (5/5)', value: insights.profile_completeness.complete, color: 'bg-green-500/50' },
+                      { label: 'Good (3-4)', value: insights.profile_completeness.good, color: 'bg-teal-500/50' },
+                      { label: 'Partial (1-2)', value: insights.profile_completeness.partial, color: 'bg-amber-500/50' },
+                      { label: 'Empty (0)', value: insights.profile_completeness.empty, color: 'bg-red-500/40' },
+                    ].map((s) => {
+                      const total = insights.profile_completeness.complete + insights.profile_completeness.good + insights.profile_completeness.partial + insights.profile_completeness.empty || 1;
+                      const pct = (s.value / total) * 100;
+                      return (
+                        <div key={s.label}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-white/60">{s.label}</span>
+                            <span className="text-white/30">{s.value}</span>
+                          </div>
+                          <div className="w-full bg-white/[0.04] rounded-full h-1.5">
+                            <div className={`${s.color} h-1.5 rounded-full transition-all`} style={{ width: `${Math.max(pct, s.value > 0 ? 4 : 0)}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Engagement buckets */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">User engagement</h3>
+                  {insights.engagement.length === 0 ? <div className="text-white/20 text-sm">No data.</div> : (
+                    <div className="space-y-2">
+                      {insights.engagement.map((e) => {
+                        const total = insights.engagement.reduce((s, x) => s + x.count, 0) || 1;
+                        const pct = (e.count / total) * 100;
+                        const label = e.bucket === '0' ? 'No nodes' : `${e.bucket} nodes`;
+                        return (
+                          <div key={e.bucket}>
+                            <div className="flex justify-between text-xs mb-1">
+                              <span className="text-white/60">{label}</span>
+                              <span className="text-white/30">{e.count} ({pct.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-white/[0.04] rounded-full h-1.5">
+                              <div className="bg-green-500/50 h-1.5 rounded-full transition-all" style={{ width: `${Math.max(pct, e.count > 0 ? 4 : 0)}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Code efficiency */}
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-5">
+                  <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">Code efficiency</h3>
+                  {insights.code_efficiency.length === 0 ? <div className="text-white/20 text-sm">No codes yet.</div> : (
+                    <div className="space-y-2.5">
+                      {insights.code_efficiency.map((c) => (
+                        <div key={c.label}>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="text-white/60 font-mono truncate mr-2">{c.label}</span>
+                            <span className="text-white/30 shrink-0">{c.used}/{c.created} ({(c.rate * 100).toFixed(0)}%)</span>
+                          </div>
+                          <div className="w-full bg-white/[0.04] rounded-full h-1.5">
+                            <div className="bg-indigo-500/50 h-1.5 rounded-full transition-all" style={{ width: `${c.rate * 100}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
           </motion.div>
         )}
       </div>

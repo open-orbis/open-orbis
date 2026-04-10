@@ -409,6 +409,103 @@ ORDER BY
     END
 """
 
+# ── Extended insights ──
+
+CUMULATIVE_GROWTH = """
+MATCH (p:Person)
+WITH date(p.created_at) AS day
+ORDER BY day
+WITH day, count(*) AS daily
+WITH collect({date: toString(day), count: daily}) AS rows
+WITH rows,
+     [i IN range(0, size(rows)-1) |
+       {date: rows[i].date,
+        count: reduce(s = 0, j IN range(0, i) | s + rows[j].count)}
+     ] AS cumulative
+UNWIND cumulative AS row
+RETURN row.date AS date, row.count AS count
+"""
+
+ACTIVATION_STAGES = """
+MATCH (p:Person)
+WITH
+    count(p) AS registered,
+    count(CASE WHEN p.signup_code IS NOT NULL OR coalesce(p.is_admin, false) THEN 1 END) AS activated
+MATCH (p2:Person)
+WHERE p2.signup_code IS NOT NULL OR coalesce(p2.is_admin, false) = true
+OPTIONAL MATCH (p2)-[]->(n)
+WHERE NOT n:AccessCode AND NOT n:BetaConfig AND NOT n:ProcessingRecord AND NOT n:OntologyVersion
+WITH registered, activated, p2, count(DISTINCT n) AS nodes
+WITH registered, activated,
+    count(CASE WHEN nodes > 0 THEN 1 END) AS built_orb,
+    count(CASE WHEN nodes >= 10 THEN 1 END) AS rich_orb
+RETURN registered, activated, built_orb, rich_orb
+"""
+
+TOP_SKILLS = """
+MATCH (:Person)-[:HAS_SKILL]->(s:Skill)
+RETURN s.name AS name, count(*) AS count
+ORDER BY count DESC
+LIMIT 15
+"""
+
+NODE_TYPE_DISTRIBUTION = """
+MATCH (p:Person)-[]->(n)
+WHERE NOT n:AccessCode AND NOT n:BetaConfig AND NOT n:ProcessingRecord AND NOT n:OntologyVersion
+WITH labels(n)[0] AS label, count(DISTINCT n) AS count
+RETURN label, count
+ORDER BY count DESC
+"""
+
+PROFILE_COMPLETENESS = """
+MATCH (p:Person)
+WHERE p.signup_code IS NOT NULL OR coalesce(p.is_admin, false) = true
+WITH p,
+    CASE WHEN p.headline IS NOT NULL AND p.headline <> '' THEN 1 ELSE 0 END +
+    CASE WHEN p.location IS NOT NULL AND p.location <> '' THEN 1 ELSE 0 END +
+    CASE WHEN p.linkedin_url IS NOT NULL AND p.linkedin_url <> '' THEN 1 ELSE 0 END +
+    CASE WHEN p.website_url IS NOT NULL AND p.website_url <> '' THEN 1 ELSE 0 END +
+    CASE WHEN p.picture IS NOT NULL AND p.picture <> '' THEN 1 ELSE 0 END
+    AS filled
+RETURN
+    count(CASE WHEN filled = 0 THEN 1 END) AS empty,
+    count(CASE WHEN filled >= 1 AND filled <= 2 THEN 1 END) AS partial,
+    count(CASE WHEN filled >= 3 AND filled <= 4 THEN 1 END) AS good,
+    count(CASE WHEN filled = 5 THEN 1 END) AS complete
+"""
+
+GRAPH_RICHNESS = """
+MATCH (p:Person)
+WHERE p.signup_code IS NOT NULL OR coalesce(p.is_admin, false) = true
+OPTIONAL MATCH (p)-[]->(n)
+WHERE NOT n:AccessCode AND NOT n:BetaConfig AND NOT n:ProcessingRecord AND NOT n:OntologyVersion
+WITH p, count(DISTINCT n) AS nodes
+RETURN
+    count(p) AS total_users,
+    avg(nodes) AS avg_nodes,
+    min(nodes) AS min_nodes,
+    max(nodes) AS max_nodes,
+    percentileCont(nodes, 0.5) AS median_nodes
+"""
+
+RECENTLY_ACTIVE_USERS = """
+MATCH (p:Person)
+WHERE p.updated_at IS NOT NULL
+  AND p.updated_at >= datetime() - duration({days: $days})
+  AND (p.signup_code IS NOT NULL OR coalesce(p.is_admin, false) = true)
+RETURN count(p) AS count
+"""
+
+CODE_EFFICIENCY = """
+MATCH (a:AccessCode)
+WITH coalesce(a.label, 'unlabeled') AS label,
+     count(a) AS created,
+     count(CASE WHEN a.used_at IS NOT NULL THEN 1 END) AS used
+RETURN label, created, used,
+       CASE WHEN created > 0 THEN toFloat(used) / created ELSE 0.0 END AS rate
+ORDER BY used DESC
+"""
+
 # ── Ontology Versioning ──
 
 CREATE_ONTOLOGY_VERSION = """
