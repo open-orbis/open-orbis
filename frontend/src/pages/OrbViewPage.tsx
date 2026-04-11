@@ -462,10 +462,12 @@ function SharePanel({
 
             <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
               <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-              <div className="mt-3 max-w-[700px] mx-auto grid grid-cols-1 md:grid-cols-[auto_minmax(250px,280px)] items-center gap-4 md:gap-8">
-                <div className="justify-self-center md:justify-self-start rounded-xl border border-gray-700/70 bg-gray-900/35 p-2">
-                  <div className="bg-white p-[3px] rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
-                    <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={0} />
+              <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
+                <div className="flex items-center justify-center md:pr-8">
+                  <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
+                    <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
+                      <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+                    </div>
                   </div>
                 </div>
                 <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
