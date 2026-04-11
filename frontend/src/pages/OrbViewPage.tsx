@@ -476,7 +476,7 @@ function SharePanel({
             <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
               <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
               <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <div className="order-2 sm:order-1 flex-1 flex flex-col gap-2 sm:max-w-[260px]">
+                <div className="order-2 sm:order-2 flex-1 flex flex-col gap-2 sm:max-w-[260px]">
                   <button
                     type="button"
                     onClick={handleCopyShareLink}
@@ -494,7 +494,7 @@ function SharePanel({
                     Download QR (.png)
                   </button>
                 </div>
-                <div className="order-1 sm:order-2 flex-1 flex justify-center sm:justify-end">
+                <div className="order-1 sm:order-1 flex-1 flex justify-center sm:justify-start">
                   <div className="bg-white p-1 rounded-lg">
                     <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
                   </div>
