@@ -11,6 +11,11 @@ from app.admin.service import (
     consume_access_code,
     is_invite_code_required,
 )
+from app.auth.mcp_keys import (
+    create_api_key,
+    list_api_keys,
+    revoke_api_key,
+)
 from app.auth.models import (
     OAuthCodeRequest,
     TokenResponse,
@@ -371,6 +376,56 @@ async def grant_gdpr_consent(
             now=datetime.now(timezone.utc).isoformat(),
         )
     return {"status": "ok"}
+
+
+# ── MCP API keys (machine credentials for the MCP server) ────────────
+
+
+class ApiKeyCreateRequest(BaseModel):
+    label: str = ""
+
+
+@router.post("/api-keys")
+@limiter.limit("10/minute")
+async def create_api_key_endpoint(
+    request: Request,
+    body: ApiKeyCreateRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Mint a new MCP API key for the current user.
+
+    The raw key is returned exactly once; the server only persists its
+    hash. The frontend must surface it to the user immediately with a
+    "copy once, can't see again" note.
+    """
+    raw_key, meta = await create_api_key(
+        db, user_id=current_user["user_id"], label=body.label
+    )
+    return {"api_key": raw_key, **meta}
+
+
+@router.get("/api-keys")
+async def list_api_keys_endpoint(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List the current user's MCP API keys (metadata only, never the raw key)."""
+    keys = await list_api_keys(db, user_id=current_user["user_id"])
+    return {"keys": keys}
+
+
+@router.delete("/api-keys/{key_id}")
+async def revoke_api_key_endpoint(
+    key_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Revoke an MCP API key owned by the current user."""
+    ok = await revoke_api_key(db, user_id=current_user["user_id"], key_id=key_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="API key not found")
+    return {"status": "revoked"}
 
 
 GRACE_PERIOD_DAYS = 30
