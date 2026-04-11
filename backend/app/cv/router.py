@@ -3,11 +3,12 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from neo4j import AsyncDriver
 
 from app.config import settings
+from app.rate_limit import limiter
 from app.cv import counter, progress
 from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
@@ -53,7 +54,9 @@ async def _require_consent(current_user: dict, db: AsyncDriver) -> None:
 
 
 @router.post("/upload", response_model=ExtractedData)
+@limiter.limit("3/minute")
 async def upload_cv(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
@@ -221,7 +224,9 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
 
 
 @router.post("/import", response_model=ExtractedData)
+@limiter.limit("3/minute")
 async def import_document(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),

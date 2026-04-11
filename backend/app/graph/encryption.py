@@ -103,6 +103,14 @@ def decrypt_value(value: str) -> str:
     return _get_multi().decrypt(value.encode()).decode()
 
 
+def encrypt_bytes(data: bytes) -> bytes:
+    return _get_primary().encrypt(data)
+
+
+def decrypt_bytes(data: bytes) -> bytes:
+    return _get_multi().decrypt(data)
+
+
 def encrypt_properties(properties: dict) -> dict:
     result = dict(properties)
     for field in ENCRYPTED_FIELDS:

@@ -7,7 +7,7 @@ import logging
 import re
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from neo4j import AsyncDriver
 
 from app.config import settings
@@ -15,6 +15,7 @@ from app.dependencies import get_current_user, get_db
 from app.graph.llm_usage import record_llm_usage
 from app.graph.queries import NODE_TYPE_LABELS
 from app.notes.models import EnhanceNoteRequest, EnhanceNoteResponse
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,9 @@ def _parse_enhance_result(  # noqa: C901
 
 
 @router.post("/enhance", response_model=EnhanceNoteResponse)
+@limiter.limit("10/minute")
 async def enhance_note(
+    request: Request,
     req: EnhanceNoteRequest,
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
