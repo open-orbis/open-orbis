@@ -1333,15 +1333,6 @@ export default function OrbViewPage() {
             </div>
           </div>
 
-          {!isPendingDeletion && (
-            <div className="flex flex-wrap items-center gap-1.5 px-2.5 sm:px-3 pb-2">
-              {activeKeywords.length > 0 && (
-                <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-amber-500/12 border border-amber-500/30 text-amber-200">
-                  Filters: {activeKeywords.length}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
