@@ -57,3 +57,12 @@ CREATE INDEX llm_usage_endpoint IF NOT EXISTS FOR (u:LLMUsage) ON (u.endpoint);
 CREATE CONSTRAINT connection_request_id IF NOT EXISTS FOR (cr:ConnectionRequest) REQUIRE cr.request_id IS UNIQUE;
 CREATE INDEX connection_request_status IF NOT EXISTS FOR (cr:ConnectionRequest) ON (cr.status);
 CREATE INDEX connection_request_requester IF NOT EXISTS FOR (cr:ConnectionRequest) ON (cr.requester_user_id);
+
+// Refresh tokens (hashed) for access token rotation
+CREATE CONSTRAINT refresh_token_id IF NOT EXISTS FOR (rt:RefreshToken) REQUIRE rt.token_id IS UNIQUE;
+CREATE INDEX refresh_token_hash IF NOT EXISTS FOR (rt:RefreshToken) ON (rt.hash);
+CREATE INDEX refresh_token_expires_at IF NOT EXISTS FOR (rt:RefreshToken) ON (rt.expires_at);
+
+// MCP API keys (hashed) for agent/machine authentication
+CREATE CONSTRAINT mcp_api_key_id IF NOT EXISTS FOR (k:MCPApiKey) REQUIRE k.key_id IS UNIQUE;
+CREATE INDEX mcp_api_key_hash IF NOT EXISTS FOR (k:MCPApiKey) ON (k.hash);

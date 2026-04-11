@@ -1,48 +1,42 @@
 import { create } from 'zustand';
-import axios from 'axios';
-import { getMe, googleLogin, linkedinLogin, type UserInfo } from '../api/auth';
+import { getMe, googleLogin, linkedinLogin, logoutBackend, type UserInfo } from '../api/auth';
 
 interface AuthState {
   user: UserInfo | null;
-  token: string | null;
+  // `loading` is true while we're probing the backend for the current
+  // session. It starts true so route guards render a spinner on first
+  // mount until /auth/me has resolved (success or 401).
   loading: boolean;
-  setToken: (token: string) => void;
   fetchUser: () => Promise<void>;
   loginGoogle: (code: string) => Promise<void>;
   loginLinkedIn: (code: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  token: localStorage.getItem('orbis_token'),
-  loading: false,
-
-  setToken: (token: string) => {
-    localStorage.setItem('orbis_token', token);
-    set({ token });
-  },
+  loading: true,
 
   fetchUser: async () => {
     set({ loading: true });
     try {
       const user = await getMe();
       set({ user, loading: false });
-    } catch (e) {
-      localStorage.removeItem('orbis_token');
-      set({ user: null, token: null, loading: false });
-      if (axios.isAxiosError(e) && e.response?.status === 404) {
-        window.dispatchEvent(new CustomEvent('orbis:session-expired'));
-      }
+    } catch {
+      // 401 or network failure — treat as logged out. The axios response
+      // interceptor in api/client.ts already tries /auth/refresh before
+      // the error reaches here, so we only land here if refresh also failed.
+      set({ user: null, loading: false });
     }
   },
 
   loginGoogle: async (code: string) => {
     set({ loading: true });
     try {
-      const { access_token, user } = await googleLogin(code);
-      localStorage.setItem('orbis_token', access_token);
-      set({ token: access_token, user, loading: false });
+      // The backend sets httpOnly access + refresh cookies on this call.
+      // The response body still carries UserInfo for convenience.
+      const { user } = await googleLogin(code);
+      set({ user, loading: false });
     } catch {
       set({ loading: false });
       throw new Error('Google login failed');
@@ -52,17 +46,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   loginLinkedIn: async (code: string) => {
     set({ loading: true });
     try {
-      const { access_token, user } = await linkedinLogin(code);
-      localStorage.setItem('orbis_token', access_token);
-      set({ token: access_token, user, loading: false });
+      const { user } = await linkedinLogin(code);
+      set({ user, loading: false });
     } catch {
       set({ loading: false });
       throw new Error('LinkedIn login failed');
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('orbis_token');
-    set({ user: null, token: null });
+  logout: async () => {
+    try {
+      await logoutBackend();
+    } catch {
+      // Even if the server call fails we still clear client state so the
+      // user is not stuck with a half-logged-in UI.
+    }
+    set({ user: null, loading: false });
   },
 }));

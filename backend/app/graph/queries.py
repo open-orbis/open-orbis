@@ -786,3 +786,119 @@ WHERE cr.status = 'pending'
 SET cr.status = $status, cr.resolved_at = datetime()
 RETURN cr
 """
+
+
+# ── Refresh Tokens ──
+# We store the SHA-256 hash of the raw token, never the token itself, so a
+# DB leak cannot be used to hijack active sessions. Rotation is tracked via
+# `replaced_by`; a reuse of an already-rotated token triggers a cascade
+# revoke of the whole family (handled in refresh_tokens.py).
+
+CREATE_REFRESH_TOKEN = """
+MATCH (p:Person {user_id: $user_id})
+CREATE (p)-[:HAS_REFRESH_TOKEN]->(rt:RefreshToken {
+    token_id:    $token_id,
+    hash:        $hash,
+    issued_at:   datetime(),
+    expires_at:  $expires_at,
+    revoked:     false,
+    revoked_at:  null,
+    replaced_by: null,
+    user_agent:  $user_agent
+})
+RETURN rt
+"""
+
+GET_REFRESH_TOKEN_BY_HASH = """
+MATCH (p:Person)-[:HAS_REFRESH_TOKEN]->(rt:RefreshToken {hash: $hash})
+RETURN rt, p.user_id AS user_id, p.email AS email
+LIMIT 1
+"""
+
+REVOKE_REFRESH_TOKEN = """
+MATCH (rt:RefreshToken {token_id: $token_id})
+SET rt.revoked = true, rt.revoked_at = datetime()
+RETURN rt
+"""
+
+MARK_REFRESH_TOKEN_ROTATED = """
+MATCH (rt:RefreshToken {token_id: $token_id})
+SET rt.revoked = true,
+    rt.revoked_at = datetime(),
+    rt.replaced_by = $replaced_by
+RETURN rt
+"""
+
+# Follow the `replaced_by` chain forward from a token to revoke an entire
+# family. Used when we detect the reuse of an already-rotated refresh token,
+# which means either the legitimate user or an attacker is holding a stale
+# copy — safest to force re-login on all descendants.
+REVOKE_REFRESH_TOKEN_FAMILY = """
+MATCH (start:RefreshToken {token_id: $token_id})
+OPTIONAL MATCH path = (start)<-[:REPLACED_BY*0..]-(ancestor:RefreshToken)
+OPTIONAL MATCH chain = (start)-[:REPLACED_BY*0..]->(descendant:RefreshToken)
+WITH collect(DISTINCT start) + collect(DISTINCT ancestor) + collect(DISTINCT descendant) AS family
+UNWIND family AS node
+WITH DISTINCT node WHERE node IS NOT NULL
+SET node.revoked = true,
+    node.revoked_at = coalesce(node.revoked_at, datetime())
+RETURN count(node) AS revoked_count
+"""
+
+REVOKE_ALL_REFRESH_TOKENS_FOR_USER = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_REFRESH_TOKEN]->(rt:RefreshToken)
+WHERE rt.revoked = false
+SET rt.revoked = true, rt.revoked_at = datetime()
+RETURN count(rt) AS revoked_count
+"""
+
+PURGE_EXPIRED_REFRESH_TOKENS = """
+MATCH (rt:RefreshToken)
+WHERE rt.expires_at < datetime()
+DETACH DELETE rt
+RETURN count(rt) AS deleted
+"""
+
+
+# ── MCP API Keys ──
+# Long-lived machine credentials for the MCP server. Stored as SHA-256 hash
+# of the raw token. Scoped to a single Person so every tool call resolves
+# to a user_id and can only touch that user's graph.
+
+CREATE_MCP_API_KEY = """
+MATCH (p:Person {user_id: $user_id})
+CREATE (p)-[:HAS_MCP_KEY]->(k:MCPApiKey {
+    key_id:       $key_id,
+    hash:         $hash,
+    label:        $label,
+    created_at:   datetime(),
+    last_used_at: null,
+    revoked:      false,
+    revoked_at:   null
+})
+RETURN k
+"""
+
+GET_MCP_KEY_BY_HASH = """
+MATCH (p:Person)-[:HAS_MCP_KEY]->(k:MCPApiKey {hash: $hash})
+WHERE k.revoked = false
+RETURN k, p.user_id AS user_id
+LIMIT 1
+"""
+
+TOUCH_MCP_KEY_LAST_USED = """
+MATCH (k:MCPApiKey {key_id: $key_id})
+SET k.last_used_at = datetime()
+"""
+
+LIST_MCP_KEYS_FOR_USER = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_MCP_KEY]->(k:MCPApiKey)
+RETURN k
+ORDER BY k.created_at DESC
+"""
+
+REVOKE_MCP_KEY = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_MCP_KEY]->(k:MCPApiKey {key_id: $key_id})
+SET k.revoked = true, k.revoked_at = datetime()
+RETURN k
+"""

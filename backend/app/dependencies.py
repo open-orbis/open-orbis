@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from neo4j import AsyncDriver
 
+from app.auth.service import ACCESS_COOKIE
 from app.config import settings
 from app.graph.neo4j_client import get_driver
 from app.graph.queries import IS_ADMIN
-
-security = HTTPBearer()
 
 
 async def get_db() -> AsyncDriver:
@@ -32,10 +30,25 @@ def _decode_jwt(token: str) -> dict | None:
     return {"user_id": user_id, "email": payload.get("email", "")}
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> dict:
-    user = _decode_jwt(credentials.credentials)
+def _extract_token(request: Request) -> str | None:
+    """Pick an access token from the httpOnly cookie.
+
+    Cookie-only. The Bearer header fallback was removed in Stage 5 of
+    the cookie migration — browser clients use cookies, MCP agents use
+    the X-MCP-Key header handled by the MCP server's own middleware.
+    Regular /api endpoints never see bearer tokens.
+    """
+    return request.cookies.get(ACCESS_COOKIE)
+
+
+async def get_current_user(request: Request) -> dict:
+    token = _extract_token(request)
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+    user = _decode_jwt(token)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,10 +63,10 @@ async def get_current_user_optional(request: Request) -> dict | None:
     Used by endpoints that conditionally require auth based on resource
     state (e.g. restricted orbs require auth, public orbs don't).
     """
-    auth = request.headers.get("authorization") or request.headers.get("Authorization")
-    if not auth or not auth.lower().startswith("bearer "):
+    token = _extract_token(request)
+    if not token:
         return None
-    return _decode_jwt(auth.split(" ", 1)[1])
+    return _decode_jwt(token)
 
 
 async def require_admin(

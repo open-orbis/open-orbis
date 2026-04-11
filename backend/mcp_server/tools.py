@@ -1,4 +1,20 @@
-"""MCP tool definitions for querying Orbis orbs."""
+"""MCP tool definitions for querying Orbis orbs.
+
+Authentication is handled upstream by ``mcp_server.auth.APIKeyMiddleware``
+which sets a ContextVar with the calling user_id. Authorization is
+per-tool and has two modes:
+
+1. **Owner bypass** — if the authenticated user owns the orb_id, the
+   tool serves the data unfiltered. No share token needed. This is the
+   "query my own private data from my own agent" case that was
+   impossible before the API key layer.
+
+2. **Share-token grant** — if the caller is not the owner, the orb must
+   have a share token that was explicitly minted for it. The token
+   carries keyword and hidden-type filters that are applied to the
+   response. This is the model merged in from #251 and is the only way
+   an agent can read a stranger's restricted orb.
+"""
 
 from __future__ import annotations
 
@@ -11,22 +27,48 @@ from app.graph.queries import (
     NODE_TYPE_RELATIONSHIPS,
 )
 from app.orbs.share_token import node_matches_filters, validate_share_token
+from mcp_server.auth import get_current_user_id
 
 
-async def _validate_access(driver: AsyncDriver, orb_id: str, token: str) -> dict | None:
-    """Validate a share token and return filter config, or an error dict.
+async def _check_access(
+    driver: AsyncDriver,
+    orb_id: str,
+    token: str,
+) -> dict:
+    """Return an access config dict or an error dict.
 
-    Returns ``{"keywords": [...], "hidden_node_types": [...]}`` on success,
-    or ``{"error": "..."}`` on failure.
+    Success shape: ``{"keywords": [...], "hidden_node_types": [...]}``.
+    Failure shape: ``{"error": "<generic message>"}``.
+
+    Error messages are deliberately generic so a caller can't distinguish
+    "orb does not exist" from "orb exists but is private" — the MCP
+    server must not become an orb enumeration oracle.
     """
+    user_id = get_current_user_id()
+    if user_id is None:
+        return {"error": "authentication required"}
+
+    async with driver.session() as session:
+        result = await session.run(
+            "MATCH (p:Person {orb_id: $orb_id}) RETURN p.user_id AS owner",
+            orb_id=orb_id,
+        )
+        record = await result.single()
+
+    if record is None:
+        return {"error": f"Orb '{orb_id}' not accessible"}
+
+    # Owner bypass: API key owner reads their own orb unfiltered.
+    if record["owner"] == user_id:
+        return {"keywords": [], "hidden_node_types": []}
+
+    # Stranger path: require a valid share token for this specific orb.
     if not token:
-        return {"error": "A share token is required to access this orb via MCP."}
+        return {"error": f"Orb '{orb_id}' not accessible"}
 
     token_data = await validate_share_token(driver, token)
-    if token_data is None:
-        return {"error": "Invalid or expired share token."}
-    if token_data["orb_id"] != orb_id:
-        return {"error": "Token does not grant access to this orb."}
+    if token_data is None or token_data["orb_id"] != orb_id:
+        return {"error": f"Orb '{orb_id}' not accessible"}
 
     return {
         "keywords": token_data.get("keywords", []),
@@ -54,9 +96,9 @@ def _apply_filters(
     return filtered
 
 
-async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str) -> dict:
+async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str = "") -> dict:
     """Get a structured summary of a person's professional profile."""
-    access = await _validate_access(driver, orb_id, token)
+    access = await _check_access(driver, orb_id, token)
     if "error" in access:
         return access
 
@@ -64,7 +106,7 @@ async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str) -> dict:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
         record = await result.single()
         if record is None:
-            return {"error": f"Orb '{orb_id}' not found"}
+            return {"error": f"Orb '{orb_id}' not accessible"}
 
         person = decrypt_properties(dict(record["p"]))
         person.pop("user_id", None)
@@ -74,7 +116,6 @@ async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str) -> dict:
         keywords = access["keywords"]
         hidden_types = access["hidden_node_types"]
 
-        # Count nodes by type, respecting filters
         type_counts: dict[str, int] = {}
         for conn in record["connections"]:
             if conn["node"] is None:
@@ -83,7 +124,6 @@ async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str) -> dict:
             labels = list(conn["node"].labels)
             label = labels[0] if labels else "Unknown"
 
-            # Apply filters
             if label in hidden_types:
                 continue
             if keywords and node_matches_filters(node, keywords):
@@ -102,9 +142,9 @@ async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str) -> dict:
         }
 
 
-async def get_orb_full(driver: AsyncDriver, orb_id: str, token: str) -> dict:
+async def get_orb_full(driver: AsyncDriver, orb_id: str, token: str = "") -> dict:
     """Get the complete graph data for an orb."""
-    access = await _validate_access(driver, orb_id, token)
+    access = await _check_access(driver, orb_id, token)
     if "error" in access:
         return access
 
@@ -112,7 +152,7 @@ async def get_orb_full(driver: AsyncDriver, orb_id: str, token: str) -> dict:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
         record = await result.single()
         if record is None:
-            return {"error": f"Orb '{orb_id}' not found"}
+            return {"error": f"Orb '{orb_id}' not accessible"}
 
         person = decrypt_properties(dict(record["p"]))
         person.pop("user_id", None)
@@ -134,7 +174,7 @@ async def get_orb_full(driver: AsyncDriver, orb_id: str, token: str) -> dict:
 
 
 async def get_nodes_by_type(
-    driver: AsyncDriver, orb_id: str, node_type: str, token: str
+    driver: AsyncDriver, orb_id: str, node_type: str, token: str = ""
 ) -> list[dict]:
     """Get all nodes of a specific type from an orb."""
     if node_type not in NODE_TYPE_LABELS:
@@ -144,11 +184,10 @@ async def get_nodes_by_type(
             }
         ]
 
-    access = await _validate_access(driver, orb_id, token)
+    access = await _check_access(driver, orb_id, token)
     if "error" in access:
         return [access]
 
-    # Block if this node type is hidden
     label = NODE_TYPE_LABELS[node_type]
     if label in access.get("hidden_node_types", []):
         return []
@@ -174,10 +213,10 @@ async def get_nodes_by_type(
 
 
 async def get_connections(
-    driver: AsyncDriver, orb_id: str, node_uid: str, token: str
+    driver: AsyncDriver, orb_id: str, node_uid: str, token: str = ""
 ) -> dict:
     """Get all relationships for a specific node."""
-    access = await _validate_access(driver, orb_id, token)
+    access = await _check_access(driver, orb_id, token)
     if "error" in access:
         return access
 
@@ -212,14 +251,13 @@ async def get_connections(
 
 
 async def get_skills_for_experience(
-    driver: AsyncDriver, orb_id: str, experience_uid: str, token: str
+    driver: AsyncDriver, orb_id: str, experience_uid: str, token: str = ""
 ) -> list[dict]:
     """Get skills associated with a specific work experience or project."""
-    access = await _validate_access(driver, orb_id, token)
+    access = await _check_access(driver, orb_id, token)
     if "error" in access:
         return [access]
 
-    # If Skill type is hidden, return empty
     if "Skill" in access.get("hidden_node_types", []):
         return []
 
