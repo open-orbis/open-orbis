@@ -33,8 +33,11 @@ export async function hasOrbContent(): Promise<boolean> {
   }
 }
 
-export async function getPublicOrb(orbId: string, token: string): Promise<OrbData> {
-  const { data } = await client.get(`/orbs/${orbId}`, { params: { token } });
+export async function getPublicOrb(orbId: string, token?: string | null): Promise<OrbData> {
+  // Token is required only for public orbs. Restricted orbs use the
+  // axios interceptor's Bearer auth instead.
+  const params = token ? { token } : undefined;
+  const { data } = await client.get(`/orbs/${orbId}`, { params });
   return data;
 }
 
@@ -74,6 +77,30 @@ export async function revokeShareToken(tokenId: string): Promise<void> {
   await client.delete(`/orbs/me/share-tokens/${tokenId}`);
 }
 
+// ── Access Grants (restricted-mode allowlist) ──
+
+export interface AccessGrant {
+  grant_id: string;
+  orb_id: string;
+  email: string;
+  created_at: string;
+  revoked: boolean;
+}
+
+export async function createAccessGrant(email: string): Promise<AccessGrant> {
+  const { data } = await client.post('/orbs/me/access-grants', { email });
+  return data;
+}
+
+export async function listAccessGrants(): Promise<{ grants: AccessGrant[] }> {
+  const { data } = await client.get('/orbs/me/access-grants');
+  return data;
+}
+
+export async function revokeAccessGrant(grantId: string): Promise<void> {
+  await client.delete(`/orbs/me/access-grants/${grantId}`);
+}
+
 export async function addNode(nodeType: string, properties: Record<string, unknown>): Promise<OrbNode> {
   const { data } = await client.post('/orbs/me/nodes', { node_type: nodeType, properties });
   return data;
@@ -96,6 +123,12 @@ export async function claimOrbId(orbId: string): Promise<void> {
   await client.put('/orbs/me/orb-id', { orb_id: orbId });
 }
 
+export type OrbVisibility = 'private' | 'public' | 'restricted';
+
+export async function updateVisibility(visibility: OrbVisibility): Promise<void> {
+  await client.put('/orbs/me/visibility', { visibility });
+}
+
 export async function uploadProfileImage(file: File): Promise<void> {
   const formData = new FormData();
   formData.append('file', file);
@@ -113,8 +146,10 @@ export async function textSearch(query: string): Promise<OrbNode[]> {
   return data;
 }
 
-export async function publicTextSearch(query: string, orbId: string, token: string): Promise<OrbNode[]> {
-  const { data } = await client.post('/search/text/public', { query, orb_id: orbId, token });
+export async function publicTextSearch(query: string, orbId: string, token?: string | null): Promise<OrbNode[]> {
+  const payload: { query: string; orb_id: string; token?: string } = { query, orb_id: orbId };
+  if (token) payload.token = token;
+  const { data } = await client.post('/search/text/public', payload);
   return data;
 }
 

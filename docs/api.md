@@ -59,7 +59,11 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | POST | `/orbs/me/link-skill` | JWT | — | Add `USED_SKILL` relationship |
 | POST | `/orbs/me/unlink-skill` | JWT | — | Remove `USED_SKILL` relationship |
 | POST | `/orbs/me/filter-token` | JWT | — | Generate shareable filter token (JWT with keyword exclusions) |
-| GET | `/orbs/{orb_id}` | No | 30/min | Public orb view (supports `?filter_token=`) |
+| PUT | `/orbs/me/visibility` | JWT | — | Set orb visibility: `private` \| `public` \| `restricted` |
+| POST | `/orbs/me/access-grants` | JWT | — | Grant a specific email access to a `restricted` orb (sends notification email) |
+| GET | `/orbs/me/access-grants` | JWT | — | List active access grants on current user's orb |
+| DELETE | `/orbs/me/access-grants/{grant_id}` | JWT | — | Revoke an access grant |
+| GET | `/orbs/{orb_id}` | JWT optional | 30/min | Public orb view. `private` → 403; `public` → requires `?token=` share token; `restricted` → requires auth and email on allowlist (owner bypass) |
 
 ## CV (`/cv`)
 

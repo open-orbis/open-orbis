@@ -9,10 +9,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from neo4j import AsyncDriver
 
-from app.dependencies import get_db
+from app.dependencies import get_current_user_optional, get_db
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
 from app.orbs.share_token import node_matches_filters, validate_share_token
+from app.orbs.visibility import (
+    assert_orb_accessible,
+    assert_user_can_access_restricted,
+    get_orb_visibility,
+)
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -198,22 +203,37 @@ def _generate_pdf(  # noqa: C901
 
 @router.get("/{orb_id}")
 @limiter.limit("30/minute")
-async def export_orb(
+async def export_orb(  # noqa: C901
     request: Request,
     orb_id: str,
     format: str = Query("json", pattern="^(json|jsonld|pdf)$"),
-    token: str = Query(..., description="Share token required for access"),
+    token: str | None = Query(None, description="Share token (public orbs only)"),
     include_photo: bool = Query(True),
     db: AsyncDriver = Depends(get_db),
+    current_user: dict | None = Depends(get_current_user_optional),
 ):
-    # Validate the share token
-    token_data = await validate_share_token(db, token)
-    if token_data is None:
-        raise HTTPException(status_code=403, detail="Invalid or expired share token.")
-    if token_data["orb_id"] != orb_id:
-        raise HTTPException(
-            status_code=403, detail="Token does not grant access to this orb."
-        )
+    # 1. Visibility gate
+    visibility = await get_orb_visibility(db, orb_id)
+    assert_orb_accessible(visibility)
+
+    # 2. Branch on visibility mode
+    token_data: dict | None = None
+    if visibility == "restricted":
+        await assert_user_can_access_restricted(db, orb_id, current_user)
+    else:
+        if not token:
+            raise HTTPException(
+                status_code=403, detail="Share token required for this orb."
+            )
+        token_data = await validate_share_token(db, token)
+        if token_data is None:
+            raise HTTPException(
+                status_code=403, detail="Invalid or expired share token."
+            )
+        if token_data["orb_id"] != orb_id:
+            raise HTTPException(
+                status_code=403, detail="Token does not grant access to this orb."
+            )
 
     async with db.session() as session:
         try:
@@ -239,9 +259,9 @@ async def export_orb(
             status_code=500, detail="Failed to process orb data"
         ) from None
 
-    # Apply filters from the share token (keywords + hidden node types)
-    active_filters = token_data["keywords"]
-    hidden_types = set(token_data.get("hidden_node_types", []))
+    # Apply filters only when a share token was used (public mode)
+    active_filters = token_data["keywords"] if token_data else []
+    hidden_types = set(token_data.get("hidden_node_types", []) if token_data else [])
     if active_filters or hidden_types:
         nodes = [
             n

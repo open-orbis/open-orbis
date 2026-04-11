@@ -6,7 +6,15 @@ import { useAuthStore } from '../stores/authStore';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
-import { createShareToken, enhanceNote, linkSkill } from '../api/orbs';
+import {
+  createAccessGrant,
+  createShareToken,
+  enhanceNote,
+  linkSkill,
+  listAccessGrants,
+  revokeAccessGrant,
+} from '../api/orbs';
+import type { AccessGrant, OrbVisibility } from '../api/orbs';
 import { QRCodeSVG } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -44,27 +52,118 @@ function resolveImportStepLabel(step: string | null | undefined, detail: string 
 
 // ── Modals ──
 
-function SharePanel({ orbId, onClose, hiddenNodeTypes }: { orbId: string; onClose: () => void; hiddenNodeTypes: Set<string> }) {
+function SharePanel({
+  orbId,
+  onClose,
+  hiddenNodeTypes,
+  visibility,
+  onVisibilityChange,
+}: {
+  orbId: string;
+  onClose: () => void;
+  hiddenNodeTypes: Set<string>;
+  visibility: OrbVisibility;
+  onVisibilityChange: (v: OrbVisibility) => Promise<void>;
+}) {
   const [copied, setCopied] = useState(false);
   const [shareTokenId, setShareTokenId] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
+  const [updatingVisibility, setUpdatingVisibility] = useState(false);
+  const [grants, setGrants] = useState<AccessGrant[]>([]);
+  const [grantsLoading, setGrantsLoading] = useState(false);
+  const [grantEmail, setGrantEmail] = useState('');
+  const [grantError, setGrantError] = useState<string | null>(null);
+  const [grantSubmitting, setGrantSubmitting] = useState(false);
   const { activeKeywords } = useFilterStore();
   const hiddenTypesArray = Array.from(hiddenNodeTypes);
   const hasActiveFilters = activeKeywords.length > 0 || hiddenTypesArray.length > 0;
-  const shareUrl = shareTokenId ? `${window.location.origin}/${orbId}?token=${shareTokenId}` : '';
+  const isPrivate = visibility === 'private';
+  const isRestricted = visibility === 'restricted';
+  const isPublic = visibility === 'public';
+  const bareUrl = `${window.location.origin}/${orbId}`;
+  const shareUrl = isRestricted
+    ? bareUrl
+    : (shareTokenId ? `${bareUrl}?token=${shareTokenId}` : '');
   const mcpUri = `orb://${orbId}`;
 
-  // Generate a share token when the panel opens
+  // Generate a share token only in public mode
   useEffect(() => {
-    if (orbId) {
+    if (orbId && isPublic) {
       setGeneratingToken(true);
       createShareToken(activeKeywords, hiddenTypesArray)
         .then((token) => setShareTokenId(token.token_id))
         .catch(() => setShareTokenId(null))
         .finally(() => setGeneratingToken(false));
+    } else {
+      setShareTokenId(null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKeywords, orbId, hiddenNodeTypes.size]);
+  }, [activeKeywords, orbId, hiddenNodeTypes.size, isPublic]);
+
+  // Load access grants when restricted mode is active
+  useEffect(() => {
+    if (!isRestricted) {
+      setGrants([]);
+      return;
+    }
+    setGrantsLoading(true);
+    listAccessGrants()
+      .then((res) => setGrants(res.grants))
+      .catch(() => setGrants([]))
+      .finally(() => setGrantsLoading(false));
+  }, [isRestricted]);
+
+  const handleGrantSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = grantEmail.trim();
+    if (!email) return;
+    // Simple email shape check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setGrantError('Enter a valid email address');
+      return;
+    }
+    setGrantSubmitting(true);
+    setGrantError(null);
+    try {
+      const grant = await createAccessGrant(email);
+      setGrants((prev) => [grant, ...prev]);
+      setGrantEmail('');
+    } catch (err) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setGrantError(msg || 'Failed to grant access');
+    } finally {
+      setGrantSubmitting(false);
+    }
+  };
+
+  const handleRevokeGrant = async (grantId: string) => {
+    try {
+      await revokeAccessGrant(grantId);
+      setGrants((prev) => prev.filter((g) => g.grant_id !== grantId));
+    } catch {
+      setGrantError('Failed to revoke access');
+    }
+  };
+
+  const handleVisibilityClick = async (next: OrbVisibility) => {
+    if (next === visibility || updatingVisibility) return;
+    setUpdatingVisibility(true);
+    try {
+      await onVisibilityChange(next);
+    } finally {
+      setUpdatingVisibility(false);
+    }
+  };
+
+  const visibilityOptions: {
+    value: OrbVisibility;
+    label: string;
+    description: string;
+  }[] = [
+    { value: 'private', label: 'Private', description: 'Only you can view your orbis' },
+    { value: 'public', label: 'Public', description: 'Anyone with the link can view' },
+    { value: 'restricted', label: 'Restricted', description: 'Share via invite links' },
+  ];
 
   const copy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -90,56 +189,165 @@ function SharePanel({ orbId, onClose, hiddenNodeTypes }: { orbId: string; onClos
         className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
         <h2 className="text-white text-lg font-semibold mb-1">Share Your Orbis</h2>
-        <p className="text-gray-400 text-sm mb-5">Share your orbis link or use the MCP identifier to let AI agents access your professional graph.</p>
+        <p className="text-gray-400 text-sm mb-5">Choose who can view your orbis, then share the link or MCP identifier with people or AI agents.</p>
+
+        {/* Visibility selector */}
+        <div className="mb-5">
+          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility</label>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {visibilityOptions.map((opt) => {
+              const selected = visibility === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleVisibilityClick(opt.value)}
+                  disabled={updatingVisibility}
+                  className={`text-left rounded-lg border px-3 py-2 transition-colors disabled:opacity-60 ${
+                    selected
+                      ? 'border-purple-500/70 bg-purple-500/15 text-white'
+                      : 'border-gray-700 bg-gray-800/40 text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  <div className="text-xs font-semibold">{opt.label}</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{opt.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* QR Code */}
-        <div className="flex justify-center mb-5">
+        <div className={`flex justify-center mb-5 ${isPrivate ? 'opacity-40' : ''}`}>
           <div className="bg-white p-3 rounded-xl">
-            <QRCodeSVG value={shareUrl || `${window.location.origin}/${orbId}`} size={140} level="M" />
+            <QRCodeSVG value={shareUrl || bareUrl} size={140} level="M" />
           </div>
         </div>
 
-        <div className="mb-4">
-          <label className={`text-xs uppercase tracking-wide font-medium ${hasActiveFilters ? 'text-amber-400/80' : 'text-gray-500'}`}>
-            {hasActiveFilters ? 'Filtered Share Link' : 'Share Link'}
-          </label>
-          {hasActiveFilters && (
-            <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
-              This link hides
-              {hiddenTypesArray.length > 0 && (
-                <span> node types: {hiddenTypesArray.map((t, i) => (
-                  <span key={t}>{i > 0 && ', '}<span className="text-amber-400">{t}</span></span>
-                ))}</span>
-              )}
-              {hiddenTypesArray.length > 0 && activeKeywords.length > 0 && ' and'}
-              {activeKeywords.length > 0 && (
-                <span> keywords: {activeKeywords.map((kw, i) => (
-                  <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
-                ))}</span>
-              )}
-              {' '}from the viewer.
-            </p>
-          )}
-          <div className="mt-1 flex items-center gap-2">
-            {generatingToken ? (
-              <div className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-500 text-sm">Generating link...</div>
-            ) : (
-              <input readOnly value={shareUrl} className={`flex-1 bg-gray-800 border rounded-lg px-3 py-2 text-white text-sm font-mono ${hasActiveFilters ? 'border-amber-600/30' : 'border-gray-600'}`} />
-            )}
-            <button
-              onClick={() => copy(shareUrl)}
-              disabled={!shareTokenId}
-              className={`${hasActiveFilters ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'} disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap`}
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
+        {isPrivate && (
+          <div className="mb-4 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-2 text-xs text-gray-400">
+            Your orbis is private. Switch to <span className="text-white">Public</span> or <span className="text-white">Restricted</span> to generate a share link.
           </div>
-        </div>
+        )}
+
+        {/* Public mode: filtered share link with token */}
+        {isPublic && (
+          <div className="mb-4">
+            <label className={`text-xs uppercase tracking-wide font-medium ${hasActiveFilters ? 'text-amber-400/80' : 'text-gray-500'}`}>
+              {hasActiveFilters ? 'Filtered Share Link' : 'Share Link'}
+            </label>
+            {hasActiveFilters && (
+              <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
+                This link hides
+                {hiddenTypesArray.length > 0 && (
+                  <span> node types: {hiddenTypesArray.map((t, i) => (
+                    <span key={t}>{i > 0 && ', '}<span className="text-amber-400">{t}</span></span>
+                  ))}</span>
+                )}
+                {hiddenTypesArray.length > 0 && activeKeywords.length > 0 && ' and'}
+                {activeKeywords.length > 0 && (
+                  <span> keywords: {activeKeywords.map((kw, i) => (
+                    <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
+                  ))}</span>
+                )}
+                {' '}from the viewer.
+              </p>
+            )}
+            <div className="mt-1 flex items-center gap-2">
+              {generatingToken ? (
+                <div className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-500 text-sm">Generating link...</div>
+              ) : (
+                <input readOnly value={shareUrl} className={`flex-1 bg-gray-800 border rounded-lg px-3 py-2 text-white text-sm font-mono ${hasActiveFilters ? 'border-amber-600/30' : 'border-gray-600'}`} />
+              )}
+              <button
+                onClick={() => copy(shareUrl)}
+                disabled={!shareTokenId}
+                className={`${hasActiveFilters ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'} disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap`}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Restricted mode: bare URL + manage allowed users */}
+        {isRestricted && (
+          <>
+            <div className="mb-4">
+              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
+              <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
+                Anyone you grant access below can open this link after signing in.
+              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <input readOnly value={bareUrl} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                <button
+                  onClick={() => copy(bareUrl)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Allowed Users</label>
+              <p className="text-[11px] text-gray-500 mt-0.5 mb-2">
+                Grant access by email. Recipients receive a notification and can view your orbis after signing in.
+              </p>
+              <form onSubmit={handleGrantSubmit} className="flex items-center gap-2">
+                <input
+                  type="email"
+                  value={grantEmail}
+                  onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
+                  placeholder="name@example.com"
+                  disabled={grantSubmitting}
+                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
+                />
+                <button
+                  type="submit"
+                  disabled={grantSubmitting || !grantEmail.trim()}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
+                >
+                  {grantSubmitting ? 'Granting...' : 'Grant'}
+                </button>
+              </form>
+              {grantError && <p className="text-[11px] text-red-400 mt-1">{grantError}</p>}
+
+              <div className="mt-3 max-h-40 overflow-y-auto">
+                {grantsLoading && (
+                  <p className="text-[11px] text-gray-500">Loading...</p>
+                )}
+                {!grantsLoading && grants.length === 0 && (
+                  <p className="text-[11px] text-gray-500">No one has access yet.</p>
+                )}
+                {!grantsLoading && grants.length > 0 && (
+                  <ul className="divide-y divide-gray-800 border border-gray-800 rounded-lg">
+                    {grants.map((g) => (
+                      <li key={g.grant_id} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs text-white truncate">{g.email}</span>
+                        <button
+                          onClick={() => handleRevokeGrant(g.grant_id)}
+                          className="text-[10px] text-red-400 hover:text-red-300 ml-2 whitespace-nowrap"
+                        >
+                          Revoke
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="mb-5">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
-          <p className="text-[11px] text-gray-500 mt-0.5 mb-1">Use this ID with the OpenOrbis MCP server to let AI agents query your graph.</p>
-          <div className="flex items-center gap-2">
+          <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
+            {isPublic
+              ? 'Use this ID with the OpenOrbis MCP server to let AI agents query your graph.'
+              : 'MCP access is only available for public orbs.'}
+          </p>
+          <div className={`flex items-center gap-2 ${!isPublic ? 'opacity-40 pointer-events-none' : ''}`}>
             <input readOnly value={mcpUri} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
             <button onClick={() => copy(mcpUri)} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap">Copy</button>
           </div>
@@ -218,7 +426,7 @@ const LABEL_TO_TYPE: Record<string, string> = {
 // ── Page ──
 
 export default function OrbViewPage() {
-  const { data, loading, fetchOrb, addNode, updateNode, deleteNode } = useOrbStore();
+  const { data, loading, fetchOrb, addNode, updateNode, deleteNode, updateVisibility } = useOrbStore();
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const undoStack = useUndoStore((s) => s.undoStack);
@@ -1046,7 +1254,16 @@ export default function OrbViewPage() {
       {/* ── Animated Panels ── */}
       <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
       <AnimatePresence>
-        {showShare && <SharePanel key="share" orbId={orbId} hiddenNodeTypes={hiddenNodeTypes} onClose={() => setShowShare(false)} />}
+        {showShare && (
+          <SharePanel
+            key="share"
+            orbId={orbId}
+            hiddenNodeTypes={hiddenNodeTypes}
+            visibility={((data?.person?.visibility as OrbVisibility) || 'private')}
+            onVisibilityChange={updateVisibility}
+            onClose={() => setShowShare(false)}
+          />
+        )}
       </AnimatePresence>
 
       {/* ── Import review overlay ── */}

@@ -215,6 +215,13 @@ export default function LandingPage() {
       setSigningInProvider('google');
       try {
         await loginGoogle(response.code);
+        // If the user landed here from a restricted-orb redirect, send them back.
+        const returnTo = sessionStorage.getItem('orbis_return_to');
+        if (returnTo) {
+          sessionStorage.removeItem('orbis_return_to');
+          navigate(returnTo, { replace: true });
+          return;
+        }
         const hasContent = await hasOrbContent();
         navigate(hasContent ? '/myorbis' : '/create');
       } catch {

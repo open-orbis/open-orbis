@@ -58,6 +58,26 @@ class TestNodeTypeMappings:
     def test_merge_keys_subset_of_labels(self):
         assert set(NODE_TYPE_MERGE_KEYS.keys()) == set(NODE_TYPE_LABELS.keys())
 
+
+class TestFullOrbExclusions:
+    """Metadata nodes (ShareToken, AccessGrant, ProcessingRecord, OntologyVersion)
+    must be excluded from the full-orb traversal — they aren't part of the
+    professional graph and don't have a ``uid`` field, so leaking them into
+    ``_serialize_orb`` would crash with KeyError.
+    """
+
+    @pytest.mark.parametrize(
+        "label", ["ProcessingRecord", "OntologyVersion", "ShareToken", "AccessGrant"]
+    )
+    def test_get_full_orb_excludes_metadata_label(self, label):
+        assert f"NOT n:{label}" in GET_FULL_ORB
+
+    @pytest.mark.parametrize(
+        "label", ["ProcessingRecord", "OntologyVersion", "ShareToken", "AccessGrant"]
+    )
+    def test_get_full_orb_public_excludes_metadata_label(self, label):
+        assert f"NOT n:{label}" in GET_FULL_ORB_PUBLIC
+
     def test_all_labels_are_capitalized(self):
         for node_type, label in NODE_TYPE_LABELS.items():
             assert label[0].isupper(), (

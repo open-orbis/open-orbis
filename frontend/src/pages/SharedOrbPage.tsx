@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useAuthStore } from '../stores/authStore';
 import { useOrbStore } from '../stores/orbStore';
 import { publicTextSearch } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
@@ -15,6 +16,8 @@ export default function SharedOrbPage() {
   const { orbId } = useParams<{ orbId: string }>();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { data, loading, error, fetchPublicOrb } = useOrbStore();
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -49,15 +52,32 @@ export default function SharedOrbPage() {
     setHiddenNodeTypes(new Set(ALL_FILTERABLE_TYPES.filter((t) => !visibleTypes.has(t))));
   }, []);
 
-  // Public search bound to this orb — requires share token
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+
+  // Search bound to this orb — token for public, Bearer auth for restricted
   const searchFn = useCallback(
-    (query: string) => publicTextSearch(query, orbId || '', token || ''),
+    (query: string) => publicTextSearch(query, orbId || '', token || undefined),
     [orbId, token]
   );
 
   useEffect(() => {
-    if (orbId && token) fetchPublicOrb(orbId, token);
+    if (orbId) {
+      setInitialFetchDone(false);
+      fetchPublicOrb(orbId, token).finally(() => setInitialFetchDone(true));
+    }
   }, [orbId, token, fetchPublicOrb]);
+
+  // 401 → not logged in but the orb is restricted. Save return-to and bounce to landing.
+  const isUnauthorizedError = !!error && (
+    error.includes('401') || error.toLowerCase().includes('authentication required')
+  );
+  useEffect(() => {
+    if (!isUnauthorizedError || !orbId) return;
+    if (!user) {
+      sessionStorage.setItem('orbis_return_to', window.location.pathname + window.location.search);
+      navigate('/', { replace: true });
+    }
+  }, [isUnauthorizedError, orbId, user, navigate]);
 
   useEffect(() => {
     const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -114,18 +134,8 @@ export default function SharedOrbPage() {
     [data?.nodes, data?.links, rangeStart, rangeEnd, dateBounds],
   );
 
-  if (!token) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-          <p className="text-gray-400">This orbis requires a valid share link. Ask the owner for a new link.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
+  // Show spinner while the initial fetch is in flight (avoids a catchall flash on first render)
+  if (loading || !initialFetchDone) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
@@ -133,19 +143,38 @@ export default function SharedOrbPage() {
     );
   }
 
+  // 401 → redirect-in-progress: render nothing instead of flashing the catchall
+  if (isUnauthorizedError && !user) {
+    return null;
+  }
+
   if (error || !data) {
-    const isForbidden = error?.includes('403') || error?.includes('share token');
+    const isPrivate = error?.toLowerCase().includes('private');
+    const isNoAccess = error?.toLowerCase().includes("don't have access");
+    const isForbidden = !isPrivate && !isNoAccess && (error?.includes('403') || error?.includes('share token'));
+    let title: string;
+    let message: string;
+    if (isPrivate) {
+      title = 'This Orbis is Private';
+      message = 'The owner has restricted access to their orbis.';
+    } else if (isNoAccess) {
+      title = "You don't have access";
+      message = "The owner hasn't granted you access to this orbis. Ask them to invite your email.";
+    } else if (isForbidden) {
+      title = 'Link Expired or Revoked';
+      message = 'This share link is no longer valid. Ask the owner for a new link.';
+    } else if (isUnauthorizedError) {
+      title = 'Sign in required';
+      message = 'You need to sign in to view this orbis.';
+    } else {
+      title = 'Orbis not found';
+      message = "This orbis doesn't exist or is private.";
+    }
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">
-            {isForbidden ? 'Link Expired or Revoked' : 'Orbis not found'}
-          </h1>
-          <p className="text-gray-400">
-            {isForbidden
-              ? 'This share link is no longer valid. Ask the owner for a new link.'
-              : "This orbis doesn't exist or is private."}
-          </p>
+          <h1 className="text-2xl font-bold mb-2">{title}</h1>
+          <p className="text-gray-400">{message}</p>
         </div>
       </div>
     );

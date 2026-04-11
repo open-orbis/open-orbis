@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
+
+OrbVisibility = Literal["private", "public", "restricted"]
 
 
 class NodeCreate(BaseModel):
@@ -25,10 +28,15 @@ class PersonUpdate(BaseModel):
     scholar_url: str | None = None
     website_url: str | None = None
     open_to_work: bool | None = None
+    visibility: OrbVisibility | None = None
 
 
 class OrbIdUpdate(BaseModel):
     orb_id: str
+
+
+class VisibilityUpdate(BaseModel):
+    visibility: OrbVisibility
 
 
 # ── Share Tokens ──
@@ -56,3 +64,22 @@ class ShareTokenResponse(BaseModel):
 
 class ShareTokenListResponse(BaseModel):
     tokens: list[ShareTokenResponse]
+
+
+# ── Access grants (restricted-mode allowlist) ──
+
+
+class AccessGrantCreate(BaseModel):
+    email: str  # normalized lowercase server-side
+
+
+class AccessGrantResponse(BaseModel):
+    grant_id: str
+    orb_id: str
+    email: str
+    created_at: datetime
+    revoked: bool
+
+
+class AccessGrantListResponse(BaseModel):
+    grants: list[AccessGrantResponse]

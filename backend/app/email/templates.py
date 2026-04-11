@@ -145,6 +145,38 @@ _invite_code_tpl = _env.from_string(
 )
 
 
+# ── Access grant email (orb owner shares restricted orb with a recipient) ──
+
+_ACCESS_GRANT_CONTENT = """\
+<h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
+  {{ owner_name }} shared their Orbis with you.
+</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#7c3aed;font-weight:500;">
+  Restricted access invitation
+</p>
+<p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
+  You've been granted access to view {{ owner_name }}'s career
+  knowledge graph on OpenOrbis. Sign in with this email address to
+  open it.
+</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+  <tr>
+    <td style="width:4px;background:linear-gradient(180deg,#a78bfa,#7c3aed);border-radius:4px;"></td>
+    <td style="padding:12px 16px;">
+      <p style="margin:0;font-size:14px;color:#6b5f7d;line-height:1.6;">
+        This invitation is tied to your email. Only people the owner has
+        explicitly invited can view this Orbis.
+      </p>
+    </td>
+  </tr>
+</table>
+""" + _BUTTON.replace("{{ label }}", "Open the Orbis")
+
+_access_grant_tpl = _env.from_string(
+    _LAYOUT.replace("{{ content }}", _ACCESS_GRANT_CONTENT)
+)
+
+
 def render_activation_email(*, activate_url: str) -> str:
     """Render the email sent when an admin activates a user directly."""
     from datetime import datetime, timezone
@@ -162,5 +194,16 @@ def render_invite_code_email(*, code: str, activate_url: str) -> str:
     return _invite_code_tpl.render(
         code=code,
         url=activate_url,
+        year=datetime.now(timezone.utc).year,
+    )
+
+
+def render_access_grant_email(*, owner_name: str, orb_url: str) -> str:
+    """Render the email sent when an owner grants access to their orb."""
+    from datetime import datetime, timezone
+
+    return _access_grant_tpl.render(
+        owner_name=owner_name,
+        url=orb_url,
         year=datetime.now(timezone.utc).year,
     )

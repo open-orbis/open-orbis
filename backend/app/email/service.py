@@ -63,3 +63,15 @@ async def send_invite_code_email(*, to: str, code: str, frontend_url: str) -> bo
         subject="Your OpenOrbis invite code",
         html_body=html,
     )
+
+
+async def send_access_grant_email(*, to: str, owner_name: str, orb_url: str) -> bool:
+    """Notify a recipient that an owner granted them access to a restricted orb."""
+    from app.email.templates import render_access_grant_email
+
+    html = render_access_grant_email(owner_name=owner_name, orb_url=orb_url)
+    return await send_email(
+        to=to,
+        subject=f"{owner_name} shared their Orbis with you",
+        html_body=html,
+    )
