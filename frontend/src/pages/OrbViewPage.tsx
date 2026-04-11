@@ -94,7 +94,6 @@ function SharePanel({
   const canDownloadQr = !isPrivate && (isRestricted || Boolean(shareTokenId));
   const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
   const mcpUri = `orb://${orbId}`;
-  const shareSummary = hasActiveFilters && isPublic ? 'Filtered View' : 'Full Orbis';
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
@@ -410,9 +409,6 @@ function SharePanel({
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <span className={`text-[10px] px-2.5 py-1 rounded-full border ${hasActiveFilters && isPublic ? 'border-amber-500/40 text-amber-200 bg-amber-500/10' : 'border-emerald-500/40 text-emerald-200 bg-emerald-500/10'}`}>
-                    {shareSummary}
-                  </span>
                   {isRestricted && (
                     <span className="text-[10px] px-2.5 py-1 rounded-full border border-blue-500/40 text-blue-200 bg-blue-500/10">
                       Invite-Only
@@ -422,7 +418,7 @@ function SharePanel({
               </div>
 
               <p className="text-xs text-gray-400 mt-2.5">
-                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the view shown by your current sharing settings.'}
+                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the filtered view (filtered in yellow).'}
               </p>
 
               <div className="mt-3">
