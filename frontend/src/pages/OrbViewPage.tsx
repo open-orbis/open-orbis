@@ -50,13 +50,6 @@ function resolveImportStepLabel(step: string | null | undefined, detail: string 
   return 'Reading PDF';
 }
 
-function truncateMiddle(value: string, max = 64): string {
-  if (value.length <= max) return value;
-  const leftChars = Math.ceil((max - 3) / 2);
-  const rightChars = Math.floor((max - 3) / 2);
-  return `${value.slice(0, leftChars)}...${value.slice(-rightChars)}`;
-}
-
 const QR_SIZE_OPTIONS = [
   { label: 'Small', value: 128 },
   { label: 'Medium', value: 160 },
@@ -107,8 +100,6 @@ function SharePanel({
   const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
   const mcpUri = `orb://${orbId}`;
   const shareSummary = hasActiveFilters && isPublic ? 'Filtered View' : 'Full Orbis';
-  const shortSharePreview = useMemo(() => truncateMiddle(shareableUrl || bareUrl), [bareUrl, shareableUrl]);
-  const shortQrTarget = useMemo(() => truncateMiddle(qrValue), [qrValue]);
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
@@ -423,7 +414,7 @@ function SharePanel({
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-gray-400 mt-2 font-mono break-all">{isPublic && generatingToken ? 'Generating secure link...' : shortSharePreview}</p>
+              <p className="text-[11px] text-gray-400 mt-2">{isPublic && generatingToken ? 'Generating secure link...' : 'Your current share settings will be applied to this link.'}</p>
               {hasActiveFilters && isPublic && (
                 <div className="mt-3 space-y-2">
                   {hiddenTypesArray.length > 0 && (
@@ -477,7 +468,7 @@ function SharePanel({
                   <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={qrSize} level="M" marginSize={2} />
                 </div>
               </div>
-              <p className="text-[11px] text-gray-500 mt-3">Scans to: <span className="text-gray-300 font-mono">{shortQrTarget}</span></p>
+              <p className="text-[11px] text-gray-500 mt-3">Scans to your current share link.</p>
             </div>
 
             {isPublic && (
