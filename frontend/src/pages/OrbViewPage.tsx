@@ -133,7 +133,7 @@ function SharePanel({
     () => computeShortFilterHash(activeKeywords, hiddenTypesArray),
     [activeKeywords, hiddenTypesArray],
   );
-  const mcpUri = `orb://${orbId}+${filterHash}`;
+  const mcpUri = shareTokenId ? `orb://${orbId}+${shareTokenId}` : `orb://${orbId}`;
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
