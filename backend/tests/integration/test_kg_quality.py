@@ -92,7 +92,7 @@ async def test_kg_extraction_quality(
         print(
             f"\n[{cv_name}] attempt {attempt}/{MAX_RETRIES}: "
             f"parser returned 0 nodes. Raw response (first 500 chars):\n"
-            f"{raw_response[:500]}"
+            f"{claude_resp['content'][:500]}"
         )
 
     assert nodes, (

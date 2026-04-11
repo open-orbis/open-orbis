@@ -58,7 +58,7 @@ async def generate_one(cv_path: Path, output_path: Path, model: str) -> None:
             f"for {cv_path.name}. Raw response (first 500 chars):",
             file=sys.stderr,
         )
-        print(f"  {raw_response[:500]}", file=sys.stderr)
+        print(f"  {claude_resp['content'][:500]}", file=sys.stderr)
 
     if not nodes:
         print(
