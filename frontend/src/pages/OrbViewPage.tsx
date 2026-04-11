@@ -358,6 +358,9 @@ function SharePanel({
           <div className="mt-2 grid grid-cols-3 gap-2">
             {visibilityOptions.map((opt) => {
               const selected = visibility === opt.value;
+              const selectedClass = opt.value === 'private'
+                ? 'border-red-500/70 bg-red-500/15 text-red-100 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]'
+                : 'border-purple-500/70 bg-purple-500/15 text-white shadow-[0_0_0_1px_rgba(168,85,247,0.2)]';
               return (
                 <button
                   key={opt.value}
@@ -366,12 +369,12 @@ function SharePanel({
                   disabled={updatingVisibility}
                   className={`text-left rounded-xl border px-3 py-3 transition-colors disabled:opacity-60 ${
                     selected
-                      ? 'border-purple-500/70 bg-purple-500/15 text-white shadow-[0_0_0_1px_rgba(168,85,247,0.2)]'
+                      ? selectedClass
                       : 'border-gray-700 bg-gray-800/40 text-gray-300 hover:bg-gray-800'
                   }`}
                 >
                   <div className="text-xs font-semibold">{opt.label}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{opt.description}</div>
+                  <div className={`text-[10px] mt-0.5 leading-tight ${selected && opt.value === 'private' ? 'text-red-200/80' : 'text-gray-400'}`}>{opt.description}</div>
                 </button>
               );
             })}
@@ -380,9 +383,9 @@ function SharePanel({
 
         {isPrivate && (
           <div>
-            <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4">
-              <p className="text-sm text-gray-200 font-medium mb-1">This orbis is currently private</p>
-              <p className="text-xs text-gray-400">No link or QR is available until you switch to Public or Restricted.</p>
+            <div className="rounded-xl border border-red-500/25 bg-red-500/8 p-4">
+              <p className="text-sm text-red-100 font-medium mb-1">This orbis is currently private</p>
+              <p className="text-xs text-red-200/75">No link or QR is available until you switch to Public or Restricted.</p>
             </div>
           </div>
         )}
