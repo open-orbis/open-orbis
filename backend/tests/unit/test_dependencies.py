@@ -5,8 +5,20 @@ import pytest
 from fastapi import HTTPException
 from jose import jwt
 
+from app.auth.service import ACCESS_COOKIE
 from app.config import settings
 from app.dependencies import get_current_user, get_current_user_optional, get_db
+
+
+def _request(*, cookies: dict | None = None, headers: dict | None = None) -> MagicMock:
+    request = MagicMock()
+    request.cookies = cookies or {}
+    request.headers = headers or {}
+    return request
+
+
+def _token(payload: dict) -> str:
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
 async def test_get_db():
@@ -15,92 +27,107 @@ async def test_get_db():
         assert db == "driver"
 
 
-async def test_get_current_user_success():
-    payload = {"sub": "user-123", "email": "test@example.com"}
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+# ── get_current_user ────────────────────────────────────────────────────
 
-    credentials = MagicMock()
-    credentials.credentials = token
 
-    user = await get_current_user(credentials)
+async def test_get_current_user_from_cookie():
+    token = _token({"sub": "user-123", "email": "test@example.com"})
+    request = _request(cookies={ACCESS_COOKIE: token})
+    user = await get_current_user(request)
     assert user["user_id"] == "user-123"
     assert user["email"] == "test@example.com"
 
 
-async def test_get_current_user_invalid_token():
-    credentials = MagicMock()
-    credentials.credentials = "invalid-token"
+async def test_get_current_user_from_bearer_header_fallback():
+    """Until Stage 5 removes the Bearer fallback, an Authorization header
+    without a cookie still resolves to a user."""
+    token = _token({"sub": "user-456", "email": "b@example.com"})
+    request = _request(headers={"authorization": f"Bearer {token}"})
+    user = await get_current_user(request)
+    assert user["user_id"] == "user-456"
 
+
+async def test_get_current_user_cookie_beats_header():
+    cookie_token = _token({"sub": "cookie-user", "email": "c@x"})
+    header_token = _token({"sub": "header-user", "email": "h@x"})
+    request = _request(
+        cookies={ACCESS_COOKIE: cookie_token},
+        headers={"authorization": f"Bearer {header_token}"},
+    )
+    user = await get_current_user(request)
+    assert user["user_id"] == "cookie-user"
+
+
+async def test_get_current_user_no_credentials_raises_401():
+    request = _request()
     with pytest.raises(HTTPException) as exc:
-        await get_current_user(credentials)
+        await get_current_user(request)
     assert exc.value.status_code == 401
 
 
-async def test_get_current_user_no_sub():
-    payload = {"email": "test@example.com"}  # Missing 'sub'
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-
-    credentials = MagicMock()
-    credentials.credentials = token
-
+async def test_get_current_user_invalid_token_raises_401():
+    request = _request(cookies={ACCESS_COOKIE: "not-a-jwt"})
     with pytest.raises(HTTPException) as exc:
-        await get_current_user(credentials)
+        await get_current_user(request)
     assert exc.value.status_code == 401
 
 
-async def test_get_current_user_expired_token():
-    """An expired JWT should raise 401."""
-    payload = {
-        "sub": "user-123",
-        "email": "test@example.com",
-        "exp": datetime.now(timezone.utc) - timedelta(hours=1),
-    }
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-
-    credentials = MagicMock()
-    credentials.credentials = token
-
+async def test_get_current_user_no_sub_raises_401():
+    token = _token({"email": "test@example.com"})
+    request = _request(cookies={ACCESS_COOKIE: token})
     with pytest.raises(HTTPException) as exc:
-        await get_current_user(credentials)
+        await get_current_user(request)
     assert exc.value.status_code == 401
 
 
-# ── get_current_user_optional ──
+async def test_get_current_user_expired_token_raises_401():
+    token = _token(
+        {
+            "sub": "user-123",
+            "email": "test@example.com",
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),
+        }
+    )
+    request = _request(cookies={ACCESS_COOKIE: token})
+    with pytest.raises(HTTPException) as exc:
+        await get_current_user(request)
+    assert exc.value.status_code == 401
 
 
-def _request_with_headers(headers: dict) -> MagicMock:
-    request = MagicMock()
-    request.headers = headers
-    return request
+# ── get_current_user_optional ──────────────────────────────────────────
 
 
-async def test_get_current_user_optional_no_header_returns_none():
-    request = _request_with_headers({})
-    assert await get_current_user_optional(request) is None
+async def test_get_current_user_optional_no_credentials_returns_none():
+    assert await get_current_user_optional(_request()) is None
 
 
 async def test_get_current_user_optional_non_bearer_returns_none():
-    request = _request_with_headers({"authorization": "Basic abc"})
+    request = _request(headers={"authorization": "Basic abc"})
     assert await get_current_user_optional(request) is None
 
 
 async def test_get_current_user_optional_invalid_token_returns_none():
-    request = _request_with_headers({"authorization": "Bearer not-a-jwt"})
+    request = _request(cookies={ACCESS_COOKIE: "not-a-jwt"})
     assert await get_current_user_optional(request) is None
 
 
-async def test_get_current_user_optional_valid_token_returns_user():
-    payload = {"sub": "user-123", "email": "test@example.com"}
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-    request = _request_with_headers({"authorization": f"Bearer {token}"})
+async def test_get_current_user_optional_cookie_returns_user():
+    token = _token({"sub": "user-123", "email": "test@example.com"})
+    request = _request(cookies={ACCESS_COOKIE: token})
     user = await get_current_user_optional(request)
     assert user is not None
     assert user["user_id"] == "user-123"
-    assert user["email"] == "test@example.com"
+
+
+async def test_get_current_user_optional_bearer_still_works():
+    token = _token({"sub": "user-123", "email": "test@example.com"})
+    request = _request(headers={"authorization": f"Bearer {token}"})
+    user = await get_current_user_optional(request)
+    assert user is not None
+    assert user["user_id"] == "user-123"
 
 
 async def test_get_current_user_optional_no_sub_returns_none():
-    payload = {"email": "test@example.com"}
-    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
-    request = _request_with_headers({"authorization": f"Bearer {token}"})
+    token = _token({"email": "test@example.com"})
+    request = _request(cookies={ACCESS_COOKIE: token})
     assert await get_current_user_optional(request) is None

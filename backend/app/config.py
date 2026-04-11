@@ -19,10 +19,20 @@ class Settings(BaseSettings):
     neo4j_user: str = "neo4j"
     neo4j_password: str = "orbis_dev_password"
 
-    # JWT
+    # JWT / access token — short-lived. Long sessions are sustained by the
+    # refresh token cookie, which rotates transparently from the frontend.
     jwt_secret: str = "change-me"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 1440
+    jwt_expire_minutes: int = 15
+
+    # Refresh token TTL in days. Refresh tokens are persisted in Neo4j
+    # (as sha256 hashes) so they can be rotated and revoked.
+    refresh_token_expire_days: int = 30
+
+    # Cookie scoping. Empty = host-only cookie (works when frontend and
+    # backend share a single origin via reverse proxy). Set to the parent
+    # domain if you split the API onto a subdomain in the future.
+    cookie_domain: str = ""
 
     # Encryption — active key + optional comma-separated historic keys
     # used for decrypting data encrypted with a previous key during rotation.
