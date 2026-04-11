@@ -414,13 +414,6 @@ function SharePanel({
                 <div className="min-w-0">
                   <label className="text-[11px] text-gray-500 uppercase tracking-wide font-medium">Shared Content</label>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  {isRestricted && (
-                    <span className="text-[10px] px-2.5 py-1 rounded-full border border-blue-500/40 text-blue-200 bg-blue-500/10">
-                      Invite-Only
-                    </span>
-                  )}
-                </div>
               </div>
 
               <p className={`mt-2.5 ${isPublic && generatingToken ? 'text-xs text-gray-400' : 'text-sm font-semibold text-emerald-300'}`}>
