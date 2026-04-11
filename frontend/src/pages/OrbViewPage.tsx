@@ -394,24 +394,48 @@ function SharePanel({
 
         {!isPrivate && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Shared Content</label>
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <span className={`text-[10px] px-2 py-1 rounded-full border ${hasActiveFilters && isPublic ? 'border-amber-500/40 text-amber-200 bg-amber-500/10' : 'border-emerald-500/40 text-emerald-200 bg-emerald-500/10'}`}>
-                  {shareSummary}
-                </span>
-                {isRestricted && (
-                  <span className="text-[10px] px-2 py-1 rounded-full border border-blue-500/40 text-blue-200 bg-blue-500/10">
-                    Invite-Only
+            <div className="rounded-2xl border border-gray-700/80 bg-gradient-to-br from-gray-800/65 to-gray-900/70 p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <label className="text-[11px] text-gray-500 uppercase tracking-wide font-medium">Shared Content</label>
+                  <p className="text-sm text-gray-200 mt-1">
+                    {isPublic ? 'Public link preview' : 'Restricted link preview'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full border ${hasActiveFilters && isPublic ? 'border-amber-500/40 text-amber-200 bg-amber-500/10' : 'border-emerald-500/40 text-emerald-200 bg-emerald-500/10'}`}>
+                    {shareSummary}
                   </span>
-                )}
+                  {isRestricted && (
+                    <span className="text-[10px] px-2.5 py-1 rounded-full border border-blue-500/40 text-blue-200 bg-blue-500/10">
+                      Invite-Only
+                    </span>
+                  )}
+                </div>
               </div>
-              <p className="text-[11px] text-gray-400 mt-2">{isPublic && generatingToken ? 'Generating secure link...' : 'Your current share settings will be applied to this link.'}</p>
+
+              <p className="text-xs text-gray-400 mt-2.5">
+                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the view shown by your current sharing settings.'}
+              </p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Visibility</p>
+                  <p className="text-xs text-gray-200 mt-1">{isRestricted ? 'Restricted' : 'Public'}</p>
+                </div>
+                <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Active Filters</p>
+                  <p className="text-xs text-gray-200 mt-1">
+                    {hasActiveFilters && isPublic ? `${activeKeywords.length + hiddenTypesArray.length}` : '0'}
+                  </p>
+                </div>
+              </div>
+
               {hasActiveFilters && isPublic && (
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-2">
                   {hiddenTypesArray.length > 0 && (
                     <div>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Hidden node types</p>
+                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1">Hidden node types</p>
                       <div className="flex flex-wrap gap-1.5">
                         {hiddenTypesArray.map((type) => (
                           <span key={type} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{type}</span>
@@ -421,7 +445,7 @@ function SharePanel({
                   )}
                   {activeKeywords.length > 0 && (
                     <div>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-1">Filtered keywords</p>
+                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1">Filtered keywords</p>
                       <div className="flex flex-wrap gap-1.5">
                         {activeKeywords.map((keyword) => (
                           <span key={keyword} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">"{keyword}"</span>
