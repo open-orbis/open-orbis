@@ -16,6 +16,7 @@ import {
   acceptConnectionRequest,
   rejectConnectionRequest,
   revokeAccessGrant,
+  revokeShareToken,
   updateAccessGrantFilters,
 } from '../api/orbs';
 import type { AccessGrant, ConnectionRequest, OrbVisibility } from '../api/orbs';
@@ -47,20 +48,6 @@ const IMPORT_PROGRESS_STEP_LABELS: Record<string, string> = {
   done: 'Finalizing',
 };
 
-function computeShortFilterHash(keywords: string[], hiddenTypes: string[]): string {
-  const normalizedKeywords = keywords.map((k) => k.trim().toLowerCase()).filter(Boolean).sort();
-  const normalizedTypes = hiddenTypes.map((t) => t.trim().toLowerCase()).filter(Boolean).sort();
-  const payload = JSON.stringify({ keywords: normalizedKeywords, hiddenTypes: normalizedTypes });
-
-  // FNV-1a 32-bit for a deterministic short client-side hash.
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < payload.length; i += 1) {
-    hash ^= payload.charCodeAt(i);
-    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
-  }
-
-  return (hash >>> 0).toString(36).padStart(6, '0').slice(0, 6);
-}
 
 function resolveImportStepLabel(step: string | null | undefined, detail: string | null | undefined, message: string | null | undefined): string {
   if (step && IMPORT_PROGRESS_STEP_LABELS[step]) return IMPORT_PROGRESS_STEP_LABELS[step];
@@ -129,11 +116,7 @@ function SharePanel({
   const qrValue = shareableUrl || bareUrl;
   const canDownloadQr = !isPrivate && (isRestricted || Boolean(shareTokenId));
   const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
-  const filterHash = useMemo(
-    () => computeShortFilterHash(activeKeywords, hiddenTypesArray),
-    [activeKeywords, hiddenTypesArray],
-  );
-  const mcpUri = `orb://${orbId}+${filterHash}`;
+  const mcpUri = shareTokenId ? `orb://${orbId}+${shareTokenId}` : `orb://${orbId}`;
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
@@ -144,10 +127,12 @@ function SharePanel({
     if (!hasActiveFilters) setApplyFiltersOnInvite(false);
   }, [hasActiveFilters]);
 
-  // Generate a share token only in public mode
+  const [tokenGeneration, setTokenGeneration] = useState(0);
+
+  // Generate a share token for public and restricted modes (used for share links and MCP Orbis ID)
   useEffect(() => {
     let active = true;
-    if (orbId && isPublic) {
+    if (orbId && (isPublic || isRestricted)) {
       setShareTokenId(null);
       setGeneratingToken(true);
       createShareToken(activeKeywords, hiddenTypesArray)
@@ -171,7 +156,7 @@ function SharePanel({
     return () => {
       active = false;
     };
-  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic]);
+  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic, isRestricted, tokenGeneration]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
@@ -284,6 +269,22 @@ function SharePanel({
     if (isPrivate) return;
     void copyText(mcpUri, 'MCP Orbis ID');
   }, [copyText, isPrivate, mcpUri]);
+
+  const [revokingToken, setRevokingToken] = useState(false);
+  const handleRevokeAndRegenerate = useCallback(async () => {
+    if (!shareTokenId) return;
+    setRevokingToken(true);
+    try {
+      await revokeShareToken(shareTokenId);
+      addToast('Token revoked. Generating a new one...', 'info');
+      // Bump counter to trigger useEffect regeneration
+      setTokenGeneration((n) => n + 1);
+    } catch {
+      addToast('Failed to revoke token', 'error');
+    } finally {
+      setRevokingToken(false);
+    }
+  }, [shareTokenId, addToast]);
 
   const handleDownloadQr = useCallback(() => {
     if (!canDownloadQr || !qrCanvasRef.current) return;
@@ -545,93 +546,101 @@ function SharePanel({
           <div className="space-y-4">
 
             {isPublic && (
-              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share links and excluded from exports.</p>
-                <div className="flex items-center gap-2 mb-2">
-                  <input
-                    value={inlineFilterKeyword}
-                    onChange={(e) => setInlineFilterKeyword(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
-                    placeholder="e.g. confidential, private..."
-                    className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
-                    className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
-                  >
-                    Add
-                  </button>
-                  <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
-                    Deactivate All
-                  </button>
-                </div>
-                {keywords.length === 0 ? (
-                  <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
-                ) : (
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                    {keywords.map((kw) => {
-                      const isActive = activeKeywords.includes(kw);
-                      return (
-                        <div
-                          key={kw}
-                          className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-                            isActive
-                              ? 'bg-amber-600/15 border-amber-500/40'
-                              : 'bg-white/5 border-white/5 hover:border-white/10'
-                          }`}
-                        >
-                          <span className="text-white text-xs font-mono truncate">{kw}</span>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => toggleKeyword(kw)}
-                              className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                                isActive
-                                  ? 'bg-amber-500 text-white'
-                                  : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
-                              }`}
-                            >
-                              {isActive ? 'Active' : 'Activate'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => removeKeyword(kw)}
-                              className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
-                              title="Remove"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-4">
+                <div>
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share links and excluded from exports.</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      value={inlineFilterKeyword}
+                      onChange={(e) => setInlineFilterKeyword(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
+                      placeholder="e.g. confidential, private..."
+                      className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
+                      className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
+                    >
+                      Add
+                    </button>
+                    <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
+                      Deactivate All
+                    </button>
                   </div>
-                )}
-                {activeKeywords.length > 0 && (
-                  <p className="text-amber-400/70 text-[11px] mt-2">
-                    {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
-                  </p>
-                )}
-              </div>
-            )}
+                  {keywords.length === 0 ? (
+                    <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                      {keywords.map((kw) => {
+                        const isActive = activeKeywords.includes(kw);
+                        return (
+                          <div
+                            key={kw}
+                            className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                              isActive
+                                ? 'bg-amber-600/15 border-amber-500/40'
+                                : 'bg-white/5 border-white/5 hover:border-white/10'
+                            }`}
+                          >
+                            <span className="text-white text-xs font-mono truncate">{kw}</span>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => toggleKeyword(kw)}
+                                className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                  isActive
+                                    ? 'bg-amber-500 text-white'
+                                    : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
+                                }`}
+                              >
+                                {isActive ? 'Active' : 'Activate'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeKeyword(kw)}
+                                className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
+                                title="Remove"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {activeKeywords.length > 0 && (
+                    <p className="text-amber-400/70 text-[11px] mt-2">
+                      {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
+                    </p>
+                  )}
+                </div>
 
-            {isPublic && (
-              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
-                <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access.</p>
-                <div className="flex items-center gap-2">
-                  <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-                  <button
-                    type="button"
-                    onClick={handleCopyMcp}
-                    className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
-                  >
-                    Copy
-                  </button>
+                <div className="border-t border-gray-700/50 pt-3">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access.</p>
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={mcpUri} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                    <button
+                      type="button"
+                      onClick={handleCopyMcp}
+                      className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                    >
+                      Copy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRevokeAndRegenerate}
+                      disabled={!shareTokenId || revokingToken}
+                      className="h-10 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium transition-colors shrink-0 whitespace-nowrap"
+                    >
+                      {revokingToken ? 'Revoking...' : 'Revoke'}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -846,13 +855,21 @@ function SharePanel({
                     <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
                     <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access according to your active privacy filters.</p>
                     <div className="flex items-center gap-2">
-                      <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                      <input readOnly value={mcpUri} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
                       <button
                         type="button"
                         onClick={handleCopyMcp}
-                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
                       >
                         Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRevokeAndRegenerate}
+                        disabled={!shareTokenId || revokingToken}
+                        className="h-10 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium transition-colors shrink-0 whitespace-nowrap"
+                      >
+                        {revokingToken ? 'Revoking...' : 'Revoke'}
                       </button>
                     </div>
                   </div>
