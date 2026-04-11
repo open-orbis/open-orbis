@@ -35,11 +35,21 @@ from app.orbs.access_grants import (
     revoke_access_grant,
     update_access_grant_filters,
 )
+from app.orbs.connection_requests import (
+    accept_request,
+    create_connection_request,
+    get_my_connection_request,
+    list_pending_requests,
+    reject_request,
+)
 from app.orbs.models import (
+    AcceptConnectionRequestBody,
     AccessGrantCreate,
     AccessGrantFiltersUpdate,
     AccessGrantListResponse,
     AccessGrantResponse,
+    ConnectionRequestListResponse,
+    ConnectionRequestResponse,
     NodeCreate,
     NodeUpdate,
     OrbIdUpdate,
@@ -545,6 +555,98 @@ async def update_access_grant_filters_endpoint(
     if grant is None:
         raise HTTPException(status_code=404, detail="Grant not found")
     return grant
+
+
+# ── Connection Requests ──
+
+
+@router.post(
+    "/{orb_id}/connection-requests",
+    response_model=ConnectionRequestResponse,
+    status_code=201,
+)
+async def request_access(
+    orb_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Request access to a restricted orb."""
+    result = await create_connection_request(db=db, orb_id=orb_id, user=current_user)
+    if result is None:
+        raise HTTPException(
+            status_code=409, detail="Request already pending or orb not restricted"
+        )
+    return result
+
+
+@router.get(
+    "/{orb_id}/connection-requests/me",
+    response_model=ConnectionRequestResponse,
+)
+async def get_my_request(
+    orb_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Check if the current user has a pending request for this orb."""
+    result = await get_my_connection_request(
+        db=db, orb_id=orb_id, user_id=current_user["user_id"]
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="No pending request")
+    return result
+
+
+@router.get("/me/connection-requests", response_model=ConnectionRequestListResponse)
+async def list_my_connection_requests(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List pending connection requests for the current user's orb."""
+    requests = await list_pending_requests(db=db, user_id=current_user["user_id"])
+    return {"requests": requests}
+
+
+@router.post(
+    "/me/connection-requests/{request_id}/accept",
+    response_model=AccessGrantResponse,
+)
+async def accept_connection_request(
+    request_id: str,
+    data: AcceptConnectionRequestBody,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Accept a connection request and create an access grant with optional filters."""
+    grant = await accept_request(
+        db=db,
+        user_id=current_user["user_id"],
+        request_id=request_id,
+        keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
+    )
+    if grant is None:
+        raise HTTPException(
+            status_code=404, detail="Request not found or already resolved"
+        )
+    return grant
+
+
+@router.post("/me/connection-requests/{request_id}/reject")
+async def reject_connection_request(
+    request_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Reject a connection request."""
+    result = await reject_request(
+        db=db, user_id=current_user["user_id"], request_id=request_id
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail="Request not found or already resolved"
+        )
+    return {"status": "rejected"}
 
 
 @router.get("/{orb_id}")

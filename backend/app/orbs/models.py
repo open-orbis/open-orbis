@@ -92,3 +92,25 @@ class AccessGrantListResponse(BaseModel):
 class AccessGrantFiltersUpdate(BaseModel):
     keywords: list[str] = []
     hidden_node_types: list[str] = []
+
+
+# ── Connection Requests ──
+
+
+class ConnectionRequestResponse(BaseModel):
+    request_id: str
+    requester_user_id: str
+    requester_email: str
+    requester_name: str
+    status: str
+    created_at: str
+    resolved_at: str | None = None
+
+
+class ConnectionRequestListResponse(BaseModel):
+    requests: list[ConnectionRequestResponse]
+
+
+class AcceptConnectionRequestBody(BaseModel):
+    keywords: list[str] = []
+    hidden_node_types: list[str] = []
