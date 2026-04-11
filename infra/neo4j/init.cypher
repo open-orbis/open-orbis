@@ -48,3 +48,7 @@ CREATE CONSTRAINT share_token_id IF NOT EXISTS FOR (st:ShareToken) REQUIRE st.to
 // Access grants for restricted-mode allowlists
 CREATE CONSTRAINT access_grant_id IF NOT EXISTS FOR (g:AccessGrant) REQUIRE g.grant_id IS UNIQUE;
 CREATE INDEX access_grant_email IF NOT EXISTS FOR (g:AccessGrant) ON (g.email);
+
+// LLM usage tracking
+CREATE CONSTRAINT llm_usage_id IF NOT EXISTS FOR (u:LLMUsage) REQUIRE u.usage_id IS UNIQUE;
+CREATE INDEX llm_usage_endpoint IF NOT EXISTS FOR (u:LLMUsage) ON (u.endpoint);

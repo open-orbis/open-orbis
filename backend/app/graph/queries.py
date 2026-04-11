@@ -664,3 +664,68 @@ MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_i
 DETACH DELETE st
 RETURN true AS deleted
 """
+
+# ── LLM Usage Tracking ──
+
+CREATE_LLM_USAGE = """
+MATCH (p:Person {user_id: $user_id})
+CREATE (p)-[:HAS_LLM_USAGE]->(u:LLMUsage {
+    usage_id: $usage_id,
+    endpoint: $endpoint,
+    llm_provider: $llm_provider,
+    llm_model: $llm_model,
+    input_tokens: $input_tokens,
+    output_tokens: $output_tokens,
+    total_tokens: $total_tokens,
+    cost_usd: $cost_usd,
+    duration_ms: $duration_ms,
+    created_at: datetime()
+})
+RETURN u
+"""
+
+GET_USER_LLM_USAGE = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_LLM_USAGE]->(u:LLMUsage)
+RETURN u
+ORDER BY u.created_at DESC
+"""
+
+GET_LLM_USAGE_AGGREGATE = """
+MATCH (:Person)-[:HAS_LLM_USAGE]->(u:LLMUsage)
+WITH count(u) AS total_calls,
+     sum(CASE WHEN u.cost_usd IS NOT NULL THEN u.cost_usd ELSE 0 END) AS total_cost,
+     collect(u.cost_usd) AS costs,
+     collect(u.duration_ms) AS durations,
+     collect(u.total_tokens) AS tokens
+WITH total_calls, total_cost, costs, durations, tokens,
+     [x IN costs WHERE x IS NOT NULL] AS valid_costs,
+     [x IN durations WHERE x IS NOT NULL] AS valid_durations,
+     [x IN tokens WHERE x IS NOT NULL] AS valid_tokens
+RETURN total_calls, total_cost,
+       CASE WHEN size(valid_costs) > 0 THEN reduce(s = 0.0, x IN valid_costs | s + x) / size(valid_costs) ELSE null END AS cost_mean,
+       CASE WHEN size(valid_costs) > 1 THEN reduce(s = 0.0, x IN valid_costs | s + (x - reduce(s2 = 0.0, y IN valid_costs | s2 + y) / size(valid_costs))^2) / (size(valid_costs) - 1) ELSE null END AS cost_variance,
+       CASE WHEN size(valid_costs) > 0 THEN reduce(s = valid_costs[0], x IN valid_costs | CASE WHEN x < s THEN x ELSE s END) ELSE null END AS cost_min,
+       CASE WHEN size(valid_costs) > 0 THEN reduce(s = valid_costs[0], x IN valid_costs | CASE WHEN x > s THEN x ELSE s END) ELSE null END AS cost_max,
+       CASE WHEN size(valid_durations) > 0 THEN reduce(s = 0.0, x IN valid_durations | s + x) / size(valid_durations) ELSE null END AS duration_mean,
+       CASE WHEN size(valid_durations) > 1 THEN reduce(s = 0.0, x IN valid_durations | s + (x - reduce(s2 = 0.0, y IN valid_durations | s2 + y) / size(valid_durations))^2) / (size(valid_durations) - 1) ELSE null END AS duration_variance,
+       CASE WHEN size(valid_durations) > 0 THEN reduce(s = valid_durations[0], x IN valid_durations | CASE WHEN x < s THEN x ELSE s END) ELSE null END AS duration_min,
+       CASE WHEN size(valid_durations) > 0 THEN reduce(s = valid_durations[0], x IN valid_durations | CASE WHEN x > s THEN x ELSE s END) ELSE null END AS duration_max,
+       CASE WHEN size(valid_tokens) > 0 THEN reduce(s = 0.0, x IN valid_tokens | s + x) / size(valid_tokens) ELSE null END AS token_mean,
+       CASE WHEN size(valid_tokens) > 1 THEN reduce(s = 0.0, x IN valid_tokens | s + (x - reduce(s2 = 0.0, y IN valid_tokens | s2 + y) / size(valid_tokens))^2) / (size(valid_tokens) - 1) ELSE null END AS token_variance
+"""
+
+GET_LLM_USAGE_BY_ENDPOINT = """
+MATCH (:Person)-[:HAS_LLM_USAGE]->(u:LLMUsage)
+RETURN u.endpoint AS endpoint,
+       count(u) AS count,
+       sum(CASE WHEN u.cost_usd IS NOT NULL THEN u.cost_usd ELSE 0 END) AS total_cost
+ORDER BY count DESC
+"""
+
+GET_LLM_USAGE_BY_MODEL = """
+MATCH (:Person)-[:HAS_LLM_USAGE]->(u:LLMUsage)
+RETURN u.llm_model AS model,
+       count(u) AS count,
+       sum(CASE WHEN u.cost_usd IS NOT NULL THEN u.cost_usd ELSE 0 END) AS total_cost
+ORDER BY count DESC
+"""
