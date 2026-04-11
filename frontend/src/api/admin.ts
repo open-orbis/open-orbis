@@ -224,68 +224,6 @@ export async function getFunnelMetrics(
   return data;
 }
 
-// ── LLM Usage ──
-
-export interface LLMUsageRecord {
-  usage_id: string;
-  endpoint: string;
-  llm_provider: string;
-  llm_model: string;
-  cost_usd: number | null;
-  duration_ms: number | null;
-  input_tokens: number | null;
-  output_tokens: number | null;
-  created_at: string;
-}
-
-export interface LLMUsageSummary {
-  total_calls: number;
-  total_cost_usd: number;
-  avg_cost_usd: number;
-  avg_duration_ms: number;
-}
-
-export interface LLMUsageByEndpoint {
-  endpoint: string;
-  count: number;
-  total_cost: number;
-}
-
-export interface LLMUsageByModel {
-  model: string;
-  count: number;
-  total_cost: number;
-}
-
-export interface LLMCostStats {
-  mean: number | null;
-  variance: number | null;
-  min: number | null;
-  max: number | null;
-}
-
-export interface LLMDurationStats {
-  mean_ms: number | null;
-  variance_ms: number | null;
-  min_ms: number | null;
-  max_ms: number | null;
-}
-
-export interface LLMTokenStats {
-  mean: number | null;
-  variance: number | null;
-}
-
-export interface LLMUsageInsights {
-  total_calls: number;
-  total_cost_usd: number;
-  by_endpoint: LLMUsageByEndpoint[];
-  by_model: LLMUsageByModel[];
-  cost_stats: LLMCostStats;
-  duration_stats: LLMDurationStats;
-  token_stats: LLMTokenStats;
-}
-
 // ── Insights ──
 
 export interface ProviderCount {
