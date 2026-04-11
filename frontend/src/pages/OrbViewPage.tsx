@@ -479,13 +479,11 @@ function SharePanel({
 
             <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
               <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-              <p className="text-[11px] text-gray-500 mb-3">Use this code on printed material for instant access.</p>
-              <div className="flex justify-center">
+              <div className="flex justify-center mt-3">
                 <div className="bg-white p-3 rounded-xl">
                   <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={2} />
                 </div>
               </div>
-              <p className="text-[11px] text-gray-500 mt-3">Scans to your current share link.</p>
             </div>
 
             {isRestricted && (
