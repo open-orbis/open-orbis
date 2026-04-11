@@ -264,11 +264,12 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
             if provider == "claude":
                 from app.cv.claude_classifier import call_claude
 
-                result = await call_claude(
+                claude_resp = await call_claude(
                     system_prompt=SYSTEM_PROMPT,
                     user_message=user_message,
                     model=settings.claude_model or None,
                 )
+                result = claude_resp["content"]
             else:
                 result = await _call_ollama(user_message)
 

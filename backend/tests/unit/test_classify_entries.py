@@ -95,11 +95,18 @@ class TestSuccessfulClassification:
     async def test_claude_provider_calls_claude(self, _mock_settings):
         _mock_settings.llm_provider = "claude"
         _mock_settings.claude_model = "claude-sonnet-4-6"
+        claude_response = {
+            "content": GOOD_LLM_RESPONSE,
+            "cost_usd": None,
+            "duration_ms": None,
+            "input_tokens": None,
+            "output_tokens": None,
+        }
         # call_claude is lazily imported inside classify_entries, mock at source
         with patch(
             "app.cv.claude_classifier.call_claude",
             new_callable=AsyncMock,
-            return_value=GOOD_LLM_RESPONSE,
+            return_value=claude_response,
         ) as mock_claude:
             result = await classify_entries("Some CV text here")
             assert len(result.nodes) == 2

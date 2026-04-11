@@ -44,7 +44,14 @@ def test_extraction_metadata_rule_based():
 @pytest.mark.asyncio
 async def test_classify_entries_returns_metadata_claude():
     """classify_entries populates metadata when using Claude provider."""
-    mock_response = '{"cv_owner_name": "John", "nodes": [{"node_type": "skill", "properties": {"name": "Python"}}], "relationships": [], "unmatched": []}'
+    mock_content = '{"cv_owner_name": "John", "nodes": [{"node_type": "skill", "properties": {"name": "Python"}}], "relationships": [], "unmatched": []}'
+    mock_response = {
+        "content": mock_content,
+        "cost_usd": None,
+        "duration_ms": None,
+        "input_tokens": None,
+        "output_tokens": None,
+    }
 
     with patch("app.cv.ollama_classifier.settings") as mock_settings:
         mock_settings.llm_provider = "claude"
