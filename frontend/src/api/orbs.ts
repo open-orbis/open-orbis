@@ -236,3 +236,45 @@ export async function deleteVersion(snapshotId: string): Promise<void> {
 export async function submitIdea(text: string): Promise<void> {
   await client.post('/ideas', { text });
 }
+
+// ── Connection Requests ──
+
+export interface ConnectionRequest {
+  request_id: string;
+  requester_user_id: string;
+  requester_email: string;
+  requester_name: string;
+  status: string;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export async function requestAccess(orbId: string): Promise<ConnectionRequest> {
+  const { data } = await client.post(`/orbs/${orbId}/connection-requests`);
+  return data;
+}
+
+export async function getMyConnectionRequest(orbId: string): Promise<ConnectionRequest | null> {
+  try {
+    const { data } = await client.get(`/orbs/${orbId}/connection-requests/me`);
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function listConnectionRequests(): Promise<ConnectionRequest[]> {
+  const { data } = await client.get('/orbs/me/connection-requests');
+  return data.requests;
+}
+
+export async function acceptConnectionRequest(
+  requestId: string,
+  filters: { keywords: string[]; hidden_node_types: string[] },
+): Promise<void> {
+  await client.post(`/orbs/me/connection-requests/${requestId}/accept`, filters);
+}
+
+export async function rejectConnectionRequest(requestId: string): Promise<void> {
+  await client.post(`/orbs/me/connection-requests/${requestId}/reject`);
+}

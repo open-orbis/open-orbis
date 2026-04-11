@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useOrbStore } from '../stores/orbStore';
-import { publicTextSearch } from '../api/orbs';
+import { publicTextSearch, requestAccess, getMyConnectionRequest } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import ChatBox from '../components/chat/ChatBox';
@@ -54,6 +54,11 @@ export default function SharedOrbPage() {
 
   const [initialFetchDone, setInitialFetchDone] = useState(false);
 
+  const isNoAccess = !!error && error.toLowerCase().includes("don't have access");
+  const [requestPending, setRequestPending] = useState(false);
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestChecked, setRequestChecked] = useState(false);
+
   const handleNodeClick = useCallback((node: Record<string, unknown>) => {
     const url = (node.url || node.company_url || node.credential_url || node.doi) as string | undefined;
     if (url) {
@@ -86,6 +91,14 @@ export default function SharedOrbPage() {
       navigate('/', { replace: true });
     }
   }, [isUnauthorizedError, orbId, user, navigate]);
+
+  useEffect(() => {
+    if (!isNoAccess || !user || !orbId || requestChecked) return;
+    getMyConnectionRequest(orbId).then((req) => {
+      if (req) setRequestPending(true);
+      setRequestChecked(true);
+    });
+  }, [isNoAccess, user, orbId, requestChecked]);
 
   useEffect(() => {
     const handleResize = () => setDimensions({ width: window.innerWidth, height: window.innerHeight });
@@ -158,7 +171,6 @@ export default function SharedOrbPage() {
 
   if (error || !data) {
     const isPrivate = error?.toLowerCase().includes('private');
-    const isNoAccess = error?.toLowerCase().includes("don't have access");
     const isForbidden = !isPrivate && !isNoAccess && (error?.includes('403') || error?.includes('share token'));
     let title: string;
     let message: string;
@@ -189,6 +201,30 @@ export default function SharedOrbPage() {
           >
             {user ? 'Back to My Orbis' : 'Go to Home'}
           </button>
+          {isNoAccess && user && (
+            <button
+              onClick={async () => {
+                if (!orbId || requestPending || requestSubmitting) return;
+                setRequestSubmitting(true);
+                try {
+                  await requestAccess(orbId);
+                  setRequestPending(true);
+                } catch {
+                  // Already pending or failed
+                } finally {
+                  setRequestSubmitting(false);
+                }
+              }}
+              disabled={requestPending || requestSubmitting}
+              className={`mt-3 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                requestPending
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-500 text-white'
+              }`}
+            >
+              {requestSubmitting ? 'Sending...' : requestPending ? 'Request Pending' : 'Request Access'}
+            </button>
+          )}
         </div>
       </div>
     );
