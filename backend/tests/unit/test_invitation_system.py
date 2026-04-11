@@ -251,6 +251,8 @@ def test_admin_stats(admin_client):
             "app.admin.router.count_access_codes",
             AsyncMock(return_value={"total": 200, "used": 47, "available": 153}),
         ),
+        patch("app.admin.router.count_pending_deletion", AsyncMock(return_value=3)),
+        patch("app.admin.router.count_deleted_accounts", AsyncMock(return_value=5)),
     ):
         response = admin_client.get("/admin/stats")
 
@@ -260,6 +262,8 @@ def test_admin_stats(admin_client):
     assert body["pending_activation"] == 12
     assert body["invite_code_required"] is True
     assert body["invite_codes"]["available"] == 153
+    assert body["pending_deletion"] == 3
+    assert body["deleted_accounts"] == 5
 
 
 def test_admin_toggle_invite_code(admin_client):

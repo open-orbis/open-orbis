@@ -14,6 +14,8 @@ class InviteCodeCounts(BaseModel):
 class StatsResponse(BaseModel):
     registered: int
     pending_activation: int
+    pending_deletion: int
+    deleted_accounts: int
     invite_code_required: bool
     invite_codes: InviteCodeCounts
 

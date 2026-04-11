@@ -127,6 +127,29 @@ async def count_pending_persons(db: AsyncDriver) -> int:
         return int(record["total"]) if record else 0
 
 
+async def count_pending_deletion(db: AsyncDriver) -> int:
+    """Count accounts in the 30-day deletion grace period."""
+    async with db.session() as session:
+        result = await session.run(
+            "MATCH (p:Person) "
+            "WHERE p.deletion_requested_at IS NOT NULL "
+            "AND datetime(p.deletion_requested_at) >= datetime() - duration('P30D') "
+            "RETURN count(p) AS total"
+        )
+        record = await result.single()
+        return int(record["total"]) if record else 0
+
+
+async def count_deleted_accounts(db: AsyncDriver) -> int:
+    """Count permanently deleted accounts via DeletionRecord nodes."""
+    async with db.session() as session:
+        result = await session.run(
+            "MATCH (d:DeletionRecord) RETURN count(d) AS total"
+        )
+        record = await result.single()
+        return int(record["total"]) if record else 0
+
+
 async def list_pending_persons(db: AsyncDriver) -> list[dict]:
     async with db.session() as session:
         result = await session.run(LIST_PENDING_PERSONS)
