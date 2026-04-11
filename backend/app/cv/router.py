@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
@@ -42,6 +44,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cv", tags=["cv"])
 
 
+_UNSAFE_FILENAME_CHARS = re.compile(r'[\x00-\x1f"\\/]+')
+
+
+def _safe_content_disposition(filename: str) -> str:
+    """Return a safe ``Content-Disposition: attachment; filename="..."`` value.
+
+    User-supplied filenames are used only in this response header so the
+    attack we care about is header injection via CR/LF and double-quote
+    escaping, plus path traversal if the header ever leaks into a file
+    system sink. We strip path components with ``Path.name``, replace
+    control characters, slashes, backslashes and double quotes with
+    underscores, and cap the length. Falls back to ``document.pdf`` if
+    nothing usable remains.
+    """
+    base = Path(filename or "").name
+    cleaned = _UNSAFE_FILENAME_CHARS.sub("_", base).strip()
+    if not cleaned or cleaned in (".", ".."):
+        cleaned = "document.pdf"
+    cleaned = cleaned[:200]
+    return f'attachment; filename="{cleaned}"'
+
+
 async def _require_consent(current_user: dict, db: AsyncDriver) -> None:
     """Raise 403 if user hasn't given GDPR consent."""
     async with db.session() as session:
@@ -73,6 +97,13 @@ async def upload_cv(
     pdf_bytes = await file.read()
     if len(pdf_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 10MB)")
+
+    # Magic-byte check: every real PDF begins with ``%PDF-`` (possibly
+    # preceded by a few junk bytes which PyMuPDF tolerates but our text
+    # extractor should not). Reject obvious content-type mismatches
+    # early, before spinning up the LLM pipeline.
+    if not pdf_bytes.lstrip()[:5] == b"%PDF-":
+        raise HTTPException(status_code=400, detail="File is not a valid PDF")
 
     user_id = current_user.get("user_id", "")
     document_id = str(uuid.uuid4())
@@ -197,7 +228,7 @@ async def download_document(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _safe_content_disposition(filename)},
     )
 
 
@@ -237,9 +268,7 @@ async def import_document(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    from pathlib import Path as P
-
-    ext = P(file.filename).suffix.lower()
+    ext = Path(file.filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
