@@ -15,7 +15,7 @@ import {
   revokeAccessGrant,
 } from '../api/orbs';
 import type { AccessGrant, OrbVisibility } from '../api/orbs';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import FloatingInput from '../components/editor/FloatingInput';
@@ -65,7 +65,8 @@ function SharePanel({
   visibility: OrbVisibility;
   onVisibilityChange: (v: OrbVisibility) => Promise<void>;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copiedField, setCopiedField] = useState<'link' | 'mcp' | null>(null);
+  const [qrDownloaded, setQrDownloaded] = useState(false);
   const [shareTokenId, setShareTokenId] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
@@ -80,10 +81,14 @@ function SharePanel({
   const isPrivate = visibility === 'private';
   const isRestricted = visibility === 'restricted';
   const isPublic = visibility === 'public';
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const bareUrl = `${window.location.origin}/${orbId}`;
   const shareUrl = isRestricted
     ? bareUrl
     : (shareTokenId ? `${bareUrl}?token=${shareTokenId}` : '');
+  const shareableUrl = isRestricted ? bareUrl : shareUrl;
+  const qrValue = shareableUrl || bareUrl;
+  const canDownloadQr = !isPrivate && (isRestricted || Boolean(shareTokenId));
   const mcpUri = `orb://${orbId}`;
 
   // Generate a share token only in public mode
@@ -165,10 +170,24 @@ function SharePanel({
     { value: 'restricted', label: 'Restricted', description: 'Share via invite links' },
   ];
 
-  const copy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copy = (text: string, field: 'link' | 'mcp') => {
+    void navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => {
+      setCopiedField((current) => (current === field ? null : current));
+    }, 2000);
+  };
+
+  const handleDownloadQr = () => {
+    if (!canDownloadQr || !qrCanvasRef.current) return;
+    const link = document.createElement('a');
+    link.href = qrCanvasRef.current.toDataURL('image/png');
+    link.download = `orbis-${orbId}-${isRestricted ? 'restricted' : 'public'}-qr.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setQrDownloaded(true);
+    setTimeout(() => setQrDownloaded(false), 2000);
   };
 
   return (
@@ -218,9 +237,25 @@ function SharePanel({
         </div>
 
         {/* QR Code */}
-        <div className={`flex justify-center mb-5 ${isPrivate ? 'opacity-40' : ''}`}>
-          <div className="bg-white p-3 rounded-xl">
-            <QRCodeSVG value={shareUrl || bareUrl} size={140} level="M" />
+        <div className="mb-5">
+          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
+          <p className="text-[11px] text-gray-500 mt-0.5 mb-2">
+            {isPrivate
+              ? 'Switch to Public or Restricted to download a scannable QR code.'
+              : 'Use this QR code on printed material to open your shared orbis.'}
+          </p>
+          <div className={`flex flex-col items-center gap-3 ${isPrivate ? 'opacity-40' : ''}`}>
+            <div className="bg-white p-3 rounded-xl">
+              <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={156} level="M" marginSize={2} />
+            </div>
+            <button
+              type="button"
+              onClick={handleDownloadQr}
+              disabled={!canDownloadQr || generatingToken}
+              className="bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
+            >
+              {qrDownloaded ? 'Downloaded' : 'Download QR (.png)'}
+            </button>
           </div>
         </div>
 
@@ -260,11 +295,11 @@ function SharePanel({
                 <input readOnly value={shareUrl} className={`flex-1 bg-gray-800 border rounded-lg px-3 py-2 text-white text-sm font-mono ${hasActiveFilters ? 'border-amber-600/30' : 'border-gray-600'}`} />
               )}
               <button
-                onClick={() => copy(shareUrl)}
+                onClick={() => copy(shareUrl, 'link')}
                 disabled={!shareTokenId}
                 className={`${hasActiveFilters ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'} disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap`}
               >
-                {copied ? 'Copied!' : 'Copy'}
+                {copiedField === 'link' ? 'Copied!' : 'Copy'}
               </button>
             </div>
           </div>
@@ -281,10 +316,10 @@ function SharePanel({
               <div className="mt-1 flex items-center gap-2">
                 <input readOnly value={bareUrl} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
                 <button
-                  onClick={() => copy(bareUrl)}
+                  onClick={() => copy(bareUrl, 'link')}
                   className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
                 >
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copiedField === 'link' ? 'Copied!' : 'Copy'}
                 </button>
               </div>
             </div>
@@ -349,7 +384,7 @@ function SharePanel({
           </p>
           <div className={`flex items-center gap-2 ${!isPublic ? 'opacity-40 pointer-events-none' : ''}`}>
             <input readOnly value={mcpUri} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-            <button onClick={() => copy(mcpUri)} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap">Copy</button>
+            <button onClick={() => copy(mcpUri, 'mcp')} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap">{copiedField === 'mcp' ? 'Copied!' : 'Copy'}</button>
           </div>
         </div>
 
