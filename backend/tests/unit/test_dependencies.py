@@ -38,16 +38,18 @@ async def test_get_current_user_from_cookie():
     assert user["email"] == "test@example.com"
 
 
-async def test_get_current_user_from_bearer_header_fallback():
-    """Until Stage 5 removes the Bearer fallback, an Authorization header
-    without a cookie still resolves to a user."""
+async def test_get_current_user_ignores_bearer_header():
+    """Stage 5 of the cookie migration dropped the Bearer fallback.
+    An Authorization header alone must no longer authenticate on /api —
+    MCP agents carry X-MCP-Key instead, handled by a separate middleware."""
     token = _token({"sub": "user-456", "email": "b@example.com"})
     request = _request(headers={"authorization": f"Bearer {token}"})
-    user = await get_current_user(request)
-    assert user["user_id"] == "user-456"
+    with pytest.raises(HTTPException) as exc:
+        await get_current_user(request)
+    assert exc.value.status_code == 401
 
 
-async def test_get_current_user_cookie_beats_header():
+async def test_get_current_user_cookie_only():
     cookie_token = _token({"sub": "cookie-user", "email": "c@x"})
     header_token = _token({"sub": "header-user", "email": "h@x"})
     request = _request(
@@ -55,6 +57,8 @@ async def test_get_current_user_cookie_beats_header():
         headers={"authorization": f"Bearer {header_token}"},
     )
     user = await get_current_user(request)
+    # The header is ignored entirely; the cookie wins by being the only
+    # channel consulted at all.
     assert user["user_id"] == "cookie-user"
 
 
@@ -119,12 +123,12 @@ async def test_get_current_user_optional_cookie_returns_user():
     assert user["user_id"] == "user-123"
 
 
-async def test_get_current_user_optional_bearer_still_works():
+async def test_get_current_user_optional_ignores_bearer():
+    """Optional auth also only consults cookies, consistent with the strict
+    variant. A bearer header alone resolves to 'unauthenticated'."""
     token = _token({"sub": "user-123", "email": "test@example.com"})
     request = _request(headers={"authorization": f"Bearer {token}"})
-    user = await get_current_user_optional(request)
-    assert user is not None
-    assert user["user_id"] == "user-123"
+    assert await get_current_user_optional(request) is None
 
 
 async def test_get_current_user_optional_no_sub_returns_none():

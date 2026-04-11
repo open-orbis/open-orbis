@@ -31,20 +31,14 @@ def _decode_jwt(token: str) -> dict | None:
 
 
 def _extract_token(request: Request) -> str | None:
-    """Pick an access token from the request.
+    """Pick an access token from the httpOnly cookie.
 
-    Priority: httpOnly cookie (the canonical transport since the cookie
-    migration), then ``Authorization: Bearer`` header as a backward-compat
-    fallback. The header path will be removed once every client is on
-    cookie auth — see the Stage 5 task in security/high-fixes-phase-b.
+    Cookie-only. The Bearer header fallback was removed in Stage 5 of
+    the cookie migration — browser clients use cookies, MCP agents use
+    the X-MCP-Key header handled by the MCP server's own middleware.
+    Regular /api endpoints never see bearer tokens.
     """
-    token = request.cookies.get(ACCESS_COOKIE)
-    if token:
-        return token
-    auth = request.headers.get("authorization") or request.headers.get("Authorization")
-    if auth and auth.lower().startswith("bearer "):
-        return auth.split(" ", 1)[1]
-    return None
+    return request.cookies.get(ACCESS_COOKIE)
 
 
 async def get_current_user(request: Request) -> dict:
