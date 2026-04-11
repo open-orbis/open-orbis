@@ -280,7 +280,7 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.8 }}
-          className="text-5xl sm:text-7xl font-bold mb-5 z-10 tracking-tight text-center"
+          className="text-5xl sm:text-7xl font-bold mb-8 z-10 tracking-tight text-center"
         >
           Beyond the{' '}
           <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
@@ -292,9 +292,9 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
-          className="text-white/40 text-lg sm:text-xl mb-10 z-10 max-w-lg text-center leading-relaxed"
+          className="text-white/40 text-lg sm:text-xl mb-16 z-10 max-w-lg text-center leading-relaxed"
         >
-          Your career as a knowledge graph.<br />
+          <span className="text-white/60 font-semibold">Your career reimagined for the AI era.</span><br />
           Queryable, shareable, portable.
         </motion.p>
 
@@ -303,7 +303,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7, duration: 0.8 }}
-          className="text-sm mb-8 z-10 font-medium tracking-wide"
+          className="text-sm mb-24 z-10 font-medium tracking-wide"
         >
           <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
             No more templates. No more formatting. Just your Orbis.
@@ -411,7 +411,7 @@ export default function LandingPage() {
             <FeatureRow side="right" color="#ec4899" colorName="pink"
               icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />}
               title="You control access"
-              description="Your data is encrypted end-to-end. Decide what each recruiter or AI agent can see. Your professional identity, your rules."
+              description="Your data is encrypted end-to-end. You control who can see what. Your professional identity, your rules."
             />
           </div>
         </div>

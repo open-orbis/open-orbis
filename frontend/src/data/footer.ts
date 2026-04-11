@@ -9,24 +9,13 @@ export const FOOTER_CONTENT = {
     tagline: "Your career as a knowledge graph.\nReimagined for the AI era.",
     copyrightOwner: "Open Orbis",
   },
-  sections: [
+  links: [
+    { label: "Privacy Policy", to: "/privacy", isInternal: true },
+    { label: "Contact us", href: "mailto:team@open-orbis.com" },
     {
-      title: "Links",
-      links: [
-        { label: "About", to: "/about", isInternal: true },
-        { label: "Privacy Policy", to: "/privacy", isInternal: true },
-      ],
-    },
-    {
-      title: "Contact",
-      links: [
-        { label: "Email", href: "mailto:team@open-orbis.com" },
-        {
-          label: "GitHub",
-          href: "https://github.com/Brotherhood94/orb_project",
-          isExternal: true,
-        },
-      ],
+      label: "GitHub",
+      href: "https://github.com/Brotherhood94/orb_project",
+      isExternal: true,
     },
   ],
 };
