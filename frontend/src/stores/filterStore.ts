@@ -10,6 +10,7 @@ interface FilterState {
   addKeyword: (keyword: string) => void;
   removeKeyword: (keyword: string) => void;
   toggleKeyword: (keyword: string) => void;
+  deactivateAll: () => void;
 }
 
 export const useFilterStore = create<FilterState>()(
@@ -41,6 +42,10 @@ export const useFilterStore = create<FilterState>()(
         } else {
           set({ activeKeywords: [...activeKeywords, keyword] });
         }
+      },
+
+      deactivateAll: () => {
+        set({ activeKeywords: [] });
       },
 
     }),

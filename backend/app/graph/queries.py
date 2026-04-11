@@ -19,7 +19,7 @@ CREATE (p:Person {
     website_url: '',
     orcid_url: '',
     open_to_work: false,
-    visibility: 'private',
+    visibility: 'public',
     created_at: datetime(),
     updated_at: datetime()
 })
@@ -33,7 +33,7 @@ RETURN p
 
 GET_PERSON_VISIBILITY = """
 MATCH (p:Person {orb_id: $orb_id})
-RETURN coalesce(p.visibility, 'private') AS visibility
+RETURN coalesce(p.visibility, 'public') AS visibility
 """
 
 # ── Access grants (restricted-mode allowlist) ──
@@ -41,10 +41,15 @@ RETURN coalesce(p.visibility, 'private') AS visibility
 CREATE_ACCESS_GRANT = """
 MATCH (p:Person {user_id: $user_id})
 WHERE p.orb_id IS NOT NULL AND p.orb_id <> ''
+OPTIONAL MATCH (p)-[:GRANTED_ACCESS]->(old:AccessGrant {email: $email})
+WHERE old.revoked = false
+SET old.revoked = true, old.revoked_at = datetime()
 CREATE (p)-[:GRANTED_ACCESS]->(g:AccessGrant {
     grant_id:   $grant_id,
     orb_id:     p.orb_id,
     email:      $email,
+    keywords:   $keywords,
+    hidden_node_types: $hidden_node_types,
     created_at: datetime(),
     revoked:    false,
     revoked_at: null
@@ -69,7 +74,17 @@ CHECK_ACCESS_GRANT = """
 MATCH (p:Person {orb_id: $orb_id})-[:GRANTED_ACCESS]->(g:AccessGrant {email: $email})
 WHERE g.revoked = false
 RETURN g
+ORDER BY g.created_at DESC
 LIMIT 1
+"""
+
+UPDATE_ACCESS_GRANT_FILTERS = """
+MATCH (p:Person {user_id: $user_id})-[:GRANTED_ACCESS]->(g:AccessGrant {grant_id: $grant_id})
+WHERE g.revoked = false
+SET g.keywords = $keywords,
+    g.hidden_node_types = $hidden_node_types,
+    g.filters_updated_at = datetime()
+RETURN g
 """
 
 GET_PERSON_BY_ORB_ID = """
@@ -728,4 +743,46 @@ RETURN u.llm_model AS model,
        count(u) AS count,
        sum(CASE WHEN u.cost_usd IS NOT NULL THEN u.cost_usd ELSE 0 END) AS total_cost
 ORDER BY count DESC
+"""
+
+# ── Connection Requests ──
+
+CREATE_CONNECTION_REQUEST = """
+MATCH (p:Person {orb_id: $orb_id})
+WHERE p.visibility = 'restricted'
+OPTIONAL MATCH (p)-[:HAS_CONNECTION_REQUEST]->(existing:ConnectionRequest {
+    requester_user_id: $requester_user_id, status: 'pending'
+})
+WITH p, existing
+WHERE existing IS NULL
+CREATE (p)-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {
+    request_id: $request_id,
+    requester_user_id: $requester_user_id,
+    requester_email: $requester_email,
+    requester_name: $requester_name,
+    status: 'pending',
+    created_at: datetime(),
+    resolved_at: null
+})
+RETURN cr, p.user_id AS owner_user_id
+"""
+
+GET_CONNECTION_REQUEST_BY_REQUESTER = """
+MATCH (p:Person {orb_id: $orb_id})-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {
+    requester_user_id: $requester_user_id, status: 'pending'
+})
+RETURN cr
+"""
+
+LIST_PENDING_CONNECTION_REQUESTS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {status: 'pending'})
+RETURN cr
+ORDER BY cr.created_at DESC
+"""
+
+UPDATE_CONNECTION_REQUEST_STATUS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {request_id: $request_id})
+WHERE cr.status = 'pending'
+SET cr.status = $status, cr.resolved_at = datetime()
+RETURN cr
 """

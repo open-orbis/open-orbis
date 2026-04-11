@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from neo4j import AsyncDriver
 
 from app.graph.queries import GET_PERSON_BY_ORB_ID, GET_PERSON_VISIBILITY
-from app.orbs.access_grants import user_has_access
+from app.orbs.access_grants import get_access_grant_for_user
 
 
 async def get_orb_visibility(db: AsyncDriver, orb_id: str) -> str | None:
@@ -41,7 +41,7 @@ def assert_orb_accessible(visibility: str | None) -> None:
 
 async def assert_user_can_access_restricted(
     db: AsyncDriver, orb_id: str, current_user: dict | None
-) -> None:
+) -> dict[str, list[str]]:
     """Enforce the per-user allowlist on restricted orbs.
 
     Raises 401 if the caller is not authenticated, 403 if their email is
@@ -59,9 +59,14 @@ async def assert_user_can_access_restricted(
         if record is not None:
             owner_id = dict(record["p"]).get("user_id")
             if owner_id == current_user.get("user_id"):
-                return
+                return {"keywords": [], "hidden_node_types": []}
 
     if not email:
         raise HTTPException(status_code=403, detail="No email on your account")
-    if not await user_has_access(db, orb_id, email):
+    grant = await get_access_grant_for_user(db, orb_id, email)
+    if grant is None:
         raise HTTPException(status_code=403, detail="You don't have access to this orb")
+    return {
+        "keywords": list(grant.get("keywords") or []),
+        "hidden_node_types": list(grant.get("hidden_node_types") or []),
+    }

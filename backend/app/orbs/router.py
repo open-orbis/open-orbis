@@ -34,11 +34,23 @@ from app.orbs.access_grants import (
     create_access_grant,
     list_access_grants,
     revoke_access_grant,
+    update_access_grant_filters,
+)
+from app.orbs.connection_requests import (
+    accept_request,
+    create_connection_request,
+    get_my_connection_request,
+    list_pending_requests,
+    reject_request,
 )
 from app.orbs.models import (
+    AcceptConnectionRequestBody,
     AccessGrantCreate,
+    AccessGrantFiltersUpdate,
     AccessGrantListResponse,
     AccessGrantResponse,
+    ConnectionRequestListResponse,
+    ConnectionRequestResponse,
     NodeCreate,
     NodeUpdate,
     OrbIdUpdate,
@@ -98,11 +110,12 @@ def _serialize_orb(record) -> dict:
             continue
         node_data = _sanitize_neo4j_types(dict(conn["node"]))
         uid = node_data.get("uid")
-        # Deduplicate nodes
-        if uid and uid in seen_node_uids:
+        if not uid:
             continue
-        if uid:
-            seen_node_uids.add(uid)
+        # Deduplicate nodes
+        if uid in seen_node_uids:
+            continue
+        seen_node_uids.add(uid)
         node_data = decrypt_properties(node_data)
         # Remove embedding from response (too large)
         node_data.pop("embedding", None)
@@ -111,7 +124,7 @@ def _serialize_orb(record) -> dict:
         links.append(
             {
                 "source": person.get("user_id") or person.get("orb_id"),
-                "target": node_data["uid"],
+                "target": uid,
                 "type": conn["rel"],
             }
         )
@@ -497,7 +510,11 @@ async def create_access_grant_endpoint(
     swallowed (best-effort) so the grant is still created.
     """
     grant = await create_access_grant(
-        db=db, user_id=current_user["user_id"], email=data.email
+        db=db,
+        user_id=current_user["user_id"],
+        email=data.email,
+        keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
     )
     if grant is None:
         raise HTTPException(status_code=400, detail="Set an orb ID first")
@@ -538,6 +555,118 @@ async def revoke_access_grant_endpoint(
     return {"status": "revoked"}
 
 
+@router.put("/me/access-grants/{grant_id}/filters", response_model=AccessGrantResponse)
+async def update_access_grant_filters_endpoint(
+    grant_id: str,
+    data: AccessGrantFiltersUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Update filter scope for a specific access grant."""
+    grant = await update_access_grant_filters(
+        db=db,
+        user_id=current_user["user_id"],
+        grant_id=grant_id,
+        keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
+    )
+    if grant is None:
+        raise HTTPException(status_code=404, detail="Grant not found")
+    return grant
+
+
+# ── Connection Requests ──
+
+
+@router.post(
+    "/{orb_id}/connection-requests",
+    response_model=ConnectionRequestResponse,
+    status_code=201,
+)
+async def request_access(
+    orb_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Request access to a restricted orb."""
+    result = await create_connection_request(db=db, orb_id=orb_id, user=current_user)
+    if result is None:
+        raise HTTPException(
+            status_code=409, detail="Request already pending or orb not restricted"
+        )
+    return result
+
+
+@router.get(
+    "/{orb_id}/connection-requests/me",
+    response_model=ConnectionRequestResponse,
+)
+async def get_my_request(
+    orb_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Check if the current user has a pending request for this orb."""
+    result = await get_my_connection_request(
+        db=db, orb_id=orb_id, user_id=current_user["user_id"]
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="No pending request")
+    return result
+
+
+@router.get("/me/connection-requests", response_model=ConnectionRequestListResponse)
+async def list_my_connection_requests(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List pending connection requests for the current user's orb."""
+    requests = await list_pending_requests(db=db, user_id=current_user["user_id"])
+    return {"requests": requests}
+
+
+@router.post(
+    "/me/connection-requests/{request_id}/accept",
+    response_model=AccessGrantResponse,
+)
+async def accept_connection_request(
+    request_id: str,
+    data: AcceptConnectionRequestBody,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Accept a connection request and create an access grant with optional filters."""
+    grant = await accept_request(
+        db=db,
+        user_id=current_user["user_id"],
+        request_id=request_id,
+        keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
+    )
+    if grant is None:
+        raise HTTPException(
+            status_code=404, detail="Request not found or already resolved"
+        )
+    return grant
+
+
+@router.post("/me/connection-requests/{request_id}/reject")
+async def reject_connection_request(
+    request_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Reject a connection request."""
+    result = await reject_request(
+        db=db, user_id=current_user["user_id"], request_id=request_id
+    )
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail="Request not found or already resolved"
+        )
+    return {"status": "rejected"}
+
+
 @router.get("/{orb_id}")
 @limiter.limit("30/minute")
 async def get_public_orb(
@@ -555,7 +684,9 @@ async def get_public_orb(
     token_data: dict | None = None
     if visibility == "restricted":
         # Require auth + email in allowlist (or owner)
-        await assert_user_can_access_restricted(db, orb_id, current_user)
+        token_data = await assert_user_can_access_restricted(db, orb_id, current_user)
+        if token_data is None:
+            token_data = {"keywords": [], "hidden_node_types": []}
     else:
         # public: require a valid share token
         if not token:
@@ -587,7 +718,7 @@ async def get_public_orb(
 
     orb_data = _serialize_orb(record)
 
-    # Apply filters only in public mode (token-based filtering)
+    # Apply filters in public mode (share token) and restricted mode (per-grant scope)
     keywords = token_data["keywords"] if token_data else []
     hidden_types = set(token_data.get("hidden_node_types", []) if token_data else [])
     if keywords or hidden_types:

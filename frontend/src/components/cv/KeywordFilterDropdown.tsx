@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useFilterStore } from '../../stores/filterStore';
 
 export default function KeywordFilterDropdown() {
-  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
+  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
   const [open, setOpen] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -64,7 +64,7 @@ export default function KeywordFilterDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-72 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+            className="absolute right-0 mt-2 w-80 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-white/5">
               <h3 className="text-white text-sm font-semibold">Keyword Filters</h3>
@@ -74,19 +74,26 @@ export default function KeywordFilterDropdown() {
             </div>
 
             <div className="px-4 py-3">
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-2">
                 <input
                   value={newKeyword}
                   onChange={(e) => setNewKeyword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
                   placeholder="e.g. confidential, private..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
+                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
                 />
                 <button
                   onClick={handleAdd}
-                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer shrink-0"
                 >
                   Add
+                </button>
+                <button
+                  onClick={deactivateAll}
+                  disabled={activeKeywords.length === 0}
+                  className="bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  Deactivate All
                 </button>
               </div>
 
@@ -135,13 +142,7 @@ export default function KeywordFilterDropdown() {
 
               {activeKeywords.length > 0 && (
                 <p className="text-amber-400/70 text-[11px] mt-2">
-                  {activeKeywords.length === 1 ? 'Filter' : 'Filters'}{' '}
-                  {activeKeywords.map((kw, i) => (
-                    <span key={kw}>
-                      {i > 0 && ', '}"<span className="font-semibold">{kw}</span>"
-                    </span>
-                  ))}{' '}
-                  active.
+                  {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
                 </p>
               )}
             </div>

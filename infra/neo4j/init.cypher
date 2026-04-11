@@ -52,3 +52,8 @@ CREATE INDEX access_grant_email IF NOT EXISTS FOR (g:AccessGrant) ON (g.email);
 // LLM usage tracking
 CREATE CONSTRAINT llm_usage_id IF NOT EXISTS FOR (u:LLMUsage) REQUIRE u.usage_id IS UNIQUE;
 CREATE INDEX llm_usage_endpoint IF NOT EXISTS FOR (u:LLMUsage) ON (u.endpoint);
+
+// Connection requests for restricted orbs
+CREATE CONSTRAINT connection_request_id IF NOT EXISTS FOR (cr:ConnectionRequest) REQUIRE cr.request_id IS UNIQUE;
+CREATE INDEX connection_request_status IF NOT EXISTS FOR (cr:ConnectionRequest) ON (cr.status);
+CREATE INDEX connection_request_requester IF NOT EXISTS FOR (cr:ConnectionRequest) ON (cr.requester_user_id);

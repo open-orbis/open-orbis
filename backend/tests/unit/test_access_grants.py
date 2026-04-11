@@ -5,8 +5,10 @@ import pytest
 from app.orbs.access_grants import (
     _normalize_email,
     create_access_grant,
+    get_access_grant_for_user,
     list_access_grants,
     revoke_access_grant,
+    update_access_grant_filters,
     user_has_access,
 )
 
@@ -41,6 +43,8 @@ async def test_create_access_grant_success():
             "grant_id": "abc",
             "orb_id": "test-orb",
             "email": "alice@x.com",
+            "keywords": ["python"],
+            "hidden_node_types": ["Skill"],
             "created_at": "2026-04-11T00:00:00+00:00",
             "revoked": False,
             "revoked_at": None,
@@ -65,13 +69,23 @@ async def test_create_access_grant_no_orb_id_returns_none():
 @pytest.mark.asyncio
 async def test_list_access_grants():
     records = [
-        {"g": {"grant_id": "g1", "email": "a@x.com", "revoked": False}},
+        {
+            "g": {
+                "grant_id": "g1",
+                "email": "a@x.com",
+                "keywords": ["python"],
+                "hidden_node_types": ["Skill"],
+                "revoked": False,
+            }
+        },
         {"g": {"grant_id": "g2", "email": "b@x.com", "revoked": False}},
     ]
     driver = _mock_driver(async_iter_records=records)
     grants = await list_access_grants(driver, "owner-1")
     assert len(grants) == 2
     assert grants[0]["grant_id"] == "g1"
+    assert grants[1]["keywords"] == []
+    assert grants[1]["hidden_node_types"] == []
 
 
 @pytest.mark.asyncio
@@ -114,3 +128,47 @@ async def test_user_has_access_empty_email_returns_false():
     driver = _mock_driver(single_return={"g": {"grant_id": "g1"}})
     # Even if the DB would have returned a match, an empty email short-circuits
     assert await user_has_access(driver, "test-orb", "") is False
+
+
+@pytest.mark.asyncio
+async def test_get_access_grant_for_user_returns_filters():
+    driver = _mock_driver(
+        single_return={
+            "g": {
+                "grant_id": "g1",
+                "email": "alice@x.com",
+                "keywords": ["python"],
+                "hidden_node_types": ["Skill"],
+                "revoked": False,
+            }
+        }
+    )
+    grant = await get_access_grant_for_user(driver, "test-orb", "ALICE@X.COM")
+    assert grant is not None
+    assert grant["keywords"] == ["python"]
+    assert grant["hidden_node_types"] == ["Skill"]
+
+
+@pytest.mark.asyncio
+async def test_update_access_grant_filters_success():
+    driver = _mock_driver(
+        single_return={
+            "g": {
+                "grant_id": "g1",
+                "email": "alice@x.com",
+                "keywords": ["python", "ai"],
+                "hidden_node_types": ["Skill"],
+                "revoked": False,
+            }
+        }
+    )
+    updated = await update_access_grant_filters(
+        driver,
+        "owner-1",
+        "g1",
+        keywords=["Python", "  AI "],
+        hidden_node_types=["Skill"],
+    )
+    assert updated is not None
+    assert updated["keywords"] == ["python", "ai"]
+    assert updated["hidden_node_types"] == ["Skill"]

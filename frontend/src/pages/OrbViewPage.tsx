@@ -12,10 +12,14 @@ import {
   enhanceNote,
   linkSkill,
   listAccessGrants,
+  listConnectionRequests,
+  acceptConnectionRequest,
+  rejectConnectionRequest,
   revokeAccessGrant,
+  updateAccessGrantFilters,
 } from '../api/orbs';
-import type { AccessGrant, OrbVisibility } from '../api/orbs';
-import { QRCodeSVG } from 'qrcode.react';
+import type { AccessGrant, ConnectionRequest, OrbVisibility } from '../api/orbs';
+import { QRCodeCanvas } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import FloatingInput from '../components/editor/FloatingInput';
@@ -43,12 +47,33 @@ const IMPORT_PROGRESS_STEP_LABELS: Record<string, string> = {
   done: 'Finalizing',
 };
 
+function computeShortFilterHash(keywords: string[], hiddenTypes: string[]): string {
+  const normalizedKeywords = keywords.map((k) => k.trim().toLowerCase()).filter(Boolean).sort();
+  const normalizedTypes = hiddenTypes.map((t) => t.trim().toLowerCase()).filter(Boolean).sort();
+  const payload = JSON.stringify({ keywords: normalizedKeywords, hiddenTypes: normalizedTypes });
+
+  // FNV-1a 32-bit for a deterministic short client-side hash.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < payload.length; i += 1) {
+    hash ^= payload.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+
+  return (hash >>> 0).toString(36).padStart(6, '0').slice(0, 6);
+}
+
 function resolveImportStepLabel(step: string | null | undefined, detail: string | null | undefined, message: string | null | undefined): string {
   if (step && IMPORT_PROGRESS_STEP_LABELS[step]) return IMPORT_PROGRESS_STEP_LABELS[step];
   if (detail?.trim()) return detail.trim();
   if (message?.trim()) return message.trim();
   return 'Reading PDF';
 }
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+const SHARE_QR_SIZE = 160;
 
 // ── Modals ──
 
@@ -65,17 +90,33 @@ function SharePanel({
   visibility: OrbVisibility;
   onVisibilityChange: (v: OrbVisibility) => Promise<void>;
 }) {
-  const [copied, setCopied] = useState(false);
   const [shareTokenId, setShareTokenId] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [grantsLoading, setGrantsLoading] = useState(false);
+  const [grantSearch, setGrantSearch] = useState('');
   const [grantEmail, setGrantEmail] = useState('');
   const [grantError, setGrantError] = useState<string | null>(null);
   const [grantSubmitting, setGrantSubmitting] = useState(false);
-  const { activeKeywords } = useFilterStore();
-  const hiddenTypesArray = Array.from(hiddenNodeTypes);
+  const [applyFiltersOnInvite, setApplyFiltersOnInvite] = useState(true);
+  const [editingGrantId, setEditingGrantId] = useState<string | null>(null);
+  const [editingGrantKeywords, setEditingGrantKeywords] = useState('');
+  const [editingGrantHiddenTypes, setEditingGrantHiddenTypes] = useState('');
+  const [updatingGrantFiltersId, setUpdatingGrantFiltersId] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [acceptingRequestId, setAcceptingRequestId] = useState<string | null>(null);
+  const [acceptKeywords, setAcceptKeywords] = useState('');
+  const [acceptHiddenTypes, setAcceptHiddenTypes] = useState('');
+  const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
+  const [qrActionHint, setQrActionHint] = useState<'copied' | 'downloaded' | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const addToast = useToastStore((s) => s.addToast);
+  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
+  const [inlineFilterKeyword, setInlineFilterKeyword] = useState('');
+  const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || hiddenTypesArray.length > 0;
   const isPrivate = visibility === 'private';
   const isRestricted = visibility === 'restricted';
@@ -84,34 +125,229 @@ function SharePanel({
   const shareUrl = isRestricted
     ? bareUrl
     : (shareTokenId ? `${bareUrl}?token=${shareTokenId}` : '');
-  const mcpUri = `orb://${orbId}`;
+  const shareableUrl = isPrivate ? '' : shareUrl;
+  const qrValue = shareableUrl || bareUrl;
+  const canDownloadQr = !isPrivate && (isRestricted || Boolean(shareTokenId));
+  const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
+  const filterHash = useMemo(
+    () => computeShortFilterHash(activeKeywords, hiddenTypesArray),
+    [activeKeywords, hiddenTypesArray],
+  );
+  const mcpUri = `orb://${orbId}+${filterHash}`;
+  const filteredGrants = useMemo(() => {
+    const query = grantSearch.trim().toLowerCase();
+    if (!query) return grants;
+    return grants.filter((g) => g.email.toLowerCase().includes(query));
+  }, [grantSearch, grants]);
+
+  useEffect(() => {
+    if (!hasActiveFilters) setApplyFiltersOnInvite(false);
+  }, [hasActiveFilters]);
 
   // Generate a share token only in public mode
   useEffect(() => {
+    let active = true;
     if (orbId && isPublic) {
+      setShareTokenId(null);
       setGeneratingToken(true);
       createShareToken(activeKeywords, hiddenTypesArray)
-        .then((token) => setShareTokenId(token.token_id))
-        .catch(() => setShareTokenId(null))
-        .finally(() => setGeneratingToken(false));
+        .then((token) => {
+          if (!active) return;
+          setShareTokenId(token.token_id);
+        })
+        .catch(() => {
+          if (!active) return;
+          setShareTokenId(null);
+          addToast('Failed to generate share link', 'error');
+        })
+        .finally(() => {
+          if (!active) return;
+          setGeneratingToken(false);
+        });
     } else {
       setShareTokenId(null);
+      setGeneratingToken(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeKeywords, orbId, hiddenNodeTypes.size, isPublic]);
+    return () => {
+      active = false;
+    };
+  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
+    let active = true;
     if (!isRestricted) {
       setGrants([]);
+      setGrantSearch('');
       return;
     }
     setGrantsLoading(true);
     listAccessGrants()
-      .then((res) => setGrants(res.grants))
-      .catch(() => setGrants([]))
-      .finally(() => setGrantsLoading(false));
+      .then((res) => {
+        if (!active) return;
+        setGrants(res.grants);
+      })
+      .catch(() => {
+        if (!active) return;
+        setGrants([]);
+      })
+      .finally(() => {
+        if (!active) return;
+        setGrantsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [isRestricted]);
+
+  useEffect(() => {
+    if (!isRestricted) return;
+    setPendingLoading(true);
+    listConnectionRequests()
+      .then(setPendingRequests)
+      .catch(() => {})
+      .finally(() => setPendingLoading(false));
+  }, [isRestricted]);
+
+  useEffect(() => {
+    const panel = modalRef.current;
+    if (!panel) return;
+    const selector = [
+      'button:not([disabled])',
+      'a[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(', ');
+
+    const getFocusable = () => Array.from(panel.querySelectorAll<HTMLElement>(selector));
+    const initial = getFocusable();
+    initial[0]?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const focusable = getFocusable();
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (!activeEl || !panel.contains(activeEl)) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+      if (event.shiftKey && activeEl === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!event.shiftKey && activeEl === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const flashQrHint = useCallback((kind: 'copied' | 'downloaded') => {
+    setQrActionHint(kind);
+    window.setTimeout(() => {
+      setQrActionHint((current) => (current === kind ? null : current));
+    }, 1600);
+  }, []);
+
+  const copyText = useCallback(async (text: string, label: string): Promise<boolean> => {
+    if (!navigator.clipboard?.writeText) {
+      addToast('Clipboard is not available in this browser', 'error');
+      return false;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast(`${label} copied`, 'success');
+      return true;
+    } catch {
+      addToast(`Failed to copy ${label.toLowerCase()}`, 'error');
+      return false;
+    }
+  }, [addToast]);
+
+  const handleCopyShareLink = useCallback(async () => {
+    if (!canCopyShareLink || !shareableUrl) return;
+    const copied = await copyText(shareableUrl, 'Share link');
+    if (copied) flashQrHint('copied');
+  }, [canCopyShareLink, copyText, flashQrHint, shareableUrl]);
+
+  const handleCopyMcp = useCallback(() => {
+    if (isPrivate) return;
+    void copyText(mcpUri, 'MCP Orbis ID');
+  }, [copyText, isPrivate, mcpUri]);
+
+  const handleDownloadQr = useCallback(() => {
+    if (!canDownloadQr || !qrCanvasRef.current) return;
+    try {
+      const link = document.createElement('a');
+      link.href = qrCanvasRef.current.toDataURL('image/png');
+      link.download = `orbis-${orbId}-${isRestricted ? 'restricted' : 'public'}-qr.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      addToast('QR code downloaded', 'success');
+      flashQrHint('downloaded');
+    } catch {
+      addToast('Failed to download QR code', 'error');
+    }
+  }, [addToast, canDownloadQr, flashQrHint, isRestricted, orbId]);
+
+  const parseCommaSeparated = useCallback((value: string, lowerCase = false): string[] => {
+    const items = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const normalized = lowerCase ? items.map((item) => item.toLowerCase()) : items;
+    return Array.from(new Set(normalized));
+  }, []);
+
+  const openGrantEditor = useCallback((grant: AccessGrant) => {
+    setEditingGrantId(grant.grant_id);
+    setEditingGrantKeywords((grant.keywords || []).join(', '));
+    setEditingGrantHiddenTypes((grant.hidden_node_types || []).join(', '));
+    setGrantError(null);
+  }, []);
+
+  const closeGrantEditor = useCallback(() => {
+    setEditingGrantId(null);
+    setEditingGrantKeywords('');
+    setEditingGrantHiddenTypes('');
+  }, []);
+
+  const saveGrantFilters = useCallback(async (
+    grantId: string,
+    keywordsRaw: string,
+    hiddenTypesRaw: string,
+  ) => {
+    const keywords = parseCommaSeparated(keywordsRaw, true);
+    const hiddenNodeTypes = parseCommaSeparated(hiddenTypesRaw, false);
+    setUpdatingGrantFiltersId(grantId);
+    setGrantError(null);
+    try {
+      const updated = await updateAccessGrantFilters(grantId, {
+        keywords,
+        hidden_node_types: hiddenNodeTypes,
+      });
+      setGrants((prev) => prev.map((g) => (g.grant_id === grantId ? updated : g)));
+      addToast('Filters updated for invited user', 'success');
+      closeGrantEditor();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setGrantError(msg || 'Failed to update filters');
+      addToast(msg || 'Failed to update filters', 'error');
+    } finally {
+      setUpdatingGrantFiltersId(null);
+    }
+  }, [addToast, closeGrantEditor, parseCommaSeparated]);
 
   const handleGrantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,33 +361,103 @@ function SharePanel({
     setGrantSubmitting(true);
     setGrantError(null);
     try {
-      const grant = await createAccessGrant(email);
+      const grant = await createAccessGrant({
+        email,
+        keywords: applyFiltersOnInvite ? activeKeywords : [],
+        hidden_node_types: applyFiltersOnInvite ? hiddenTypesArray : [],
+      });
       setGrants((prev) => [grant, ...prev]);
       setGrantEmail('');
+      addToast(`Access granted to ${email}`, 'success');
     } catch (err) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setGrantError(msg || 'Failed to grant access');
+      addToast(msg || 'Failed to grant access', 'error');
     } finally {
       setGrantSubmitting(false);
     }
   };
 
-  const handleRevokeGrant = async (grantId: string) => {
+  const [revokeTarget, setRevokeTarget] = useState<AccessGrant | null>(null);
+  const [revoking, setRevoking] = useState(false);
+
+  const handleRevokeGrant = (grant: AccessGrant) => {
+    setRevokeTarget(grant);
+  };
+
+  const confirmRevoke = async () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
     try {
-      await revokeAccessGrant(grantId);
-      setGrants((prev) => prev.filter((g) => g.grant_id !== grantId));
+      await revokeAccessGrant(revokeTarget.grant_id);
+      setGrants((prev) => prev.filter((g) => g.grant_id !== revokeTarget.grant_id));
+      addToast(`Access revoked for ${revokeTarget.email}`, 'info');
     } catch {
       setGrantError('Failed to revoke access');
+      addToast('Failed to revoke access', 'error');
+    } finally {
+      setRevoking(false);
+      setRevokeTarget(null);
     }
   };
 
-  const handleVisibilityClick = async (next: OrbVisibility) => {
+  const handleApplyCurrentFiltersToGrant = async (grant: AccessGrant) => {
+    await saveGrantFilters(
+      grant.grant_id,
+      activeKeywords.join(', '),
+      hiddenTypesArray.join(', '),
+    );
+  };
+
+  const handleClearGrantFilters = async (grant: AccessGrant) => {
+    await saveGrantFilters(grant.grant_id, '', '');
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    const keywords = acceptKeywords.split(',').map(k => k.trim()).filter(Boolean);
+    const hiddenTypes = acceptHiddenTypes.split(',').map(t => t.trim()).filter(Boolean);
+    try {
+      await acceptConnectionRequest(requestId, { keywords, hidden_node_types: hiddenTypes });
+      setPendingRequests(prev => prev.filter(r => r.request_id !== requestId));
+      setAcceptingRequestId(null);
+      setAcceptKeywords('');
+      setAcceptHiddenTypes('');
+      // Refresh grants list
+      listAccessGrants().then(g => setGrants(g.grants));
+      addToast('Access granted', 'success');
+    } catch {
+      addToast('Failed to accept request', 'error');
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    setRejectingRequestId(requestId);
+    try {
+      await rejectConnectionRequest(requestId);
+      setPendingRequests(prev => prev.filter(r => r.request_id !== requestId));
+      addToast('Request rejected', 'success');
+    } catch {
+      addToast('Failed to reject request', 'error');
+    } finally {
+      setRejectingRequestId(null);
+    }
+  };
+
+  const [pendingVisibility, setPendingVisibility] = useState<OrbVisibility | null>(null);
+
+  const handleVisibilityClick = (next: OrbVisibility) => {
     if (next === visibility || updatingVisibility) return;
+    setPendingVisibility(next);
+  };
+
+  const confirmVisibilityChange = async () => {
+    if (!pendingVisibility) return;
     setUpdatingVisibility(true);
     try {
-      await onVisibilityChange(next);
+      await onVisibilityChange(pendingVisibility);
     } finally {
       setUpdatingVisibility(false);
+      setPendingVisibility(null);
     }
   };
 
@@ -160,16 +466,9 @@ function SharePanel({
     label: string;
     description: string;
   }[] = [
-    { value: 'private', label: 'Private', description: 'Only you can view your orbis' },
-    { value: 'public', label: 'Public', description: 'Anyone with the link can view' },
     { value: 'restricted', label: 'Restricted', description: 'Share via invite links' },
+    { value: 'public', label: 'Public', description: 'Anyone with the link can view' },
   ];
-
-  const copy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -186,175 +485,695 @@ function SharePanel({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.92, y: 24 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-md w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Share your orbis"
+        ref={modalRef}
+        className="relative bg-gray-900 border border-gray-700 rounded-2xl p-4 sm:p-6 max-w-[95vw] sm:max-w-2xl w-full mx-2 sm:mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
       >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 h-9 w-9 rounded-lg border border-gray-700 text-gray-300 hover:bg-gray-800 transition-colors"
+          aria-label="Close share modal"
+        >
+          <svg className="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
         <h2 className="text-white text-lg font-semibold mb-1">Share Your Orbis</h2>
-        <p className="text-gray-400 text-sm mb-5">Choose who can view your orbis, then share the link or MCP identifier with people or AI agents.</p>
+        <p className="text-gray-400 text-sm mb-5">Choose visibility, then share with a direct link or QR code.</p>
 
         {/* Visibility selector */}
-        <div className="mb-5">
+        <div className="mb-4">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility</label>
-          <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="mt-2 grid grid-cols-2 gap-2">
             {visibilityOptions.map((opt) => {
               const selected = visibility === opt.value;
+              const selectedClass = opt.value === 'private'
+                ? 'border-red-500/70 bg-red-500/15 text-red-100 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]'
+                : opt.value === 'public'
+                  ? 'border-orange-500/70 bg-orange-500/15 text-orange-100 shadow-[0_0_0_1px_rgba(249,115,22,0.2)]'
+                  : 'border-emerald-500/70 bg-emerald-500/15 text-emerald-100 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]';
+              const descriptionClass = selected && opt.value === 'private'
+                ? 'text-red-200/80'
+                : selected && opt.value === 'public'
+                  ? 'text-orange-200/80'
+                  : selected && opt.value === 'restricted'
+                    ? 'text-emerald-200/80'
+                  : 'text-gray-400';
               return (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => handleVisibilityClick(opt.value)}
                   disabled={updatingVisibility}
-                  className={`text-left rounded-lg border px-3 py-2 transition-colors disabled:opacity-60 ${
+                  className={`text-left rounded-xl border px-3 py-3 transition-colors disabled:opacity-60 ${
                     selected
-                      ? 'border-purple-500/70 bg-purple-500/15 text-white'
+                      ? selectedClass
                       : 'border-gray-700 bg-gray-800/40 text-gray-300 hover:bg-gray-800'
                   }`}
                 >
                   <div className="text-xs font-semibold">{opt.label}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{opt.description}</div>
+                  <div className={`text-[10px] mt-0.5 leading-tight ${descriptionClass}`}>{opt.description}</div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* QR Code */}
-        <div className={`flex justify-center mb-5 ${isPrivate ? 'opacity-40' : ''}`}>
-          <div className="bg-white p-3 rounded-xl">
-            <QRCodeSVG value={shareUrl || bareUrl} size={140} level="M" />
-          </div>
-        </div>
+          <div className="space-y-4">
 
-        {isPrivate && (
-          <div className="mb-4 rounded-lg border border-gray-700 bg-gray-800/40 px-3 py-2 text-xs text-gray-400">
-            Your orbis is private. Switch to <span className="text-white">Public</span> or <span className="text-white">Restricted</span> to generate a share link.
-          </div>
-        )}
-
-        {/* Public mode: filtered share link with token */}
-        {isPublic && (
-          <div className="mb-4">
-            <label className={`text-xs uppercase tracking-wide font-medium ${hasActiveFilters ? 'text-amber-400/80' : 'text-gray-500'}`}>
-              {hasActiveFilters ? 'Filtered Share Link' : 'Share Link'}
-            </label>
-            {hasActiveFilters && (
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
-                This link hides
-                {hiddenTypesArray.length > 0 && (
-                  <span> node types: {hiddenTypesArray.map((t, i) => (
-                    <span key={t}>{i > 0 && ', '}<span className="text-amber-400">{t}</span></span>
-                  ))}</span>
-                )}
-                {hiddenTypesArray.length > 0 && activeKeywords.length > 0 && ' and'}
-                {activeKeywords.length > 0 && (
-                  <span> keywords: {activeKeywords.map((kw, i) => (
-                    <span key={kw}>{i > 0 && ', '}"<span className="text-amber-400">{kw}</span>"</span>
-                  ))}</span>
-                )}
-                {' '}from the viewer.
-              </p>
-            )}
-            <div className="mt-1 flex items-center gap-2">
-              {generatingToken ? (
-                <div className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-500 text-sm">Generating link...</div>
-              ) : (
-                <input readOnly value={shareUrl} className={`flex-1 bg-gray-800 border rounded-lg px-3 py-2 text-white text-sm font-mono ${hasActiveFilters ? 'border-amber-600/30' : 'border-gray-600'}`} />
-              )}
-              <button
-                onClick={() => copy(shareUrl)}
-                disabled={!shareTokenId}
-                className={`${hasActiveFilters ? 'bg-amber-600 hover:bg-amber-700' : 'bg-purple-600 hover:bg-purple-700'} disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap`}
-              >
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Restricted mode: bare URL + manage allowed users */}
-        {isRestricted && (
-          <>
-            <div className="mb-4">
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
-                Anyone you grant access below can open this link after signing in.
-              </p>
-              <div className="mt-1 flex items-center gap-2">
-                <input readOnly value={bareUrl} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-                <button
-                  onClick={() => copy(bareUrl)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Allowed Users</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-2">
-                Grant access by email. Recipients receive a notification and can view your orbis after signing in.
-              </p>
-              <form onSubmit={handleGrantSubmit} className="flex items-center gap-2">
-                <input
-                  type="email"
-                  value={grantEmail}
-                  onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
-                  placeholder="name@example.com"
-                  disabled={grantSubmitting}
-                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500"
-                />
-                <button
-                  type="submit"
-                  disabled={grantSubmitting || !grantEmail.trim()}
-                  className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap"
-                >
-                  {grantSubmitting ? 'Granting...' : 'Grant'}
-                </button>
-              </form>
-              {grantError && <p className="text-[11px] text-red-400 mt-1">{grantError}</p>}
-
-              <div className="mt-3 max-h-40 overflow-y-auto">
-                {grantsLoading && (
-                  <p className="text-[11px] text-gray-500">Loading...</p>
-                )}
-                {!grantsLoading && grants.length === 0 && (
-                  <p className="text-[11px] text-gray-500">No one has access yet.</p>
-                )}
-                {!grantsLoading && grants.length > 0 && (
-                  <ul className="divide-y divide-gray-800 border border-gray-800 rounded-lg">
-                    {grants.map((g) => (
-                      <li key={g.grant_id} className="flex items-center justify-between px-3 py-2">
-                        <span className="text-xs text-white truncate">{g.email}</span>
-                        <button
-                          onClick={() => handleRevokeGrant(g.grant_id)}
-                          className="text-[10px] text-red-400 hover:text-red-300 ml-2 whitespace-nowrap"
+            {isPublic && (
+              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share links and excluded from exports.</p>
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    value={inlineFilterKeyword}
+                    onChange={(e) => setInlineFilterKeyword(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
+                    placeholder="e.g. confidential, private..."
+                    className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
+                    className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
+                  >
+                    Add
+                  </button>
+                  <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
+                    Deactivate All
+                  </button>
+                </div>
+                {keywords.length === 0 ? (
+                  <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {keywords.map((kw) => {
+                      const isActive = activeKeywords.includes(kw);
+                      return (
+                        <div
+                          key={kw}
+                          className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                            isActive
+                              ? 'bg-amber-600/15 border-amber-500/40'
+                              : 'bg-white/5 border-white/5 hover:border-white/10'
+                          }`}
                         >
-                          Revoke
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                          <span className="text-white text-xs font-mono truncate">{kw}</span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleKeyword(kw)}
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                isActive
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
+                              }`}
+                            >
+                              {isActive ? 'Active' : 'Activate'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeKeyword(kw)}
+                              className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
+                              title="Remove"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {activeKeywords.length > 0 && (
+                  <p className="text-amber-400/70 text-[11px] mt-2">
+                    {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
+                  </p>
                 )}
               </div>
-            </div>
+            )}
+
+            {isPublic && (
+              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access.</p>
+                <div className="flex items-center gap-2">
+                  <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                  <button
+                    type="button"
+                    onClick={handleCopyMcp}
+                    className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isPublic && (
+              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
+                <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
+                  <div className="flex items-center justify-center md:pr-8">
+                    <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
+                      <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
+                        <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleCopyShareLink}
+                      disabled={!canCopyShareLink || generatingToken}
+                      className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                    >
+                      {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadQr}
+                      disabled={!canDownloadQr || generatingToken}
+                      className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
+                    >
+                      Download QR (.png)
+                    </button>
+                    <p
+                      aria-live="polite"
+                      className={`text-[11px] h-4 transition-colors ${
+                        qrActionHint === 'copied'
+                          ? 'text-emerald-300'
+                          : qrActionHint === 'downloaded'
+                            ? 'text-sky-300'
+                            : 'text-transparent'
+                      }`}
+                    >
+                      {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isRestricted && (
+              <>
+                {(pendingLoading || pendingRequests.length > 0) && (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <label className="text-xs text-amber-200/80 uppercase tracking-wide font-medium">Pending Requests</label>
+                      <span className="text-[11px] text-amber-200/60">{pendingRequests.length}</span>
+                    </div>
+                    {pendingLoading && <p className="text-[11px] text-gray-500">Loading requests...</p>}
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {pendingRequests.map((req) => (
+                        <div key={req.request_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm text-white truncate">{req.requester_name || req.requester_email}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{req.requester_email}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">{formatDate(req.created_at)}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAcceptingRequestId(acceptingRequestId === req.request_id ? null : req.request_id);
+                                  setAcceptKeywords('');
+                                  setAcceptHiddenTypes('');
+                                }}
+                                className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectRequest(req.request_id)}
+                                disabled={rejectingRequestId === req.request_id}
+                                className="h-8 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
+                              >
+                                {rejectingRequestId === req.request_id ? 'Rejecting...' : 'Reject'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {acceptingRequestId === req.request_id && (
+                            <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 p-2.5 space-y-2">
+                              <div>
+                                <label className="text-[10px] text-gray-500 uppercase tracking-wide">Filtered Keywords (comma separated)</label>
+                                <input
+                                  type="text"
+                                  value={acceptKeywords}
+                                  onChange={(e) => setAcceptKeywords(e.target.value)}
+                                  placeholder="python, machine learning"
+                                  className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types (comma separated)</label>
+                                <input
+                                  type="text"
+                                  value={acceptHiddenTypes}
+                                  onChange={(e) => setAcceptHiddenTypes(e.target.value)}
+                                  placeholder="Skill, Project"
+                                  className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptRequest(req.request_id)}
+                                  className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+                                >
+                                  Confirm &amp; Grant Access
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAcceptingRequestId(null)}
+                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to new invites and excluded from shares.</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        value={inlineFilterKeyword}
+                        onChange={(e) => setInlineFilterKeyword(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
+                        placeholder="e.g. confidential, private..."
+                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
+                        className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
+                      >
+                        Add
+                      </button>
+                      <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
+                        Deactivate All
+                      </button>
+                    </div>
+                    {keywords.length === 0 ? (
+                      <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        {keywords.map((kw) => {
+                          const isActive = activeKeywords.includes(kw);
+                          return (
+                            <div
+                              key={kw}
+                              className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                                isActive
+                                  ? 'bg-amber-600/15 border-amber-500/40'
+                                  : 'bg-white/5 border-white/5 hover:border-white/10'
+                              }`}
+                            >
+                              <span className="text-white text-xs font-mono truncate">{kw}</span>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleKeyword(kw)}
+                                  className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                    isActive
+                                      ? 'bg-amber-500 text-white'
+                                      : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
+                                  }`}
+                                >
+                                  {isActive ? 'Active' : 'Activate'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeKeyword(kw)}
+                                  className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
+                                  title="Remove"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {activeKeywords.length > 0 && (
+                      <p className="text-amber-400/70 text-[11px] mt-2">
+                        {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access according to your active privacy filters.</p>
+                    <div className="flex items-center gap-2">
+                      <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                      <button
+                        type="button"
+                        onClick={handleCopyMcp}
+                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in according to the filters selected.</p>
+                    <form onSubmit={handleGrantSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="email"
+                        value={grantEmail}
+                        onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
+                        placeholder="name@example.com"
+                        disabled={grantSubmitting}
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={grantSubmitting || !grantEmail.trim()}
+                        className="h-11 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+                      >
+                        {grantSubmitting ? 'Granting...' : 'Grant Access'}
+                      </button>
+                    </form>
+                    {grantError && <p className="text-[11px] text-red-400 mt-2">{grantError}</p>}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">People With Access</label>
+                    <span className="text-[11px] text-gray-500">{filteredGrants.length}/{grants.length}</span>
+                  </div>
+                  <input
+                    type="search"
+                    value={grantSearch}
+                    onChange={(e) => setGrantSearch(e.target.value)}
+                    placeholder="Search by email"
+                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500 mb-3"
+                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    {grantsLoading && <p className="text-[11px] text-gray-500">Loading access list...</p>}
+                    {!grantsLoading && grants.length === 0 && <p className="text-[11px] text-gray-500">No invited users yet.</p>}
+                    {!grantsLoading && grants.length > 0 && filteredGrants.length === 0 && <p className="text-[11px] text-gray-500">No results for this search.</p>}
+                    {!grantsLoading && filteredGrants.length > 0 && (
+                      <ul className="space-y-2">
+                        {filteredGrants.map((grant) => (
+                          <li key={grant.grant_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm text-white truncate">{grant.email}</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">
+                                  {(grant.keywords || []).length} keyword filter(s) • {(grant.hidden_node_types || []).length} hidden type filter(s)
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeGrant(grant)}
+                                className="h-9 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs font-medium transition-colors whitespace-nowrap"
+                              >
+                                Revoke Access
+                              </button>
+                            </div>
+
+                            {editingGrantId === grant.grant_id ? (
+                              <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 p-2.5 space-y-2">
+                                <div>
+                                  <label className="text-[10px] text-gray-500 uppercase tracking-wide">Filtered Keywords (comma separated)</label>
+                                  <input
+                                    type="text"
+                                    value={editingGrantKeywords}
+                                    onChange={(e) => setEditingGrantKeywords(e.target.value)}
+                                    placeholder="python, machine learning"
+                                    className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types (comma separated)</label>
+                                  <input
+                                    type="text"
+                                    value={editingGrantHiddenTypes}
+                                    onChange={(e) => setEditingGrantHiddenTypes(e.target.value)}
+                                    placeholder="Skill, Project"
+                                    className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                  />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void saveGrantFilters(grant.grant_id, editingGrantKeywords, editingGrantHiddenTypes)}
+                                    disabled={updatingGrantFiltersId === grant.grant_id}
+                                    className="h-8 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                                  >
+                                    {updatingGrantFiltersId === grant.grant_id ? 'Saving...' : 'Save Filters'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={closeGrantEditor}
+                                    disabled={updatingGrantFiltersId === grant.grant_id}
+                                    className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void handleApplyCurrentFiltersToGrant(grant)}
+                                  disabled={updatingGrantFiltersId === grant.grant_id}
+                                  className="h-8 px-3 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
+                                >
+                                  Apply Current Filters
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleClearGrantFilters(grant)}
+                                  disabled={updatingGrantFiltersId === grant.grant_id}
+                                  className="h-8 px-3 rounded-lg border border-orange-500/40 text-orange-300 hover:bg-orange-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
+                                >
+                                  Clear Filters
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openGrantEditor(grant)}
+                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                >
+                                  Manage Filters
+                                </button>
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
+                  <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
+                    <div className="flex items-center justify-center md:pr-8">
+                      <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
+                        <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
+                          <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
+                      <button
+                        type="button"
+                        onClick={handleCopyShareLink}
+                        disabled={!canCopyShareLink || generatingToken}
+                        className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                      >
+                        {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadQr}
+                        disabled={!canDownloadQr || generatingToken}
+                        className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
+                      >
+                        Download QR (.png)
+                      </button>
+                      <p
+                        aria-live="polite"
+                        className={`text-[11px] h-4 transition-colors ${
+                          qrActionHint === 'copied'
+                            ? 'text-emerald-300'
+                            : qrActionHint === 'downloaded'
+                              ? 'text-sky-300'
+                              : 'text-transparent'
+                        }`}
+                      >
+                        {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+      </motion.div>
+
+      {/* Visibility change confirmation modal */}
+      <AnimatePresence>
+        {pendingVisibility && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 z-[60] rounded-2xl"
+              onClick={() => setPendingVisibility(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="absolute inset-0 z-[61] flex items-center justify-center p-6"
+            >
+              <div className={`bg-gray-900 border rounded-xl p-5 max-w-sm w-full shadow-2xl ${
+                pendingVisibility === 'restricted'
+                  ? 'border-emerald-500/30'
+                  : 'border-orange-500/30'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    pendingVisibility === 'restricted'
+                      ? 'bg-emerald-500/15 border border-emerald-500/30'
+                      : 'bg-orange-500/15 border border-orange-500/30'
+                  }`}>
+                    {pendingVisibility === 'restricted' ? (
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-white text-sm font-semibold">Switch to {pendingVisibility === 'restricted' ? 'Restricted' : 'Public'}</h3>
+                    <p className={`text-[11px] mt-0.5 ${
+                      pendingVisibility === 'restricted' ? 'text-emerald-400/70' : 'text-orange-400/70'
+                    }`}>
+                      {visibility === 'public' ? 'Public' : 'Restricted'} → {pendingVisibility === 'restricted' ? 'Restricted' : 'Public'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`rounded-lg px-3 py-2.5 mb-4 text-xs leading-relaxed ${
+                  pendingVisibility === 'restricted'
+                    ? 'bg-emerald-500/8 border border-emerald-500/15 text-emerald-100/80'
+                    : 'bg-orange-500/8 border border-orange-500/15 text-orange-100/80'
+                }`}>
+                  {pendingVisibility === 'restricted' ? (
+                    <>Only people you explicitly invite will be able to view your orbis. Existing public share links will stop working.</>
+                  ) : (
+                    <>Anyone with a valid share link will be able to view your orbis. You can still control what they see using privacy filters.</>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPendingVisibility(null)}
+                    className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmVisibilityChange}
+                    disabled={updatingVisibility}
+                    className={`h-9 px-4 rounded-lg text-white text-xs font-medium transition-colors disabled:opacity-50 ${
+                      pendingVisibility === 'restricted'
+                        ? 'bg-emerald-600 hover:bg-emerald-500'
+                        : 'bg-orange-600 hover:bg-orange-500'
+                    }`}
+                  >
+                    {updatingVisibility ? 'Switching...' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </>
         )}
+      </AnimatePresence>
 
-        <div className="mb-5">
-          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
-          <p className="text-[11px] text-gray-500 mt-0.5 mb-1">
-            {isPublic
-              ? 'Use this ID with the OpenOrbis MCP server to let AI agents query your graph.'
-              : 'MCP access is only available for public orbs.'}
-          </p>
-          <div className={`flex items-center gap-2 ${!isPublic ? 'opacity-40 pointer-events-none' : ''}`}>
-            <input readOnly value={mcpUri} className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-            <button onClick={() => copy(mcpUri)} className="bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors whitespace-nowrap">Copy</button>
-          </div>
-        </div>
-
-        <button onClick={onClose} className="w-full border border-gray-600 text-gray-300 hover:bg-gray-800 font-medium py-2 rounded-lg transition-colors text-sm">Close</button>
-      </motion.div>
+      {/* Revoke access confirmation modal */}
+      <AnimatePresence>
+        {revokeTarget && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 z-[60] rounded-2xl"
+              onClick={() => setRevokeTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="absolute inset-0 z-[61] flex items-center justify-center p-6"
+            >
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm w-full shadow-2xl">
+                <h3 className="text-white text-sm font-semibold mb-2">Revoke Access</h3>
+                <p className="text-gray-400 text-xs mb-1">
+                  Remove access for <span className="font-semibold text-white">{revokeTarget.email}</span>?
+                </p>
+                <p className="text-gray-500 text-[11px] mb-4">They will no longer be able to view your orbis.</p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRevokeTarget(null)}
+                    className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmRevoke}
+                    disabled={revoking}
+                    className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                  >
+                    {revoking ? 'Revoking...' : 'Revoke'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1118,15 +1937,6 @@ export default function OrbViewPage() {
             </div>
           </div>
 
-          {!isPendingDeletion && (
-            <div className="flex flex-wrap items-center gap-1.5 px-2.5 sm:px-3 pb-2">
-              {activeKeywords.length > 0 && (
-                <span className="text-[10px] font-medium rounded-full px-2 py-0.5 bg-amber-500/12 border border-amber-500/30 text-amber-200">
-                  Filters: {activeKeywords.length}
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -1241,6 +2051,7 @@ export default function OrbViewPage() {
         onDiscover={() => setShowDiscoverUses(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
+        visibility={((data?.person?.visibility as OrbVisibility) || 'public')}
       />}
 
       {/* ── Draft Notes ── */}
@@ -1261,7 +2072,7 @@ export default function OrbViewPage() {
             key="share"
             orbId={orbId}
             hiddenNodeTypes={hiddenNodeTypes}
-            visibility={((data?.person?.visibility as OrbVisibility) || 'private')}
+            visibility={((data?.person?.visibility as OrbVisibility) || 'public')}
             onVisibilityChange={updateVisibility}
             onClose={() => setShowShare(false)}
           />
