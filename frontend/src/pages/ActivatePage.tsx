@@ -8,7 +8,6 @@ import { hasOrbContent } from '../api/orbs';
 
 const ERROR_MESSAGES: Record<string, string> = {
   invalid_access_code: 'Invalid invite code. Please check and try again.',
-  code_already_used: 'This invite code has already been used. Each code can only be used once.',
 };
 
 const POLL_INTERVAL = 5000;

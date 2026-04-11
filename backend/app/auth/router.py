@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from neo4j import AsyncDriver
 from pydantic import BaseModel
 
@@ -9,7 +9,6 @@ from app.admin.service import (
     activate_person,
     consume_access_code,
     is_invite_code_required,
-    validate_access_code,
 )
 from app.auth.models import (
     OAuthCodeRequest,
@@ -27,6 +26,7 @@ from app.dependencies import get_current_user, get_db
 from app.email.service import send_activation_email
 from app.graph.encryption import encrypt_value
 from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
+from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,9 @@ async def _get_or_create_person(
 
 
 @router.post("/google", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def google_login(
+    request: Request,
     body: OAuthCodeRequest,
     db: AsyncDriver = Depends(get_db),
 ):
@@ -103,7 +105,9 @@ async def google_login(
 
 
 @router.post("/linkedin", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def linkedin_login(
+    request: Request,
     body: OAuthCodeRequest,
     db: AsyncDriver = Depends(get_db),
 ):
@@ -179,7 +183,9 @@ class ActivateRequest(BaseModel):
 
 
 @router.post("/activate")
+@limiter.limit("5/minute")
 async def activate(
+    request: Request,
     body: ActivateRequest,
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
@@ -188,25 +194,22 @@ async def activate(
 
     This is the gate that blocks platform access after login: the frontend
     redirects non-activated users here until they provide a valid code.
+
+    The validation/consume step used to be split in two queries for a
+    precise error message. That leaked a timing side-channel: unused valid
+    codes took two queries, everything else took one, letting an attacker
+    enumerate the 16M-entry code space. We now run the single atomic
+    CONSUME_ACCESS_CODE and return a unified error on any failure.
     """
+    if not body.code:
+        raise HTTPException(status_code=403, detail="invalid_access_code")
+
     user_id = current_user["user_id"]
 
-    # Validate (non-atomic, for a precise error message)
-    rejection = await validate_access_code(db, body.code)
-    if rejection is not None:
-        detail = (
-            "code_already_used"
-            if rejection == "code_already_used"
-            else "invalid_access_code"
-        )
-        raise HTTPException(status_code=403, detail=detail)
-
-    # Atomically consume (race-safe)
     consumed = await consume_access_code(db, body.code, user_id)
     if not consumed:
-        raise HTTPException(status_code=403, detail="code_already_used")
+        raise HTTPException(status_code=403, detail="invalid_access_code")
 
-    # Mark the Person as activated
     await activate_person(db, user_id, body.code)
 
     # Best-effort confirmation email
