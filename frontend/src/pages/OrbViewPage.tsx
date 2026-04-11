@@ -43,6 +43,21 @@ const IMPORT_PROGRESS_STEP_LABELS: Record<string, string> = {
   done: 'Finalizing',
 };
 
+function computeShortFilterHash(keywords: string[], hiddenTypes: string[]): string {
+  const normalizedKeywords = keywords.map((k) => k.trim().toLowerCase()).filter(Boolean).sort();
+  const normalizedTypes = hiddenTypes.map((t) => t.trim().toLowerCase()).filter(Boolean).sort();
+  const payload = JSON.stringify({ keywords: normalizedKeywords, hiddenTypes: normalizedTypes });
+
+  // FNV-1a 32-bit for a deterministic short client-side hash.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < payload.length; i += 1) {
+    hash ^= payload.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+
+  return (hash >>> 0).toString(36).padStart(6, '0').slice(0, 6);
+}
+
 function resolveImportStepLabel(step: string | null | undefined, detail: string | null | undefined, message: string | null | undefined): string {
   if (step && IMPORT_PROGRESS_STEP_LABELS[step]) return IMPORT_PROGRESS_STEP_LABELS[step];
   if (detail?.trim()) return detail.trim();
@@ -94,7 +109,11 @@ function SharePanel({
   const qrValue = shareableUrl || bareUrl;
   const canDownloadQr = !isPrivate && (isRestricted || Boolean(shareTokenId));
   const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
-  const mcpUri = `orb://${orbId}`;
+  const filterHash = useMemo(
+    () => computeShortFilterHash(activeKeywords, hiddenTypesArray),
+    [activeKeywords, hiddenTypesArray],
+  );
+  const mcpUri = `orb://${orbId}+${filterHash}`;
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
