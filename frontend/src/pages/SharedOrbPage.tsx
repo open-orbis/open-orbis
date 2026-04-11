@@ -174,7 +174,13 @@ export default function SharedOrbPage() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">{title}</h1>
-          <p className="text-gray-400">{message}</p>
+          <p className="text-gray-400 mb-6">{message}</p>
+          <button
+            onClick={() => navigate(user ? '/myorbis' : '/')}
+            className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-colors"
+          >
+            {user ? 'Back to My Orbis' : 'Go to Home'}
+          </button>
         </div>
       </div>
     );
