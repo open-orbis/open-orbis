@@ -6,18 +6,18 @@ import { useAuthStore } from '../stores/authStore';
  * Used for /activate — a page that must be accessible to non-activated users.
  */
 export default function AuthenticatedRoute({ children }: { children: React.ReactNode }) {
-  const { token, user, loading } = useAuthStore();
+  const { user, loading } = useAuthStore();
 
-  if (!token) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (!user) {
+    return <Navigate to="/" replace />;
   }
 
   return <>{children}</>;

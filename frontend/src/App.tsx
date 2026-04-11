@@ -79,11 +79,14 @@ function AppRoutes() {
 }
 
 function App() {
-  const { token, fetchUser } = useAuthStore();
+  const { fetchUser } = useAuthStore();
 
+  // Always probe /auth/me on mount. With httpOnly cookies we cannot
+  // know synchronously whether a session exists — the backend is the
+  // only authority. fetchUser flips loading back to false once done.
   useEffect(() => {
-    if (token) fetchUser();
-  }, [token, fetchUser]);
+    fetchUser();
+  }, [fetchUser]);
 
   return (
     <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ''}>
