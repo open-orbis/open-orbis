@@ -405,7 +405,7 @@ function SharePanel({
               </div>
 
               <p className={`mt-2.5 ${isPublic && generatingToken ? 'text-xs text-gray-400' : 'text-sm font-semibold text-yellow-300'}`}>
-                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the filtered view.'}
+                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients can see only the filtered orbis'}
               </p>
 
               <div className="mt-3">
