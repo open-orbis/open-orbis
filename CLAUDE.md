@@ -20,14 +20,14 @@ backend/
     admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users, funnel metrics, insights
     email/       # Transactional email via Resend (activation notifications, invite codes)
     cv/          # CV PDF parsing (PyMuPDF), LLM classification (Ollama/Claude CLI), rule-based fallback
-    graph/       # Neo4j async driver, Cypher queries, Fernet encryption, embeddings (placeholder)
+    graph/       # Neo4j async driver, Cypher queries, Fernet encryption (MultiFernet + historic keys), node-property allowlist, embeddings (placeholder)
     orbs/        # Orb (knowledge graph) CRUD, filter tokens for privacy-aware sharing
     notes/       # LLM-enhanced note-to-node conversion
     search/      # Semantic (vector index) and fuzzy text search
     export/      # Public orb export (JSON, JSON-LD, PDF)
     main.py      # FastAPI app factory, middleware (CORS, SlowAPI), router registration
     config.py    # Pydantic Settings (env-based)
-    rate_limit.py # SlowAPI limiter (30/min on public endpoints)
+    rate_limit.py # SlowAPI limiter keyed on user_id (authenticated) / IP (public). Explicit caps on LLM endpoints: /cv/upload 3/min, /cv/import 3/min, /notes/enhance 10/min.
     dependencies.py # get_db, get_current_user (JWT bearer), require_admin
   mcp_server/    # MCP server exposing orb graph to AI agents (6 tools)
   tests/
@@ -51,7 +51,8 @@ infra/           # Neo4j init script (constraints, indexes, vector indexes)
 - Backend linting: `ruff check .` (rules: E, W, F, I, C4, B, UP, C90, SIM, ARG, PTH; max complexity 12)
 - Frontend linting: `eslint .` (flat config with typescript-eslint + react-hooks + react-refresh)
 - Tests: `cd backend && uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75`
-- All Person node PII fields (email, phone, address) are Fernet-encrypted at rest
+- All Person node PII fields (email, phone, address) are Fernet-encrypted at rest. `ENV` must be non-`development` in production — the backend refuses to start with placeholder `JWT_SECRET`, `ENCRYPTION_KEY`, or `NEO4J_PASSWORD` (see `backend/app/config.py`).
+- All node writes (`cv._persist_nodes`, `orbs.add_node`, `orbs.update_node`) must route properties through `sanitize_node_properties` from `app.graph.node_schema` before `encrypt_properties` — the allowlist is the single chokepoint against LLM-driven prompt injection poisoning the graph.
 - Environment config: `.env` (both backend and root), see `.env.example` for template
 - No pre-commit hooks — linting enforced via CI only
 - Backend runs directly (not containerized): `cd backend && uv run uvicorn app.main:app --reload`

@@ -130,10 +130,10 @@ def test_file_migration_on_save(monkeypatch, tmp_path):
     monkeypatch.setattr(cv_storage, "_CV_DIR", cv_dir)
     cv_dir.mkdir()
     # Simulate old file
-    from app.graph.encryption import _get_fernet
+    from app.graph.encryption import encrypt_bytes
 
     old_path = cv_dir / f"{_USER}.pdf.enc"
-    old_path.write_bytes(_get_fernet().encrypt(_PDF))
+    old_path.write_bytes(encrypt_bytes(_PDF))
 
     # Insert a legacy document record (simulating migration from db layer)
     cv_db.insert_document(

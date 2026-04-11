@@ -1,7 +1,19 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+# Values that must never appear in a non-development environment.
+# Keep in sync with .env.example placeholders.
+_INSECURE_JWT_SECRETS = {"", "change-me", "change-me-to-a-random-secret"}
+_INSECURE_ENCRYPTION_KEYS = {"", "change-me-generate-with-fernet"}
+_INSECURE_NEO4J_PASSWORDS = {"orbis_dev_password"}
 
 
 class Settings(BaseSettings):
+    # Runtime environment. Controls fail-fast behavior on insecure defaults:
+    # anything other than "development" is treated as production and will
+    # refuse to start with placeholder secrets.
+    env: str = "development"
+
     # Neo4j
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
@@ -12,8 +24,10 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440
 
-    # Encryption
+    # Encryption — active key + optional comma-separated historic keys
+    # used for decrypting data encrypted with a previous key during rotation.
     encryption_key: str = ""
+    encryption_keys_historic: str = ""
 
     # Claude API
     anthropic_api_key: str = ""
@@ -61,6 +75,27 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "extra": "ignore",
     }
+
+    @model_validator(mode="after")
+    def _refuse_insecure_production_config(self) -> "Settings":
+        if self.env == "development":
+            return self
+        errors: list[str] = []
+        if self.jwt_secret in _INSECURE_JWT_SECRETS:
+            errors.append("JWT_SECRET must be set to a secure random value")
+        if self.encryption_key in _INSECURE_ENCRYPTION_KEYS:
+            errors.append("ENCRYPTION_KEY must be set to a valid Fernet key")
+        if self.neo4j_password in _INSECURE_NEO4J_PASSWORDS:
+            errors.append("NEO4J_PASSWORD must not use the default dev value")
+        if errors:
+            raise RuntimeError(
+                "Insecure configuration detected with ENV="
+                + self.env
+                + ":\n  - "
+                + "\n  - ".join(errors)
+                + "\nRefusing to start. See .env.example for guidance."
+            )
+        return self
 
 
 settings = Settings()

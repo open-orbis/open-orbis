@@ -19,6 +19,10 @@ frontend/dist/
 .env.local
 .env.*.local
 
+# Dev-only auto-generated Fernet key fallback (see backend/app/graph/encryption.py)
+.local_encryption_key
+backend/.local_encryption_key
+
 # IDE
 .vscode/
 .idea/

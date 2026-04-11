@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from neo4j import AsyncDriver
 
@@ -23,6 +23,7 @@ from app.cv_storage.storage import (
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties, encrypt_value
 from app.graph.llm_usage import record_llm_usage
+from app.graph.node_schema import sanitize_node_properties
 from app.graph.provenance import create_processing_record, ensure_ontology_version
 from app.graph.queries import (
     ADD_NODE,
@@ -33,6 +34,7 @@ from app.graph.queries import (
     NODE_TYPE_RELATIONSHIPS,
     UPDATE_PERSON,
 )
+from app.rate_limit import limiter
 from app.snapshots.service import create_snapshot as create_orb_snapshot
 
 logger = logging.getLogger(__name__)
@@ -53,7 +55,9 @@ async def _require_consent(current_user: dict, db: AsyncDriver) -> None:
 
 
 @router.post("/upload", response_model=ExtractedData)
+@limiter.limit("3/minute")
 async def upload_cv(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
@@ -221,7 +225,9 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
 
 
 @router.post("/import", response_model=ExtractedData)
+@limiter.limit("3/minute")
 async def import_document(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
@@ -444,7 +450,8 @@ async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noq
             label = NODE_TYPE_LABELS[node.node_type]
             rel_type = NODE_TYPE_RELATIONSHIPS[node.node_type]
             uid = str(uuid.uuid4())
-            properties = encrypt_properties(node.properties)
+            safe_props = sanitize_node_properties(node.node_type, node.properties)
+            properties = encrypt_properties(safe_props)
 
             merge_keys = NODE_TYPE_MERGE_KEYS.get(node.node_type)
             if merge_keys:

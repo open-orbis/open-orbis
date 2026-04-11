@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.cv_storage import db
-from app.graph.encryption import _get_fernet
+from app.graph.encryption import decrypt_bytes, encrypt_bytes
 
 _CV_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "cv_files"
 
@@ -30,7 +30,7 @@ def save_document(
 ) -> dict:
     """Encrypt and persist a document, then record metadata in SQLite."""
     _CV_DIR.mkdir(parents=True, exist_ok=True)
-    encrypted = _get_fernet().encrypt(pdf_bytes)
+    encrypted = encrypt_bytes(pdf_bytes)
     _doc_path(user_id, document_id).write_bytes(encrypted)
     now = datetime.now(timezone.utc).isoformat()
     return db.insert_document(
@@ -50,7 +50,7 @@ def load_document(user_id: str, document_id: str) -> bytes | None:
     path = _doc_path(user_id, document_id)
     if not path.exists():
         return None
-    return _get_fernet().decrypt(path.read_bytes())
+    return decrypt_bytes(path.read_bytes())
 
 
 def delete_document(user_id: str, document_id: str) -> bool:

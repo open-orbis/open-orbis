@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.orbs.router import _sanitize_neo4j_types, _serialize_orb
 from tests.unit.conftest import MockNode
@@ -138,8 +138,14 @@ def test_update_node_success(client, mock_db):
     node_data = {"uid": "node-1", "name": "Updated"}
     node_mock = MockNode(node_data, ["Skill"])
 
-    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value={"n": node_mock})
+    # update_node now does two queries: labels lookup then SET update.
+    label_result = MagicMock()
+    label_result.single = AsyncMock(return_value={"labels": ["Skill"]})
+    update_result = MagicMock()
+    update_result.single = AsyncMock(return_value={"n": node_mock})
+
+    mock_db.session.return_value.__aenter__.return_value.run = AsyncMock(
+        side_effect=[label_result, update_result]
     )
 
     response = client.put(
@@ -147,6 +153,39 @@ def test_update_node_success(client, mock_db):
     )
     assert response.status_code == 200
     assert response.json()["name"] == "Updated"
+
+
+def test_update_node_drops_unauthorized_keys(client, mock_db):
+    """Regression test for C3: update_node must sanitize payload against
+    the node-type allowlist even if the client submits extra fields."""
+    node_data = {"uid": "node-1", "name": "Python"}
+    node_mock = MockNode(node_data, ["Skill"])
+
+    label_result = MagicMock()
+    label_result.single = AsyncMock(return_value={"labels": ["Skill"]})
+    update_result = MagicMock()
+    update_result.single = AsyncMock(return_value={"n": node_mock})
+
+    run_mock = AsyncMock(side_effect=[label_result, update_result])
+    mock_db.session.return_value.__aenter__.return_value.run = run_mock
+
+    response = client.put(
+        "/orbs/me/nodes/node-1",
+        json={
+            "properties": {
+                "name": "Python",
+                "is_admin": True,
+                "user_id": "victim",
+            }
+        },
+    )
+    assert response.status_code == 200
+    # Second run call is the UPDATE — check the sanitized properties.
+    update_call = run_mock.call_args_list[1]
+    sent_props = update_call.kwargs["properties"]
+    assert "is_admin" not in sent_props
+    assert "user_id" not in sent_props
+    assert sent_props == {"name": "Python"}
 
 
 def test_delete_node_success(client, mock_db):

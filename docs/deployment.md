@@ -56,14 +56,19 @@ All configuration is via environment variables. See `.env.example` for the full 
 
 ### Required for production
 
+> **Fail-fast**: set `ENV` to anything other than `development` in production. The app refuses to start if any of the secrets below are left at their placeholder values — this is enforced by a Pydantic validator in `backend/app/config.py`. The same validator plus `backend/app/graph/encryption.py` also refuses to boot without a persistent `ENCRYPTION_KEY`, because an auto-generated key would make previously encrypted PII unrecoverable on the next restart.
+
 | Variable | Purpose |
 |----------|---------|
+| `ENV` | Must be set to a non-`development` value (e.g. `production`, `staging`) to enable fail-fast |
 | `NEO4J_URI` | Neo4j Bolt connection string |
 | `NEO4J_USER` | Neo4j username |
-| `NEO4J_PASSWORD` | Neo4j password |
-| `JWT_SECRET` | Strong random secret for JWT signing |
-| `ENCRYPTION_KEY` | Fernet key for PII encryption (generate with `Fernet.generate_key()`) |
+| `NEO4J_PASSWORD` | Neo4j password (must not be `orbis_dev_password`) |
+| `JWT_SECRET` | Strong random secret for JWT signing (generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`) |
+| `ENCRYPTION_KEY` | Fernet key for PII encryption (generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`) |
 | `FRONTEND_URL` | Frontend origin for CORS |
+
+Optional: set `ENCRYPTION_KEYS_HISTORIC` to a comma-separated list of previous Fernet keys when rotating. New writes use `ENCRYPTION_KEY`; reads transparently try the historic keys for legacy ciphertext.
 
 ### Optional
 
