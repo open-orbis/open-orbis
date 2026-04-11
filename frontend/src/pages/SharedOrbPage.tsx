@@ -54,6 +54,14 @@ export default function SharedOrbPage() {
 
   const [initialFetchDone, setInitialFetchDone] = useState(false);
 
+  const handleNodeClick = useCallback((node: Record<string, unknown>) => {
+    const url = (node.url || node.company_url || node.credential_url || node.doi) as string | undefined;
+    if (url) {
+      const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+      window.open(href, '_blank', 'noopener,noreferrer');
+    }
+  }, []);
+
   // Search bound to this orb — token for public, Bearer auth for restricted
   const searchFn = useCallback(
     (query: string) => publicTextSearch(query, orbId || '', token || undefined),
@@ -241,12 +249,12 @@ export default function SharedOrbPage() {
                 )}
               </div>
 
-              <a
-                href="/"
+              <button
+                onClick={() => navigate(user ? '/myorbis' : '/')}
                 className="h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 transition-all"
               >
-                Create your own Orbis
-              </a>
+                {user ? 'Go to your Orbis' : 'Create your own Orbis'}
+              </button>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 px-2.5 sm:px-3 pb-2">
@@ -267,6 +275,7 @@ export default function SharedOrbPage() {
       {/* ── 3D Graph ── */}
       <OrbGraph3D
         data={data}
+        onNodeClick={handleNodeClick}
         onBackgroundClick={() => {
           setHighlightedNodeIds(new Set());
         }}

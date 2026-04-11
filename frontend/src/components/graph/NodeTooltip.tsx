@@ -108,6 +108,7 @@ export default function NodeTooltip({ node, position }: NodeTooltipProps) {
     .map((k) => ({ key: k, value: formatDate(node[k]) || String(node[k]) }));
 
   const description = node.description as string | undefined;
+  const nodeUrl = (node.url || node.company_url || node.credential_url || node.doi) as string | undefined;
 
   // Clamp tooltip position so it doesn't overflow the viewport
   const tooltipX = Math.min(position.x + 16, window.innerWidth - 420);
@@ -151,6 +152,16 @@ export default function NodeTooltip({ node, position }: NodeTooltipProps) {
         {description && (
           <div className="px-4 pb-3 border-t border-gray-700/50 pt-2">
             <p className="text-[11px] text-gray-300 leading-relaxed whitespace-pre-line">{description}</p>
+          </div>
+        )}
+
+        {/* Link hint */}
+        {nodeUrl && (
+          <div className="px-4 pb-2.5 border-t border-gray-700/50 pt-2 flex items-center gap-1.5">
+            <svg className="w-3 h-3 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-4.5-4.5h6m0 0v6m0-6L9.75 14.25" />
+            </svg>
+            <span className="text-[11px] text-blue-400 font-medium">Click the node to open the associated link</span>
           </div>
         )}
       </div>
