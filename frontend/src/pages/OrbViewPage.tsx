@@ -12,10 +12,13 @@ import {
   enhanceNote,
   linkSkill,
   listAccessGrants,
+  listConnectionRequests,
+  acceptConnectionRequest,
+  rejectConnectionRequest,
   revokeAccessGrant,
   updateAccessGrantFilters,
 } from '../api/orbs';
-import type { AccessGrant, OrbVisibility } from '../api/orbs';
+import type { AccessGrant, ConnectionRequest, OrbVisibility } from '../api/orbs';
 import { QRCodeCanvas } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -66,6 +69,10 @@ function resolveImportStepLabel(step: string | null | undefined, detail: string 
   return 'Reading PDF';
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
 const SHARE_QR_SIZE = 160;
 
 // ── Modals ──
@@ -97,6 +104,12 @@ function SharePanel({
   const [editingGrantKeywords, setEditingGrantKeywords] = useState('');
   const [editingGrantHiddenTypes, setEditingGrantHiddenTypes] = useState('');
   const [updatingGrantFiltersId, setUpdatingGrantFiltersId] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [acceptingRequestId, setAcceptingRequestId] = useState<string | null>(null);
+  const [acceptKeywords, setAcceptKeywords] = useState('');
+  const [acceptHiddenTypes, setAcceptHiddenTypes] = useState('');
+  const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
   const [qrActionHint, setQrActionHint] = useState<'copied' | 'downloaded' | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -184,6 +197,15 @@ function SharePanel({
     return () => {
       active = false;
     };
+  }, [isRestricted]);
+
+  useEffect(() => {
+    if (!isRestricted) return;
+    setPendingLoading(true);
+    listConnectionRequests()
+      .then(setPendingRequests)
+      .catch(() => {})
+      .finally(() => setPendingLoading(false));
   }, [isRestricted]);
 
   useEffect(() => {
@@ -380,6 +402,36 @@ function SharePanel({
     await saveGrantFilters(grant.grant_id, '', '');
   };
 
+  const handleAcceptRequest = async (requestId: string) => {
+    const keywords = acceptKeywords.split(',').map(k => k.trim()).filter(Boolean);
+    const hiddenTypes = acceptHiddenTypes.split(',').map(t => t.trim()).filter(Boolean);
+    try {
+      await acceptConnectionRequest(requestId, { keywords, hidden_node_types: hiddenTypes });
+      setPendingRequests(prev => prev.filter(r => r.request_id !== requestId));
+      setAcceptingRequestId(null);
+      setAcceptKeywords('');
+      setAcceptHiddenTypes('');
+      // Refresh grants list
+      listAccessGrants().then(g => setGrants(g.grants));
+      addToast('Access granted', 'success');
+    } catch {
+      addToast('Failed to accept request', 'error');
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    setRejectingRequestId(requestId);
+    try {
+      await rejectConnectionRequest(requestId);
+      setPendingRequests(prev => prev.filter(r => r.request_id !== requestId));
+      addToast('Request rejected', 'success');
+    } catch {
+      addToast('Failed to reject request', 'error');
+    } finally {
+      setRejectingRequestId(null);
+    }
+  };
+
   const handleVisibilityClick = async (next: OrbVisibility) => {
     if (next === visibility || updatingVisibility) return;
     setUpdatingVisibility(true);
@@ -483,6 +535,7 @@ function SharePanel({
 
         {!isPrivate && (
           <div className="space-y-4">
+            {isPublic && (
             <div className="rounded-2xl border border-gray-700/80 bg-gradient-to-br from-gray-800/65 to-gray-900/70 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -490,20 +543,20 @@ function SharePanel({
                 </div>
               </div>
 
-              <p className={`mt-2.5 ${isPublic && generatingToken ? 'text-xs text-gray-400' : 'text-sm font-semibold text-emerald-300'}`}>
-                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients can see only the filtered orbis'}
+              <p className={`mt-2.5 ${generatingToken ? 'text-xs text-gray-400' : 'text-sm font-semibold text-emerald-300'}`}>
+                {generatingToken ? 'Generating secure link...' : 'Recipients can see only the filtered orbis'}
               </p>
 
               <div className="mt-3">
                 <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide">Active Filters</p>
                   <p className="text-xs text-gray-200 mt-1">
-                    {hasActiveFilters && isPublic ? `${activeKeywords.length + hiddenTypesArray.length}` : '0'}
+                    {hasActiveFilters ? `${activeKeywords.length + hiddenTypesArray.length}` : '0'}
                   </p>
                 </div>
               </div>
 
-              {hasActiveFilters && isPublic && (
+              {hasActiveFilters && (
                 <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-2">
                   {hiddenTypesArray.length > 0 && (
                     <div>
@@ -528,6 +581,7 @@ function SharePanel({
                 </div>
               )}
             </div>
+            )}
 
             {isPublic && (
               <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
@@ -546,51 +600,138 @@ function SharePanel({
               </div>
             )}
 
-            <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-              <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
-                <div className="flex items-center justify-center md:pr-8">
-                  <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
-                    <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
-                      <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+            {isPublic && (
+              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
+                <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
+                  <div className="flex items-center justify-center md:pr-8">
+                    <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
+                      <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
+                        <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
-                  <button
-                    type="button"
-                    onClick={handleCopyShareLink}
-                    disabled={!canCopyShareLink || generatingToken}
-                    className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-                  >
-                    {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadQr}
-                    disabled={!canDownloadQr || generatingToken}
-                    className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
-                  >
-                    Download QR (.png)
-                  </button>
-                  <p
-                    aria-live="polite"
-                    className={`text-[11px] h-4 transition-colors ${
-                      qrActionHint === 'copied'
-                        ? 'text-emerald-300'
-                        : qrActionHint === 'downloaded'
-                          ? 'text-sky-300'
-                          : 'text-transparent'
-                    }`}
-                  >
-                    {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
-                  </p>
+                  <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleCopyShareLink}
+                      disabled={!canCopyShareLink || generatingToken}
+                      className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                    >
+                      {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadQr}
+                      disabled={!canDownloadQr || generatingToken}
+                      className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
+                    >
+                      Download QR (.png)
+                    </button>
+                    <p
+                      aria-live="polite"
+                      className={`text-[11px] h-4 transition-colors ${
+                        qrActionHint === 'copied'
+                          ? 'text-emerald-300'
+                          : qrActionHint === 'downloaded'
+                            ? 'text-sky-300'
+                            : 'text-transparent'
+                      }`}
+                    >
+                      {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {isRestricted && (
               <>
+                {(pendingLoading || pendingRequests.length > 0) && (
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <label className="text-xs text-amber-200/80 uppercase tracking-wide font-medium">Pending Requests</label>
+                      <span className="text-[11px] text-amber-200/60">{pendingRequests.length}</span>
+                    </div>
+                    {pendingLoading && <p className="text-[11px] text-gray-500">Loading requests...</p>}
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {pendingRequests.map((req) => (
+                        <div key={req.request_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm text-white truncate">{req.requester_name || req.requester_email}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{req.requester_email}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">{formatDate(req.created_at)}</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAcceptingRequestId(acceptingRequestId === req.request_id ? null : req.request_id);
+                                  setAcceptKeywords('');
+                                  setAcceptHiddenTypes('');
+                                }}
+                                className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectRequest(req.request_id)}
+                                disabled={rejectingRequestId === req.request_id}
+                                className="h-8 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
+                              >
+                                {rejectingRequestId === req.request_id ? 'Rejecting...' : 'Reject'}
+                              </button>
+                            </div>
+                          </div>
+
+                          {acceptingRequestId === req.request_id && (
+                            <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 p-2.5 space-y-2">
+                              <div>
+                                <label className="text-[10px] text-gray-500 uppercase tracking-wide">Filtered Keywords (comma separated)</label>
+                                <input
+                                  type="text"
+                                  value={acceptKeywords}
+                                  onChange={(e) => setAcceptKeywords(e.target.value)}
+                                  placeholder="python, machine learning"
+                                  className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types (comma separated)</label>
+                                <input
+                                  type="text"
+                                  value={acceptHiddenTypes}
+                                  onChange={(e) => setAcceptHiddenTypes(e.target.value)}
+                                  placeholder="Skill, Project"
+                                  className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptRequest(req.request_id)}
+                                  className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
+                                >
+                                  Confirm &amp; Grant Access
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setAcceptingRequestId(null)}
+                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
                   <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
                   <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in.</p>
@@ -748,6 +889,49 @@ function SharePanel({
                         ))}
                       </ul>
                     )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
+                  <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
+                    <div className="flex items-center justify-center md:pr-8">
+                      <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
+                        <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
+                          <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
+                      <button
+                        type="button"
+                        onClick={handleCopyShareLink}
+                        disabled={!canCopyShareLink || generatingToken}
+                        className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                      >
+                        {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadQr}
+                        disabled={!canDownloadQr || generatingToken}
+                        className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
+                      >
+                        Download QR (.png)
+                      </button>
+                      <p
+                        aria-live="polite"
+                        className={`text-[11px] h-4 transition-colors ${
+                          qrActionHint === 'copied'
+                            ? 'text-emerald-300'
+                            : qrActionHint === 'downloaded'
+                              ? 'text-sky-300'
+                              : 'text-transparent'
+                        }`}
+                      >
+                        {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </>
