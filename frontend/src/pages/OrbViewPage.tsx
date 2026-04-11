@@ -525,27 +525,8 @@ function SharePanel({
           </div>
         )}
 
-        <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-6 px-4 sm:px-6 py-3 border-t border-gray-800 bg-gray-900/95 backdrop-blur">
-          {isPrivate ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleVisibilityClick('public')}
-                disabled={updatingVisibility}
-                className="h-11 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-              >
-                Switch To Public
-              </button>
-              <button
-                type="button"
-                onClick={() => handleVisibilityClick('restricted')}
-                disabled={updatingVisibility}
-                className="h-11 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-              >
-                Switch To Restricted
-              </button>
-            </div>
-          ) : (
+        {!isPrivate && (
+          <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-6 px-4 sm:px-6 py-3 border-t border-gray-800 bg-gray-900/95 backdrop-blur">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
@@ -564,8 +545,8 @@ function SharePanel({
                 Download QR (.png)
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
