@@ -379,15 +379,10 @@ function SharePanel({
         </div>
 
         {isPrivate && (
-          <div className="space-y-4">
+          <div>
             <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4">
               <p className="text-sm text-gray-200 font-medium mb-1">This orbis is currently private</p>
               <p className="text-xs text-gray-400">No link or QR is available until you switch to Public or Restricted.</p>
-            </div>
-            <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-2">MCP access is available only in Public mode.</p>
-              <input readOnly value={mcpUri} className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-gray-400 text-sm font-mono" />
             </div>
           </div>
         )}
