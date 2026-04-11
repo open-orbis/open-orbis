@@ -156,7 +156,7 @@ async def test_update_access_grant_filters_success():
             "g": {
                 "grant_id": "g1",
                 "email": "alice@x.com",
-                "keywords": ["python"],
+                "keywords": ["python", "ai"],
                 "hidden_node_types": ["Skill"],
                 "revoked": False,
             }
