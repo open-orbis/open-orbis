@@ -251,6 +251,8 @@ def test_admin_stats(admin_client):
             "app.admin.router.count_access_codes",
             AsyncMock(return_value={"total": 200, "used": 47, "available": 153}),
         ),
+        patch("app.admin.router.count_pending_deletion", AsyncMock(return_value=3)),
+        patch("app.admin.router.count_deleted_accounts", AsyncMock(return_value=5)),
     ):
         response = admin_client.get("/admin/stats")
 
@@ -260,6 +262,8 @@ def test_admin_stats(admin_client):
     assert body["pending_activation"] == 12
     assert body["invite_code_required"] is True
     assert body["invite_codes"]["available"] == 153
+    assert body["pending_deletion"] == 3
+    assert body["deleted_accounts"] == 5
 
 
 def test_admin_toggle_invite_code(admin_client):
@@ -360,3 +364,70 @@ def test_admin_pending_users(admin_client):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["name"] == "Pending User"
+
+
+def test_cleanup_interval_hours_default():
+    from app.config import Settings
+
+    s = Settings(
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
+        jwt_secret="test",
+    )
+    assert s.cleanup_interval_hours == 24
+
+
+@pytest.mark.asyncio
+async def test_cleanup_creates_deletion_records():
+    """Verify _cleanup_expired_accounts creates DeletionRecord nodes."""
+    from unittest.mock import MagicMock
+
+    from app.main import _cleanup_expired_accounts
+
+    mock_session = AsyncMock()
+    # First call: find expired accounts — return one user
+    expired_result = AsyncMock()
+    expired_result.__aiter__ = lambda _self: _aiter_helper(
+        [{"user_id": "expired-user-1"}]
+    )
+    # Subsequent calls: deletion queries + DeletionRecord creation
+    other_result = AsyncMock()
+    other_result.single = AsyncMock(return_value=None)
+
+    call_count = 0
+    queries_seen = []
+
+    async def mock_run(query, **kwargs):
+        nonlocal call_count
+        queries_seen.append(query.strip())
+        call_count += 1
+        if call_count == 1:
+            return expired_result
+        return other_result
+
+    mock_session.run = mock_run
+
+    # Use MagicMock for driver so session() is a sync call returning
+    # an async context manager (matching Neo4j driver behaviour).
+    mock_driver = MagicMock()
+    mock_session_context = MagicMock()
+    mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_session_context.__aexit__ = AsyncMock(return_value=False)
+    mock_driver.session.return_value = mock_session_context
+
+    with (
+        patch("app.main.delete_stored_cvs"),
+        patch("app.main.delete_user_drafts"),
+        patch("app.main.delete_user_snapshots"),
+    ):
+        await _cleanup_expired_accounts(mock_driver)
+
+    # Check that a CREATE (d:DeletionRecord ...) query was issued
+    assert any("DeletionRecord" in q for q in queries_seen), (
+        f"Expected DeletionRecord creation query. Queries: {queries_seen}"
+    )
+
+
+async def _aiter_helper(items):
+    for item in items:
+        yield item

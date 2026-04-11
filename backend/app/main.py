@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
@@ -50,6 +52,11 @@ async def _cleanup_expired_accounts(driver):
                 "MATCH (p:Person {user_id: $uid}) DETACH DELETE p",
                 uid=user_id,
             )
+            # Audit trail: record the deletion
+            await session.run(
+                "CREATE (:DeletionRecord {user_id: $uid, deleted_at: datetime()})",
+                uid=user_id,
+            )
             logging.getLogger(__name__).info(
                 "Permanently deleted expired account: %s", user_id
             )
@@ -77,6 +84,18 @@ async def _cleanup_expired_accounts(driver):
         logging.getLogger(__name__).info(
             "Cleaned up %d expired account(s)", len(expired)
         )
+    return len(expired)
+
+
+async def _periodic_cleanup(driver, interval_hours: int):
+    """Run expired-account cleanup on a recurring schedule."""
+    log = logging.getLogger(__name__)
+    interval_seconds = interval_hours * 3600
+    while True:
+        await asyncio.sleep(interval_seconds)
+        log.info("Scheduled expired-account cleanup started")
+        count = await _cleanup_expired_accounts(driver)
+        log.info("Scheduled cleanup complete: %d account(s) removed", count)
 
 
 @asynccontextmanager
@@ -87,8 +106,18 @@ async def lifespan(app: FastAPI):
         await session.run("RETURN 1")
     # Clean up expired accounts on startup
     await _cleanup_expired_accounts(driver)
+    # Start recurring cleanup if configured
+    cleanup_task = None
+    if settings.cleanup_interval_hours > 0:
+        cleanup_task = asyncio.create_task(
+            _periodic_cleanup(driver, settings.cleanup_interval_hours)
+        )
     yield
     # Shutdown
+    if cleanup_task is not None:
+        cleanup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await cleanup_task
     await close_driver()
 
 

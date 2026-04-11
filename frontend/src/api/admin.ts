@@ -11,6 +11,8 @@ export interface InviteCodeCounts {
 export interface AdminStats {
   registered: number;
   pending_activation: number;
+  pending_deletion: number;
+  deleted_accounts: number;
   invite_code_required: boolean;
   invite_codes: InviteCodeCounts;
 }

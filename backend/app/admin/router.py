@@ -29,6 +29,8 @@ from app.admin.service import (
     activate_user_by_admin,
     consume_access_code,
     count_access_codes,
+    count_deleted_accounts,
+    count_pending_deletion,
     count_pending_persons,
     count_persons,
     create_access_code,
@@ -138,9 +140,13 @@ async def get_stats(
     registered = await count_persons(db)
     pending = await count_pending_persons(db)
     code_counts = await count_access_codes(db)
+    pending_del = await count_pending_deletion(db)
+    deleted = await count_deleted_accounts(db)
     return StatsResponse(
         registered=registered,
         pending_activation=pending,
+        pending_deletion=pending_del,
+        deleted_accounts=deleted,
         invite_code_required=bool(config.get("invite_code_required", True)),
         invite_codes=InviteCodeCounts(**code_counts),
     )

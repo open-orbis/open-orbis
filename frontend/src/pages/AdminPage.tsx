@@ -603,11 +603,13 @@ export default function AdminPage() {
                 {stats.invite_code_required ? 'Invite code: REQUIRED' : 'Platform: OPEN TO ALL'}
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <StatCard label="Registered users" value={stats.registered} />
               <StatCard label="Pending activation" value={stats.pending_activation} />
               <StatCard label="Available codes" value={stats.invite_codes.available} sub={`${stats.invite_codes.used} used of ${stats.invite_codes.total}`} />
               <StatCard label="Total codes" value={stats.invite_codes.total} />
+              <StatCard label="Pending deletion" value={stats.pending_deletion} />
+              <StatCard label="Deleted accounts" value={stats.deleted_accounts} />
             </div>
           </motion.div>
         )}
