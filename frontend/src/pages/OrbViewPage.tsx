@@ -418,11 +418,7 @@ function SharePanel({
                 {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the view shown by your current sharing settings.'}
               </p>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Visibility</p>
-                  <p className="text-xs text-gray-200 mt-1">{isRestricted ? 'Restricted' : 'Public'}</p>
-                </div>
+              <div className="mt-3">
                 <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
                   <p className="text-[10px] text-gray-500 uppercase tracking-wide">Active Filters</p>
                   <p className="text-xs text-gray-200 mt-1">
