@@ -360,7 +360,14 @@ function SharePanel({
               const selected = visibility === opt.value;
               const selectedClass = opt.value === 'private'
                 ? 'border-red-500/70 bg-red-500/15 text-red-100 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]'
-                : 'border-purple-500/70 bg-purple-500/15 text-white shadow-[0_0_0_1px_rgba(168,85,247,0.2)]';
+                : opt.value === 'public'
+                  ? 'border-emerald-500/70 bg-emerald-500/15 text-emerald-100 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]'
+                  : 'border-purple-500/70 bg-purple-500/15 text-white shadow-[0_0_0_1px_rgba(168,85,247,0.2)]';
+              const descriptionClass = selected && opt.value === 'private'
+                ? 'text-red-200/80'
+                : selected && opt.value === 'public'
+                  ? 'text-emerald-200/80'
+                  : 'text-gray-400';
               return (
                 <button
                   key={opt.value}
@@ -374,7 +381,7 @@ function SharePanel({
                   }`}
                 >
                   <div className="text-xs font-semibold">{opt.label}</div>
-                  <div className={`text-[10px] mt-0.5 leading-tight ${selected && opt.value === 'private' ? 'text-red-200/80' : 'text-gray-400'}`}>{opt.description}</div>
+                  <div className={`text-[10px] mt-0.5 leading-tight ${descriptionClass}`}>{opt.description}</div>
                 </button>
               );
             })}
