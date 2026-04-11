@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 
@@ -25,10 +26,8 @@ def _load_or_generate_dev_key() -> str:
             return existing
     key = Fernet.generate_key().decode()
     _DEV_KEY_FILE.write_text(key + "\n")
-    try:
+    with contextlib.suppress(OSError):
         _DEV_KEY_FILE.chmod(0o600)
-    except OSError:
-        pass
     logger.warning(
         "ENCRYPTION_KEY not set — generated and persisted a dev key at %s. "
         "Set ENCRYPTION_KEY in .env to override.",

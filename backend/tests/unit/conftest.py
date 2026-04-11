@@ -5,6 +5,16 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_current_user, get_db
 from app.main import app
+from app.rate_limit import limiter
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Clear SlowAPI counters between tests so back-to-back requests
+    from the shared TestClient IP don't trip shared per-minute limits."""
+    limiter.reset()
+    yield
+    limiter.reset()
 
 
 class MockNode(dict):

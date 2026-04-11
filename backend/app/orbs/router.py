@@ -15,6 +15,7 @@ from app.config import settings
 from app.dependencies import get_current_user, get_current_user_optional, get_db
 from app.email.service import send_access_grant_email
 from app.graph.encryption import decrypt_properties, encrypt_properties
+from app.graph.node_schema import LABEL_TO_NODE_TYPE, sanitize_node_properties
 from app.graph.queries import (
     ADD_NODE,
     DELETE_NODE,
@@ -290,7 +291,8 @@ async def add_node(
     label = NODE_TYPE_LABELS[data.node_type]
     rel_type = NODE_TYPE_RELATIONSHIPS[data.node_type]
     uid = str(uuid.uuid4())
-    properties = encrypt_properties(data.properties)
+    safe_props = sanitize_node_properties(data.node_type, data.properties)
+    properties = encrypt_properties(safe_props)
 
     query = ADD_NODE.replace("{label}", label).replace("{rel_type}", rel_type)
 
@@ -314,8 +316,25 @@ async def update_node(
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
 ):
-    properties = encrypt_properties(data.properties)
     async with db.session() as session:
+        label_result = await session.run(
+            "MATCH (n {uid: $uid}) RETURN labels(n) AS labels LIMIT 1",
+            uid=uid,
+        )
+        label_record = await label_result.single()
+        if label_record is None:
+            raise HTTPException(status_code=404, detail="Node not found")
+        labels = list(label_record["labels"])
+        node_type = next(
+            (LABEL_TO_NODE_TYPE[lbl] for lbl in labels if lbl in LABEL_TO_NODE_TYPE),
+            None,
+        )
+        if node_type is None:
+            raise HTTPException(
+                status_code=400, detail="Node has no supported type"
+            )
+        safe_props = sanitize_node_properties(node_type, data.properties)
+        properties = encrypt_properties(safe_props)
         result = await session.run(UPDATE_NODE, uid=uid, properties=properties)
         record = await result.single()
         if record is None:
