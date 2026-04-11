@@ -219,7 +219,9 @@ async def export_orb(  # noqa: C901
     # 2. Branch on visibility mode
     token_data: dict | None = None
     if visibility == "restricted":
-        await assert_user_can_access_restricted(db, orb_id, current_user)
+        token_data = await assert_user_can_access_restricted(db, orb_id, current_user)
+        if token_data is None:
+            token_data = {"keywords": [], "hidden_node_types": []}
     else:
         if not token:
             raise HTTPException(
@@ -259,7 +261,7 @@ async def export_orb(  # noqa: C901
             status_code=500, detail="Failed to process orb data"
         ) from None
 
-    # Apply filters only when a share token was used (public mode)
+    # Apply filters in public mode (share token) and restricted mode (per-grant scope)
     active_filters = token_data["keywords"] if token_data else []
     hidden_types = set(token_data.get("hidden_node_types", []) if token_data else [])
     if active_filters or hidden_types:

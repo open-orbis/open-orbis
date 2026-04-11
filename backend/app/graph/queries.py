@@ -41,10 +41,15 @@ RETURN coalesce(p.visibility, 'public') AS visibility
 CREATE_ACCESS_GRANT = """
 MATCH (p:Person {user_id: $user_id})
 WHERE p.orb_id IS NOT NULL AND p.orb_id <> ''
+OPTIONAL MATCH (p)-[:GRANTED_ACCESS]->(old:AccessGrant {email: $email})
+WHERE old.revoked = false
+SET old.revoked = true, old.revoked_at = datetime()
 CREATE (p)-[:GRANTED_ACCESS]->(g:AccessGrant {
     grant_id:   $grant_id,
     orb_id:     p.orb_id,
     email:      $email,
+    keywords:   $keywords,
+    hidden_node_types: $hidden_node_types,
     created_at: datetime(),
     revoked:    false,
     revoked_at: null
@@ -69,7 +74,17 @@ CHECK_ACCESS_GRANT = """
 MATCH (p:Person {orb_id: $orb_id})-[:GRANTED_ACCESS]->(g:AccessGrant {email: $email})
 WHERE g.revoked = false
 RETURN g
+ORDER BY g.created_at DESC
 LIMIT 1
+"""
+
+UPDATE_ACCESS_GRANT_FILTERS = """
+MATCH (p:Person {user_id: $user_id})-[:GRANTED_ACCESS]->(g:AccessGrant {grant_id: $grant_id})
+WHERE g.revoked = false
+SET g.keywords = $keywords,
+    g.hidden_node_types = $hidden_node_types,
+    g.filters_updated_at = datetime()
+RETURN g
 """
 
 GET_PERSON_BY_ORB_ID = """

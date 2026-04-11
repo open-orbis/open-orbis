@@ -13,6 +13,7 @@ import {
   linkSkill,
   listAccessGrants,
   revokeAccessGrant,
+  updateAccessGrantFilters,
 } from '../api/orbs';
 import type { AccessGrant, OrbVisibility } from '../api/orbs';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -91,6 +92,11 @@ function SharePanel({
   const [grantEmail, setGrantEmail] = useState('');
   const [grantError, setGrantError] = useState<string | null>(null);
   const [grantSubmitting, setGrantSubmitting] = useState(false);
+  const [applyFiltersOnInvite, setApplyFiltersOnInvite] = useState(true);
+  const [editingGrantId, setEditingGrantId] = useState<string | null>(null);
+  const [editingGrantKeywords, setEditingGrantKeywords] = useState('');
+  const [editingGrantHiddenTypes, setEditingGrantHiddenTypes] = useState('');
+  const [updatingGrantFiltersId, setUpdatingGrantFiltersId] = useState<string | null>(null);
   const [qrActionHint, setQrActionHint] = useState<'copied' | 'downloaded' | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -119,6 +125,10 @@ function SharePanel({
     if (!query) return grants;
     return grants.filter((g) => g.email.toLowerCase().includes(query));
   }, [grantSearch, grants]);
+
+  useEffect(() => {
+    if (!hasActiveFilters) setApplyFiltersOnInvite(false);
+  }, [hasActiveFilters]);
 
   // Generate a share token only in public mode
   useEffect(() => {
@@ -268,6 +278,54 @@ function SharePanel({
     }
   }, [addToast, canDownloadQr, flashQrHint, isRestricted, orbId]);
 
+  const parseCommaSeparated = useCallback((value: string, lowerCase = false): string[] => {
+    const items = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const normalized = lowerCase ? items.map((item) => item.toLowerCase()) : items;
+    return Array.from(new Set(normalized));
+  }, []);
+
+  const openGrantEditor = useCallback((grant: AccessGrant) => {
+    setEditingGrantId(grant.grant_id);
+    setEditingGrantKeywords((grant.keywords || []).join(', '));
+    setEditingGrantHiddenTypes((grant.hidden_node_types || []).join(', '));
+    setGrantError(null);
+  }, []);
+
+  const closeGrantEditor = useCallback(() => {
+    setEditingGrantId(null);
+    setEditingGrantKeywords('');
+    setEditingGrantHiddenTypes('');
+  }, []);
+
+  const saveGrantFilters = useCallback(async (
+    grantId: string,
+    keywordsRaw: string,
+    hiddenTypesRaw: string,
+  ) => {
+    const keywords = parseCommaSeparated(keywordsRaw, true);
+    const hiddenNodeTypes = parseCommaSeparated(hiddenTypesRaw, false);
+    setUpdatingGrantFiltersId(grantId);
+    setGrantError(null);
+    try {
+      const updated = await updateAccessGrantFilters(grantId, {
+        keywords,
+        hidden_node_types: hiddenNodeTypes,
+      });
+      setGrants((prev) => prev.map((g) => (g.grant_id === grantId ? updated : g)));
+      addToast('Filters updated for invited user', 'success');
+      closeGrantEditor();
+    } catch (err) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setGrantError(msg || 'Failed to update filters');
+      addToast(msg || 'Failed to update filters', 'error');
+    } finally {
+      setUpdatingGrantFiltersId(null);
+    }
+  }, [addToast, closeGrantEditor, parseCommaSeparated]);
+
   const handleGrantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const email = grantEmail.trim();
@@ -280,7 +338,11 @@ function SharePanel({
     setGrantSubmitting(true);
     setGrantError(null);
     try {
-      const grant = await createAccessGrant(email);
+      const grant = await createAccessGrant({
+        email,
+        keywords: applyFiltersOnInvite ? activeKeywords : [],
+        hidden_node_types: applyFiltersOnInvite ? hiddenTypesArray : [],
+      });
       setGrants((prev) => [grant, ...prev]);
       setGrantEmail('');
       addToast(`Access granted to ${email}`, 'success');
@@ -304,6 +366,18 @@ function SharePanel({
       setGrantError('Failed to revoke access');
       addToast('Failed to revoke access', 'error');
     }
+  };
+
+  const handleApplyCurrentFiltersToGrant = async (grant: AccessGrant) => {
+    await saveGrantFilters(
+      grant.grant_id,
+      activeKeywords.join(', '),
+      hiddenTypesArray.join(', '),
+    );
+  };
+
+  const handleClearGrantFilters = async (grant: AccessGrant) => {
+    await saveGrantFilters(grant.grant_id, '', '');
   };
 
   const handleVisibilityClick = async (next: OrbVisibility) => {
@@ -520,6 +594,24 @@ function SharePanel({
                 <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
                   <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
                   <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in.</p>
+                  <div className="mb-2.5 rounded-lg border border-gray-700/70 bg-gray-900/40 px-3 py-2">
+                    <label className="flex items-start gap-2 text-[11px] text-gray-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyFiltersOnInvite}
+                        onChange={(e) => setApplyFiltersOnInvite(e.target.checked)}
+                        className="mt-0.5 accent-purple-500"
+                      />
+                      <span>
+                        Apply current filters for this invite.
+                        <span className="block text-gray-500 mt-0.5">
+                          {hasActiveFilters
+                            ? `Current set: ${activeKeywords.length} keyword(s), ${hiddenTypesArray.length} hidden type(s).`
+                            : 'No active filters are set right now.'}
+                        </span>
+                      </span>
+                    </label>
+                  </div>
                   <form onSubmit={handleGrantSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                     <input
                       type="email"
@@ -559,15 +651,99 @@ function SharePanel({
                     {!grantsLoading && filteredGrants.length > 0 && (
                       <ul className="space-y-2">
                         {filteredGrants.map((grant) => (
-                          <li key={grant.grant_id} className="flex items-center justify-between gap-3 border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60">
-                            <span className="text-sm text-white truncate">{grant.email}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRevokeGrant(grant)}
-                              className="h-9 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs font-medium transition-colors whitespace-nowrap"
-                            >
-                              Revoke Access
-                            </button>
+                          <li key={grant.grant_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm text-white truncate">{grant.email}</p>
+                                <p className="text-[11px] text-gray-400 mt-0.5">
+                                  {(grant.keywords || []).length} keyword filter(s) • {(grant.hidden_node_types || []).length} hidden type filter(s)
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeGrant(grant)}
+                                className="h-9 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-xs font-medium transition-colors whitespace-nowrap"
+                              >
+                                Revoke Access
+                              </button>
+                            </div>
+
+                            {editingGrantId === grant.grant_id ? (
+                              <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 p-2.5 space-y-2">
+                                <div>
+                                  <label className="text-[10px] text-gray-500 uppercase tracking-wide">Filtered Keywords (comma separated)</label>
+                                  <input
+                                    type="text"
+                                    value={editingGrantKeywords}
+                                    onChange={(e) => setEditingGrantKeywords(e.target.value)}
+                                    placeholder="python, machine learning"
+                                    className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types (comma separated)</label>
+                                  <input
+                                    type="text"
+                                    value={editingGrantHiddenTypes}
+                                    onChange={(e) => setEditingGrantHiddenTypes(e.target.value)}
+                                    placeholder="Skill, Project"
+                                    className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
+                                  />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void saveGrantFilters(grant.grant_id, editingGrantKeywords, editingGrantHiddenTypes)}
+                                    disabled={updatingGrantFiltersId === grant.grant_id}
+                                    className="h-8 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                                  >
+                                    {updatingGrantFiltersId === grant.grant_id ? 'Saving...' : 'Save Filters'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={closeGrantEditor}
+                                    disabled={updatingGrantFiltersId === grant.grant_id}
+                                    className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void saveGrantFilters(grant.grant_id, activeKeywords.join(', '), hiddenTypesArray.join(', '))}
+                                    disabled={updatingGrantFiltersId === grant.grant_id}
+                                    className="h-8 px-3 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 text-xs font-medium transition-colors"
+                                  >
+                                    Use Current Filters
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => openGrantEditor(grant)}
+                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                >
+                                  Manage Filters
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleApplyCurrentFiltersToGrant(grant)}
+                                  disabled={updatingGrantFiltersId === grant.grant_id}
+                                  className="h-8 px-3 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
+                                >
+                                  Apply Current
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleClearGrantFilters(grant)}
+                                  disabled={updatingGrantFiltersId === grant.grant_id}
+                                  className="h-8 px-3 rounded-lg border border-orange-500/40 text-orange-300 hover:bg-orange-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
+                                >
+                                  Clear Filters
+                                </button>
+                              </div>
+                            )}
                           </li>
                         ))}
                       </ul>

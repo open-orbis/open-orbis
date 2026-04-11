@@ -33,9 +33,11 @@ from app.orbs.access_grants import (
     create_access_grant,
     list_access_grants,
     revoke_access_grant,
+    update_access_grant_filters,
 )
 from app.orbs.models import (
     AccessGrantCreate,
+    AccessGrantFiltersUpdate,
     AccessGrantListResponse,
     AccessGrantResponse,
     NodeCreate,
@@ -480,7 +482,11 @@ async def create_access_grant_endpoint(
     swallowed (best-effort) so the grant is still created.
     """
     grant = await create_access_grant(
-        db=db, user_id=current_user["user_id"], email=data.email
+        db=db,
+        user_id=current_user["user_id"],
+        email=data.email,
+        keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
     )
     if grant is None:
         raise HTTPException(status_code=400, detail="Set an orb ID first")
@@ -521,6 +527,26 @@ async def revoke_access_grant_endpoint(
     return {"status": "revoked"}
 
 
+@router.put("/me/access-grants/{grant_id}/filters", response_model=AccessGrantResponse)
+async def update_access_grant_filters_endpoint(
+    grant_id: str,
+    data: AccessGrantFiltersUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Update filter scope for a specific access grant."""
+    grant = await update_access_grant_filters(
+        db=db,
+        user_id=current_user["user_id"],
+        grant_id=grant_id,
+        keywords=data.keywords,
+        hidden_node_types=data.hidden_node_types,
+    )
+    if grant is None:
+        raise HTTPException(status_code=404, detail="Grant not found")
+    return grant
+
+
 @router.get("/{orb_id}")
 @limiter.limit("30/minute")
 async def get_public_orb(
@@ -538,7 +564,9 @@ async def get_public_orb(
     token_data: dict | None = None
     if visibility == "restricted":
         # Require auth + email in allowlist (or owner)
-        await assert_user_can_access_restricted(db, orb_id, current_user)
+        token_data = await assert_user_can_access_restricted(db, orb_id, current_user)
+        if token_data is None:
+            token_data = {"keywords": [], "hidden_node_types": []}
     else:
         # public: require a valid share token
         if not token:
@@ -570,7 +598,7 @@ async def get_public_orb(
 
     orb_data = _serialize_orb(record)
 
-    # Apply filters only in public mode (token-based filtering)
+    # Apply filters in public mode (share token) and restricted mode (per-grant scope)
     keywords = token_data["keywords"] if token_data else []
     hidden_types = set(token_data.get("hidden_node_types", []) if token_data else [])
     if keywords or hidden_types:

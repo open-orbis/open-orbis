@@ -71,15 +71,24 @@ class ShareTokenListResponse(BaseModel):
 
 class AccessGrantCreate(BaseModel):
     email: str  # normalized lowercase server-side
+    keywords: list[str] = []  # empty = no keyword exclusions
+    hidden_node_types: list[str] = []  # labels to exclude (e.g. ["Skill"])
 
 
 class AccessGrantResponse(BaseModel):
     grant_id: str
     orb_id: str
     email: str
+    keywords: list[str] = []
+    hidden_node_types: list[str] = []
     created_at: datetime
     revoked: bool
 
 
 class AccessGrantListResponse(BaseModel):
     grants: list[AccessGrantResponse]
+
+
+class AccessGrantFiltersUpdate(BaseModel):
+    keywords: list[str] = []
+    hidden_node_types: list[str] = []

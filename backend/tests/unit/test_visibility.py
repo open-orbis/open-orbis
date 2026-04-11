@@ -93,24 +93,28 @@ async def test_assert_restricted_no_email_raises_403():
 
 
 @pytest.mark.asyncio
-@patch("app.orbs.visibility.user_has_access", new_callable=AsyncMock)
-async def test_assert_restricted_allowed_email_passes(mock_has_access):
+@patch("app.orbs.visibility.get_access_grant_for_user", new_callable=AsyncMock)
+async def test_assert_restricted_allowed_email_passes(mock_get_grant):
     person = MockNode({"user_id": "owner-1", "orb_id": "test-orb"}, ["Person"])
     driver = _mock_driver_with_record({"p": person})
-    mock_has_access.return_value = True
+    mock_get_grant.return_value = {
+        "grant_id": "g-1",
+        "keywords": ["python"],
+        "hidden_node_types": ["Skill"],
+    }
     # Should not raise
     await assert_user_can_access_restricted(
         driver, "test-orb", {"user_id": "viewer-1", "email": "alice@x.com"}
     )
-    mock_has_access.assert_awaited_once()
+    mock_get_grant.assert_awaited_once()
 
 
 @pytest.mark.asyncio
-@patch("app.orbs.visibility.user_has_access", new_callable=AsyncMock)
-async def test_assert_restricted_unallowed_email_raises_403(mock_has_access):
+@patch("app.orbs.visibility.get_access_grant_for_user", new_callable=AsyncMock)
+async def test_assert_restricted_unallowed_email_raises_403(mock_get_grant):
     person = MockNode({"user_id": "owner-1", "orb_id": "test-orb"}, ["Person"])
     driver = _mock_driver_with_record({"p": person})
-    mock_has_access.return_value = False
+    mock_get_grant.return_value = None
     with pytest.raises(HTTPException) as exc:
         await assert_user_can_access_restricted(
             driver, "test-orb", {"user_id": "viewer-1", "email": "bob@x.com"}

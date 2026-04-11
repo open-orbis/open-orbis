@@ -83,12 +83,25 @@ export interface AccessGrant {
   grant_id: string;
   orb_id: string;
   email: string;
+  keywords: string[];
+  hidden_node_types: string[];
   created_at: string;
   revoked: boolean;
 }
 
-export async function createAccessGrant(email: string): Promise<AccessGrant> {
-  const { data } = await client.post('/orbs/me/access-grants', { email });
+export interface AccessGrantCreatePayload {
+  email: string;
+  keywords?: string[];
+  hidden_node_types?: string[];
+}
+
+export interface AccessGrantFiltersUpdatePayload {
+  keywords: string[];
+  hidden_node_types: string[];
+}
+
+export async function createAccessGrant(payload: AccessGrantCreatePayload): Promise<AccessGrant> {
+  const { data } = await client.post('/orbs/me/access-grants', payload);
   return data;
 }
 
@@ -99,6 +112,14 @@ export async function listAccessGrants(): Promise<{ grants: AccessGrant[] }> {
 
 export async function revokeAccessGrant(grantId: string): Promise<void> {
   await client.delete(`/orbs/me/access-grants/${grantId}`);
+}
+
+export async function updateAccessGrantFilters(
+  grantId: string,
+  payload: AccessGrantFiltersUpdatePayload,
+): Promise<AccessGrant> {
+  const { data } = await client.put(`/orbs/me/access-grants/${grantId}/filters`, payload);
+  return data;
 }
 
 export async function addNode(nodeType: string, properties: Record<string, unknown>): Promise<OrbNode> {

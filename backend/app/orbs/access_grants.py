@@ -21,6 +21,7 @@ from app.graph.queries import (
     CREATE_ACCESS_GRANT,
     LIST_ACCESS_GRANTS,
     REVOKE_ACCESS_GRANT,
+    UPDATE_ACCESS_GRANT_FILTERS,
 )
 
 
@@ -39,13 +40,37 @@ def _normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-async def create_access_grant(db: AsyncDriver, user_id: str, email: str) -> dict | None:
+def _normalize_keywords(keywords: list[str] | None) -> list[str]:
+    normalized = [kw.strip().lower() for kw in (keywords or []) if kw.strip()]
+    return list(dict.fromkeys(normalized))
+
+
+def _normalize_hidden_types(hidden_node_types: list[str] | None) -> list[str]:
+    normalized = [node_type.strip() for node_type in (hidden_node_types or []) if node_type.strip()]
+    return list(dict.fromkeys(normalized))
+
+
+def _apply_filter_defaults(grant: dict) -> dict:
+    grant["keywords"] = list(grant.get("keywords") or [])
+    grant["hidden_node_types"] = list(grant.get("hidden_node_types") or [])
+    return grant
+
+
+async def create_access_grant(
+    db: AsyncDriver,
+    user_id: str,
+    email: str,
+    keywords: list[str] | None = None,
+    hidden_node_types: list[str] | None = None,
+) -> dict | None:
     """Create an access grant for the given email on the user's orb.
 
     Returns ``None`` if the user has no orb_id set.
     """
     grant_id = secrets.token_urlsafe(16)
     normalized = _normalize_email(email)
+    normalized_keywords = _normalize_keywords(keywords)
+    normalized_hidden_types = _normalize_hidden_types(hidden_node_types)
 
     async with db.session() as session:
         result = await session.run(
@@ -53,11 +78,13 @@ async def create_access_grant(db: AsyncDriver, user_id: str, email: str) -> dict
             user_id=user_id,
             grant_id=grant_id,
             email=normalized,
+            keywords=normalized_keywords,
+            hidden_node_types=normalized_hidden_types,
         )
         record = await result.single()
         if record is None:
             return None
-        grant = _sanitize(dict(record["g"]))
+        grant = _apply_filter_defaults(_sanitize(dict(record["g"])))
         grant["owner_name"] = record["owner_name"] or ""
         return grant
 
@@ -68,7 +95,7 @@ async def list_access_grants(db: AsyncDriver, user_id: str) -> list[dict]:
         result = await session.run(LIST_ACCESS_GRANTS, user_id=user_id)
         grants = []
         async for record in result:
-            grants.append(_sanitize(dict(record["g"])))
+            grants.append(_apply_filter_defaults(_sanitize(dict(record["g"]))))
         return grants
 
 
@@ -83,15 +110,48 @@ async def revoke_access_grant(
         record = await result.single()
         if record is None:
             return None
-        return _sanitize(dict(record["g"]))
+        return _apply_filter_defaults(_sanitize(dict(record["g"])))
+
+
+async def update_access_grant_filters(
+    db: AsyncDriver,
+    user_id: str,
+    grant_id: str,
+    keywords: list[str] | None,
+    hidden_node_types: list[str] | None,
+) -> dict | None:
+    """Update filter scope for an existing active access grant."""
+    normalized_keywords = _normalize_keywords(keywords)
+    normalized_hidden_types = _normalize_hidden_types(hidden_node_types)
+    async with db.session() as session:
+        result = await session.run(
+            UPDATE_ACCESS_GRANT_FILTERS,
+            user_id=user_id,
+            grant_id=grant_id,
+            keywords=normalized_keywords,
+            hidden_node_types=normalized_hidden_types,
+        )
+        record = await result.single()
+        if record is None:
+            return None
+        return _apply_filter_defaults(_sanitize(dict(record["g"])))
+
+
+async def get_access_grant_for_user(
+    db: AsyncDriver, orb_id: str, email: str
+) -> dict | None:
+    """Return the active grant for this orb/email, or None."""
+    normalized = _normalize_email(email)
+    if not normalized:
+        return None
+    async with db.session() as session:
+        result = await session.run(CHECK_ACCESS_GRANT, orb_id=orb_id, email=normalized)
+        record = await result.single()
+        if record is None:
+            return None
+        return _apply_filter_defaults(_sanitize(dict(record["g"])))
 
 
 async def user_has_access(db: AsyncDriver, orb_id: str, email: str) -> bool:
     """Return True if the email has an active grant for the orb."""
-    normalized = _normalize_email(email)
-    if not normalized:
-        return False
-    async with db.session() as session:
-        result = await session.run(CHECK_ACCESS_GRANT, orb_id=orb_id, email=normalized)
-        record = await result.single()
-        return record is not None
+    return await get_access_grant_for_user(db, orb_id, email) is not None
