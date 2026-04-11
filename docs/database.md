@@ -223,6 +223,19 @@ At `POST /cv/confirm`, the system:
 4. Logs a warning if `prompt_reviewed` is `false` on the active version — this signals that the extraction prompt may not yet be aligned with the updated ontology.
 5. Creates a `ProcessingRecord` node, links it to the active `OntologyVersion` via `USED_ONTOLOGY`, to the `Person` via `HAS_PROCESSING_RECORD`, and to every extracted domain node via `EXTRACTED`.
 
+## Account Deletion Audit
+
+### DeletionRecord
+
+Created by the expired-account cleanup process when a `Person` node is permanently deleted (after the 30-day grace period). Provides an audit trail for admin dashboard metrics.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `user_id` | string | ID of the deleted user |
+| `deleted_at` | datetime | Neo4j datetime of permanent deletion |
+
+These nodes are standalone (no relationships). The cleanup runs on startup and then on a recurring schedule controlled by `CLEANUP_INTERVAL_HOURS` (default: 24h).
+
 ## Constraints and Indexes
 
 Defined in `infra/neo4j/init.cypher`:
