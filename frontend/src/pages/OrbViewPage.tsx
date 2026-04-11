@@ -599,9 +599,11 @@ export default function OrbViewPage() {
     const typeMap: Record<string, string> = {
       Education: 'education', WorkExperience: 'work_experience', Certification: 'certification',
       Language: 'language', Publication: 'publication', Project: 'project',
-      Skill: 'skill', Patent: 'patent',
+      Skill: 'skill', Patent: 'patent', Award: 'award', Outreach: 'outreach',
     };
-    setEditNode({ type: typeMap[labels[0]] || 'skill', values: node });
+    const nodeType = typeMap[labels[0]];
+    if (!nodeType) return;
+    setEditNode({ type: nodeType, values: node });
     setShowInput(true);
   }, []);
 

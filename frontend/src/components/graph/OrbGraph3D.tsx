@@ -532,6 +532,7 @@ export default function OrbGraph3D({
         highlightRingsRef.current.set(nodeId, ring);
         group.add(ring);
       }
+
     }
 
     // Text label sprite
