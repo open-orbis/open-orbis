@@ -639,9 +639,7 @@ async def get_insights(db: AsyncDriver) -> dict:
         },
         "duration_stats": {
             "mean_ms": _round_or_none(agg["duration_mean"], 2) if agg else None,
-            "variance_ms": _round_or_none(agg["duration_variance"], 2)
-            if agg
-            else None,
+            "variance_ms": _round_or_none(agg["duration_variance"], 2) if agg else None,
             "min_ms": _round_or_none(agg["duration_min"], 2) if agg else None,
             "max_ms": _round_or_none(agg["duration_max"], 2) if agg else None,
         },
