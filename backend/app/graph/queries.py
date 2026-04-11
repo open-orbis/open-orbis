@@ -744,3 +744,45 @@ RETURN u.llm_model AS model,
        sum(CASE WHEN u.cost_usd IS NOT NULL THEN u.cost_usd ELSE 0 END) AS total_cost
 ORDER BY count DESC
 """
+
+# ── Connection Requests ──
+
+CREATE_CONNECTION_REQUEST = """
+MATCH (p:Person {orb_id: $orb_id})
+WHERE p.visibility = 'restricted'
+OPTIONAL MATCH (p)-[:HAS_CONNECTION_REQUEST]->(existing:ConnectionRequest {
+    requester_user_id: $requester_user_id, status: 'pending'
+})
+WITH p, existing
+WHERE existing IS NULL
+CREATE (p)-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {
+    request_id: $request_id,
+    requester_user_id: $requester_user_id,
+    requester_email: $requester_email,
+    requester_name: $requester_name,
+    status: 'pending',
+    created_at: datetime(),
+    resolved_at: null
+})
+RETURN cr, p.user_id AS owner_user_id
+"""
+
+GET_CONNECTION_REQUEST_BY_REQUESTER = """
+MATCH (p:Person {orb_id: $orb_id})-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {
+    requester_user_id: $requester_user_id, status: 'pending'
+})
+RETURN cr
+"""
+
+LIST_PENDING_CONNECTION_REQUESTS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {status: 'pending'})
+RETURN cr
+ORDER BY cr.created_at DESC
+"""
+
+UPDATE_CONNECTION_REQUEST_STATUS = """
+MATCH (p:Person {user_id: $user_id})-[:HAS_CONNECTION_REQUEST]->(cr:ConnectionRequest {request_id: $request_id})
+WHERE cr.status = 'pending'
+SET cr.status = $status, cr.resolved_at = datetime()
+RETURN cr
+"""
