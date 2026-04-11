@@ -21,9 +21,10 @@ cp .env.example .env
 ```
 
 Edit `.env` and set at minimum:
-- `JWT_SECRET` — any random string (change from default `change-me`)
-- `ENCRYPTION_KEY` — generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
-- `ANTHROPIC_API_KEY` — if using Claude for CV classification
+- `ENV=development` — controls fail-fast on insecure placeholders (see `docs/deployment.md` for production behavior).
+- `JWT_SECRET` — any random string (change from default `change-me`).
+- `ENCRYPTION_KEY` — optional in development: if left blank, the backend generates a Fernet key on first start and persists it to `backend/.local_encryption_key` (gitignored) so encrypted PII survives restarts. To set one explicitly, generate with: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+- `ANTHROPIC_API_KEY` — if using Claude for CV classification.
 
 ### 2. Start infrastructure services
 
@@ -127,10 +128,12 @@ See `.env.example` for the full list. Key variables:
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
+| `ENV` | Runtime environment. Non-`development` triggers fail-fast on placeholder secrets. | `development` |
 | `NEO4J_URI` | Neo4j Bolt connection | `bolt://localhost:7687` |
 | `NEO4J_PASSWORD` | Neo4j auth | `orbis_dev_password` |
 | `JWT_SECRET` | JWT signing key | `change-me` |
-| `ENCRYPTION_KEY` | Fernet key for PII encryption | auto-generated |
+| `ENCRYPTION_KEY` | Fernet key for PII encryption. Empty in dev → auto-generated at `backend/.local_encryption_key`. Required in production. | `""` |
+| `ENCRYPTION_KEYS_HISTORIC` | Comma-separated legacy Fernet keys used only for decrypting data written before a rotation. | `""` |
 | `LLM_PROVIDER` | CV classifier: `ollama` or `claude` | `ollama` |
 | `OLLAMA_MODEL` | Ollama model name | `llama3.2:3b` |
 | `CLAUDE_MODEL` | Claude model for CV extraction | `claude-opus-4-6` |
