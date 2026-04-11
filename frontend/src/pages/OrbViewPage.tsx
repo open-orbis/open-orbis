@@ -144,10 +144,10 @@ function SharePanel({
     if (!hasActiveFilters) setApplyFiltersOnInvite(false);
   }, [hasActiveFilters]);
 
-  // Generate a share token only in public mode
+  // Generate a share token for public and restricted modes (used for share links and MCP Orbis ID)
   useEffect(() => {
     let active = true;
-    if (orbId && isPublic) {
+    if (orbId && (isPublic || isRestricted)) {
       setShareTokenId(null);
       setGeneratingToken(true);
       createShareToken(activeKeywords, hiddenTypesArray)
@@ -171,7 +171,7 @@ function SharePanel({
     return () => {
       active = false;
     };
-  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic]);
+  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic, isRestricted]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
