@@ -19,6 +19,7 @@ from app.graph.node_schema import LABEL_TO_NODE_TYPE, sanitize_node_properties
 from app.graph.queries import (
     ADD_NODE,
     DELETE_NODE,
+    DELETE_PERSON_FULL,
     GET_FULL_ORB,
     GET_FULL_ORB_PUBLIC,
     GET_PERSON_BY_ORB_ID,
@@ -364,6 +365,19 @@ async def delete_node(
     async with db.session() as session:
         await session.run(DELETE_NODE, uid=uid)
         return {"status": "deleted"}
+
+
+@router.delete("/me/content")
+async def discard_orb_content(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Delete all orb nodes and relationships but keep account, CVs, drafts, and snapshots."""
+    user_id = current_user["user_id"]
+    async with db.session() as session:
+        await session.run(DELETE_PERSON_FULL, user_id=user_id)
+
+    return {"status": "discarded"}
 
 
 @router.post("/me/link-skill")

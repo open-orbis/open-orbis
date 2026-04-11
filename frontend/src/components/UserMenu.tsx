@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
-import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion } from '../api/orbs';
+import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion, discardOrbContent } from '../api/orbs';
 import type { SnapshotMetadata } from '../api/orbs';
 import { getDocuments, downloadCV } from '../api/cv';
 import type { DocumentMetadata } from '../api/cv';
@@ -303,6 +303,8 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
   // Delete account state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
 
   const fetchVersions = useCallback(async () => {
     setVersionsLoading(true);
@@ -369,6 +371,20 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
   };
 
   const [recovering, setRecovering] = useState(false);
+
+  const handleDiscardOrbis = async () => {
+    setDiscarding(true);
+    try {
+      await discardOrbContent();
+    } catch (e) {
+      console.error('Discard failed:', e);
+      addToast('Failed to discard orbis. Please try again.', 'error');
+      setDiscarding(false);
+      return;
+    }
+    // Success — full page reload to refetch clean state
+    window.location.replace('/myorbis?discarded=1');
+  };
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -656,7 +672,46 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                       {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
                     </div>
                   ) : (
-                    /* ── Normal state — show delete option ── */
+                    <>
+                    {/* ── Discard Orbis ── */}
+                    <div className="bg-orange-500/8 border border-orange-500/25 rounded-xl p-4">
+                      <h3 className="text-orange-300 text-sm font-semibold mb-2">Discard Orbis</h3>
+                      <p className="text-white/65 text-xs leading-relaxed mb-4">
+                        Remove all nodes and relationships from your orbis. Your account, profile, uploaded CVs, drafts, and snapshots will be preserved.
+                      </p>
+
+                      {!showDiscardConfirm ? (
+                        <button
+                          onClick={() => setShowDiscardConfirm(true)}
+                          className="bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-500/40 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70"
+                        >
+                          Discard my orbis
+                        </button>
+                      ) : (
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 mt-2">
+                          <p className="text-orange-300 text-xs font-medium mb-3">
+                            Are you sure? This will permanently delete all your orbis content. This action cannot be undone.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setShowDiscardConfirm(false)}
+                              className="border border-white/20 text-white/75 hover:bg-white/10 text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleDiscardOrbis}
+                              disabled={discarding}
+                              className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/70"
+                            >
+                              {discarding ? 'Discarding...' : 'Yes, discard everything'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ── Delete Account ── */}
                     <div className="bg-red-500/8 border border-red-500/25 rounded-xl p-4">
                       <h3 className="text-red-300 text-sm font-semibold mb-2">Delete Account</h3>
                       <p className="text-white/65 text-xs leading-relaxed mb-4">
@@ -694,6 +749,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                         </div>
                       )}
                     </div>
+                    </>
                   )}
                 </motion.div>
               )}

@@ -33,6 +33,10 @@ export async function hasOrbContent(): Promise<boolean> {
   }
 }
 
+export async function discardOrbContent(): Promise<void> {
+  await client.delete('/orbs/me/content');
+}
+
 export async function getPublicOrb(orbId: string, token?: string | null): Promise<OrbData> {
   // Token is required only for public orbs. Restricted orbs use the
   // axios interceptor's Bearer auth instead.
