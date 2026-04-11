@@ -418,7 +418,7 @@ function SharePanel({
               </div>
 
               <p className="text-xs text-gray-400 mt-2.5">
-                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the filtered view (filtered in yellow).'}
+                {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the filtered view.'}
               </p>
 
               <div className="mt-3">
