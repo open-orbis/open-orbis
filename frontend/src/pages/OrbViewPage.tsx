@@ -16,6 +16,7 @@ import {
   acceptConnectionRequest,
   rejectConnectionRequest,
   revokeAccessGrant,
+  revokeShareToken,
   updateAccessGrantFilters,
 } from '../api/orbs';
 import type { AccessGrant, ConnectionRequest, OrbVisibility } from '../api/orbs';
@@ -144,6 +145,8 @@ function SharePanel({
     if (!hasActiveFilters) setApplyFiltersOnInvite(false);
   }, [hasActiveFilters]);
 
+  const [tokenGeneration, setTokenGeneration] = useState(0);
+
   // Generate a share token for public and restricted modes (used for share links and MCP Orbis ID)
   useEffect(() => {
     let active = true;
@@ -171,7 +174,7 @@ function SharePanel({
     return () => {
       active = false;
     };
-  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic, isRestricted]);
+  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic, isRestricted, tokenGeneration]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
@@ -284,6 +287,22 @@ function SharePanel({
     if (isPrivate) return;
     void copyText(mcpUri, 'MCP Orbis ID');
   }, [copyText, isPrivate, mcpUri]);
+
+  const [revokingToken, setRevokingToken] = useState(false);
+  const handleRevokeAndRegenerate = useCallback(async () => {
+    if (!shareTokenId) return;
+    setRevokingToken(true);
+    try {
+      await revokeShareToken(shareTokenId);
+      addToast('Token revoked. Generating a new one...', 'info');
+      // Bump counter to trigger useEffect regeneration
+      setTokenGeneration((n) => n + 1);
+    } catch {
+      addToast('Failed to revoke token', 'error');
+    } finally {
+      setRevokingToken(false);
+    }
+  }, [shareTokenId, addToast]);
 
   const handleDownloadQr = useCallback(() => {
     if (!canDownloadQr || !qrCanvasRef.current) return;
@@ -624,13 +643,21 @@ function SharePanel({
                 <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
                 <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access.</p>
                 <div className="flex items-center gap-2">
-                  <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                  <input readOnly value={mcpUri} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
                   <button
                     type="button"
                     onClick={handleCopyMcp}
-                    className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                    className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
                   >
                     Copy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRevokeAndRegenerate}
+                    disabled={!shareTokenId || revokingToken}
+                    className="h-10 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium transition-colors shrink-0 whitespace-nowrap"
+                  >
+                    {revokingToken ? 'Revoking...' : 'Revoke'}
                   </button>
                 </div>
               </div>
@@ -846,13 +873,21 @@ function SharePanel({
                     <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
                     <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access according to your active privacy filters.</p>
                     <div className="flex items-center gap-2">
-                      <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                      <input readOnly value={mcpUri} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
                       <button
                         type="button"
                         onClick={handleCopyMcp}
-                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
                       >
                         Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRevokeAndRegenerate}
+                        disabled={!shareTokenId || revokingToken}
+                        className="h-10 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium transition-colors shrink-0 whitespace-nowrap"
+                      >
+                        {revokingToken ? 'Revoking...' : 'Revoke'}
                       </button>
                     </div>
                   </div>
