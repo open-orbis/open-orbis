@@ -7,7 +7,6 @@ import LandingPage from './pages/LandingPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import LinkedInCallbackPage from './pages/LinkedInCallbackPage';
 import CreateOrbPage from './pages/CreateOrbPage';
-import AboutPage from './pages/AboutPage';
 import OrbViewPage from './pages/OrbViewPage';
 import SharedOrbPage from './pages/SharedOrbPage';
 import CvExportPage from './pages/CvExportPage';
@@ -68,7 +67,6 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
       <Route path="/auth/linkedin/callback" element={<LinkedInCallbackPage />} />
-      <Route path="/about" element={<AboutPage />} />
       <Route path="/create" element={<ProtectedRoute><CreateOrbPage /></ProtectedRoute>} />
       <Route path="/myorbis" element={<ProtectedRoute><OrbViewPage /></ProtectedRoute>} />
       <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />

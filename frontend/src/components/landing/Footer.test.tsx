@@ -21,16 +21,15 @@ describe('Footer', () => {
     );
 
     expect(screen.getByText('OpenOrbis')).toBeInTheDocument();
-    expect(screen.getByText('About')).toBeInTheDocument();
     expect(screen.getByText('Privacy Policy')).toBeInTheDocument();
-    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(screen.getByText('Contact us')).toBeInTheDocument();
     expect(screen.getByText('GitHub')).toBeInTheDocument();
-    
+
     const currentYear = new Date().getFullYear();
     expect(screen.getByText(new RegExp(`© ${currentYear} Open Orbis`))).toBeInTheDocument();
 
-    const emailLink = screen.getByText('Email').closest('a');
-    expect(emailLink).toHaveAttribute('href', 'mailto:hello@open-orbis.com');
+    const emailLink = screen.getByText('Contact us').closest('a');
+    expect(emailLink).toHaveAttribute('href', 'mailto:team@open-orbis.com');
 
     const githubLink = screen.getByText('GitHub').closest('a');
     expect(githubLink).toHaveAttribute('href', 'https://github.com/Brotherhood94/orb_project');
