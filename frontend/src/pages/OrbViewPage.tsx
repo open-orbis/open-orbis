@@ -414,7 +414,7 @@ function SharePanel({
                 </div>
               </div>
 
-              <p className={`mt-2.5 ${isPublic && generatingToken ? 'text-xs text-gray-400' : 'text-base font-bold text-yellow-300'}`}>
+              <p className={`mt-2.5 ${isPublic && generatingToken ? 'text-xs text-gray-400' : 'text-sm font-semibold text-yellow-300'}`}>
                 {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the filtered view.'}
               </p>
 
