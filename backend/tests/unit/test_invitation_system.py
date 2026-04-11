@@ -77,13 +77,9 @@ def test_existing_user_login_works(client, mock_db, google_oauth_mock):
 def test_activate_with_valid_unused_code(client, mock_db):
     with (
         patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(return_value=None),
-        ),
-        patch(
             "app.auth.router.consume_access_code",
             AsyncMock(return_value=True),
-        ),
+        ) as consume_mock,
         patch(
             "app.auth.router.activate_person",
             AsyncMock(return_value=True),
@@ -93,47 +89,40 @@ def test_activate_with_valid_unused_code(client, mock_db):
 
     assert response.status_code == 200
     assert response.json()["status"] == "activated"
+    consume_mock.assert_awaited_once_with(mock_db, "fresh-code", "test-user")
     activate_mock.assert_awaited_once_with(mock_db, "test-user", "fresh-code")
 
 
-def test_activate_with_invalid_code(client, mock_db):
+def test_activate_rejects_invalid_or_used_code_with_unified_error(client, mock_db):
+    """Regression test for the invite code timing side-channel.
+
+    Both 'never existed' and 'already consumed' must return the same
+    HTTP status and detail so an attacker cannot distinguish the two
+    by the response body or by a second DB query lighting up.
+    """
     with patch(
-        "app.auth.router.validate_access_code",
-        AsyncMock(return_value="invalid_code"),
+        "app.auth.router.consume_access_code",
+        AsyncMock(return_value=False),
     ):
-        response = client.post("/auth/activate", json={"code": "bad-code"})
+        invalid = client.post("/auth/activate", json={"code": "does-not-exist"})
+        used = client.post("/auth/activate", json={"code": "already-used"})
+
+    assert invalid.status_code == used.status_code == 403
+    assert invalid.json() == used.json()
+    assert invalid.json()["detail"] == "invalid_access_code"
+
+
+def test_activate_rejects_empty_code(client, mock_db):
+    with patch(
+        "app.auth.router.consume_access_code",
+        AsyncMock(return_value=False),
+    ) as consume_mock:
+        response = client.post("/auth/activate", json={"code": ""})
 
     assert response.status_code == 403
     assert response.json()["detail"] == "invalid_access_code"
-
-
-def test_activate_with_already_used_code(client, mock_db):
-    with patch(
-        "app.auth.router.validate_access_code",
-        AsyncMock(return_value="code_already_used"),
-    ):
-        response = client.post("/auth/activate", json={"code": "used-code"})
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "code_already_used"
-
-
-def test_activate_race_condition(client, mock_db):
-    """Validate passes but consume fails (someone else grabbed it)."""
-    with (
-        patch(
-            "app.auth.router.validate_access_code",
-            AsyncMock(return_value=None),
-        ),
-        patch(
-            "app.auth.router.consume_access_code",
-            AsyncMock(return_value=False),
-        ),
-    ):
-        response = client.post("/auth/activate", json={"code": "raced-code"})
-
-    assert response.status_code == 403
-    assert response.json()["detail"] == "code_already_used"
+    # Short-circuit: must not even hit the DB for an empty code.
+    consume_mock.assert_not_awaited()
 
 
 # ─────────────────────────────────────────────────────────────────────────
