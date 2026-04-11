@@ -355,30 +355,10 @@ async def discard_orb_content(
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Delete all orb content (nodes, relationships) but keep the account."""
+    """Delete all orb nodes and relationships but keep account, CVs, drafts, and snapshots."""
     user_id = current_user["user_id"]
     async with db.session() as session:
         await session.run(DELETE_PERSON_FULL, user_id=user_id)
-
-    # Clear stored CVs, drafts, and snapshots
-    try:
-        from app.cv_storage.storage import delete_all_for_user as delete_cvs
-
-        delete_cvs(user_id)
-    except Exception:
-        logger.warning("Failed to clear stored CVs for %s", user_id)
-    try:
-        from app.drafts.db import delete_all_for_user as delete_drafts
-
-        delete_drafts(user_id)
-    except Exception:
-        logger.warning("Failed to clear drafts for %s", user_id)
-    try:
-        from app.snapshots.db import delete_all_for_user as delete_snapshots
-
-        delete_snapshots(user_id)
-    except Exception:
-        logger.warning("Failed to clear snapshots for %s", user_id)
 
     return {"status": "discarded"}
 

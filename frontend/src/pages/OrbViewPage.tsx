@@ -1372,7 +1372,8 @@ export default function OrbViewPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = (location.state as { allowEmpty?: boolean; startTour?: boolean } | null) ?? null;
-  const allowEmpty = locationState?.allowEmpty === true;
+  const searchParams = new URLSearchParams(location.search);
+  const allowEmpty = locationState?.allowEmpty === true || searchParams.has('discarded');
   const hasRedirectedRef = useRef(false);
   const consumedStartTourRef = useRef(false);
   useEffect(() => {
@@ -1942,14 +1943,14 @@ export default function OrbViewPage() {
 
       {/* ── Empty graph hint — point to the + Add button ── */}
       {data.nodes.length === 0 && !showInput && (
-        <div className="absolute inset-0 z-20 flex items-end justify-center pointer-events-none pb-28 sm:pb-32">
+        <div className="fixed bottom-28 sm:bottom-36 left-1/2 z-20 pointer-events-none" style={{ transform: 'translateX(calc(-50% + min(45vw, 16rem)))' }}>
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5, duration: 0.6 }}
             className="text-center"
           >
-            <p className="text-white/50 text-sm mb-3">
+            <p className="text-white/50 text-sm mb-3 whitespace-nowrap">
               Tap the <span className="text-purple-400 font-semibold">＋</span> button to start populating your Orbis
             </p>
             <motion.div

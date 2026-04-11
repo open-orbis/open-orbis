@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useToastStore } from '../stores/toastStore';
 import { deleteAccount } from '../api/auth';
-import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion } from '../api/orbs';
+import { claimOrbId, getVersions, createVersion, restoreVersion, deleteVersion, discardOrbContent } from '../api/orbs';
 import type { SnapshotMetadata } from '../api/orbs';
 import { getDocuments, downloadCV } from '../api/cv';
 import type { DocumentMetadata } from '../api/cv';
@@ -375,17 +375,15 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
   const handleDiscardOrbis = async () => {
     setDiscarding(true);
     try {
-      const { discardOrbContent } = await import('../api/orbs');
       await discardOrbContent();
-      addToast('Orbis content discarded. You can start fresh.', 'info');
-      setShowDiscardConfirm(false);
-      setOpen(false);
-      navigate('/create', { replace: true });
-    } catch {
+    } catch (e) {
+      console.error('Discard failed:', e);
       addToast('Failed to discard orbis. Please try again.', 'error');
-    } finally {
       setDiscarding(false);
+      return;
     }
+    // Success — full page reload to refetch clean state
+    window.location.replace('/myorbis?discarded=1');
   };
 
   const handleDeleteAccount = async () => {
@@ -679,7 +677,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                     <div className="bg-orange-500/8 border border-orange-500/25 rounded-xl p-4">
                       <h3 className="text-orange-300 text-sm font-semibold mb-2">Discard Orbis</h3>
                       <p className="text-white/65 text-xs leading-relaxed mb-4">
-                        Remove all nodes, relationships, uploaded CVs, drafts, and snapshots from your orbis. Your account and profile will be preserved.
+                        Remove all nodes and relationships from your orbis. Your account, profile, uploaded CVs, drafts, and snapshots will be preserved.
                       </p>
 
                       {!showDiscardConfirm ? (
