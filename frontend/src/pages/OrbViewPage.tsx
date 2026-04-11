@@ -50,11 +50,7 @@ function resolveImportStepLabel(step: string | null | undefined, detail: string 
   return 'Reading PDF';
 }
 
-const QR_SIZE_OPTIONS = [
-  { label: 'Small', value: 128 },
-  { label: 'Medium', value: 160 },
-  { label: 'Large', value: 220 },
-] as const;
+const SHARE_QR_SIZE = 160;
 
 // ── Modals ──
 
@@ -74,7 +70,6 @@ function SharePanel({
   const [shareTokenId, setShareTokenId] = useState<string | null>(null);
   const [generatingToken, setGeneratingToken] = useState(false);
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
-  const [qrSize, setQrSize] = useState<(typeof QR_SIZE_OPTIONS)[number]['value']>(160);
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [grantsLoading, setGrantsLoading] = useState(false);
   const [grantSearch, setGrantSearch] = useState('');
@@ -233,7 +228,7 @@ function SharePanel({
     try {
       const link = document.createElement('a');
       link.href = qrCanvasRef.current.toDataURL('image/png');
-      link.download = `orbis-${orbId}-${isRestricted ? 'restricted' : 'public'}-${qrSize}px-qr.png`;
+      link.download = `orbis-${orbId}-${isRestricted ? 'restricted' : 'public'}-qr.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -241,7 +236,7 @@ function SharePanel({
     } catch {
       addToast('Failed to download QR code', 'error');
     }
-  }, [addToast, canDownloadQr, isRestricted, orbId, qrSize]);
+  }, [addToast, canDownloadQr, isRestricted, orbId]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -442,30 +437,11 @@ function SharePanel({
             </div>
 
             <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-                <div className="flex items-center gap-1.5">
-                  {QR_SIZE_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => setQrSize(option.value)}
-                      className={`h-8 px-3 rounded-lg text-[11px] border transition-colors ${
-                        qrSize === option.value
-                          ? 'border-purple-400/70 bg-purple-500/15 text-white'
-                          : 'border-gray-700 bg-gray-900 text-gray-300 hover:bg-gray-800'
-                      }`}
-                      aria-pressed={qrSize === option.value}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
               <p className="text-[11px] text-gray-500 mb-3">Use this code on printed material for instant access.</p>
               <div className="flex justify-center">
                 <div className="bg-white p-3 rounded-xl">
-                  <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={qrSize} level="M" marginSize={2} />
+                  <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={2} />
                 </div>
               </div>
               <p className="text-[11px] text-gray-500 mt-3">Scans to your current share link.</p>
