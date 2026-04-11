@@ -1443,6 +1443,7 @@ export default function OrbViewPage() {
         onDiscover={() => setShowDiscoverUses(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
+        visibility={((data?.person?.visibility as OrbVisibility) || 'public')}
       />}
 
       {/* ── Draft Notes ── */}

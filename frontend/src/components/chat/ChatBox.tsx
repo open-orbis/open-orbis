@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { textSearch } from '../../api/orbs';
-import type { OrbNode } from '../../api/orbs';
+import type { OrbNode, OrbVisibility } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
 
 interface ChatMessage {
@@ -25,6 +25,7 @@ interface ChatBoxProps {
   searchFn?: (query: string) => Promise<OrbNode[]>;
   interactionHint?: string;
   onRecenter?: () => void;
+  visibility?: OrbVisibility;
 }
 
 export type { ChatMessage };
@@ -92,6 +93,7 @@ export default function ChatBox({
   searchFn = textSearch,
   interactionHint = 'Zoom: mouse wheel · Pan: right-drag · Rotate: left-drag',
   onRecenter,
+  visibility = 'public',
 }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,6 +122,11 @@ export default function ChatBox({
     () => [...messages].reverse().find((msg) => msg.role === 'user')?.text ?? '',
     [messages],
   );
+  const shareButtonClass = visibility === 'private'
+    ? 'bg-red-600/80 hover:bg-red-500 border-red-500/35 hover:border-red-400/55 shadow-red-600/25'
+    : visibility === 'restricted'
+      ? 'bg-orange-600/80 hover:bg-orange-500 border-orange-500/35 hover:border-orange-400/55 shadow-orange-600/25'
+      : 'bg-emerald-600/80 hover:bg-emerald-500 border-emerald-500/35 hover:border-emerald-400/55 shadow-emerald-600/25';
 
   const clearResults = useCallback(() => {
     onMessagesChange([]);
@@ -471,7 +478,7 @@ export default function ChatBox({
             {onShare && (
               <button
                 onClick={onShare}
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-green-600/80 hover:bg-green-500 border border-green-500/30 hover:border-green-400/50 text-white/90 hover:text-white transition-all shadow-lg shadow-green-600/20"
+                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border text-white/90 hover:text-white transition-all shadow-lg ${shareButtonClass}`}
                 title="Share"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
