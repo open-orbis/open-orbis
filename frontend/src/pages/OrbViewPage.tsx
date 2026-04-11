@@ -114,7 +114,7 @@ function SharePanel({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const addToast = useToastStore((s) => s.addToast);
-  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
+  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
   const [inlineFilterKeyword, setInlineFilterKeyword] = useState('');
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || hiddenTypesArray.length > 0;
@@ -378,16 +378,26 @@ function SharePanel({
     }
   };
 
-  const handleRevokeGrant = async (grant: AccessGrant) => {
-    const confirmed = window.confirm(`Revoke access for ${grant.email}?`);
-    if (!confirmed) return;
+  const [revokeTarget, setRevokeTarget] = useState<AccessGrant | null>(null);
+  const [revoking, setRevoking] = useState(false);
+
+  const handleRevokeGrant = (grant: AccessGrant) => {
+    setRevokeTarget(grant);
+  };
+
+  const confirmRevoke = async () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
     try {
-      await revokeAccessGrant(grant.grant_id);
-      setGrants((prev) => prev.filter((g) => g.grant_id !== grant.grant_id));
-      addToast(`Access revoked for ${grant.email}`, 'info');
+      await revokeAccessGrant(revokeTarget.grant_id);
+      setGrants((prev) => prev.filter((g) => g.grant_id !== revokeTarget.grant_id));
+      addToast(`Access revoked for ${revokeTarget.email}`, 'info');
     } catch {
       setGrantError('Failed to revoke access');
       addToast('Failed to revoke access', 'error');
+    } finally {
+      setRevoking(false);
+      setRevokeTarget(null);
     }
   };
 
@@ -433,13 +443,21 @@ function SharePanel({
     }
   };
 
-  const handleVisibilityClick = async (next: OrbVisibility) => {
+  const [pendingVisibility, setPendingVisibility] = useState<OrbVisibility | null>(null);
+
+  const handleVisibilityClick = (next: OrbVisibility) => {
     if (next === visibility || updatingVisibility) return;
+    setPendingVisibility(next);
+  };
+
+  const confirmVisibilityChange = async () => {
+    if (!pendingVisibility) return;
     setUpdatingVisibility(true);
     try {
-      await onVisibilityChange(next);
+      await onVisibilityChange(pendingVisibility);
     } finally {
       setUpdatingVisibility(false);
+      setPendingVisibility(null);
     }
   };
 
@@ -448,8 +466,8 @@ function SharePanel({
     label: string;
     description: string;
   }[] = [
-    { value: 'public', label: 'Public', description: 'Anyone with the link can view' },
     { value: 'restricted', label: 'Restricted', description: 'Share via invite links' },
+    { value: 'public', label: 'Public', description: 'Anyone with the link can view' },
   ];
 
   return (
@@ -530,20 +548,23 @@ function SharePanel({
               <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
                 <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
                 <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share links and excluded from exports.</p>
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-2">
                   <input
                     value={inlineFilterKeyword}
                     onChange={(e) => setInlineFilterKeyword(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
                     placeholder="e.g. confidential, private..."
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                    className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
                   />
                   <button
                     type="button"
                     onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
-                    className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors"
+                    className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
                   >
                     Add
+                  </button>
+                  <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
+                    Deactivate All
                   </button>
                 </div>
                 {keywords.length === 0 ? (
@@ -751,20 +772,23 @@ function SharePanel({
                   <div>
                     <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
                     <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to new invites and excluded from shares.</p>
-                    <div className="flex items-center gap-2 mb-3">
+                    <div className="flex items-center gap-2 mb-2">
                       <input
                         value={inlineFilterKeyword}
                         onChange={(e) => setInlineFilterKeyword(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
                         placeholder="e.g. confidential, private..."
-                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
                       />
                       <button
                         type="button"
                         onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
-                        className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors"
+                        className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
                       >
                         Add
+                      </button>
+                      <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
+                        Deactivate All
                       </button>
                     </div>
                     {keywords.length === 0 ? (
@@ -1015,6 +1039,141 @@ function SharePanel({
           </div>
 
       </motion.div>
+
+      {/* Visibility change confirmation modal */}
+      <AnimatePresence>
+        {pendingVisibility && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 z-[60] rounded-2xl"
+              onClick={() => setPendingVisibility(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="absolute inset-0 z-[61] flex items-center justify-center p-6"
+            >
+              <div className={`bg-gray-900 border rounded-xl p-5 max-w-sm w-full shadow-2xl ${
+                pendingVisibility === 'restricted'
+                  ? 'border-emerald-500/30'
+                  : 'border-orange-500/30'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    pendingVisibility === 'restricted'
+                      ? 'bg-emerald-500/15 border border-emerald-500/30'
+                      : 'bg-orange-500/15 border border-orange-500/30'
+                  }`}>
+                    {pendingVisibility === 'restricted' ? (
+                      <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-white text-sm font-semibold">Switch to {pendingVisibility === 'restricted' ? 'Restricted' : 'Public'}</h3>
+                    <p className={`text-[11px] mt-0.5 ${
+                      pendingVisibility === 'restricted' ? 'text-emerald-400/70' : 'text-orange-400/70'
+                    }`}>
+                      {visibility === 'public' ? 'Public' : 'Restricted'} → {pendingVisibility === 'restricted' ? 'Restricted' : 'Public'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`rounded-lg px-3 py-2.5 mb-4 text-xs leading-relaxed ${
+                  pendingVisibility === 'restricted'
+                    ? 'bg-emerald-500/8 border border-emerald-500/15 text-emerald-100/80'
+                    : 'bg-orange-500/8 border border-orange-500/15 text-orange-100/80'
+                }`}>
+                  {pendingVisibility === 'restricted' ? (
+                    <>Only people you explicitly invite will be able to view your orbis. Existing public share links will stop working.</>
+                  ) : (
+                    <>Anyone with a valid share link will be able to view your orbis. You can still control what they see using privacy filters.</>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPendingVisibility(null)}
+                    className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmVisibilityChange}
+                    disabled={updatingVisibility}
+                    className={`h-9 px-4 rounded-lg text-white text-xs font-medium transition-colors disabled:opacity-50 ${
+                      pendingVisibility === 'restricted'
+                        ? 'bg-emerald-600 hover:bg-emerald-500'
+                        : 'bg-orange-600 hover:bg-orange-500'
+                    }`}
+                  >
+                    {updatingVisibility ? 'Switching...' : 'Confirm'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Revoke access confirmation modal */}
+      <AnimatePresence>
+        {revokeTarget && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 z-[60] rounded-2xl"
+              onClick={() => setRevokeTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="absolute inset-0 z-[61] flex items-center justify-center p-6"
+            >
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm w-full shadow-2xl">
+                <h3 className="text-white text-sm font-semibold mb-2">Revoke Access</h3>
+                <p className="text-gray-400 text-xs mb-1">
+                  Remove access for <span className="font-semibold text-white">{revokeTarget.email}</span>?
+                </p>
+                <p className="text-gray-500 text-[11px] mb-4">They will no longer be able to view your orbis.</p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRevokeTarget(null)}
+                    className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmRevoke}
+                    disabled={revoking}
+                    className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                  >
+                    {revoking ? 'Revoking...' : 'Revoke'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

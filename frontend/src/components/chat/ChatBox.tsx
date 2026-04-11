@@ -122,7 +122,9 @@ export default function ChatBox({
     () => [...messages].reverse().find((msg) => msg.role === 'user')?.text ?? '',
     [messages],
   );
-  const shareButtonClass = 'bg-orange-600/80 hover:bg-orange-500 border-orange-500/35 hover:border-orange-400/55 shadow-orange-600/25';
+  const shareButtonClass = visibility === 'restricted'
+    ? 'bg-emerald-600/80 hover:bg-emerald-500 border-emerald-500/35 hover:border-emerald-400/55 shadow-emerald-600/25'
+    : 'bg-orange-600/80 hover:bg-orange-500 border-orange-500/35 hover:border-orange-400/55 shadow-orange-600/25';
 
   const clearResults = useCallback(() => {
     onMessagesChange([]);
