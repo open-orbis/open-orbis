@@ -289,7 +289,9 @@ async def public_text_search(  # noqa: C901
     # 2. Branch on visibility
     token_data: dict | None = None
     if visibility == "restricted":
-        token_data = await assert_user_can_access_restricted(db, data.orb_id, current_user)
+        token_data = await assert_user_can_access_restricted(
+            db, data.orb_id, current_user
+        )
         if token_data is None:
             token_data = {"keywords": [], "hidden_node_types": []}
     else:

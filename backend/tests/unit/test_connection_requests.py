@@ -35,7 +35,8 @@ async def test_create_connection_request_success():
     from app.orbs.connection_requests import create_connection_request
 
     result = await create_connection_request(
-        db=db, orb_id="test-orb",
+        db=db,
+        orb_id="test-orb",
         user={"user_id": "user-2", "email": "bob@example.com", "name": "Bob"},
     )
     assert result is not None
@@ -50,7 +51,8 @@ async def test_create_connection_request_duplicate_returns_none():
     from app.orbs.connection_requests import create_connection_request
 
     result = await create_connection_request(
-        db=db, orb_id="test-orb",
+        db=db,
+        orb_id="test-orb",
         user={"user_id": "user-2", "email": "bob@example.com", "name": "Bob"},
     )
     assert result is None
@@ -58,7 +60,12 @@ async def test_create_connection_request_duplicate_returns_none():
 
 @pytest.mark.asyncio
 async def test_get_my_connection_request():
-    cr_node = {"request_id": "req-1", "status": "pending", "created_at": "2026-04-11T00:00:00Z", "resolved_at": None}
+    cr_node = {
+        "request_id": "req-1",
+        "status": "pending",
+        "created_at": "2026-04-11T00:00:00Z",
+        "resolved_at": None,
+    }
     db, _ = _mock_db(single={"cr": cr_node})
 
     from app.orbs.connection_requests import get_my_connection_request
@@ -163,7 +170,11 @@ async def test_accept_request_success():
         if call_count == 1:
             mock_result.single.return_value = {"cr": cr_node}
         else:
-            mock_result.single.return_value = {"g": grant_node, "orb_id": "test-orb", "owner_name": "Owner"}
+            mock_result.single.return_value = {
+                "g": grant_node,
+                "orb_id": "test-orb",
+                "owner_name": "Owner",
+            }
         return mock_result
 
     mock_session.run.side_effect = _run_side_effect
@@ -174,8 +185,11 @@ async def test_accept_request_success():
     from app.orbs.connection_requests import accept_request
 
     result = await accept_request(
-        db=mock_db, user_id="user-1", request_id="req-1",
-        keywords=["python"], hidden_node_types=["Skill"],
+        db=mock_db,
+        user_id="user-1",
+        request_id="req-1",
+        keywords=["python"],
+        hidden_node_types=["Skill"],
     )
     assert result is not None
 

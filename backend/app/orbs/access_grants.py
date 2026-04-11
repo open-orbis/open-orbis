@@ -46,7 +46,11 @@ def _normalize_keywords(keywords: list[str] | None) -> list[str]:
 
 
 def _normalize_hidden_types(hidden_node_types: list[str] | None) -> list[str]:
-    normalized = [node_type.strip() for node_type in (hidden_node_types or []) if node_type.strip()]
+    normalized = [
+        node_type.strip()
+        for node_type in (hidden_node_types or [])
+        if node_type.strip()
+    ]
     return list(dict.fromkeys(normalized))
 
 
