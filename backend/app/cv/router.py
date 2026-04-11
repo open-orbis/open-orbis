@@ -22,6 +22,7 @@ from app.cv_storage.storage import (
 )
 from app.dependencies import get_current_user, get_db
 from app.graph.encryption import encrypt_properties, encrypt_value
+from app.graph.llm_usage import record_llm_usage
 from app.graph.provenance import create_processing_record, ensure_ontology_version
 from app.graph.queries import (
     ADD_NODE,
@@ -347,6 +348,19 @@ async def import_confirm(
     except Exception as e:
         logger.warning("Failed to create provenance record: %s", e)
 
+    if data.llm_provider:
+        await record_llm_usage(
+            db=db,
+            user_id=user_id,
+            endpoint="cv_upload",
+            llm_provider=data.llm_provider,
+            llm_model=data.llm_model or "",
+            cost_usd=data.cost_usd,
+            duration_ms=data.duration_ms,
+            input_tokens=data.input_tokens,
+            output_tokens=data.output_tokens,
+        )
+
     if data.document_id:
         from datetime import datetime, timezone
 
@@ -569,6 +583,19 @@ async def confirm_cv(
                 )
     except Exception as e:
         logger.warning("Failed to create provenance record: %s", e)
+
+    if data.llm_provider:
+        await record_llm_usage(
+            db=db,
+            user_id=user_id,
+            endpoint="cv_upload",
+            llm_provider=data.llm_provider,
+            llm_model=data.llm_model or "",
+            cost_usd=data.cost_usd,
+            duration_ms=data.duration_ms,
+            input_tokens=data.input_tokens,
+            output_tokens=data.output_tokens,
+        )
 
     if data.document_id:
         from datetime import datetime, timezone

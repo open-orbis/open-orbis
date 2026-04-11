@@ -78,3 +78,8 @@ class ConfirmRequest(BaseModel):
     extraction_method: str | None = None
     prompt_hash: str | None = None
     prompt_content: str | None = None
+    # LLM usage metrics
+    cost_usd: float | None = None
+    duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
