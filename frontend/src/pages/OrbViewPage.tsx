@@ -413,40 +413,33 @@ function SharePanel({
                 {isPublic && generatingToken ? 'Generating secure link...' : 'Recipients will open exactly the view shown by your current sharing settings.'}
               </p>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="text-[10px] px-2.5 py-1 rounded-full border border-gray-600/70 bg-gray-900/55 text-gray-200">
-                  Active filters: {hasActiveFilters && isPublic ? `${activeKeywords.length + hiddenTypesArray.length}` : '0'}
-                </span>
-                {isPublic && activeKeywords.length > 0 && (
-                  <span className="text-[10px] px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/8 text-amber-200">
-                    Keywords: {activeKeywords.length}
-                  </span>
-                )}
-                {isPublic && hiddenTypesArray.length > 0 && (
-                  <span className="text-[10px] px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/8 text-amber-200">
-                    Hidden types: {hiddenTypesArray.length}
-                  </span>
-                )}
+              <div className="mt-3">
+                <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Active Filters</p>
+                  <p className="text-xs text-gray-200 mt-1">
+                    {hasActiveFilters && isPublic ? `${activeKeywords.length + hiddenTypesArray.length}` : '0'}
+                  </p>
+                </div>
               </div>
 
               {hasActiveFilters && isPublic && (
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {activeKeywords.length > 0 && (
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
-                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1.5">Filtered keywords</p>
+                <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-2">
+                  {hiddenTypesArray.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1">Hidden node types</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {activeKeywords.map((keyword) => (
-                          <span key={keyword} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">"{keyword}"</span>
+                        {hiddenTypesArray.map((type) => (
+                          <span key={type} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{type}</span>
                         ))}
                       </div>
                     </div>
                   )}
-                  {hiddenTypesArray.length > 0 && (
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5">
-                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1.5">Hidden node types</p>
+                  {activeKeywords.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1">Filtered keywords</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {hiddenTypesArray.map((type) => (
-                          <span key={type} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{type}</span>
+                        {activeKeywords.map((keyword) => (
+                          <span key={keyword} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">"{keyword}"</span>
                         ))}
                       </div>
                     </div>
