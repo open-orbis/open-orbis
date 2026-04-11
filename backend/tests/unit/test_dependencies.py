@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from jose import jwt
 
 from app.config import settings
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_current_user, get_current_user_optional, get_db
 
 
 async def test_get_db():
@@ -63,3 +63,44 @@ async def test_get_current_user_expired_token():
     with pytest.raises(HTTPException) as exc:
         await get_current_user(credentials)
     assert exc.value.status_code == 401
+
+
+# ── get_current_user_optional ──
+
+
+def _request_with_headers(headers: dict) -> MagicMock:
+    request = MagicMock()
+    request.headers = headers
+    return request
+
+
+async def test_get_current_user_optional_no_header_returns_none():
+    request = _request_with_headers({})
+    assert await get_current_user_optional(request) is None
+
+
+async def test_get_current_user_optional_non_bearer_returns_none():
+    request = _request_with_headers({"authorization": "Basic abc"})
+    assert await get_current_user_optional(request) is None
+
+
+async def test_get_current_user_optional_invalid_token_returns_none():
+    request = _request_with_headers({"authorization": "Bearer not-a-jwt"})
+    assert await get_current_user_optional(request) is None
+
+
+async def test_get_current_user_optional_valid_token_returns_user():
+    payload = {"sub": "user-123", "email": "test@example.com"}
+    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    request = _request_with_headers({"authorization": f"Bearer {token}"})
+    user = await get_current_user_optional(request)
+    assert user is not None
+    assert user["user_id"] == "user-123"
+    assert user["email"] == "test@example.com"
+
+
+async def test_get_current_user_optional_no_sub_returns_none():
+    payload = {"email": "test@example.com"}
+    token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+    request = _request_with_headers({"authorization": f"Bearer {token}"})
+    assert await get_current_user_optional(request) is None

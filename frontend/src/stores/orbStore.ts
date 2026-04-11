@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as orbsApi from '../api/orbs';
-import type { OrbData, OrbNode } from '../api/orbs';
+import type { OrbData, OrbNode, OrbVisibility } from '../api/orbs';
 import { useToastStore } from './toastStore';
 import { useUndoStore } from './undoStore';
 
@@ -9,10 +9,11 @@ interface OrbState {
   loading: boolean;
   error: string | null;
   fetchOrb: () => Promise<void>;
-  fetchPublicOrb: (orbId: string, token: string) => Promise<void>;
+  fetchPublicOrb: (orbId: string, token?: string | null) => Promise<void>;
   addNode: (nodeType: string, properties: Record<string, unknown>) => Promise<OrbNode>;
   updateNode: (uid: string, properties: Record<string, unknown>) => Promise<void>;
   deleteNode: (uid: string, nodeType?: string, properties?: Record<string, unknown>, relationships?: Array<{ source: string; target: string; type: string }>) => Promise<void>;
+  updateVisibility: (visibility: OrbVisibility) => Promise<void>;
 }
 
 export const useOrbStore = create<OrbState>((set, get) => ({
@@ -30,13 +31,20 @@ export const useOrbStore = create<OrbState>((set, get) => ({
     }
   },
 
-  fetchPublicOrb: async (orbId: string, token: string) => {
+  fetchPublicOrb: async (orbId: string, token?: string | null) => {
     set({ loading: true, error: null });
     try {
       const data = await orbsApi.getPublicOrb(orbId, token);
       set({ data, loading: false });
     } catch (e) {
-      set({ error: (e as Error).message, loading: false });
+      // Prefer FastAPI's detail message so UI can distinguish private vs invalid token
+      const err = e as { response?: { status?: number; data?: { detail?: string } }; message?: string };
+      const detail = err?.response?.data?.detail;
+      const status = err?.response?.status;
+      const message = detail
+        ? `${status ?? ''} ${detail}`.trim()
+        : err?.message ?? 'Failed to load orb';
+      set({ error: message, loading: false });
     }
   },
 
@@ -85,6 +93,17 @@ export const useOrbStore = create<OrbState>((set, get) => ({
       }
     } catch (e) {
       useToastStore.getState().addToast('Failed to delete entry', 'error');
+      throw e;
+    }
+  },
+
+  updateVisibility: async (visibility: OrbVisibility) => {
+    try {
+      await orbsApi.updateVisibility(visibility);
+      await get().fetchOrb();
+      useToastStore.getState().addToast('Visibility updated', 'success');
+    } catch (e) {
+      useToastStore.getState().addToast('Failed to update visibility', 'error');
       throw e;
     }
   },

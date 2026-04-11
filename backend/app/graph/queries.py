@@ -19,6 +19,7 @@ CREATE (p:Person {
     website_url: '',
     orcid_url: '',
     open_to_work: false,
+    visibility: 'private',
     created_at: datetime(),
     updated_at: datetime()
 })
@@ -28,6 +29,47 @@ RETURN p
 GET_PERSON_BY_USER_ID = """
 MATCH (p:Person {user_id: $user_id})
 RETURN p
+"""
+
+GET_PERSON_VISIBILITY = """
+MATCH (p:Person {orb_id: $orb_id})
+RETURN coalesce(p.visibility, 'private') AS visibility
+"""
+
+# ── Access grants (restricted-mode allowlist) ──
+
+CREATE_ACCESS_GRANT = """
+MATCH (p:Person {user_id: $user_id})
+WHERE p.orb_id IS NOT NULL AND p.orb_id <> ''
+CREATE (p)-[:GRANTED_ACCESS]->(g:AccessGrant {
+    grant_id:   $grant_id,
+    orb_id:     p.orb_id,
+    email:      $email,
+    created_at: datetime(),
+    revoked:    false,
+    revoked_at: null
+})
+RETURN g, p.orb_id AS orb_id, p.name AS owner_name
+"""
+
+LIST_ACCESS_GRANTS = """
+MATCH (p:Person {user_id: $user_id})-[:GRANTED_ACCESS]->(g:AccessGrant)
+WHERE g.revoked = false
+RETURN g
+ORDER BY g.created_at DESC
+"""
+
+REVOKE_ACCESS_GRANT = """
+MATCH (p:Person {user_id: $user_id})-[:GRANTED_ACCESS]->(g:AccessGrant {grant_id: $grant_id})
+SET g.revoked = true, g.revoked_at = datetime()
+RETURN g
+"""
+
+CHECK_ACCESS_GRANT = """
+MATCH (p:Person {orb_id: $orb_id})-[:GRANTED_ACCESS]->(g:AccessGrant {email: $email})
+WHERE g.revoked = false
+RETURN g
+LIMIT 1
 """
 
 GET_PERSON_BY_ORB_ID = """
@@ -58,7 +100,7 @@ RETURN p
 GET_FULL_ORB = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken AND NOT n:AccessGrant
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
@@ -71,7 +113,7 @@ RETURN p, connections, cross_links, cross_skill_nodes
 GET_FULL_ORB_PUBLIC = """
 MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken AND NOT n:AccessGrant
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -63,9 +63,11 @@ def test_text_search_success(client, mock_db):
     assert data[0]["name"] == "Python"
 
 
+@patch("app.search.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.search.router.validate_share_token")
-def test_public_text_search_success(mock_validate, client, mock_db):
+def test_public_text_search_success(mock_validate, mock_visibility, client, mock_db):
     mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+    mock_visibility.return_value = "public"
 
     node_data = {"uid": "node-1", "name": "Python"}
     node_mock = MockNode(node_data, ["Skill"])
@@ -83,9 +85,27 @@ def test_public_text_search_success(mock_validate, client, mock_db):
     assert len(response.json()) == 1
 
 
+@patch("app.search.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.search.router.validate_share_token")
-def test_public_text_search_fuzzy_trigger(mock_validate, client, mock_db):
+def test_public_text_search_private_returns_403(
+    mock_validate, mock_visibility, client, mock_db
+):
+    """Public text search rejects private orbs."""
     mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+    mock_visibility.return_value = "private"
+
+    payload = {"query": "Python", "orb_id": "test-orb", "token": "valid-token"}
+    response = client.post("/search/text/public", json=payload)
+    assert response.status_code == 403
+
+
+@patch("app.search.router.get_orb_visibility", new_callable=AsyncMock)
+@patch("app.search.router.validate_share_token")
+def test_public_text_search_fuzzy_trigger(
+    mock_validate, mock_visibility, client, mock_db
+):
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+    mock_visibility.return_value = "public"
 
     node_data = {"uid": "node-fuzzy", "name": "Javascript"}
     node_mock = MockNode(node_data, ["Skill"])
@@ -138,9 +158,13 @@ def test_text_search_short_query(client, mock_db):
     assert response.status_code == 200
 
 
+@patch("app.search.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.search.router.validate_share_token")
-def test_public_text_search_short_query(mock_validate, client, mock_db):
+def test_public_text_search_short_query(
+    mock_validate, mock_visibility, client, mock_db
+):
     mock_validate.return_value = {"orb_id": "test", "keywords": []}
+    mock_visibility.return_value = "public"
 
     async def mock_async_iter_empty(*args, **kwargs):
         if False:
@@ -158,9 +182,13 @@ def test_public_text_search_short_query(mock_validate, client, mock_db):
     assert response.status_code == 200
 
 
+@patch("app.search.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.search.router.validate_share_token")
-def test_public_text_search_query_error(mock_validate, client, mock_db):
+def test_public_text_search_query_error(
+    mock_validate, mock_visibility, client, mock_db
+):
     mock_validate.return_value = {"orb_id": "test", "keywords": []}
+    mock_visibility.return_value = "public"
     mock_db.session.return_value.__aenter__.return_value.run.side_effect = Exception(
         "DB Error"
     )
@@ -233,9 +261,13 @@ def test_text_search_fuzzy_trigger(client, mock_db):
     assert len(response.json()) >= 1
 
 
+@patch("app.search.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.search.router.validate_share_token")
-def test_public_text_search_with_keyword_filters(mock_validate, client, mock_db):
+def test_public_text_search_with_keyword_filters(
+    mock_validate, mock_visibility, client, mock_db
+):
     mock_validate.return_value = {"orb_id": "test-orb", "keywords": ["private"]}
+    mock_visibility.return_value = "public"
 
     node_data = {
         "uid": "node-1",

@@ -7,13 +7,34 @@ from neo4j import AsyncDriver
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import (
     GET_FULL_ORB_PUBLIC,
+    GET_PERSON_VISIBILITY,
     NODE_TYPE_LABELS,
     NODE_TYPE_RELATIONSHIPS,
 )
 
 
+async def _check_visibility(driver: AsyncDriver, orb_id: str) -> dict | None:
+    """Return an error dict if the orb is not publicly accessible, else ``None``.
+
+    The MCP server is anonymous (no user context), so it can only serve
+    ``public`` orbs. ``private`` and ``restricted`` orbs are rejected
+    with a generic message that doesn't leak which mode is in use.
+    """
+    async with driver.session() as session:
+        result = await session.run(GET_PERSON_VISIBILITY, orb_id=orb_id)
+        record = await result.single()
+    if record is None:
+        return {"error": f"Orb '{orb_id}' not found"}
+    if record["visibility"] != "public":
+        return {"error": f"Orb '{orb_id}' is not publicly accessible"}
+    return None
+
+
 async def get_orb_summary(driver: AsyncDriver, orb_id: str) -> dict:
     """Get a structured summary of a person's professional profile."""
+    blocked = await _check_visibility(driver, orb_id)
+    if blocked is not None:
+        return blocked
     async with driver.session() as session:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
         record = await result.single()
@@ -47,6 +68,9 @@ async def get_orb_summary(driver: AsyncDriver, orb_id: str) -> dict:
 
 async def get_orb_full(driver: AsyncDriver, orb_id: str) -> dict:
     """Get the complete graph data for an orb."""
+    blocked = await _check_visibility(driver, orb_id)
+    if blocked is not None:
+        return blocked
     async with driver.session() as session:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
         record = await result.single()
@@ -81,6 +105,10 @@ async def get_nodes_by_type(
             }
         ]
 
+    blocked = await _check_visibility(driver, orb_id)
+    if blocked is not None:
+        return [blocked]
+
     label = NODE_TYPE_LABELS[node_type]
     rel_type = NODE_TYPE_RELATIONSHIPS[node_type]
 
@@ -101,6 +129,9 @@ async def get_nodes_by_type(
 
 async def get_connections(driver: AsyncDriver, orb_id: str, node_uid: str) -> dict:
     """Get all relationships for a specific node."""
+    blocked = await _check_visibility(driver, orb_id)
+    if blocked is not None:
+        return blocked
     query = """
     MATCH (n {uid: $node_uid})-[r]-(connected)
     MATCH (p:Person {orb_id: $orb_id})-[*1..2]-(n)
@@ -127,6 +158,9 @@ async def get_skills_for_experience(
     driver: AsyncDriver, orb_id: str, experience_uid: str
 ) -> list[dict]:
     """Get skills associated with a specific work experience or project."""
+    blocked = await _check_visibility(driver, orb_id)
+    if blocked is not None:
+        return [blocked]
     query = """
     MATCH (p:Person {orb_id: $orb_id})-[]->(exp {uid: $experience_uid})
     MATCH (exp)-[:USED_SKILL]->(s:Skill)

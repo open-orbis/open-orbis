@@ -29,10 +29,12 @@ def _make_orb_record(orb_id="test-orb"):
     }
 
 
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.orbs.router.validate_share_token")
-def test_public_orb_rate_limit(mock_validate, client, mock_db):
+def test_public_orb_rate_limit(mock_validate, mock_visibility, client, mock_db):
     """GET /orbs/{orb_id} returns 429 after exceeding 30 requests/minute."""
     mock_validate.return_value = {"orb_id": "rate-limit-orb", "keywords": []}
+    mock_visibility.return_value = "public"
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=_make_orb_record("rate-limit-orb"))
     )
@@ -46,10 +48,14 @@ def test_public_orb_rate_limit(mock_validate, client, mock_db):
     assert "Rate limit exceeded" in resp.json()["detail"]
 
 
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.orbs.router.validate_share_token")
-def test_public_orb_access_logging(mock_validate, client, mock_db, caplog):
+def test_public_orb_access_logging(
+    mock_validate, mock_visibility, client, mock_db, caplog
+):
     """GET /orbs/{orb_id} logs access with IP and orb_id."""
     mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+    mock_visibility.return_value = "public"
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=_make_orb_record("test-orb"))
     )
@@ -64,11 +70,15 @@ def test_public_orb_access_logging(mock_validate, client, mock_db, caplog):
     )
 
 
+@patch("app.export.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
-def test_export_orb_rate_limit(mock_decrypt, mock_validate, client, mock_db):
+def test_export_orb_rate_limit(
+    mock_decrypt, mock_validate, mock_visibility, client, mock_db
+):
     """GET /export/{orb_id} returns 429 after exceeding 30 requests/minute."""
     mock_validate.return_value = {"orb_id": "export-orb", "keywords": []}
+    mock_visibility.return_value = "public"
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=_make_orb_record("export-orb"))
     )
@@ -82,13 +92,15 @@ def test_export_orb_rate_limit(mock_decrypt, mock_validate, client, mock_db):
     assert "Rate limit exceeded" in resp.json()["detail"]
 
 
+@patch("app.export.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.export.router.validate_share_token")
 @patch("app.export.router.decrypt_properties", side_effect=lambda x: x)
 def test_export_orb_access_logging(
-    mock_decrypt, mock_validate, client, mock_db, caplog
+    mock_decrypt, mock_validate, mock_visibility, client, mock_db, caplog
 ):
     """GET /export/{orb_id} logs access with IP and orb_id."""
     mock_validate.return_value = {"orb_id": "export-log-orb", "keywords": []}
+    mock_visibility.return_value = "public"
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=_make_orb_record("export-log-orb"))
     )

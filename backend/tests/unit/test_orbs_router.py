@@ -159,9 +159,11 @@ def test_delete_node_success(client, mock_db):
     assert response.json()["status"] == "deleted"
 
 
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.orbs.router.validate_share_token")
-def test_get_public_orb_success(mock_validate, client, mock_db):
+def test_get_public_orb_success(mock_validate, mock_visibility, client, mock_db):
     mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+    mock_visibility.return_value = "public"
 
     person_node = MockNode({"orb_id": "test-orb", "name": "Test User"}, ["Person"])
     node1 = MockNode({"uid": "node-1", "name": "Python"}, ["Skill"])
@@ -182,9 +184,11 @@ def test_get_public_orb_success(mock_validate, client, mock_db):
     assert response.json()["person"]["name"] == "Test User"
 
 
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.orbs.router.validate_share_token")
-def test_get_public_orb_not_found(mock_validate, client, mock_db):
+def test_get_public_orb_not_found(mock_validate, mock_visibility, client, mock_db):
     mock_validate.return_value = {"orb_id": "nonexistent", "keywords": []}
+    mock_visibility.return_value = "public"
 
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
         AsyncMock(return_value=None)
@@ -194,9 +198,15 @@ def test_get_public_orb_not_found(mock_validate, client, mock_db):
     assert response.status_code == 404
 
 
-def test_get_public_orb_no_token(client):
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
+def test_get_public_orb_no_token_public_orb_returns_403(
+    mock_visibility, client, mock_db
+):
+    """Calling a public orb without a share token returns 403."""
+    mock_visibility.return_value = "public"
     response = client.get("/orbs/test-orb")
-    assert response.status_code == 422
+    assert response.status_code == 403
+    assert "share token" in response.json()["detail"].lower()
 
 
 @patch("app.orbs.router.validate_share_token")
@@ -207,6 +217,29 @@ def test_get_public_orb_invalid_token(mock_validate, client, mock_db):
     assert response.status_code == 403
 
 
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
+@patch("app.orbs.router.validate_share_token")
+def test_get_public_orb_private_returns_403(
+    mock_validate, mock_visibility, client, mock_db
+):
+    """Private orbs reject access even with a valid share token."""
+    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+    mock_visibility.return_value = "private"
+
+    response = client.get("/orbs/test-orb?token=valid-token")
+    assert response.status_code == 403
+    assert "private" in response.json()["detail"].lower()
+
+
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
+def test_get_restricted_orb_no_auth_returns_401(mock_visibility, client, mock_db):
+    """Restricted orbs reject anonymous requests."""
+    mock_visibility.return_value = "restricted"
+
+    response = client.get("/orbs/test-orb")
+    assert response.status_code == 401
+
+
 def test_add_node_invalid_type(client):
     response = client.post(
         "/orbs/me/nodes", json={"node_type": "invalid", "properties": {}}
@@ -214,12 +247,14 @@ def test_add_node_invalid_type(client):
     assert response.status_code == 400
 
 
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
 @patch("app.orbs.router.validate_share_token")
 @patch("app.orbs.router.node_matches_filters")
 def test_get_public_orb_with_keyword_filters(
-    mock_matches, mock_validate, client, mock_db
+    mock_matches, mock_validate, mock_visibility, client, mock_db
 ):
     mock_validate.return_value = {"orb_id": "test-orb", "keywords": ["secret"]}
+    mock_visibility.return_value = "public"
 
     person_node = MockNode({"orb_id": "test-orb"}, ["Person"])
     node1 = MockNode({"uid": "node-1", "name": "Python"}, ["Skill"])
@@ -398,3 +433,153 @@ def test_claim_orb_id_conflict(client, mock_db):
     response = client.put("/orbs/me/orb-id", json={"orb_id": "taken-id"})
     assert response.status_code == 409
     assert "already taken" in response.json()["detail"]
+
+
+def test_update_visibility_success(client, mock_db):
+    person_node = MockNode({"user_id": "test-user", "visibility": "public"}, ["Person"])
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": person_node})
+    )
+
+    response = client.put("/orbs/me/visibility", json={"visibility": "public"})
+    assert response.status_code == 200
+    assert response.json()["visibility"] == "public"
+
+
+def test_update_visibility_user_not_found(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value=None)
+    )
+
+    response = client.put("/orbs/me/visibility", json={"visibility": "private"})
+    assert response.status_code == 404
+
+
+def test_update_visibility_invalid_value(client):
+    response = client.put("/orbs/me/visibility", json={"visibility": "invalid"})
+    assert response.status_code == 422
+
+
+# ── Access grants ──
+
+
+@patch("app.orbs.router.send_access_grant_email", new_callable=AsyncMock)
+@patch("app.orbs.router.create_access_grant", new_callable=AsyncMock)
+def test_create_access_grant_success(mock_create, mock_send, client, mock_db):
+    mock_create.return_value = {
+        "grant_id": "g1",
+        "orb_id": "test-orb",
+        "email": "alice@x.com",
+        "created_at": "2026-04-11T00:00:00+00:00",
+        "revoked": False,
+        "owner_name": "Owner",
+    }
+    response = client.post("/orbs/me/access-grants", json={"email": "alice@x.com"})
+    assert response.status_code == 200
+    assert response.json()["grant_id"] == "g1"
+    mock_send.assert_awaited_once()
+
+
+@patch("app.orbs.router.send_access_grant_email", new_callable=AsyncMock)
+@patch("app.orbs.router.create_access_grant", new_callable=AsyncMock)
+def test_create_access_grant_no_orb_id(mock_create, mock_send, client, mock_db):
+    mock_create.return_value = None
+    response = client.post("/orbs/me/access-grants", json={"email": "alice@x.com"})
+    assert response.status_code == 400
+    mock_send.assert_not_called()
+
+
+@patch("app.orbs.router.send_access_grant_email", new_callable=AsyncMock)
+@patch("app.orbs.router.create_access_grant", new_callable=AsyncMock)
+def test_create_access_grant_email_failure_does_not_block(
+    mock_create, mock_send, client, mock_db
+):
+    """If sending the notification email fails, the grant is still returned."""
+    mock_create.return_value = {
+        "grant_id": "g1",
+        "orb_id": "test-orb",
+        "email": "alice@x.com",
+        "created_at": "2026-04-11T00:00:00+00:00",
+        "revoked": False,
+        "owner_name": "Owner",
+    }
+    mock_send.side_effect = Exception("SMTP down")
+    response = client.post("/orbs/me/access-grants", json={"email": "alice@x.com"})
+    assert response.status_code == 200
+    assert response.json()["grant_id"] == "g1"
+
+
+@patch("app.orbs.router.list_access_grants", new_callable=AsyncMock)
+def test_list_access_grants(mock_list, client, mock_db):
+    mock_list.return_value = [
+        {
+            "grant_id": "g1",
+            "orb_id": "test-orb",
+            "email": "alice@x.com",
+            "created_at": "2026-04-11T00:00:00+00:00",
+            "revoked": False,
+        }
+    ]
+    response = client.get("/orbs/me/access-grants")
+    assert response.status_code == 200
+    assert len(response.json()["grants"]) == 1
+
+
+@patch("app.orbs.router.revoke_access_grant", new_callable=AsyncMock)
+def test_revoke_access_grant_success(mock_revoke, client, mock_db):
+    mock_revoke.return_value = {"grant_id": "g1", "revoked": True}
+    response = client.delete("/orbs/me/access-grants/g1")
+    assert response.status_code == 200
+    assert response.json()["status"] == "revoked"
+
+
+@patch("app.orbs.router.revoke_access_grant", new_callable=AsyncMock)
+def test_revoke_access_grant_not_found(mock_revoke, client, mock_db):
+    mock_revoke.return_value = None
+    response = client.delete("/orbs/me/access-grants/missing")
+    assert response.status_code == 404
+
+
+# ── Restricted orb access ──
+
+
+@patch("app.orbs.router.assert_user_can_access_restricted", new_callable=AsyncMock)
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
+def test_get_restricted_orb_authorized_succeeds(
+    mock_visibility, mock_assert_restricted, client, mock_db
+):
+    """When the visibility guard passes for restricted, return the orb."""
+    mock_visibility.return_value = "restricted"
+    mock_assert_restricted.return_value = None  # passes silently
+
+    person_node = MockNode({"orb_id": "test-orb", "name": "Test User"}, ["Person"])
+    record = {
+        "p": person_node,
+        "connections": [],
+        "cross_skill_nodes": [],
+        "cross_links": [],
+    }
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value=record)
+    )
+
+    response = client.get("/orbs/test-orb")
+    assert response.status_code == 200
+    assert response.json()["person"]["name"] == "Test User"
+
+
+@patch("app.orbs.router.assert_user_can_access_restricted", new_callable=AsyncMock)
+@patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
+def test_get_restricted_orb_unauthorized_email_returns_403(
+    mock_visibility, mock_assert_restricted, client, mock_db
+):
+    """When the allowlist check raises 403, the endpoint forwards it."""
+    from fastapi import HTTPException
+
+    mock_visibility.return_value = "restricted"
+    mock_assert_restricted.side_effect = HTTPException(
+        status_code=403, detail="You don't have access to this orb"
+    )
+
+    response = client.get("/orbs/test-orb")
+    assert response.status_code == 403

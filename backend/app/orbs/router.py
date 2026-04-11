@@ -11,7 +11,9 @@ from neo4j.time import DateTime as Neo4jDateTime
 from neo4j.time import Time as Neo4jTime
 from pydantic import BaseModel
 
-from app.dependencies import get_current_user, get_db
+from app.config import settings
+from app.dependencies import get_current_user, get_current_user_optional, get_db
+from app.email.service import send_access_grant_email
 from app.graph.encryption import decrypt_properties, encrypt_properties
 from app.graph.queries import (
     ADD_NODE,
@@ -27,7 +29,15 @@ from app.graph.queries import (
     UPDATE_ORB_ID,
     UPDATE_PERSON,
 )
+from app.orbs.access_grants import (
+    create_access_grant,
+    list_access_grants,
+    revoke_access_grant,
+)
 from app.orbs.models import (
+    AccessGrantCreate,
+    AccessGrantListResponse,
+    AccessGrantResponse,
     NodeCreate,
     NodeUpdate,
     OrbIdUpdate,
@@ -35,6 +45,7 @@ from app.orbs.models import (
     ShareTokenCreate,
     ShareTokenListResponse,
     ShareTokenResponse,
+    VisibilityUpdate,
 )
 from app.orbs.share_token import (
     create_share_token,
@@ -42,6 +53,11 @@ from app.orbs.share_token import (
     node_matches_filters,
     revoke_share_token,
     validate_share_token,
+)
+from app.orbs.visibility import (
+    assert_orb_accessible,
+    assert_user_can_access_restricted,
+    get_orb_visibility,
 )
 from app.rate_limit import limiter
 from app.snapshots import db as snap_db
@@ -190,6 +206,25 @@ async def claim_orb_id(
             UPDATE_ORB_ID, user_id=current_user["user_id"], orb_id=data.orb_id
         )
         return {"orb_id": data.orb_id}
+
+
+@router.put("/me/visibility")
+async def update_visibility(
+    data: VisibilityUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Update the visibility of the current user's orb."""
+    async with db.session() as session:
+        result = await session.run(
+            UPDATE_PERSON,
+            user_id=current_user["user_id"],
+            properties={"visibility": data.visibility},
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"visibility": data.visibility}
 
 
 @router.post("/me/profile-image")
@@ -430,26 +465,97 @@ async def revoke_share_token_endpoint(
     return {"status": "revoked"}
 
 
+# ── Access grants (restricted-mode allowlist) ──
+
+
+@router.post("/me/access-grants", response_model=AccessGrantResponse)
+async def create_access_grant_endpoint(
+    data: AccessGrantCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Grant a specific email access to this user's restricted orb.
+
+    Sends a notification email to the recipient. Email failure is
+    swallowed (best-effort) so the grant is still created.
+    """
+    grant = await create_access_grant(
+        db=db, user_id=current_user["user_id"], email=data.email
+    )
+    if grant is None:
+        raise HTTPException(status_code=400, detail="Set an orb ID first")
+
+    orb_url = f"{settings.frontend_url.rstrip('/')}/{grant['orb_id']}"
+    try:
+        await send_access_grant_email(
+            to=grant["email"],
+            owner_name=grant.get("owner_name") or "An OpenOrbis user",
+            orb_url=orb_url,
+        )
+    except Exception:
+        logger.exception("Failed to send access grant email to %s", grant["email"])
+
+    return grant
+
+
+@router.get("/me/access-grants", response_model=AccessGrantListResponse)
+async def list_access_grants_endpoint(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List active access grants on this user's orb."""
+    grants = await list_access_grants(db, current_user["user_id"])
+    return {"grants": grants}
+
+
+@router.delete("/me/access-grants/{grant_id}")
+async def revoke_access_grant_endpoint(
+    grant_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Revoke an access grant."""
+    result = await revoke_access_grant(db, current_user["user_id"], grant_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Grant not found")
+    return {"status": "revoked"}
+
+
 @router.get("/{orb_id}")
 @limiter.limit("30/minute")
 async def get_public_orb(
     request: Request,
     orb_id: str,
-    token: str = Query(..., description="Share token required for access"),
+    token: str | None = Query(None, description="Share token (public orbs only)"),
     db: AsyncDriver = Depends(get_db),
+    current_user: dict | None = Depends(get_current_user_optional),
 ):
-    # Validate the share token
-    token_data = await validate_share_token(db, token)
-    if token_data is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid or expired share token.",
-        )
-    if token_data["orb_id"] != orb_id:
-        raise HTTPException(
-            status_code=403,
-            detail="Token does not grant access to this orb.",
-        )
+    # 1. Visibility gate
+    visibility = await get_orb_visibility(db, orb_id)
+    assert_orb_accessible(visibility)
+
+    # 2. Branch on visibility mode
+    token_data: dict | None = None
+    if visibility == "restricted":
+        # Require auth + email in allowlist (or owner)
+        await assert_user_can_access_restricted(db, orb_id, current_user)
+    else:
+        # public: require a valid share token
+        if not token:
+            raise HTTPException(
+                status_code=403, detail="Share token required for this orb."
+            )
+        token_data = await validate_share_token(db, token)
+        if token_data is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Invalid or expired share token.",
+            )
+        if token_data["orb_id"] != orb_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Token does not grant access to this orb.",
+            )
 
     async with db.session() as session:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
@@ -464,9 +570,9 @@ async def get_public_orb(
 
     orb_data = _serialize_orb(record)
 
-    # Apply filters (keywords + hidden node types)
-    keywords = token_data["keywords"]
-    hidden_types = set(token_data.get("hidden_node_types", []))
+    # Apply filters only in public mode (token-based filtering)
+    keywords = token_data["keywords"] if token_data else []
+    hidden_types = set(token_data.get("hidden_node_types", []) if token_data else [])
     if keywords or hidden_types:
         filtered_nodes = []
         filtered_uids = set()
@@ -489,9 +595,9 @@ async def get_public_orb(
 
     client_ip = request.client.host if request.client else "unknown"
     logger.info(
-        "PUBLIC_ACCESS | ip=%s | orb_id=%s | token=%s... | status=200",
+        "PUBLIC_ACCESS | ip=%s | orb_id=%s | mode=%s | status=200",
         client_ip,
         orb_id,
-        token[:8],
+        visibility,
     )
     return orb_data

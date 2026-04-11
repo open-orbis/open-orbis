@@ -10,6 +10,7 @@ CREATE CONSTRAINT beta_config_singleton IF NOT EXISTS FOR (c:BetaConfig) REQUIRE
 CREATE INDEX person_email IF NOT EXISTS FOR (p:Person) ON (p.email);
 CREATE INDEX person_is_admin IF NOT EXISTS FOR (p:Person) ON (p.is_admin);
 CREATE INDEX person_signup_code IF NOT EXISTS FOR (p:Person) ON (p.signup_code);
+CREATE INDEX person_visibility IF NOT EXISTS FOR (p:Person) ON (p.visibility);
 CREATE INDEX skill_name IF NOT EXISTS FOR (s:Skill) ON (s.name);
 
 // Vector indexes for semantic search
@@ -43,3 +44,7 @@ CREATE INDEX processing_record_document IF NOT EXISTS FOR (pr:ProcessingRecord) 
 
 // Share tokens for controlled public access
 CREATE CONSTRAINT share_token_id IF NOT EXISTS FOR (st:ShareToken) REQUIRE st.token_id IS UNIQUE;
+
+// Access grants for restricted-mode allowlists
+CREATE CONSTRAINT access_grant_id IF NOT EXISTS FOR (g:AccessGrant) REQUIRE g.grant_id IS UNIQUE;
+CREATE INDEX access_grant_email IF NOT EXISTS FOR (g:AccessGrant) ON (g.email);

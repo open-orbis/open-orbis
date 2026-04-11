@@ -18,6 +18,7 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 | `scholar_url` | string | |
 | `website_url` | string | |
 | `open_to_work` | boolean | |
+| `visibility` | string | `private` (default) \| `public` \| `restricted` — gates `GET /orbs/{orb_id}` |
 | `profile_image` | string | Base64 data URI |
 | `gdpr_consent` | boolean | |
 | `gdpr_consent_at` | string | ISO datetime |
@@ -57,6 +58,21 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 
 `title`, `patent_number`, `filing_date`, `grant_date`, `status`, `description`, `url`, `uid`
 
+### AccessGrant (restricted-mode allowlist)
+
+Created when a user grants a specific email permission to view their orb while `visibility = 'restricted'`.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `grant_id` | string | Unique, URL-safe token |
+| `orb_id` | string | Denormalized from Person for fast lookup |
+| `email` | string | Lowercase, trimmed |
+| `created_at` | datetime | |
+| `revoked` | boolean | Soft delete |
+| `revoked_at` | datetime | |
+
+Linked via `(Person)-[:GRANTED_ACCESS]->(AccessGrant)`. Parallel to `ShareToken` — share tokens gate `public` orbs, access grants gate `restricted` orbs.
+
 ## Relationships
 
 | Relationship | From | To | Purpose |
@@ -69,6 +85,7 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 | `HAS_PUBLICATION` | Person | Publication | |
 | `HAS_PROJECT` | Person | Project | |
 | `HAS_PATENT` | Person | Patent | |
+| `GRANTED_ACCESS` | Person | AccessGrant | Allowlist entry for `restricted` orbs |
 | `USED_SKILL` | WorkExperience / Project / Education / Publication | Skill | Cross-entity skill link |
 
 The `USED_SKILL` relationship is the key graph feature — it connects experience nodes directly to Skill nodes, enabling queries like "which skills were used at company X?"
@@ -218,6 +235,9 @@ Defined in `infra/neo4j/init.cypher`:
 - Uniqueness constraint on `ProcessingRecord.record_id`
 - Index on `OntologyVersion.content_hash`
 - Index on `ProcessingRecord.document_id`
+- Uniqueness constraint on `ShareToken.token_id`
+- Uniqueness constraint on `AccessGrant.grant_id`
+- Index on `AccessGrant.email` and on `Person.visibility`
 
 ## Query Patterns
 

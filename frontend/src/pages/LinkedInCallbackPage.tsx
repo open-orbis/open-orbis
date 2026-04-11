@@ -21,6 +21,12 @@ export default function LinkedInCallbackPage() {
 
     loginLinkedIn(code)
       .then(async () => {
+        const returnTo = sessionStorage.getItem('orbis_return_to');
+        if (returnTo) {
+          sessionStorage.removeItem('orbis_return_to');
+          navigate(returnTo, { replace: true });
+          return;
+        }
         const hasContent = await hasOrbContent();
         navigate(hasContent ? '/myorbis' : '/create');
       })

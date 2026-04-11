@@ -6,9 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from neo4j import AsyncDriver
 from pydantic import BaseModel
 
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_current_user, get_current_user_optional, get_db
 from app.graph.embeddings import generate_embedding
 from app.orbs.share_token import node_matches_filters, validate_share_token
+from app.orbs.visibility import (
+    assert_orb_accessible,
+    assert_user_can_access_restricted,
+    get_orb_visibility,
+)
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -261,7 +266,7 @@ async def text_search(  # noqa: C901
 class PublicTextSearchRequest(BaseModel):
     query: str
     orb_id: str
-    token: str
+    token: str | None = None
 
 
 @router.post("/text/public")
@@ -270,18 +275,38 @@ async def public_text_search(  # noqa: C901
     request: Request,
     data: PublicTextSearchRequest,
     db: AsyncDriver = Depends(get_db),
+    current_user: dict | None = Depends(get_current_user_optional),
 ):
-    """Fuzzy text search across a public orb's nodes (requires share token)."""
-    # Validate the share token
-    token_data = await validate_share_token(db, data.token)
-    if token_data is None:
-        raise HTTPException(status_code=403, detail="Invalid or expired share token.")
-    if token_data["orb_id"] != data.orb_id:
-        raise HTTPException(
-            status_code=403, detail="Token does not grant access to this orb."
-        )
-    filter_keywords = token_data["keywords"]
-    hidden_types = set(token_data.get("hidden_node_types", []))
+    """Fuzzy text search across a shareable orb's nodes.
+
+    Public orbs require a share token. Restricted orbs require a logged-in
+    user whose email is on the allowlist (or the owner).
+    """
+    # 1. Visibility gate
+    visibility = await get_orb_visibility(db, data.orb_id)
+    assert_orb_accessible(visibility)
+
+    # 2. Branch on visibility
+    token_data: dict | None = None
+    if visibility == "restricted":
+        await assert_user_can_access_restricted(db, data.orb_id, current_user)
+    else:
+        if not data.token:
+            raise HTTPException(
+                status_code=403, detail="Share token required for this orb."
+            )
+        token_data = await validate_share_token(db, data.token)
+        if token_data is None:
+            raise HTTPException(
+                status_code=403, detail="Invalid or expired share token."
+            )
+        if token_data["orb_id"] != data.orb_id:
+            raise HTTPException(
+                status_code=403, detail="Token does not grant access to this orb."
+            )
+
+    filter_keywords = token_data["keywords"] if token_data else []
+    hidden_types = set(token_data.get("hidden_node_types", []) if token_data else [])
 
     raw_term = data.query.strip().lower()
     terms = [t for t in raw_term.split() if len(t) >= 2]

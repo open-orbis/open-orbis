@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from neo4j import AsyncDriver
@@ -16,27 +16,44 @@ async def get_db() -> AsyncDriver:
     return await get_driver()
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-) -> dict:
+def _decode_jwt(token: str) -> dict | None:
+    """Decode a JWT and return the user dict, or ``None`` if invalid."""
     try:
         payload = jwt.decode(
-            credentials.credentials,
+            token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
         )
-        user_id: str | None = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token",
-            )
-        return {"user_id": user_id, "email": payload.get("email", "")}
     except JWTError:
+        return None
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+    return {"user_id": user_id, "email": payload.get("email", "")}
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> dict:
+    user = _decode_jwt(credentials.credentials)
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
-        ) from None
+        )
+    return user
+
+
+async def get_current_user_optional(request: Request) -> dict | None:
+    """Like ``get_current_user`` but returns ``None`` for missing/invalid auth.
+
+    Used by endpoints that conditionally require auth based on resource
+    state (e.g. restricted orbs require auth, public orbs don't).
+    """
+    auth = request.headers.get("authorization") or request.headers.get("Authorization")
+    if not auth or not auth.lower().startswith("bearer "):
+        return None
+    return _decode_jwt(auth.split(" ", 1)[1])
 
 
 async def require_admin(
