@@ -1257,6 +1257,63 @@ export default function AdminPage() {
               </div>
             )}
 
+            {/* ── LLM Usage ── */}
+            {insights.llm_usage && insights.llm_usage.total_calls > 0 && (
+              <div className="bg-neutral-900/60 rounded-xl p-4 border border-white/5">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">LLM Usage</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div>
+                    <p className="text-[10px] text-white/30">Total Calls</p>
+                    <p className="text-lg font-bold text-white">{insights.llm_usage.total_calls}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/30">Total Cost</p>
+                    <p className="text-lg font-bold text-green-400">${insights.llm_usage.total_cost_usd.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/30">Avg Cost / Call</p>
+                    <p className="text-lg font-bold text-white">${insights.llm_usage.cost_stats.mean?.toFixed(4) ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/30">Avg Duration</p>
+                    <p className="text-lg font-bold text-white">{insights.llm_usage.duration_stats.mean_ms?.toFixed(0) ?? '—'}ms</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <p className="text-[10px] text-white/30 mb-1">Cost Variance</p>
+                    <p className="text-sm text-white/70">{insights.llm_usage.cost_stats.variance?.toFixed(6) ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/30 mb-1">Duration Variance</p>
+                    <p className="text-sm text-white/70">{insights.llm_usage.duration_stats.variance_ms?.toFixed(0) ?? '—'}ms²</p>
+                  </div>
+                </div>
+                {insights.llm_usage.by_model.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] text-white/30 mb-1">By Model</p>
+                    {insights.llm_usage.by_model.map((m) => (
+                      <div key={m.model} className="flex justify-between text-xs text-white/60 py-0.5">
+                        <span>{m.model}</span>
+                        <span>{m.count} calls · ${m.total_cost.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {insights.llm_usage.by_endpoint.length > 0 && (
+                  <div>
+                    <p className="text-[10px] text-white/30 mb-1">By Endpoint</p>
+                    {insights.llm_usage.by_endpoint.map((e) => (
+                      <div key={e.endpoint} className="flex justify-between text-xs text-white/60 py-0.5">
+                        <span>{e.endpoint.replace('_', ' ')}</span>
+                        <span>{e.count} calls · ${e.total_cost.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
           </motion.div>
         )}
       </div>
@@ -1383,6 +1440,51 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* ── LLM Usage ── */}
+              {userDetail.llm_usage && userDetail.llm_usage.length > 0 && (
+                <>
+                  <div className="mt-4 border-t border-white/5 pt-3">
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-2">LLM Usage Summary</h4>
+                    <div className="grid grid-cols-4 gap-2 mb-3">
+                      <div>
+                        <p className="text-[10px] text-white/30">Calls</p>
+                        <p className="text-sm font-bold text-white">{userDetail.llm_usage_summary.total_calls}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-white/30">Total Cost</p>
+                        <p className="text-sm font-bold text-green-400">${userDetail.llm_usage_summary.total_cost_usd.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-white/30">Avg Cost</p>
+                        <p className="text-sm font-bold text-white">${userDetail.llm_usage_summary.avg_cost_usd.toFixed(4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-white/30">Avg Duration</p>
+                        <p className="text-sm font-bold text-white">{userDetail.llm_usage_summary.avg_duration_ms.toFixed(0)}ms</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-2">Usage History</h4>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {userDetail.llm_usage.map((u) => (
+                        <div key={u.usage_id} className="flex items-center justify-between text-[11px] py-1 px-2 rounded bg-white/3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/40">{u.endpoint.replace('_', ' ')}</span>
+                            <span className="text-white/60">{u.llm_model}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {u.cost_usd != null && <span className="text-green-400">${u.cost_usd.toFixed(4)}</span>}
+                            {u.duration_ms != null && <span className="text-white/40">{u.duration_ms}ms</span>}
+                            <span className="text-white/20">{formatDate(u.created_at)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 mt-5 pt-4 border-t border-white/[0.06]">
