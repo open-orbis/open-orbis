@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # Share token default TTL in days. Set to 0 for no expiry.
     share_token_default_ttl_days: int = 90
 
+    # Account cleanup interval in hours (0 = startup-only, no recurring task)
+    cleanup_interval_hours: int = 24
+
     model_config = {
         "env_file": ["../.env", ".env"],
         "env_file_encoding": "utf-8",

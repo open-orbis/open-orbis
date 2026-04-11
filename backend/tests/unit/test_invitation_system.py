@@ -360,3 +360,14 @@ def test_admin_pending_users(admin_client):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["name"] == "Pending User"
+
+
+def test_cleanup_interval_hours_default():
+    from app.config import Settings
+
+    s = Settings(
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_password="test",
+        jwt_secret="test",
+    )
+    assert s.cleanup_interval_hours == 24
