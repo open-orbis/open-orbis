@@ -36,8 +36,12 @@ from app.graph.queries import (
     FUNNEL_SIGNUPS_PER_DAY,
     GET_ACCESS_CODE,
     GET_BETA_CONFIG,
+    GET_LLM_USAGE_AGGREGATE,
+    GET_LLM_USAGE_BY_ENDPOINT,
+    GET_LLM_USAGE_BY_MODEL,
     GET_PERSON_BY_USER_ID,
     GET_PERSON_DETAIL,
+    GET_USER_LLM_USAGE,
     GET_USER_PROCESSING_RECORDS,
     GRANT_ADMIN_BY_USER_ID,
     GRAPH_RICHNESS,
@@ -318,6 +322,10 @@ async def get_user_detail(db: AsyncDriver, user_id: str) -> dict | None:
         pr_result = await session.run(GET_USER_PROCESSING_RECORDS, user_id=user_id)
         pr_records = [r async for r in pr_result]
 
+        # Fetch LLM usage records
+        llm_result = await session.run(GET_USER_LLM_USAGE, user_id=user_id)
+        llm_records = [r async for r in llm_result]
+
     person = dict(record["p"])
     email = person.get("email", "")
     if email:
@@ -351,11 +359,55 @@ async def get_user_detail(db: AsyncDriver, user_id: str) -> dict | None:
             }
         )
 
+    # Build LLM usage list and summary
+    llm_usage = []
+    total_cost = 0.0
+    total_duration = 0
+    duration_count = 0
+    for r in llm_records:
+        u = dict(r["u"])
+        cost = u.get("cost_usd")
+        dur = u.get("duration_ms")
+        if cost is not None:
+            total_cost += float(cost)
+        if dur is not None:
+            total_duration += int(dur)
+            duration_count += 1
+        llm_usage.append(
+            {
+                "usage_id": u.get("usage_id", ""),
+                "endpoint": u.get("endpoint", ""),
+                "llm_provider": u.get("llm_provider", ""),
+                "llm_model": u.get("llm_model", ""),
+                "cost_usd": float(cost) if cost is not None else None,
+                "duration_ms": int(dur) if dur is not None else None,
+                "input_tokens": int(u["input_tokens"])
+                if u.get("input_tokens") is not None
+                else None,
+                "output_tokens": int(u["output_tokens"])
+                if u.get("output_tokens") is not None
+                else None,
+                "created_at": str(u.get("created_at", "")),
+            }
+        )
+
+    n = len(llm_usage)
+    llm_usage_summary = {
+        "total_calls": n,
+        "total_cost_usd": round(total_cost, 6),
+        "avg_cost_usd": round(total_cost / n, 6) if n else 0.0,
+        "avg_duration_ms": round(total_duration / duration_count, 2)
+        if duration_count
+        else 0.0,
+    }
+
     return {
         **person,
         "email": email,
         "node_count": int(record["node_count"]),
         "processing_records": processing_records,
+        "llm_usage": llm_usage,
+        "llm_usage_summary": llm_usage_summary,
     }
 
 
@@ -547,6 +599,58 @@ async def get_insights(db: AsyncDriver) -> dict:
             async for r in result
         ]
 
+        # LLM usage aggregate
+        result = await session.run(GET_LLM_USAGE_AGGREGATE)
+        agg = await result.single()
+
+        result = await session.run(GET_LLM_USAGE_BY_ENDPOINT)
+        by_endpoint = [
+            {
+                "endpoint": r["endpoint"] or "",
+                "count": int(r["count"]),
+                "total_cost": round(float(r["total_cost"]), 6),
+            }
+            async for r in result
+        ]
+
+        result = await session.run(GET_LLM_USAGE_BY_MODEL)
+        by_model = [
+            {
+                "model": r["model"] or "",
+                "count": int(r["count"]),
+                "total_cost": round(float(r["total_cost"]), 6),
+            }
+            async for r in result
+        ]
+
+    def _round_or_none(val, digits=6):
+        return round(float(val), digits) if val is not None else None
+
+    llm_usage = {
+        "total_calls": int(agg["total_calls"]) if agg else 0,
+        "total_cost_usd": round(float(agg["total_cost"]), 6) if agg else 0.0,
+        "by_endpoint": by_endpoint,
+        "by_model": by_model,
+        "cost_stats": {
+            "mean": _round_or_none(agg["cost_mean"]) if agg else None,
+            "variance": _round_or_none(agg["cost_variance"]) if agg else None,
+            "min": _round_or_none(agg["cost_min"]) if agg else None,
+            "max": _round_or_none(agg["cost_max"]) if agg else None,
+        },
+        "duration_stats": {
+            "mean_ms": _round_or_none(agg["duration_mean"], 2) if agg else None,
+            "variance_ms": _round_or_none(agg["duration_variance"], 2)
+            if agg
+            else None,
+            "min_ms": _round_or_none(agg["duration_min"], 2) if agg else None,
+            "max_ms": _round_or_none(agg["duration_max"], 2) if agg else None,
+        },
+        "token_stats": {
+            "mean": _round_or_none(agg["token_mean"], 2) if agg else None,
+            "variance": _round_or_none(agg["token_variance"], 2) if agg else None,
+        },
+    }
+
     return {
         "providers": providers,
         "activation_time": activation_time,
@@ -560,4 +664,5 @@ async def get_insights(db: AsyncDriver) -> dict:
         "graph_richness": graph_richness,
         "recently_active_7d": recently_active_7d,
         "code_efficiency": code_efficiency,
+        "llm_usage": llm_usage,
     }
