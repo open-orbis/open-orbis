@@ -222,8 +222,17 @@ async def enhance_note(
                 model=settings.claude_model or None,
             )
             result = claude_resp["content"]
+            llm_usage = {
+                "cost_usd": claude_resp.get("cost_usd"),
+                "duration_ms": claude_resp.get("duration_ms"),
+                "input_tokens": claude_resp.get("input_tokens"),
+                "output_tokens": claude_resp.get("output_tokens"),
+            }
         else:
             result = await _call_ollama(system_prompt, user_message)
+            llm_usage = {}
+
+        logger.info("LLM usage for note enhance: %s", llm_usage)
 
         return _parse_enhance_result(result, valid_skill_uids)
     except ValueError as e:

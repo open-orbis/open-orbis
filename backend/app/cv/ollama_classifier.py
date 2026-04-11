@@ -270,8 +270,15 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
                     model=settings.claude_model or None,
                 )
                 result = claude_resp["content"]
+                llm_usage = {
+                    "cost_usd": claude_resp.get("cost_usd"),
+                    "duration_ms": claude_resp.get("duration_ms"),
+                    "input_tokens": claude_resp.get("input_tokens"),
+                    "output_tokens": claude_resp.get("output_tokens"),
+                }
             else:
                 result = await _call_ollama(user_message)
+                llm_usage = {}
 
             cr = _parse_result(result)
             if cr.nodes or cr.unmatched:
@@ -287,6 +294,10 @@ Parse every entry in this CV into structured nodes. Return JSON with "nodes", "r
                     extraction_method="primary",
                     prompt_content=SYSTEM_PROMPT,
                     prompt_hash=prompt_hash,
+                    cost_usd=llm_usage.get("cost_usd"),
+                    duration_ms=llm_usage.get("duration_ms"),
+                    input_tokens=llm_usage.get("input_tokens"),
+                    output_tokens=llm_usage.get("output_tokens"),
                 )
                 return cr
             logger.warning(
