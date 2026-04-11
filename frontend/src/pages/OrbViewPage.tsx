@@ -350,10 +350,7 @@ function SharePanel({
           </svg>
         </button>
         <h2 className="text-white text-lg font-semibold mb-1">Share Your Orbis</h2>
-        <p className="text-gray-400 text-sm mb-2">Choose visibility, then share with a direct link or QR code.</p>
-        {!isPrivate && (
-          <p className="text-[11px] text-gray-500 mb-5">Keyboard shortcuts: <span className="text-gray-300">Ctrl/Cmd + C</span> copy link, <span className="text-gray-300">Ctrl/Cmd + D</span> download QR.</p>
-        )}
+        <p className="text-gray-400 text-sm mb-5">Choose visibility, then share with a direct link or QR code.</p>
 
         {/* Visibility selector */}
         <div className="mb-4">
