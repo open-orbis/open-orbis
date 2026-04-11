@@ -415,9 +415,11 @@ async def test_cleanup_creates_deletion_records():
     mock_session_context.__aexit__ = AsyncMock(return_value=False)
     mock_driver.session.return_value = mock_session_context
 
-    with patch("app.main.delete_stored_cvs"), patch(
-        "app.main.delete_user_drafts"
-    ), patch("app.main.delete_user_snapshots"):
+    with (
+        patch("app.main.delete_stored_cvs"),
+        patch("app.main.delete_user_drafts"),
+        patch("app.main.delete_user_snapshots"),
+    ):
         await _cleanup_expired_accounts(mock_driver)
 
     # Check that a CREATE (d:DeletionRecord ...) query was issued

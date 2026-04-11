@@ -143,9 +143,7 @@ async def count_pending_deletion(db: AsyncDriver) -> int:
 async def count_deleted_accounts(db: AsyncDriver) -> int:
     """Count permanently deleted accounts via DeletionRecord nodes."""
     async with db.session() as session:
-        result = await session.run(
-            "MATCH (d:DeletionRecord) RETURN count(d) AS total"
-        )
+        result = await session.run("MATCH (d:DeletionRecord) RETURN count(d) AS total")
         record = await result.single()
         return int(record["total"]) if record else 0
 
