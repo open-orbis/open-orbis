@@ -37,7 +37,9 @@ class TestSanitizeNodeProperties:
         assert len(result["name"]) == MAX_STRING_LEN
 
     def test_non_string_values_preserved(self):
-        result = sanitize_node_properties("skill", {"name": "Python", "proficiency": None})
+        result = sanitize_node_properties(
+            "skill", {"name": "Python", "proficiency": None}
+        )
         assert result == {"name": "Python", "proficiency": None}
 
     def test_empty_properties_returns_empty(self):

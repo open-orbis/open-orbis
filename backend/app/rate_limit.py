@@ -13,9 +13,7 @@ def _user_or_ip(request: Request) -> str:
     can be trivially bypassed by rotating proxies while the same account
     still drains the API budget.
     """
-    auth = request.headers.get("authorization") or request.headers.get(
-        "Authorization"
-    )
+    auth = request.headers.get("authorization") or request.headers.get("Authorization")
     if auth and auth.lower().startswith("bearer "):
         token = auth.split(" ", 1)[1]
         try:

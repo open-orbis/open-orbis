@@ -330,9 +330,7 @@ async def update_node(
             None,
         )
         if node_type is None:
-            raise HTTPException(
-                status_code=400, detail="Node has no supported type"
-            )
+            raise HTTPException(status_code=400, detail="Node has no supported type")
         safe_props = sanitize_node_properties(node_type, data.properties)
         properties = encrypt_properties(safe_props)
         result = await session.run(UPDATE_NODE, uid=uid, properties=properties)

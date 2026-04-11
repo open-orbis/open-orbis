@@ -55,9 +55,7 @@ ALLOWED_NODE_PROPERTIES: dict[str, frozenset[str]] = {
             "credential_url",
         }
     ),
-    "publication": frozenset(
-        {"title", "venue", "date", "doi", "url", "abstract"}
-    ),
+    "publication": frozenset({"title", "venue", "date", "doi", "url", "abstract"}),
     "project": frozenset(
         {"name", "role", "description", "start_date", "end_date", "url"}
     ),
