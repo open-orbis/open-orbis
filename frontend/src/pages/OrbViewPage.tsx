@@ -479,9 +479,29 @@ function SharePanel({
 
             <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
               <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-              <div className="flex justify-center mt-3">
-                <div className="bg-white p-3 rounded-xl">
-                  <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={2} />
+              <div className="mt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="order-2 sm:order-1 flex-1 flex flex-col gap-2 sm:max-w-[260px]">
+                  <button
+                    type="button"
+                    onClick={handleCopyShareLink}
+                    disabled={!canCopyShareLink || generatingToken}
+                    className="h-11 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                  >
+                    {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadQr}
+                    disabled={!canDownloadQr || generatingToken}
+                    className="h-11 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                  >
+                    Download QR (.png)
+                  </button>
+                </div>
+                <div className="order-1 sm:order-2 flex-1 flex justify-center sm:justify-end">
+                  <div className="bg-white p-1 rounded-lg">
+                    <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
+                  </div>
                 </div>
               </div>
             </div>
@@ -550,28 +570,6 @@ function SharePanel({
           </div>
         )}
 
-        {!isPrivate && (
-          <div className="sticky bottom-0 -mx-4 sm:-mx-6 mt-6 px-4 sm:px-6 py-3 border-t border-gray-800 bg-gray-900/95 backdrop-blur">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={handleCopyShareLink}
-                disabled={!canCopyShareLink || generatingToken}
-                className="h-11 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-              >
-                {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadQr}
-                disabled={!canDownloadQr || generatingToken}
-                className="h-11 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-              >
-                Download QR (.png)
-              </button>
-            </div>
-          </div>
-        )}
       </motion.div>
     </div>
   );
