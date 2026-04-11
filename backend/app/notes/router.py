@@ -8,9 +8,11 @@ import re
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from neo4j import AsyncDriver
 
 from app.config import settings
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, get_db
+from app.graph.llm_usage import record_llm_usage
 from app.graph.queries import NODE_TYPE_LABELS
 from app.notes.models import EnhanceNoteRequest, EnhanceNoteResponse
 
@@ -202,6 +204,7 @@ def _parse_enhance_result(  # noqa: C901
 async def enhance_note(
     req: EnhanceNoteRequest,
     current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
 ):
     """Enhance a draft note using LLM: translate, improve, extract fields, suggest links."""
     if not req.text.strip():
@@ -216,13 +219,35 @@ async def enhance_note(
         if provider == "claude":
             from app.cv.claude_classifier import call_claude
 
-            result = await call_claude(
+            claude_resp = await call_claude(
                 system_prompt=system_prompt,
                 user_message=user_message,
                 model=settings.claude_model or None,
             )
+            result = claude_resp["content"]
+            llm_usage = {
+                "cost_usd": claude_resp.get("cost_usd"),
+                "duration_ms": claude_resp.get("duration_ms"),
+                "input_tokens": claude_resp.get("input_tokens"),
+                "output_tokens": claude_resp.get("output_tokens"),
+            }
         else:
             result = await _call_ollama(system_prompt, user_message)
+            llm_usage = {}
+
+        await record_llm_usage(
+            db=db,
+            user_id=current_user["user_id"],
+            endpoint="note_enhance",
+            llm_provider=provider,
+            llm_model=settings.claude_model
+            if provider == "claude"
+            else settings.ollama_model,
+            cost_usd=llm_usage.get("cost_usd"),
+            duration_ms=llm_usage.get("duration_ms"),
+            input_tokens=llm_usage.get("input_tokens"),
+            output_tokens=llm_usage.get("output_tokens"),
+        )
 
         return _parse_enhance_result(result, valid_skill_uids)
     except ValueError as e:

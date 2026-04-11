@@ -13,11 +13,18 @@ async def call_claude(
     system_prompt: str,
     user_message: str,
     model: str | None = None,
-) -> str:
-    """Call Claude Code CLI in print mode and return the response text.
+) -> dict:
+    """Call Claude Code CLI in print mode and return response with usage metadata.
 
     Uses the ``claude -p`` non-interactive mode which leverages the user's
     Claude subscription (no API key required).
+
+    Returns a dict with keys:
+        content (str): The result text from Claude.
+        cost_usd (float | None): Cost in USD if available.
+        duration_ms (int | None): Duration in milliseconds if available.
+        input_tokens (int | None): Input token count if available.
+        output_tokens (int | None): Output token count if available.
     """
     cmd = ["claude", "-p", "--output-format", "json"]
 
@@ -59,9 +66,21 @@ async def call_claude(
     # with fields like: result, cost_usd, duration_ms, etc.
     try:
         envelope = json.loads(output)
-        return envelope.get("result", "")
+        return {
+            "content": envelope.get("result", ""),
+            "cost_usd": envelope.get("cost_usd"),
+            "duration_ms": envelope.get("duration_ms"),
+            "input_tokens": envelope.get("input_tokens"),
+            "output_tokens": envelope.get("output_tokens"),
+        }
     except json.JSONDecodeError:
         logger.warning(
             "Claude CLI output is not JSON, returning raw (%d chars)", len(output)
         )
-        return output
+        return {
+            "content": output,
+            "cost_usd": None,
+            "duration_ms": None,
+            "input_tokens": None,
+            "output_tokens": None,
+        }

@@ -144,6 +144,8 @@ export interface AdminUserDetail extends AdminUser {
   gdpr_consent: boolean;
   deletion_requested_at: string | null;
   processing_records: ProcessingRecord[];
+  llm_usage: LLMUsageRecord[];
+  llm_usage_summary: LLMUsageSummary;
 }
 
 export async function listUsers(): Promise<AdminUser[]> {
@@ -305,6 +307,7 @@ export interface Insights {
   graph_richness: GraphRichnessStats;
   recently_active_7d: number;
   code_efficiency: CodeEfficiencyEntry[];
+  llm_usage: LLMUsageInsights;
 }
 
 export async function getInsights(): Promise<Insights> {

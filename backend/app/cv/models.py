@@ -57,6 +57,10 @@ class ExtractionMetadata(BaseModel):
     extraction_method: str  # "primary", "fallback_rule_based", "fallback_raw_text"
     prompt_content: str  # Full system prompt used (empty for rule_based)
     prompt_hash: str  # SHA-256 of prompt_content
+    cost_usd: float | None = None
+    duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 class ConfirmRequest(BaseModel):
@@ -74,3 +78,8 @@ class ConfirmRequest(BaseModel):
     extraction_method: str | None = None
     prompt_hash: str | None = None
     prompt_content: str | None = None
+    # LLM usage metrics
+    cost_usd: float | None = None
+    duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None

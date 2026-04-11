@@ -78,13 +78,13 @@ async def test_kg_extraction_quality(
     nodes = None
 
     for attempt in range(1, MAX_RETRIES + 1):
-        raw_response = await call_claude(
+        claude_resp = await call_claude(
             system_prompt=SYSTEM_PROMPT,
             user_message=user_message,
             model=model,
         )
 
-        result = _parse_result(raw_response)
+        result = _parse_result(claude_resp["content"])
         if result.nodes:
             nodes = result.nodes
             break
@@ -92,7 +92,7 @@ async def test_kg_extraction_quality(
         print(
             f"\n[{cv_name}] attempt {attempt}/{MAX_RETRIES}: "
             f"parser returned 0 nodes. Raw response (first 500 chars):\n"
-            f"{raw_response[:500]}"
+            f"{claude_resp['content'][:500]}"
         )
 
     assert nodes, (

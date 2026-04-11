@@ -62,6 +62,69 @@ class BetaConfigUpdate(BaseModel):
     invite_code_required: bool | None = None
 
 
+# ── LLM Usage ──
+
+
+class LLMUsageRecord(BaseModel):
+    usage_id: str = ""
+    endpoint: str = ""
+    llm_provider: str = ""
+    llm_model: str = ""
+    cost_usd: float | None = None
+    duration_ms: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    created_at: str = ""
+
+
+class LLMUsageSummary(BaseModel):
+    total_calls: int = 0
+    total_cost_usd: float = 0.0
+    avg_cost_usd: float = 0.0
+    avg_duration_ms: float = 0.0
+
+
+class LLMUsageByEndpoint(BaseModel):
+    endpoint: str
+    count: int
+    total_cost: float
+
+
+class LLMUsageByModel(BaseModel):
+    model: str
+    count: int
+    total_cost: float
+
+
+class LLMCostStats(BaseModel):
+    mean: float | None = None
+    variance: float | None = None
+    min: float | None = None
+    max: float | None = None
+
+
+class LLMDurationStats(BaseModel):
+    mean_ms: float | None = None
+    variance_ms: float | None = None
+    min_ms: float | None = None
+    max_ms: float | None = None
+
+
+class LLMTokenStats(BaseModel):
+    mean: float | None = None
+    variance: float | None = None
+
+
+class LLMUsageInsights(BaseModel):
+    total_calls: int = 0
+    total_cost_usd: float = 0.0
+    by_endpoint: list[LLMUsageByEndpoint] = []
+    by_model: list[LLMUsageByModel] = []
+    cost_stats: LLMCostStats = LLMCostStats()
+    duration_stats: LLMDurationStats = LLMDurationStats()
+    token_stats: LLMTokenStats = LLMTokenStats()
+
+
 # ── User management ──
 
 
@@ -97,6 +160,8 @@ class UserDetailResponse(UserResponse):
     gdpr_consent: bool = False
     deletion_requested_at: str | None = None
     processing_records: list[ProcessingRecordInfo] = []
+    llm_usage: list[LLMUsageRecord] = []
+    llm_usage_summary: LLMUsageSummary = LLMUsageSummary()
 
 
 class BatchActivateRequest(BaseModel):
@@ -185,6 +250,7 @@ class InsightsResponse(BaseModel):
     graph_richness: GraphRichnessStats
     recently_active_7d: int
     code_efficiency: list[CodeEfficiencyEntry]
+    llm_usage: LLMUsageInsights = LLMUsageInsights()
 
 
 # ── Funnel metrics ──
