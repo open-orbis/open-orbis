@@ -1472,7 +1472,7 @@ export default function OrbViewPage() {
             key="share"
             orbId={orbId}
             hiddenNodeTypes={hiddenNodeTypes}
-            visibility={((data?.person?.visibility as OrbVisibility) || 'private')}
+            visibility={((data?.person?.visibility as OrbVisibility) || 'public')}
             onVisibilityChange={updateVisibility}
             onClose={() => setShowShare(false)}
           />

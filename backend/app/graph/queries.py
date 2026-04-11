@@ -19,7 +19,7 @@ CREATE (p:Person {
     website_url: '',
     orcid_url: '',
     open_to_work: false,
-    visibility: 'private',
+    visibility: 'public',
     created_at: datetime(),
     updated_at: datetime()
 })
@@ -33,7 +33,7 @@ RETURN p
 
 GET_PERSON_VISIBILITY = """
 MATCH (p:Person {orb_id: $orb_id})
-RETURN coalesce(p.visibility, 'private') AS visibility
+RETURN coalesce(p.visibility, 'public') AS visibility
 """
 
 # ── Access grants (restricted-mode allowlist) ──

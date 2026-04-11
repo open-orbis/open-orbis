@@ -101,7 +101,6 @@ export const useOrbStore = create<OrbState>((set, get) => ({
     try {
       await orbsApi.updateVisibility(visibility);
       await get().fetchOrb();
-      useToastStore.getState().addToast('Visibility updated', 'success');
     } catch (e) {
       useToastStore.getState().addToast('Failed to update visibility', 'error');
       throw e;
