@@ -76,6 +76,7 @@ function SharePanel({
   const [grantEmail, setGrantEmail] = useState('');
   const [grantError, setGrantError] = useState<string | null>(null);
   const [grantSubmitting, setGrantSubmitting] = useState(false);
+  const [qrActionHint, setQrActionHint] = useState<'copied' | 'downloaded' | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const addToast = useToastStore((s) => s.addToast);
@@ -199,23 +200,33 @@ function SharePanel({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const copyText = useCallback(async (text: string, label: string) => {
+  const flashQrHint = useCallback((kind: 'copied' | 'downloaded') => {
+    setQrActionHint(kind);
+    window.setTimeout(() => {
+      setQrActionHint((current) => (current === kind ? null : current));
+    }, 1600);
+  }, []);
+
+  const copyText = useCallback(async (text: string, label: string): Promise<boolean> => {
     if (!navigator.clipboard?.writeText) {
       addToast('Clipboard is not available in this browser', 'error');
-      return;
+      return false;
     }
     try {
       await navigator.clipboard.writeText(text);
       addToast(`${label} copied`, 'success');
+      return true;
     } catch {
       addToast(`Failed to copy ${label.toLowerCase()}`, 'error');
+      return false;
     }
   }, [addToast]);
 
-  const handleCopyShareLink = useCallback(() => {
+  const handleCopyShareLink = useCallback(async () => {
     if (!canCopyShareLink || !shareableUrl) return;
-    void copyText(shareableUrl, 'Share link');
-  }, [canCopyShareLink, copyText, shareableUrl]);
+    const copied = await copyText(shareableUrl, 'Share link');
+    if (copied) flashQrHint('copied');
+  }, [canCopyShareLink, copyText, flashQrHint, shareableUrl]);
 
   const handleCopyMcp = useCallback(() => {
     if (!isPublic) return;
@@ -232,32 +243,11 @@ function SharePanel({
       link.click();
       document.body.removeChild(link);
       addToast('QR code downloaded', 'success');
+      flashQrHint('downloaded');
     } catch {
       addToast('Failed to download QR code', 'error');
     }
-  }, [addToast, canDownloadQr, isRestricted, orbId]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || Boolean(target?.isContentEditable);
-      if (isTyping) return;
-      const key = event.key.toLowerCase();
-      const hasModifier = event.metaKey || event.ctrlKey;
-      if (hasModifier && key === 'c' && canCopyShareLink) {
-        event.preventDefault();
-        handleCopyShareLink();
-        return;
-      }
-      if (hasModifier && key === 'd' && canDownloadQr) {
-        event.preventDefault();
-        handleDownloadQr();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [canCopyShareLink, canDownloadQr, handleCopyShareLink, handleDownloadQr]);
+  }, [addToast, canDownloadQr, flashQrHint, isRestricted, orbId]);
 
   const handleGrantSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -472,31 +462,41 @@ function SharePanel({
 
             <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
               <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-              <div className="mt-3 flex justify-center">
-                <div className="w-full max-w-[760px] grid grid-cols-1 sm:grid-cols-[auto_minmax(240px,280px)] items-center gap-4 sm:gap-6">
-                  <div className="justify-self-center sm:justify-self-start">
-                    <div className="bg-white p-0.5 rounded-md">
-                      <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={0} />
-                    </div>
+              <div className="mt-3 max-w-[700px] mx-auto grid grid-cols-1 md:grid-cols-[auto_minmax(250px,280px)] items-center gap-4 md:gap-8">
+                <div className="justify-self-center md:justify-self-start rounded-xl border border-gray-700/70 bg-gray-900/35 p-2">
+                  <div className="bg-white p-[3px] rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
+                    <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={0} />
                   </div>
-                  <div className="w-full max-w-[280px] justify-self-center sm:justify-self-end flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={handleCopyShareLink}
-                      disabled={!canCopyShareLink || generatingToken}
-                      className="h-11 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-                    >
-                      {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDownloadQr}
-                      disabled={!canDownloadQr || generatingToken}
-                      className="h-11 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-                    >
-                      Download QR (.png)
-                    </button>
-                  </div>
+                </div>
+                <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
+                  <button
+                    type="button"
+                    onClick={handleCopyShareLink}
+                    disabled={!canCopyShareLink || generatingToken}
+                    className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+                  >
+                    {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadQr}
+                    disabled={!canDownloadQr || generatingToken}
+                    className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
+                  >
+                    Download QR (.png)
+                  </button>
+                  <p
+                    aria-live="polite"
+                    className={`text-[11px] h-4 transition-colors ${
+                      qrActionHint === 'copied'
+                        ? 'text-emerald-300'
+                        : qrActionHint === 'downloaded'
+                          ? 'text-sky-300'
+                          : 'text-transparent'
+                    }`}
+                  >
+                    {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
+                  </p>
                 </div>
               </div>
             </div>
