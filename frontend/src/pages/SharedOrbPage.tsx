@@ -195,36 +195,38 @@ export default function SharedOrbPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">{title}</h1>
           <p className="text-gray-400 mb-6">{message}</p>
-          <button
-            onClick={() => navigate(user ? '/myorbis' : '/')}
-            className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-colors"
-          >
-            {user ? 'Back to My Orbis' : 'Go to Home'}
-          </button>
-          {isNoAccess && user && (
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <button
-              onClick={async () => {
-                if (!orbId || requestPending || requestSubmitting) return;
-                setRequestSubmitting(true);
-                try {
-                  await requestAccess(orbId);
-                  setRequestPending(true);
-                } catch {
-                  // Already pending or failed
-                } finally {
-                  setRequestSubmitting(false);
-                }
-              }}
-              disabled={requestPending || requestSubmitting}
-              className={`mt-3 px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                requestPending
-                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-500 text-white'
-              }`}
+              onClick={() => navigate(user ? '/myorbis' : '/')}
+              className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition-colors"
             >
-              {requestSubmitting ? 'Sending...' : requestPending ? 'Request Pending' : 'Request Access'}
+              {user ? 'Back to My Orbis' : 'Go to Home'}
             </button>
-          )}
+            {isNoAccess && user && (
+              <button
+                onClick={async () => {
+                  if (!orbId || requestPending || requestSubmitting) return;
+                  setRequestSubmitting(true);
+                  try {
+                    await requestAccess(orbId);
+                    setRequestPending(true);
+                  } catch {
+                    // Already pending or failed
+                  } finally {
+                    setRequestSubmitting(false);
+                  }
+                }}
+                disabled={requestPending || requestSubmitting}
+                className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  requestPending
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-purple-600 hover:bg-purple-500 text-white'
+                }`}
+              >
+                {requestSubmitting ? 'Sending...' : requestPending ? 'Request Pending' : 'Request Access'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

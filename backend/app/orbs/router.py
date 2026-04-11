@@ -109,11 +109,12 @@ def _serialize_orb(record) -> dict:
             continue
         node_data = _sanitize_neo4j_types(dict(conn["node"]))
         uid = node_data.get("uid")
-        # Deduplicate nodes
-        if uid and uid in seen_node_uids:
+        if not uid:
             continue
-        if uid:
-            seen_node_uids.add(uid)
+        # Deduplicate nodes
+        if uid in seen_node_uids:
+            continue
+        seen_node_uids.add(uid)
         node_data = decrypt_properties(node_data)
         # Remove embedding from response (too large)
         node_data.pop("embedding", None)
@@ -122,7 +123,7 @@ def _serialize_orb(record) -> dict:
         links.append(
             {
                 "source": person.get("user_id") or person.get("orb_id"),
-                "target": node_data["uid"],
+                "target": uid,
                 "type": conn["rel"],
             }
         )

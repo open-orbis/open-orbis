@@ -114,7 +114,8 @@ function SharePanel({
   const modalRef = useRef<HTMLDivElement | null>(null);
   const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const addToast = useToastStore((s) => s.addToast);
-  const { activeKeywords } = useFilterStore();
+  const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword } = useFilterStore();
+  const [inlineFilterKeyword, setInlineFilterKeyword] = useState('');
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || hiddenTypesArray.length > 0;
   const isPrivate = visibility === 'private';
@@ -280,9 +281,9 @@ function SharePanel({
   }, [canCopyShareLink, copyText, flashQrHint, shareableUrl]);
 
   const handleCopyMcp = useCallback(() => {
-    if (!isPublic) return;
+    if (isPrivate) return;
     void copyText(mcpUri, 'MCP Orbis ID');
-  }, [copyText, isPublic, mcpUri]);
+  }, [copyText, isPrivate, mcpUri]);
 
   const handleDownloadQr = useCallback(() => {
     if (!canDownloadQr || !qrCanvasRef.current) return;
@@ -447,7 +448,6 @@ function SharePanel({
     label: string;
     description: string;
   }[] = [
-    { value: 'private', label: 'Private', description: 'Only you can view your orbis' },
     { value: 'public', label: 'Public', description: 'Anyone with the link can view' },
     { value: 'restricted', label: 'Restricted', description: 'Share via invite links' },
   ];
@@ -489,20 +489,20 @@ function SharePanel({
         {/* Visibility selector */}
         <div className="mb-4">
           <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Visibility</label>
-          <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="mt-2 grid grid-cols-2 gap-2">
             {visibilityOptions.map((opt) => {
               const selected = visibility === opt.value;
               const selectedClass = opt.value === 'private'
                 ? 'border-red-500/70 bg-red-500/15 text-red-100 shadow-[0_0_0_1px_rgba(239,68,68,0.2)]'
                 : opt.value === 'public'
-                  ? 'border-emerald-500/70 bg-emerald-500/15 text-emerald-100 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]'
-                  : 'border-orange-500/70 bg-orange-500/15 text-orange-100 shadow-[0_0_0_1px_rgba(249,115,22,0.2)]';
+                  ? 'border-orange-500/70 bg-orange-500/15 text-orange-100 shadow-[0_0_0_1px_rgba(249,115,22,0.2)]'
+                  : 'border-emerald-500/70 bg-emerald-500/15 text-emerald-100 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]';
               const descriptionClass = selected && opt.value === 'private'
                 ? 'text-red-200/80'
                 : selected && opt.value === 'public'
-                  ? 'text-emerald-200/80'
+                  ? 'text-orange-200/80'
                   : selected && opt.value === 'restricted'
-                    ? 'text-orange-200/80'
+                    ? 'text-emerald-200/80'
                   : 'text-gray-400';
               return (
                 <button
@@ -524,63 +524,78 @@ function SharePanel({
           </div>
         </div>
 
-        {isPrivate && (
-          <div>
-            <div className="rounded-xl border border-red-500/25 bg-red-500/8 p-4">
-              <p className="text-sm text-red-100 font-medium mb-1">This orbis is currently private</p>
-              <p className="text-xs text-red-200/75">No link or QR is available until you switch to Public or Restricted.</p>
-            </div>
-          </div>
-        )}
-
-        {!isPrivate && (
           <div className="space-y-4">
+
             {isPublic && (
-            <div className="rounded-2xl border border-gray-700/80 bg-gradient-to-br from-gray-800/65 to-gray-900/70 p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <label className="text-[11px] text-gray-500 uppercase tracking-wide font-medium">Shared Content</label>
+              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
+                <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share links and excluded from exports.</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <input
+                    value={inlineFilterKeyword}
+                    onChange={(e) => setInlineFilterKeyword(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
+                    placeholder="e.g. confidential, private..."
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
+                    className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors"
+                  >
+                    Add
+                  </button>
                 </div>
-              </div>
-
-              <p className={`mt-2.5 ${generatingToken ? 'text-xs text-gray-400' : 'text-sm font-semibold text-emerald-300'}`}>
-                {generatingToken ? 'Generating secure link...' : 'Recipients can see only the filtered orbis'}
-              </p>
-
-              <div className="mt-3">
-                <div className="rounded-lg border border-gray-700/70 bg-gray-900/45 px-3 py-2">
-                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Active Filters</p>
-                  <p className="text-xs text-gray-200 mt-1">
-                    {hasActiveFilters ? `${activeKeywords.length + hiddenTypesArray.length}` : '0'}
+                {keywords.length === 0 ? (
+                  <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                    {keywords.map((kw) => {
+                      const isActive = activeKeywords.includes(kw);
+                      return (
+                        <div
+                          key={kw}
+                          className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                            isActive
+                              ? 'bg-amber-600/15 border-amber-500/40'
+                              : 'bg-white/5 border-white/5 hover:border-white/10'
+                          }`}
+                        >
+                          <span className="text-white text-xs font-mono truncate">{kw}</span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleKeyword(kw)}
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                isActive
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
+                              }`}
+                            >
+                              {isActive ? 'Active' : 'Activate'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeKeyword(kw)}
+                              className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
+                              title="Remove"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {activeKeywords.length > 0 && (
+                  <p className="text-amber-400/70 text-[11px] mt-2">
+                    {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
                   </p>
-                </div>
+                )}
               </div>
-
-              {hasActiveFilters && (
-                <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 space-y-2">
-                  {hiddenTypesArray.length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1">Hidden node types</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {hiddenTypesArray.map((type) => (
-                          <span key={type} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{type}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {activeKeywords.length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-amber-200/80 uppercase tracking-wide mb-1">Filtered keywords</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {activeKeywords.map((keyword) => (
-                          <span key={keyword} className="text-[10px] px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">"{keyword}"</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
             )}
 
             {isPublic && (
@@ -732,45 +747,114 @@ function SharePanel({
                   </div>
                 )}
 
-                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
-                  <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in.</p>
-                  <div className="mb-2.5 rounded-lg border border-gray-700/70 bg-gray-900/40 px-3 py-2">
-                    <label className="flex items-start gap-2 text-[11px] text-gray-200 cursor-pointer">
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-4">
+                  <div>
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to new invites and excluded from shares.</p>
+                    <div className="flex items-center gap-2 mb-3">
                       <input
-                        type="checkbox"
-                        checked={applyFiltersOnInvite}
-                        onChange={(e) => setApplyFiltersOnInvite(e.target.checked)}
-                        className="mt-0.5 accent-purple-500"
+                        value={inlineFilterKeyword}
+                        onChange={(e) => setInlineFilterKeyword(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
+                        placeholder="e.g. confidential, private..."
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
                       />
-                      <span>
-                        Apply current filters for this invite.
-                        <span className="block text-gray-500 mt-0.5">
-                          {hasActiveFilters
-                            ? `Current set: ${activeKeywords.length} keyword(s), ${hiddenTypesArray.length} hidden type(s).`
-                            : 'No active filters are set right now.'}
-                        </span>
-                      </span>
-                    </label>
+                      <button
+                        type="button"
+                        onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
+                        className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                    {keywords.length === 0 ? (
+                      <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
+                    ) : (
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        {keywords.map((kw) => {
+                          const isActive = activeKeywords.includes(kw);
+                          return (
+                            <div
+                              key={kw}
+                              className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
+                                isActive
+                                  ? 'bg-amber-600/15 border-amber-500/40'
+                                  : 'bg-white/5 border-white/5 hover:border-white/10'
+                              }`}
+                            >
+                              <span className="text-white text-xs font-mono truncate">{kw}</span>
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleKeyword(kw)}
+                                  className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
+                                    isActive
+                                      ? 'bg-amber-500 text-white'
+                                      : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
+                                  }`}
+                                >
+                                  {isActive ? 'Active' : 'Activate'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeKeyword(kw)}
+                                  className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
+                                  title="Remove"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {activeKeywords.length > 0 && (
+                      <p className="text-amber-400/70 text-[11px] mt-2">
+                        {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
+                      </p>
+                    )}
                   </div>
-                  <form onSubmit={handleGrantSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                    <input
-                      type="email"
-                      value={grantEmail}
-                      onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
-                      placeholder="name@example.com"
-                      disabled={grantSubmitting}
-                      className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={grantSubmitting || !grantEmail.trim()}
-                      className="h-11 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
-                    >
-                      {grantSubmitting ? 'Granting...' : 'Grant Access'}
-                    </button>
-                  </form>
-                  {grantError && <p className="text-[11px] text-red-400 mt-2">{grantError}</p>}
+
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access according to your active privacy filters.</p>
+                    <div className="flex items-center gap-2">
+                      <input readOnly value={mcpUri} className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                      <button
+                        type="button"
+                        onClick={handleCopyMcp}
+                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in according to the filters selected.</p>
+                    <form onSubmit={handleGrantSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="email"
+                        value={grantEmail}
+                        onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
+                        placeholder="name@example.com"
+                        disabled={grantSubmitting}
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
+                      />
+                      <button
+                        type="submit"
+                        disabled={grantSubmitting || !grantEmail.trim()}
+                        className="h-11 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+                      >
+                        {grantSubmitting ? 'Granting...' : 'Grant Access'}
+                      </button>
+                    </form>
+                    {grantError && <p className="text-[11px] text-red-400 mt-2">{grantError}</p>}
+                  </div>
                 </div>
 
                 <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
@@ -848,32 +932,17 @@ function SharePanel({
                                   >
                                     Cancel
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => void saveGrantFilters(grant.grant_id, activeKeywords.join(', '), hiddenTypesArray.join(', '))}
-                                    disabled={updatingGrantFiltersId === grant.grant_id}
-                                    className="h-8 px-3 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 text-xs font-medium transition-colors"
-                                  >
-                                    Use Current Filters
-                                  </button>
                                 </div>
                               </div>
                             ) : (
                               <div className="flex flex-wrap gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => openGrantEditor(grant)}
-                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
-                                >
-                                  Manage Filters
-                                </button>
-                                <button
-                                  type="button"
                                   onClick={() => void handleApplyCurrentFiltersToGrant(grant)}
                                   disabled={updatingGrantFiltersId === grant.grant_id}
                                   className="h-8 px-3 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
                                 >
-                                  Apply Current
+                                  Apply Current Filters
                                 </button>
                                 <button
                                   type="button"
@@ -882,6 +951,13 @@ function SharePanel({
                                   className="h-8 px-3 rounded-lg border border-orange-500/40 text-orange-300 hover:bg-orange-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
                                 >
                                   Clear Filters
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openGrantEditor(grant)}
+                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                                >
+                                  Manage Filters
                                 </button>
                               </div>
                             )}
@@ -937,7 +1013,6 @@ function SharePanel({
               </>
             )}
           </div>
-        )}
 
       </motion.div>
     </div>
