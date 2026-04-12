@@ -1286,6 +1286,7 @@ export default function OrbViewPage() {
     nodes: Array<{ node_type: string; properties: Record<string, unknown> }>;
     relationships: Array<{ from_index: number; to_index: number; type: string }>;
     cvOwnerName: string | null;
+    profile: import('../../api/cv').ExtractedProfile | null;
     unmatchedCount: number;
     skippedCount: number;
     file: File;
@@ -1626,6 +1627,7 @@ export default function OrbViewPage() {
           nodes: result.nodes,
           relationships: result.relationships || [],
           cvOwnerName: result.cv_owner_name || null,
+          profile: result.profile || null,
           unmatchedCount: result.unmatched?.length || 0,
           skippedCount: result.skipped_nodes?.length || 0,
           file,
@@ -2085,13 +2087,14 @@ export default function OrbViewPage() {
             initialNodes={extractedImport.nodes}
             initialRelationships={extractedImport.relationships}
             cvOwnerName={extractedImport.cvOwnerName}
+            profile={extractedImport.profile}
             unmatchedCount={extractedImport.unmatchedCount}
             skippedCount={extractedImport.skippedCount}
             truncated={false}
             onReset={() => setExtractedImport(null)}
             resetLabel="Cancel import"
-            onConfirm={async (nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount) => {
-              await confirmImport(nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount);
+            onConfirm={async (nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile) => {
+              await confirmImport(nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile);
               fetchDocuments();
             }}
             documentId={extractedImport.documentId}

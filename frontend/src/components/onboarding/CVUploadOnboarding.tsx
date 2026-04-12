@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { uploadCV, getCVProgress, getDocuments, discardCVProgress } from '../../api/cv';
-import type { ExtractedData, ExtractedRelationship, CVProgressData } from '../../api/cv';
+import type { ExtractedData, ExtractedProfile, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
 import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
 import ExtractedDataReview from './ExtractedDataReview';
@@ -48,6 +48,7 @@ export default function CVUploadOnboarding() {
     nodes: ExtractedData['nodes'];
     relationships: ExtractedRelationship[];
     cvOwnerName: string | null;
+    profile: ExtractedProfile | null;
     unmatchedCount: number;
     skippedCount: number;
     truncated: boolean;
@@ -129,6 +130,7 @@ export default function CVUploadOnboarding() {
           nodes: data.nodes,
           relationships: data.relationships || [],
           cvOwnerName: data.cv_owner_name || null,
+          profile: data.profile || null,
           unmatchedCount,
           skippedCount: data.skipped_nodes?.length || 0,
           truncated: data.truncated || false,
@@ -215,6 +217,7 @@ export default function CVUploadOnboarding() {
         initialNodes={extractedData.nodes}
         initialRelationships={extractedData.relationships}
         cvOwnerName={extractedData.cvOwnerName}
+        profile={extractedData.profile}
         unmatchedCount={extractedData.unmatchedCount}
         skippedCount={extractedData.skippedCount}
         truncated={extractedData.truncated}
