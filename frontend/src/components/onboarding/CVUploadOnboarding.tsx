@@ -50,6 +50,7 @@ export default function CVUploadOnboarding() {
     cvOwnerName: string | null;
     profile: ExtractedProfile | null;
     unmatchedCount: number;
+    unmatchedEntries: string[];
     skippedCount: number;
     truncated: boolean;
     documentId: string | null;
@@ -132,6 +133,7 @@ export default function CVUploadOnboarding() {
           cvOwnerName: data.cv_owner_name || null,
           profile: data.profile || null,
           unmatchedCount,
+          unmatchedEntries: data.unmatched || [],
           skippedCount: data.skipped_nodes?.length || 0,
           truncated: data.truncated || false,
           documentId: data.document_id || null,
@@ -219,6 +221,7 @@ export default function CVUploadOnboarding() {
         cvOwnerName={extractedData.cvOwnerName}
         profile={extractedData.profile}
         unmatchedCount={extractedData.unmatchedCount}
+        unmatchedEntries={extractedData.unmatchedEntries}
         skippedCount={extractedData.skippedCount}
         truncated={extractedData.truncated}
         onReset={() => setExtractedData(null)}
