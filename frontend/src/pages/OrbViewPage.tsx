@@ -1700,8 +1700,116 @@ export default function OrbViewPage() {
               <div className="hidden sm:block w-px h-5 bg-white/10" />
               <span data-tour="node-count" className="text-white text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
 
+              {/* Tools hamburger — visible below lg */}
               {!isPendingDeletion && (
-                <div className="hidden sm:flex items-center gap-1.5 ml-2">
+                <div className="relative lg:hidden" ref={toolsMenuRef}>
+                  <button
+                    onClick={() => setShowToolsMenu((v) => !v)}
+                    className="h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Tools
+                  </button>
+
+                  {showToolsMenu && (
+                    <div className="absolute left-0 top-full mt-2 w-64 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-3 space-y-2 z-50">
+                      {/* Undo / Redo */}
+                      <div className="flex items-center gap-1 mb-2">
+                        <button
+                          onClick={handleUndo}
+                          disabled={undoStack.length === 0}
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                            undoStack.length === 0
+                              ? 'border-teal-500/10 text-teal-500/20 cursor-default'
+                              : 'border-teal-500/30 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 cursor-pointer'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+                          </svg>
+                          Undo
+                        </button>
+                        <button
+                          onClick={handleRedo}
+                          disabled={redoStack.length === 0}
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                            redoStack.length === 0
+                              ? 'border-sky-500/10 text-sky-500/20 cursor-default'
+                              : 'border-sky-500/30 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 cursor-pointer'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+                          </svg>
+                          Redo
+                        </button>
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs text-white/65">Node types</span>
+                        <NodeTypeFilter
+                          hiddenTypes={hiddenNodeTypes}
+                          onShowAll={handleShowAllNodeTypes}
+                          onHideAll={handleHideAllNodeTypes}
+                          onSetVisible={handleSetVisibleNodeTypes}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs text-white/65">Keywords</span>
+                        <KeywordFilterDropdown />
+                      </div>
+                      <button
+                        onClick={() => window.open('/cv-export', '_blank')}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
+                      >
+                        <IconDownload />
+                        Export Orbis
+                      </button>
+                      <label
+                        className={`w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                          importing
+                            ? 'border-purple-400/30 text-purple-300 bg-purple-500/15 cursor-wait'
+                            : 'border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 cursor-pointer'
+                        }`}
+                      >
+                        {importing ? (
+                          <div className="w-3.5 h-3.5 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                        )}
+                        <span>{importing ? 'Processing...' : 'Import document'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.docx,.txt"
+                          className="hidden"
+                          disabled={importing}
+                          onChange={handleImportInputChange}
+                        />
+                      </label>
+                      {/* Notes */}
+                      <button
+                        onClick={() => { setShowDrafts(true); setShowToolsMenu(false); }}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 transition-all"
+                      >
+                        <IconNotes />
+                        Notes
+                        {draftNotes.length > 0 && (
+                          <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                            {draftNotes.length}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!isPendingDeletion && (
+                <div className="hidden lg:flex items-center gap-1.5 ml-2">
                   {/* Undo / Redo */}
                   <div data-tour="undo-redo" className="flex items-center">
                     <button
@@ -1784,138 +1892,6 @@ export default function OrbViewPage() {
 
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
-              <div data-tour="notes">
-                <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
-                  <IconNotes />
-                  <span className="hidden sm:inline">Notes</span>
-                  {draftNotes.length > 0 && (
-                    <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
-                      {draftNotes.length}
-                    </span>
-                  )}
-                </HeaderBtn>
-              </div>
-
-              {!isPendingDeletion && (
-                <div className="relative sm:hidden" ref={toolsMenuRef}>
-                  <button
-                    onClick={() => setShowToolsMenu((v) => !v)}
-                    className="h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                    Tools
-                  </button>
-
-                  {showToolsMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-64 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-3 space-y-2">
-                      {/* Undo / Redo (mobile) */}
-                      <div className="flex items-center gap-1 mb-2">
-                        <button
-                          onClick={handleUndo}
-                          disabled={undoStack.length === 0}
-                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
-                            undoStack.length === 0
-                              ? 'border-teal-500/10 text-teal-500/20 cursor-default'
-                              : 'border-teal-500/30 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 cursor-pointer'
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
-                          </svg>
-                          Undo
-                        </button>
-                        <button
-                          onClick={handleRedo}
-                          disabled={redoStack.length === 0}
-                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
-                            redoStack.length === 0
-                              ? 'border-sky-500/10 text-sky-500/20 cursor-default'
-                              : 'border-sky-500/30 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 cursor-pointer'
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
-                          </svg>
-                          Redo
-                        </button>
-                      </div>
-                      <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-xs text-white/65">Node types</span>
-                        <NodeTypeFilter
-                          hiddenTypes={hiddenNodeTypes}
-                          onShowAll={handleShowAllNodeTypes}
-                          onHideAll={handleHideAllNodeTypes}
-                          onSetVisible={handleSetVisibleNodeTypes}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-xs text-white/65">Keywords</span>
-                        <KeywordFilterDropdown />
-                      </div>
-                      <button
-                        onClick={() => window.open('/cv-export', '_blank')}
-                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
-                      >
-                        <IconDownload />
-                        Export Orbis
-                      </button>
-                      <label
-                        className={`w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
-                          importing
-                            ? 'border-purple-400/30 text-purple-300 bg-purple-500/15 cursor-wait'
-                            : 'border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 cursor-pointer'
-                        }`}
-                      >
-                        {importing ? (
-                          <div className="w-3.5 h-3.5 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                        )}
-                        <span>{importing ? 'Processing...' : 'Import new document'}</span>
-                        {importing && importStatus && (
-                          <span className="text-[10px] text-purple-200/80 whitespace-nowrap">{importStatus}</span>
-                        )}
-                        <input
-                          type="file"
-                          accept=".pdf,.docx,.txt"
-                          className="hidden"
-                          disabled={importing}
-                          onChange={handleImportInputChange}
-                        />
-                      </label>
-                      {/* Document history */}
-                      {documents.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">Documents ({documents.length}/3)</span>
-                          {documents.map((doc) => (
-                            <div
-                              key={doc.document_id}
-                              className="flex items-center gap-1.5 text-[11px] text-white/50 bg-white/[0.03] rounded-lg px-2 py-1.5"
-                            >
-                              <svg className="w-3 h-3 flex-shrink-0 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate">{doc.original_filename}</div>
-                                <div className="text-white/25 text-[10px]">
-                                  {new Date(doc.uploaded_at).toLocaleDateString()}
-                                  {doc.entities_count != null && ` · ${doc.entities_count} nodes`}
-                                  {doc.edges_count != null && ` · ${doc.edges_count} edges`}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <form
@@ -1934,6 +1910,17 @@ export default function OrbViewPage() {
                   />
                 </div>
               </form>
+              <div data-tour="notes" className="hidden lg:block">
+                <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
+                  <IconNotes />
+                  <span>Notes</span>
+                  {draftNotes.length > 0 && (
+                    <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
+                      {draftNotes.length}
+                    </span>
+                  )}
+                </HeaderBtn>
+              </div>
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
                 <UserMenu
