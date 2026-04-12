@@ -21,7 +21,6 @@ import {
   updateAccessGrantFilters,
 } from '../api/orbs';
 import type { AccessGrant, ConnectionRequest, OrbVisibility, ShareToken } from '../api/orbs';
-import { QRCodeCanvas } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import FloatingInput from '../components/editor/FloatingInput';
@@ -61,7 +60,6 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-const SHARE_QR_SIZE = 160;
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 
 // ── Modals ──
@@ -83,6 +81,9 @@ function SharePanel({
   const [tokensLoading, setTokensLoading] = useState(false);
   const [creatingToken, setCreatingToken] = useState(false);
   const [newTokenLabel, setNewTokenLabel] = useState('');
+  const [expandedTokenId, setExpandedTokenId] = useState<string | null>(null);
+  const [revokeTokenTarget, setRevokeTokenTarget] = useState<ShareToken | null>(null);
+  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [grantsLoading, setGrantsLoading] = useState(false);
@@ -101,9 +102,7 @@ function SharePanel({
   const [acceptKeywords, setAcceptKeywords] = useState('');
   const [acceptHiddenTypes, setAcceptHiddenTypes] = useState('');
   const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
-  const [qrActionHint, setQrActionHint] = useState<'copied' | 'downloaded' | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
-  const qrCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const addToast = useToastStore((s) => s.addToast);
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
   const [inlineFilterKeyword, setInlineFilterKeyword] = useState('');
@@ -111,18 +110,9 @@ function SharePanel({
   const privacyHiddenTypesArray = useMemo(() => Array.from(privacyHiddenTypes), [privacyHiddenTypes]);
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || privacyHiddenTypesArray.length > 0;
-  const isPrivate = visibility === 'private';
   const isRestricted = visibility === 'restricted';
   const isPublic = visibility === 'public';
   const bareUrl = `${window.location.origin}/${orbId}`;
-  const selectedTokenId = shareTokens.length > 0 ? shareTokens[0].token_id : null;
-  const shareUrl = isRestricted
-    ? bareUrl
-    : (selectedTokenId ? `${bareUrl}?token=${selectedTokenId}` : '');
-  const shareableUrl = isPrivate ? '' : shareUrl;
-  const qrValue = shareableUrl || bareUrl;
-  const canDownloadQr = !isPrivate && (isRestricted || Boolean(selectedTokenId));
-  const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
@@ -222,34 +212,6 @@ function SharePanel({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const flashQrHint = useCallback((kind: 'copied' | 'downloaded') => {
-    setQrActionHint(kind);
-    window.setTimeout(() => {
-      setQrActionHint((current) => (current === kind ? null : current));
-    }, 1600);
-  }, []);
-
-  const copyText = useCallback(async (text: string, label: string): Promise<boolean> => {
-    if (!navigator.clipboard?.writeText) {
-      addToast('Clipboard is not available in this browser', 'error');
-      return false;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      addToast(`${label} copied`, 'success');
-      return true;
-    } catch {
-      addToast(`Failed to copy ${label.toLowerCase()}`, 'error');
-      return false;
-    }
-  }, [addToast]);
-
-  const handleCopyShareLink = useCallback(async () => {
-    if (!canCopyShareLink || !shareableUrl) return;
-    const copied = await copyText(shareableUrl, 'Share link');
-    if (copied) flashQrHint('copied');
-  }, [canCopyShareLink, copyText, flashQrHint, shareableUrl]);
-
   const handleCreateToken = useCallback(async () => {
     if (creatingToken) return;
     setCreatingToken(true);
@@ -265,31 +227,20 @@ function SharePanel({
     }
   }, [creatingToken, activeKeywords, privacyHiddenTypesArray, newTokenLabel, addToast]);
 
-  const handleRevokeToken = useCallback(async (tokenId: string) => {
+  const confirmRevokeToken = useCallback(async () => {
+    if (!revokeTokenTarget) return;
+    setRevokingTokenId(revokeTokenTarget.token_id);
     try {
-      await revokeShareToken(tokenId);
-      setShareTokens(prev => prev.filter(t => t.token_id !== tokenId));
+      await revokeShareToken(revokeTokenTarget.token_id);
+      setShareTokens(prev => prev.filter(t => t.token_id !== revokeTokenTarget.token_id));
       addToast('Token revoked', 'success');
     } catch {
       addToast('Failed to revoke token', 'error');
+    } finally {
+      setRevokingTokenId(null);
+      setRevokeTokenTarget(null);
     }
-  }, [addToast]);
-
-  const handleDownloadQr = useCallback(() => {
-    if (!canDownloadQr || !qrCanvasRef.current) return;
-    try {
-      const link = document.createElement('a');
-      link.href = qrCanvasRef.current.toDataURL('image/png');
-      link.download = `orbis-${orbId}-${isRestricted ? 'restricted' : 'public'}-qr.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      addToast('QR code downloaded', 'success');
-      flashQrHint('downloaded');
-    } catch {
-      addToast('Failed to download QR code', 'error');
-    }
-  }, [addToast, canDownloadQr, flashQrHint, isRestricted, orbId]);
+  }, [revokeTokenTarget, addToast]);
 
   const parseCommaSeparated = useCallback((value: string, lowerCase = false): string[] => {
     const items = value
@@ -492,7 +443,7 @@ function SharePanel({
           </svg>
         </button>
         <h2 className="text-white text-lg font-semibold mb-1">Share Your Orbis</h2>
-        <p className="text-gray-400 text-sm mb-5">Choose visibility, then share with a direct link or QR code.</p>
+        <p className="text-gray-400 text-sm mb-5">Choose visibility, then share with a direct link.</p>
 
         {/* Visibility selector */}
         <div className="mb-4">
@@ -643,6 +594,21 @@ function SharePanel({
                 </div>
 
                 <div className="border-t border-gray-700/50 pt-3">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Direct link to your orbis.</p>
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
+                      className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-700/50 pt-3">
                   <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
                   <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
 
@@ -682,14 +648,55 @@ function SharePanel({
                                 {' · '}{formatDate(token.created_at)}
                               </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRevokeToken(token.token_id)}
-                              className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors shrink-0"
-                            >
-                              Revoke
-                            </button>
+                            <div className="flex gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedTokenId(expandedTokenId === token.token_id ? null : token.token_id)}
+                                className={`h-7 px-2 rounded-lg border text-[10px] font-medium transition-colors ${
+                                  expandedTokenId === token.token_id
+                                    ? 'border-purple-500/40 text-purple-300 bg-purple-500/10'
+                                    : 'border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700'
+                                }`}
+                              >
+                                Filters
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRevokeTokenTarget(token)}
+                                className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors"
+                              >
+                                Revoke
+                              </button>
+                            </div>
                           </div>
+                          {expandedTokenId === token.token_id && (
+                            <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 px-3 py-2 space-y-1.5">
+                              <div>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Keywords</p>
+                                {token.keywords.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {token.keywords.map((kw) => (
+                                      <span key={kw} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{kw}</span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
+                                {(token.hidden_node_types || []).length > 0 ? (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {(token.hidden_node_types || []).map((t) => (
+                                      <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300">{t}</span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1.5">
                             <input
                               readOnly
@@ -705,65 +712,16 @@ function SharePanel({
                             </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                const url = `${window.location.origin}/${orbId}?token=${token.token_id}`;
-                                navigator.clipboard.writeText(url);
-                                addToast('Share link copied', 'success');
-                              }}
+                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${orbId}?token=${token.token_id}`); addToast('Orbis link copied', 'success'); }}
                               className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
                             >
-                              Copy Link
+                              Copy Orbis
                             </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {isPublic && (
-              <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-                <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-                <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
-                  <div className="flex items-center justify-center md:pr-8">
-                    <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
-                      <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
-                        <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
-                    <button
-                      type="button"
-                      onClick={handleCopyShareLink}
-                      disabled={!canCopyShareLink}
-                      className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-                    >
-                      Copy Share Link
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDownloadQr}
-                      disabled={!canDownloadQr}
-                      className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
-                    >
-                      Download QR (.png)
-                    </button>
-                    <p
-                      aria-live="polite"
-                      className={`text-[11px] h-4 transition-colors ${
-                        qrActionHint === 'copied'
-                          ? 'text-emerald-300'
-                          : qrActionHint === 'downloaded'
-                            ? 'text-sky-300'
-                            : 'text-transparent'
-                      }`}
-                    >
-                      {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
@@ -963,6 +921,21 @@ function SharePanel({
                   </div>
 
                   <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Direct link to your orbis.</p>
+                    <div className="flex items-center gap-2">
+                      <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                      <button
+                        type="button"
+                        onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
+                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-700/50 pt-3">
                     <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
                     <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
 
@@ -1004,7 +977,7 @@ function SharePanel({
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleRevokeToken(token.token_id)}
+                                onClick={() => setRevokeTokenTarget(token)}
                                 className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors shrink-0"
                               >
                                 Revoke
@@ -1025,14 +998,10 @@ function SharePanel({
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const url = `${window.location.origin}/${orbId}`;
-                                  navigator.clipboard.writeText(url);
-                                  addToast('Share link copied', 'success');
-                                }}
+                                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${orbId}`); addToast('Orbis link copied', 'success'); }}
                                 className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
                               >
-                                Copy Link
+                                Copy Orbis
                               </button>
                             </div>
                           </div>
@@ -1175,49 +1144,6 @@ function SharePanel({
                     )}
                   </div>
                 </div>
-
-                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">QR Code</label>
-                  <div className="mt-3 max-w-[760px] mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-4 md:gap-0">
-                    <div className="flex items-center justify-center md:pr-8">
-                      <div className="rounded-xl border border-gray-700/70 bg-gray-900/35 p-3">
-                        <div className="bg-white p-2 rounded-md shadow-[0_4px_14px_rgba(255,255,255,0.08)]">
-                          <QRCodeCanvas ref={qrCanvasRef} value={qrValue} size={SHARE_QR_SIZE} level="M" marginSize={1} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="w-full max-w-[280px] justify-self-center md:justify-self-end md:border-l md:border-gray-700/60 md:pl-6 flex flex-col gap-2.5">
-                      <button
-                        type="button"
-                        onClick={handleCopyShareLink}
-                        disabled={!canCopyShareLink}
-                        className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
-                      >
-                        Copy Share Link
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDownloadQr}
-                        disabled={!canDownloadQr}
-                        className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
-                      >
-                        Download QR (.png)
-                      </button>
-                      <p
-                        aria-live="polite"
-                        className={`text-[11px] h-4 transition-colors ${
-                          qrActionHint === 'copied'
-                            ? 'text-emerald-300'
-                            : qrActionHint === 'downloaded'
-                              ? 'text-sky-300'
-                              : 'text-transparent'
-                        }`}
-                      >
-                        {qrActionHint === 'copied' ? 'Copied to clipboard' : qrActionHint === 'downloaded' ? 'QR downloaded' : 'Status'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </>
             )}
           </div>
@@ -1351,6 +1277,53 @@ function SharePanel({
                     className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
                   >
                     {revoking ? 'Revoking...' : 'Revoke'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Revoke token confirmation modal */}
+      <AnimatePresence>
+        {revokeTokenTarget && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 z-[60] rounded-2xl"
+              onClick={() => setRevokeTokenTarget(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="absolute inset-0 z-[61] flex items-center justify-center p-6"
+            >
+              <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm w-full shadow-2xl">
+                <h3 className="text-white text-sm font-semibold mb-2">Revoke Token</h3>
+                <p className="text-gray-400 text-xs mb-1">
+                  Revoke <span className="font-semibold text-white">{revokeTokenTarget.label || 'this token'}</span>?
+                </p>
+                <p className="text-gray-500 text-[11px] mb-4">Anyone using this MCP URI will lose access immediately.</p>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRevokeTokenTarget(null)}
+                    className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmRevokeToken}
+                    disabled={revokingTokenId === revokeTokenTarget.token_id}
+                    className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                  >
+                    {revokingTokenId === revokeTokenTarget.token_id ? 'Revoking...' : 'Revoke'}
                   </button>
                 </div>
               </div>
