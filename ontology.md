@@ -1,6 +1,6 @@
 # Orb Knowledge Graph Ontology
 
-## Node Labels & Properties
+## Domain Nodes (extractable from CVs)
 
 ### Person (Root Node)
 - `user_id` (string) — unique user identifier
@@ -16,6 +16,10 @@
 - `scholar_url` (string)
 - `website_url` (string)
 - `open_to_work` (boolean)
+- `picture` (string) — profile picture URL
+- `visibility` (string) — orb visibility setting
+- `public_filter_keywords` (list[string]) — keywords for public filter
+- `public_filter_hidden_types` (list[string]) — node types hidden in public view
 - `created_at` (datetime)
 - `updated_at` (datetime)
 
@@ -37,6 +41,7 @@
 - `description` (string)
 - `start_date` (string)
 - `end_date` (string)
+- `company_url` (string)
 
 ### Skill
 - `uid` (string)
@@ -50,6 +55,9 @@
 - `name` (string)
 - `issuing_organization` (string)
 - `date` (string)
+- `credential_url` (string)
+- `issue_date` (string)
+- `expiry_date` (string)
 
 ### Language
 - `uid` (string)
@@ -62,6 +70,8 @@
 - `venue` (string)
 - `abstract` (string)
 - `description` (string)
+- `url` (string)
+- `doi` (string)
 - `embedding` (vector)
 
 ### Project
@@ -69,6 +79,9 @@
 - `name` (string)
 - `role` (string)
 - `description` (string)
+- `url` (string)
+- `start_date` (string)
+- `end_date` (string)
 - `embedding` (vector)
 
 ### Patent
@@ -79,13 +92,35 @@
 - `inventors` (string)
 - `filing_date` (string)
 - `grant_date` (string)
+- `url` (string)
 
-### Collaborator
+### Award
 - `uid` (string)
 - `name` (string)
-- `email` (string)
+- `issuing_organization` (string)
+- `date` (string)
 - `description` (string)
-- `affiliation` (string)
+- `url` (string)
+
+### Outreach
+- `uid` (string)
+- `title` (string)
+- `type` (string)
+- `venue` (string)
+- `date` (string)
+- `description` (string)
+- `role` (string)
+- `url` (string)
+
+### Training
+- `uid` (string)
+- `title` (string)
+- `provider` (string)
+- `date` (string)
+- `description` (string)
+- `url` (string)
+
+## System Nodes
 
 ### OntologyVersion
 - `version_id` (string)
@@ -106,27 +141,77 @@
 - `prompt_hash` (string)
 - `nodes_extracted` (integer)
 - `edges_extracted` (integer)
+- `cost_usd` (float)
+- `duration_ms` (integer)
+- `input_tokens` (integer)
+- `output_tokens` (integer)
 - `processed_at` (datetime)
+
+### ShareToken
+- `token_id` (string)
+- `orb_id` (string)
+- `keywords` (list[string])
+- `hidden_node_types` (list[string])
+- `label` (string)
+- `created_at` (datetime)
+- `expires_at` (datetime)
+- `revoked` (boolean)
+
+### AccessGrant
+- `grant_id` (string)
+- `orb_id` (string)
+- `email` (string)
+- `keywords` (list[string])
+- `hidden_node_types` (list[string])
+- `created_at` (datetime)
+- `revoked` (boolean)
+
+### ConnectionRequest
+- `request_id` (string)
+- `requester_user_id` (string)
+- `requester_email` (string)
+- `requester_name` (string)
+- `status` (string)
+- `created_at` (datetime)
+- `resolved_at` (datetime)
+
+### LLMUsage
+- `usage_id` (string)
+- `endpoint` (string)
+- `llm_provider` (string)
+- `llm_model` (string)
+- `input_tokens` (integer)
+- `output_tokens` (integer)
+- `total_tokens` (integer)
+- `cost_usd` (float)
+- `duration_ms` (integer)
+- `created_at` (datetime)
 
 ## Relationships
 
 ### Person → Node
-| Relationship        | Target Node    |
-|---------------------|----------------|
-| HAS_EDUCATION       | Education      |
-| HAS_WORK_EXPERIENCE | WorkExperience |
-| HAS_SKILL           | Skill          |
-| HAS_CERTIFICATION   | Certification  |
-| SPEAKS              | Language       |
-| HAS_PUBLICATION     | Publication    |
-| HAS_PROJECT         | Project        |
-| HAS_PATENT          | Patent         |
-| COLLABORATED_WITH   | Collaborator   |
+| Relationship           | Target Node       |
+|------------------------|-------------------|
+| HAS_EDUCATION          | Education         |
+| HAS_WORK_EXPERIENCE   | WorkExperience    |
+| HAS_SKILL              | Skill             |
+| HAS_CERTIFICATION      | Certification     |
+| SPEAKS                 | Language          |
+| HAS_PUBLICATION        | Publication       |
+| HAS_PROJECT            | Project           |
+| HAS_PATENT             | Patent            |
+| HAS_AWARD              | Award             |
+| HAS_OUTREACH           | Outreach          |
+| HAS_TRAINING           | Training          |
+| HAS_SHARE_TOKEN        | ShareToken        |
+| GRANTED_ACCESS         | AccessGrant       |
+| HAS_CONNECTION_REQUEST | ConnectionRequest |
+| HAS_LLM_USAGE         | LLMUsage          |
 
 ### Cross-node
-| Relationship | Source                                                      | Target |
-|--------------|-------------------------------------------------------------|--------|
-| USED_SKILL   | Education, WorkExperience, Publication, Project, Patent     | Skill  |
+| Relationship | Source                                                                       | Target |
+|--------------|------------------------------------------------------------------------------|--------|
+| USED_SKILL   | Education, WorkExperience, Publication, Project, Patent, Award, Outreach, Training | Skill  |
 
 ### Provenance
 | Relationship          | Source           | Target           |
@@ -135,4 +220,3 @@
 | USED_ONTOLOGY         | ProcessingRecord | OntologyVersion  |
 | EXTRACTED             | ProcessingRecord | (any domain node)|
 | SUPERSEDES            | OntologyVersion  | OntologyVersion  |
-

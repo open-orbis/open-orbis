@@ -50,7 +50,7 @@ export default function PrivacyPolicyPage() {
                 </li>
                 <li>
                   <strong className="text-white/80">Manually entered data:</strong> Any professional information
-                  you add directly through the platform (nodes, notes, collaborators).
+                  you add directly through the platform (nodes, notes, and entries).
                 </li>
                 <li>
                   <strong className="text-white/80">Usage data:</strong> Anonymous analytics about how you

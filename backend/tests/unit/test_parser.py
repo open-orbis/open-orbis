@@ -317,10 +317,10 @@ Developer
         assert "work_experience" in types
         assert "education" in types
 
-    def test_section_patterns_missing_patent_and_collaborator(self):
-        """SECTION_PATTERNS lacks entries for 'patent' and 'collaborator',
-        so rule_based_extract can never produce these section types.
-        This documents the gap vs NODE_TYPE_LABELS.
+    def test_section_patterns_missing_patent(self):
+        """SECTION_PATTERNS lacks entries for 'patent', 'award', 'outreach',
+        and 'training', so rule_based_extract can never produce these
+        section types. This documents the gap vs NODE_TYPE_LABELS.
         """
         handled_by_patterns = set(SECTION_PATTERNS.keys())
         all_node_types = set(NODE_TYPE_LABELS.keys())

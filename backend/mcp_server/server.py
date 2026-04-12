@@ -67,7 +67,7 @@ async def orbis_get_full_orb(orb_id: str, token: str = "") -> dict:
 async def orbis_get_nodes_by_type(
     orb_id: str, node_type: str, token: str = ""
 ) -> list[dict]:
-    """Get all nodes of a specific type from an orb. Valid node_types: education, work_experience, certification, language, publication, project, skill, collaborator."""
+    """Get all nodes of a specific type from an orb. Valid node_types: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
     driver = await _get_driver()
     return await get_nodes_by_type(driver, orb_id, node_type, token)
 
