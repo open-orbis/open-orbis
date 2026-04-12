@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from neo4j import AsyncDriver
 
 from app.config import settings
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_db, require_gdpr_consent
 from app.graph.llm_usage import record_llm_usage
 from app.graph.queries import NODE_TYPE_LABELS
 from app.notes.models import EnhanceNoteRequest, EnhanceNoteResponse
@@ -206,7 +206,7 @@ def _parse_enhance_result(  # noqa: C901
 async def enhance_note(
     request: Request,
     req: EnhanceNoteRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     """Enhance a draft note using LLM: translate, improve, extract fields, suggest links."""

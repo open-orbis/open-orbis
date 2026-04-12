@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_current_user, get_db, require_gdpr_consent
 from app.main import app
 from app.rate_limit import limiter
 
@@ -80,11 +80,19 @@ def empty_async_result():
 
 @pytest.fixture
 def client(mock_db, mock_neo4j_driver):
+    """Default ``TestClient`` with auth + consent short-circuited.
+
+    Most tests don't care about the GDPR gate and would otherwise need
+    to remember to mock a ``{"consent": True}`` row before any write
+    endpoint. This override bypasses the ``require_gdpr_consent`` DB
+    lookup entirely; tests that actually exercise the consent path
+    (``test_gdpr_consent.py``) delete the override with
+    ``app.dependency_overrides.pop(require_gdpr_consent, None)``.
+    """
+    fake_user = {"user_id": "test-user", "email": "test@example.com"}
     app.dependency_overrides[get_db] = lambda: mock_db
-    app.dependency_overrides[get_current_user] = lambda: {
-        "user_id": "test-user",
-        "email": "test@example.com",
-    }
+    app.dependency_overrides[get_current_user] = lambda: fake_user
+    app.dependency_overrides[require_gdpr_consent] = lambda: fake_user
 
     with TestClient(app) as c:
         yield c
