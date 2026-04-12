@@ -298,15 +298,14 @@ RETURN
     count(CASE WHEN a.used_at IS NULL AND a.active = true THEN 1 END) AS available
 """
 
-# Pending users: registered but not yet activated (no signup_code, not admin).
-# Users explicitly join via the waitlist CTA. For backward compatibility,
-# older records without this flag are treated as already joined.
+# Pending users: registered but not yet activated (no signup_code, not admin),
+# and explicitly opted into the waitlist via CTA.
 
 LIST_PENDING_PERSONS = """
 MATCH (p:Person)
 WHERE p.signup_code IS NULL
   AND coalesce(p.is_admin, false) = false
-  AND coalesce(p.waitlist_joined, true) = true
+  AND coalesce(p.waitlist_joined, false) = true
 RETURN p
 ORDER BY p.created_at DESC
 """
@@ -315,7 +314,7 @@ COUNT_PENDING_PERSONS = """
 MATCH (p:Person)
 WHERE p.signup_code IS NULL
   AND coalesce(p.is_admin, false) = false
-  AND coalesce(p.waitlist_joined, true) = true
+  AND coalesce(p.waitlist_joined, false) = true
 RETURN count(p) AS total
 """
 

@@ -224,6 +224,11 @@ async def get_me(
         deletion_at = person.get("deletion_requested_at")
         days_left = _days_remaining(str(deletion_at)) if deletion_at else None
 
+        raw_waitlist_joined = person.get("waitlist_joined")
+        waitlist_joined = (
+            raw_waitlist_joined if isinstance(raw_waitlist_joined, bool) else False
+        )
+
         return UserInfo(
             user_id=person["user_id"],
             email=current_user["email"],
@@ -233,7 +238,7 @@ async def get_me(
             gdpr_consent=bool(person.get("gdpr_consent", False)),
             is_admin=is_admin_user,
             activated=activated,
-            waitlist_joined=bool(person.get("waitlist_joined", True)),
+            waitlist_joined=waitlist_joined,
             waitlist_joined_at=(
                 str(person["waitlist_joined_at"])
                 if person.get("waitlist_joined_at")
