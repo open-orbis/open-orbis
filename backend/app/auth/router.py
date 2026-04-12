@@ -233,6 +233,12 @@ async def get_me(
             gdpr_consent=bool(person.get("gdpr_consent", False)),
             is_admin=is_admin_user,
             activated=activated,
+            waitlist_joined=bool(person.get("waitlist_joined", True)),
+            waitlist_joined_at=(
+                str(person["waitlist_joined_at"])
+                if person.get("waitlist_joined_at")
+                else None
+            ),
             deletion_requested_at=str(deletion_at) if deletion_at else None,
             deletion_days_remaining=days_left,
         )
@@ -380,6 +386,34 @@ async def grant_gdpr_consent(
             now=datetime.now(timezone.utc).isoformat(),
         )
     return {"status": "ok"}
+
+
+@router.post("/waitlist/join")
+@limiter.limit("10/minute")
+async def join_waitlist(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Explicitly opt into the waitlist for non-activated users."""
+    async with db.session() as session:
+        result = await session.run(
+            "MATCH (p:Person {user_id: $user_id}) "
+            "SET p.waitlist_joined = true, "
+            "    p.waitlist_joined_at = coalesce(p.waitlist_joined_at, datetime()), "
+            "    p.updated_at = datetime() "
+            "RETURN p.waitlist_joined_at AS joined_at",
+            user_id=current_user["user_id"],
+        )
+        record = await result.single()
+        if record is None:
+            raise HTTPException(status_code=404, detail="User not found")
+
+    joined_at = record.get("joined_at")
+    return {
+        "status": "joined",
+        "waitlist_joined_at": str(joined_at) if joined_at else None,
+    }
 
 
 # ── MCP API keys (machine credentials for the MCP server) ────────────

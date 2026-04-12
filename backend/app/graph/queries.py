@@ -11,6 +11,8 @@ CREATE (p:Person {
     picture: $picture,
     provider: $provider,
     signup_code: $signup_code,
+    waitlist_joined: false,
+    waitlist_joined_at: null,
     is_admin: false,
     headline: '',
     location: '',
@@ -297,19 +299,23 @@ RETURN
 """
 
 # Pending users: registered but not yet activated (no signup_code, not admin).
-# These replace the old Waitlist concept — since everyone now registers, the
-# "waiting" users are simply Persons without a code.
+# Users explicitly join via the waitlist CTA. For backward compatibility,
+# older records without this flag are treated as already joined.
 
 LIST_PENDING_PERSONS = """
 MATCH (p:Person)
-WHERE p.signup_code IS NULL AND coalesce(p.is_admin, false) = false
+WHERE p.signup_code IS NULL
+  AND coalesce(p.is_admin, false) = false
+  AND coalesce(p.waitlist_joined, true) = true
 RETURN p
 ORDER BY p.created_at DESC
 """
 
 COUNT_PENDING_PERSONS = """
 MATCH (p:Person)
-WHERE p.signup_code IS NULL AND coalesce(p.is_admin, false) = false
+WHERE p.signup_code IS NULL
+  AND coalesce(p.is_admin, false) = false
+  AND coalesce(p.waitlist_joined, true) = true
 RETURN count(p) AS total
 """
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { activateAccount, getMe } from '../api/auth';
+import { activateAccount, getMe, joinWaitlist } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
 
@@ -18,7 +18,14 @@ export default function ActivatePage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
+  const [joinedWaitlist, setJoinedWaitlist] = useState<boolean>(Boolean(user?.waitlist_joined));
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const navigatingRef = useRef(false);
+
+  useEffect(() => {
+    setJoinedWaitlist(Boolean(user?.waitlist_joined));
+  }, [user?.waitlist_joined]);
 
   const goToApp = useCallback(async () => {
     if (navigatingRef.current) return;
@@ -63,6 +70,21 @@ export default function ActivatePage() {
   const handleLogout = () => {
     logout();
     navigate('/', { replace: true });
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (joinedWaitlist || joiningWaitlist) return;
+    setWaitlistError(null);
+    setJoiningWaitlist(true);
+    try {
+      await joinWaitlist();
+      setJoinedWaitlist(true);
+      await fetchUser();
+    } catch {
+      setWaitlistError('Could not join the waiting list. Please try again.');
+    } finally {
+      setJoiningWaitlist(false);
+    }
   };
 
   return (
@@ -128,11 +150,29 @@ export default function ActivatePage() {
           </motion.div>
         )}
 
-        {/* Waitlist info */}
+        {/* Waitlist opt-in */}
         <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 mb-4 text-left">
-          <p className="text-white/50 text-xs leading-relaxed">
-            Don&apos;t have a code? No problem — by signing up you&apos;ve been added to our waiting list. We&apos;ll reach out as soon as your access is enabled.
+          <p className="text-white/50 text-xs leading-relaxed mb-3">
+            Don&apos;t have a code yet? Join the waiting list and we&apos;ll contact you as soon as access opens.
           </p>
+          {joinedWaitlist ? (
+            <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="text-emerald-200 text-xs font-medium">You&apos;re on the waiting list</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleJoinWaitlist}
+              disabled={joiningWaitlist}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors"
+            >
+              {joiningWaitlist ? 'Joining...' : 'Join waiting list'}
+            </button>
+          )}
+          {waitlistError && (
+            <p className="text-amber-300/90 text-xs mt-3">{waitlistError}</p>
+          )}
         </div>
 
         {/* Logout link */}
