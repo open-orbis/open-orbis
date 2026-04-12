@@ -1896,6 +1896,17 @@ export default function OrbViewPage() {
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
 
+              <div data-tour="notes" className="hidden lg:block">
+                <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
+                  <IconNotes />
+                  <span>Notes</span>
+                  {draftNotes.length > 0 && (
+                    <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
+                      {draftNotes.length}
+                    </span>
+                  )}
+                </HeaderBtn>
+              </div>
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <form
                 onSubmit={(e) => { e.preventDefault(); const v = orbSearchValue.trim(); if (v) { navigate(`/${v}`); setOrbSearchValue(''); } }}
@@ -1913,17 +1924,6 @@ export default function OrbViewPage() {
                   />
                 </div>
               </form>
-              <div data-tour="notes" className="hidden lg:block">
-                <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
-                  <IconNotes />
-                  <span>Notes</span>
-                  {draftNotes.length > 0 && (
-                    <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
-                      {draftNotes.length}
-                    </span>
-                  )}
-                </HeaderBtn>
-              </div>
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
                 <UserMenu

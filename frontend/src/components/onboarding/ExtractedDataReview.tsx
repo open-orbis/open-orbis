@@ -8,6 +8,7 @@ import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import NodeForm from '../editor/NodeForm';
 import { useAuthStore } from '../../stores/authStore';
 import { useToastStore } from '../../stores/toastStore';
+import { saveDraftNote } from '../drafts/DraftNotes';
 
 const REVIEW_REQUIRED_FIELDS: Record<string, string[]> = {
   skill: ['name'],
@@ -50,6 +51,7 @@ interface ExtractedDataReviewProps {
   cvOwnerName: string | null;
   profile?: ExtractedProfile | null;
   unmatchedCount: number;
+  unmatchedEntries?: string[];
   skippedCount: number;
   truncated: boolean;
   onReset: () => void;
@@ -79,6 +81,7 @@ export default function ExtractedDataReview({
   cvOwnerName,
   profile,
   unmatchedCount,
+  unmatchedEntries,
   truncated,
   onReset,
   resetLabel = 'Try another file',
@@ -144,6 +147,16 @@ export default function ExtractedDataReview({
         await onConfirmOverride(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount, profile);
       } else {
         await confirmCV(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount, profile);
+      }
+      // Save unmatched entries as draft notes
+      if (unmatchedEntries && unmatchedEntries.length > 0) {
+        for (const text of unmatchedEntries) {
+          if (text.trim()) {
+            try {
+              await saveDraftNote(text.trim());
+            } catch { /* best effort */ }
+          }
+        }
       }
       await fetchUser();
       if (isReplaceMode && replaced > 0) {
