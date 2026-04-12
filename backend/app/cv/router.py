@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import uuid
 from pathlib import Path
 
@@ -36,34 +35,13 @@ from app.graph.queries import (
     NODE_TYPE_RELATIONSHIPS,
     UPDATE_PERSON,
 )
+from app.http_helpers import safe_content_disposition
 from app.rate_limit import limiter
 from app.snapshots.service import create_snapshot as create_orb_snapshot
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cv", tags=["cv"])
-
-
-_UNSAFE_FILENAME_CHARS = re.compile(r'[\x00-\x1f"\\/]+')
-
-
-def _safe_content_disposition(filename: str) -> str:
-    """Return a safe ``Content-Disposition: attachment; filename="..."`` value.
-
-    User-supplied filenames are used only in this response header so the
-    attack we care about is header injection via CR/LF and double-quote
-    escaping, plus path traversal if the header ever leaks into a file
-    system sink. We strip path components with ``Path.name``, replace
-    control characters, slashes, backslashes and double quotes with
-    underscores, and cap the length. Falls back to ``document.pdf`` if
-    nothing usable remains.
-    """
-    base = Path(filename or "").name
-    cleaned = _UNSAFE_FILENAME_CHARS.sub("_", base).strip()
-    if not cleaned or cleaned in (".", ".."):
-        cleaned = "document.pdf"
-    cleaned = cleaned[:200]
-    return f'attachment; filename="{cleaned}"'
 
 
 async def _require_consent(current_user: dict, db: AsyncDriver) -> None:
@@ -183,18 +161,27 @@ async def upload_cv(
 
     except HTTPException:
         raise
-    except TimeoutError as e:
-        logger.error("PDF extraction timeout: %s", e)
+    except TimeoutError:
+        logger.warning("PDF extraction timeout for user %s", user_id)
         progress.set_progress(user_id, CVStep.FAILED, "Timed out")
         raise HTTPException(
             status_code=504, detail="PDF processing timed out. Please try again."
         ) from None
     except Exception as e:
-        logger.error("CV upload pipeline error: %s", e, exc_info=True)
-        progress.set_progress(user_id, CVStep.FAILED, str(e))
+        # Log the exception type + id at ERROR, stash the full traceback at
+        # DEBUG. The raw str(e) is NOT surfaced to the client because LLM
+        # and extractor exceptions routinely contain slice of the PDF text,
+        # prompt content, or HTTPX response bodies.
+        logger.error(
+            "CV upload pipeline error for user %s (%s)",
+            user_id,
+            type(e).__name__,
+        )
+        logger.debug("CV upload traceback", exc_info=True)
+        progress.set_progress(user_id, CVStep.FAILED, "Processing failed")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to process CV: {str(e)}",
+            detail="Failed to process CV. Please try again.",
         ) from None
     finally:
         counter.decrement()
@@ -228,7 +215,7 @@ async def download_document(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": _safe_content_disposition(filename)},
+        headers={"Content-Disposition": safe_content_disposition(filename)},
     )
 
 
@@ -331,9 +318,14 @@ async def import_document(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Document import error: %s", e, exc_info=True)
+        logger.error(
+            "Document import error for user %s (%s)",
+            user_id,
+            type(e).__name__,
+        )
+        logger.debug("Document import traceback", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to process document: {e!s}"
+            status_code=500, detail="Failed to process document. Please try again."
         ) from None
 
 

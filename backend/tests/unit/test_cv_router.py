@@ -56,21 +56,21 @@ def test_upload_cv_rejects_non_pdf_magic_bytes(client):
 
 
 def test_safe_content_disposition_strips_traversal_and_ctrl_chars():
-    from app.cv.router import _safe_content_disposition
+    from app.http_helpers import safe_content_disposition
 
     assert (
-        _safe_content_disposition("../../etc/passwd") == 'attachment; filename="passwd"'
+        safe_content_disposition("../../etc/passwd") == 'attachment; filename="passwd"'
     )
     # The regex collapses runs of unsafe chars into a single underscore.
     assert (
-        _safe_content_disposition('evil"\r\nSet-Cookie: x=y.pdf')
+        safe_content_disposition('evil"\r\nSet-Cookie: x=y.pdf')
         == 'attachment; filename="evil_Set-Cookie: x=y.pdf"'
     )
-    assert _safe_content_disposition("") == 'attachment; filename="document.pdf"'
-    assert _safe_content_disposition("..") == 'attachment; filename="document.pdf"'
+    assert safe_content_disposition("") == 'attachment; filename="document.pdf"'
+    assert safe_content_disposition("..") == 'attachment; filename="document.pdf"'
     # Plain, safe names pass through.
     assert (
-        _safe_content_disposition("my resume.pdf")
+        safe_content_disposition("my resume.pdf")
         == 'attachment; filename="my resume.pdf"'
     )
 

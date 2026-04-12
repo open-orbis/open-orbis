@@ -12,6 +12,7 @@ from neo4j import AsyncDriver
 from app.dependencies import get_current_user_optional, get_db
 from app.graph.encryption import decrypt_properties
 from app.graph.queries import GET_FULL_ORB_PUBLIC
+from app.http_helpers import safe_content_disposition
 from app.orbs.share_token import node_matches_filters, validate_share_token
 from app.orbs.visibility import (
     assert_orb_accessible,
@@ -243,8 +244,11 @@ async def export_orb(  # noqa: C901
             record = await result.single()
         except Exception as e:
             logger.error(
-                "Export DB query failed for orb %s: %s", orb_id, e, exc_info=True
+                "Export DB query failed for orb %s (%s)",
+                orb_id,
+                type(e).__name__,
             )
+            logger.debug("Export DB query traceback", exc_info=True)
             raise HTTPException(
                 status_code=500, detail="Failed to load orb data"
             ) from None
@@ -255,8 +259,11 @@ async def export_orb(  # noqa: C901
         person, nodes = _gather_orb(record)
     except Exception as e:
         logger.error(
-            "Export orb data extraction failed for %s: %s", orb_id, e, exc_info=True
+            "Export orb data extraction failed for %s (%s)",
+            orb_id,
+            type(e).__name__,
         )
+        logger.debug("Export extraction traceback", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to process orb data"
         ) from None
@@ -284,16 +291,24 @@ async def export_orb(  # noqa: C901
             )
         except Exception as e:
             logger.error(
-                "PDF generation failed for orb %s: %s", orb_id, e, exc_info=True
+                "PDF generation failed for orb %s (%s)",
+                orb_id,
+                type(e).__name__,
             )
+            logger.debug("PDF generation traceback", exc_info=True)
             raise HTTPException(
                 status_code=500, detail="Failed to generate PDF"
             ) from None
-        filename = f"{person.get('name', orb_id).replace(' ', '_')}_CV.pdf"
+        # Filename derives from user-controlled name; the shared helper
+        # strips control chars, path components, and quotes.
+        raw_name = person.get("name", orb_id) or orb_id
+        filename = f"{raw_name.replace(' ', '_')}_CV.pdf"
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={
+                "Content-Disposition": safe_content_disposition(filename),
+            },
         )
 
     if format == "jsonld":
