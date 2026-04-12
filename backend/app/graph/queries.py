@@ -99,8 +99,12 @@ RETURN p
 """
 
 DELETE_USER_GRAPH = """
-MATCH (p:Person {user_id: $user_id})-[r]->(n)
-WHERE NOT n:ProcessingRecord
+MATCH (p:Person {user_id: $user_id})-[*1..]->(n)
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion
+  AND NOT n:ShareToken AND NOT n:AccessGrant
+  AND NOT n:RefreshToken AND NOT n:MCPApiKey
+  AND NOT n:LLMUsage AND NOT n:ConnectionRequest
+WITH DISTINCT n
 DETACH DELETE n
 """
 
@@ -178,13 +182,13 @@ RETURN n
 """
 
 UPDATE_NODE = """
-MATCH (n {uid: $uid})
+MATCH (p:Person {user_id: $user_id})-[]->(n {uid: $uid})
 SET n += $properties
 RETURN n
 """
 
 DELETE_NODE = """
-MATCH (n {uid: $uid})
+MATCH (p:Person {user_id: $user_id})-[]->(n {uid: $uid})
 DETACH DELETE n
 """
 

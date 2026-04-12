@@ -17,6 +17,7 @@ def _get_conn() -> sqlite3.Connection:
     if _conn is None:
         _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         _conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
+        _conn.execute("PRAGMA journal_mode=WAL")
         _conn.row_factory = sqlite3.Row
         _conn.execute("PRAGMA journal_mode=WAL")
         _maybe_migrate(_conn)

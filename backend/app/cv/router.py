@@ -435,97 +435,110 @@ async def discard_cv_progress(
 
 
 async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noqa: C901
-    """Shared logic for confirm_cv and import_confirm."""
+    """Shared logic for confirm_cv and import_confirm.
+
+    All writes run inside a single Neo4j transaction so a mid-import
+    failure rolls back atomically instead of leaving orphaned nodes.
+    """
     created: list[str | None] = []
     async with db.session() as session:
-        if wipe_existing:
-            await session.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
-
-        person_updates = _build_person_updates(data)
-        if person_updates:
-            await session.run(
-                UPDATE_PERSON,
-                user_id=current_user["user_id"],
-                properties=person_updates,
+        tx = await session.begin_transaction()
+        try:
+            await _persist_nodes_inner(
+                tx, data, current_user, created, wipe_existing=wipe_existing
             )
+            await tx.commit()
+        except Exception:
+            await tx.rollback()
+            raise
 
-        for node in data.nodes:
-            if node.node_type not in NODE_TYPE_LABELS:
-                created.append(None)
-                continue
-            label = NODE_TYPE_LABELS[node.node_type]
-            rel_type = NODE_TYPE_RELATIONSHIPS[node.node_type]
-            uid = str(uuid.uuid4())
-            safe_props = sanitize_node_properties(node.node_type, node.properties)
-            properties = encrypt_properties(safe_props)
+    valid_ids = [uid for uid in created if uid is not None]
+    return {"created": len(valid_ids), "node_ids": valid_ids}, valid_ids
 
-            merge_keys = NODE_TYPE_MERGE_KEYS.get(node.node_type)
-            if merge_keys:
-                merge_key_values = {k: properties.get(k, "") for k in merge_keys}
-                has_all = all(merge_key_values.values())
-                if has_all:
-                    merge_match = ", ".join(f"{k}: $merge_{k}" for k in merge_keys)
-                    query = (
-                        f"MATCH (p:Person {{user_id: $user_id}}) "
-                        f"MERGE (p)-[:{rel_type}]->(n:{label} {{{merge_match}}}) "
-                        f"ON CREATE SET n += $properties, n.uid = $uid "
-                        f"ON MATCH SET n += $properties "
-                        f"RETURN n"
-                    )
-                    params = {
-                        "user_id": current_user["user_id"],
-                        "properties": properties,
-                        "uid": uid,
-                    }
-                    for k, v in merge_key_values.items():
-                        params[f"merge_{k}"] = v
-                    result = await session.run(query, **params)
-                else:
-                    query = ADD_NODE.replace("{label}", label).replace(
-                        "{rel_type}", rel_type
-                    )
-                    result = await session.run(
-                        query,
-                        user_id=current_user["user_id"],
-                        properties=properties,
-                        uid=uid,
-                    )
+
+async def _persist_nodes_inner(  # noqa: C901
+    tx, data, current_user, created, *, wipe_existing
+):
+    """Inner logic running inside a Neo4j transaction."""
+    if wipe_existing:
+        await tx.run(DELETE_USER_GRAPH, user_id=current_user["user_id"])
+
+    person_updates = _build_person_updates(data)
+    if person_updates:
+        await tx.run(
+            UPDATE_PERSON,
+            user_id=current_user["user_id"],
+            properties=person_updates,
+        )
+
+    for node in data.nodes:
+        if node.node_type not in NODE_TYPE_LABELS:
+            created.append(None)
+            continue
+        label = NODE_TYPE_LABELS[node.node_type]
+        rel_type = NODE_TYPE_RELATIONSHIPS[node.node_type]
+        uid = str(uuid.uuid4())
+        safe_props = sanitize_node_properties(node.node_type, node.properties)
+        properties = encrypt_properties(safe_props)
+
+        merge_keys = NODE_TYPE_MERGE_KEYS.get(node.node_type)
+        if merge_keys:
+            merge_key_values = {k: properties.get(k, "") for k in merge_keys}
+            has_all = all(merge_key_values.values())
+            if has_all:
+                merge_match = ", ".join(f"{k}: $merge_{k}" for k in merge_keys)
+                query = (
+                    f"MATCH (p:Person {{user_id: $user_id}}) "
+                    f"MERGE (p)-[:{rel_type}]->(n:{label} {{{merge_match}}}) "
+                    f"ON CREATE SET n += $properties, n.uid = $uid "
+                    f"ON MATCH SET n += $properties "
+                    f"RETURN n"
+                )
+                params = {
+                    "user_id": current_user["user_id"],
+                    "properties": properties,
+                    "uid": uid,
+                }
+                for k, v in merge_key_values.items():
+                    params[f"merge_{k}"] = v
+                result = await tx.run(query, **params)
             else:
                 query = ADD_NODE.replace("{label}", label).replace(
                     "{rel_type}", rel_type
                 )
-                result = await session.run(
+                result = await tx.run(
                     query,
                     user_id=current_user["user_id"],
                     properties=properties,
                     uid=uid,
                 )
+        else:
+            query = ADD_NODE.replace("{label}", label).replace("{rel_type}", rel_type)
+            result = await tx.run(
+                query,
+                user_id=current_user["user_id"],
+                properties=properties,
+                uid=uid,
+            )
 
-            record = await result.single()
-            if record:
-                actual_uid = dict(record["n"]).get("uid", uid)
-                created.append(actual_uid)
-            else:
-                created.append(None)
+        record = await result.single()
+        if record:
+            actual_uid = dict(record["n"]).get("uid", uid)
+            created.append(actual_uid)
+        else:
+            created.append(None)
 
-        for rel in data.relationships:
-            if rel.type != "USED_SKILL":
-                continue
-            if 0 <= rel.from_index < len(created) and 0 <= rel.to_index < len(created):
-                from_uid = created[rel.from_index]
-                to_uid = created[rel.to_index]
-                if from_uid and to_uid:
-                    try:
-                        await session.run(
-                            LINK_SKILL, node_uid=from_uid, skill_uid=to_uid
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to link %s -> %s: %s", from_uid, to_uid, e
-                        )
-
-    valid_ids = [uid for uid in created if uid is not None]
-    return {"created": len(valid_ids), "node_ids": valid_ids}, valid_ids
+    for rel in data.relationships:
+        if rel.type != "USED_SKILL":
+            continue
+        if 0 <= rel.from_index < len(created) and 0 <= rel.to_index < len(created):
+            from_uid = created[rel.from_index]
+            to_uid = created[rel.to_index]
+            if from_uid and to_uid:
+                try:
+                    await tx.run(LINK_SKILL, node_uid=from_uid, skill_uid=to_uid)
+                except Exception as e:
+                    logger.warning("Failed to link %s -> %s: %s", from_uid, to_uid, e)
 
 
 def _build_person_updates(data: ConfirmRequest) -> dict:

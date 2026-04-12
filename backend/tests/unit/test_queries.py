@@ -199,14 +199,14 @@ class TestQueryTemplates:
     def test_get_person_by_orb_id_must_not_use_user_id(self):
         assert "$user_id" not in GET_PERSON_BY_ORB_ID
 
-    def test_update_node_must_not_use_user_id(self):
-        assert "$user_id" not in UPDATE_NODE, (
-            "UPDATE_NODE identifies by $uid, not $user_id"
+    def test_update_node_requires_user_id_ownership(self):
+        assert "$user_id" in UPDATE_NODE, (
+            "UPDATE_NODE must scope to Person {user_id} to prevent IDOR"
         )
 
-    def test_delete_node_must_not_use_user_id(self):
-        assert "$user_id" not in DELETE_NODE, (
-            "DELETE_NODE identifies by $uid, not $user_id"
+    def test_delete_node_requires_user_id_ownership(self):
+        assert "$user_id" in DELETE_NODE, (
+            "DELETE_NODE must scope to Person {user_id} to prevent IDOR"
         )
 
 
