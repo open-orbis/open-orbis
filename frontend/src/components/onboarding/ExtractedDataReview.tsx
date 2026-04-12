@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { confirmCV } from '../../api/cv';
 import { enhanceNote, getMyOrb } from '../../api/orbs';
-import type { ExtractedData, ExtractedRelationship } from '../../api/cv';
+import type { ExtractedData, ExtractedProfile, ExtractedRelationship } from '../../api/cv';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import NodeForm from '../editor/NodeForm';
 import { useAuthStore } from '../../stores/authStore';
@@ -48,6 +48,7 @@ interface ExtractedDataReviewProps {
   initialNodes: ExtractedData['nodes'];
   initialRelationships: ExtractedRelationship[];
   cvOwnerName: string | null;
+  profile?: ExtractedProfile | null;
   unmatchedCount: number;
   skippedCount: number;
   truncated: boolean;
@@ -66,6 +67,7 @@ interface ExtractedDataReviewProps {
     originalFilename?: string | null,
     fileSizeBytes?: number | null,
     pageCount?: number | null,
+    profile?: ExtractedProfile | null,
   ) => Promise<void>;
   /** Extra content rendered below the header (e.g., checkbox) */
   children?: React.ReactNode;
@@ -75,6 +77,7 @@ export default function ExtractedDataReview({
   initialNodes,
   initialRelationships,
   cvOwnerName,
+  profile,
   unmatchedCount,
   truncated,
   onReset,
@@ -138,9 +141,9 @@ export default function ExtractedDataReview({
     try {
       const replaced = existingNodeCount ?? 0;
       if (onConfirmOverride) {
-        await onConfirmOverride(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount);
+        await onConfirmOverride(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount, profile);
       } else {
-        await confirmCV(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount);
+        await confirmCV(extractedNodes, relationships, cvOwnerName, documentId, originalFilename, fileSizeBytes, pageCount, profile);
       }
       await fetchUser();
       if (isReplaceMode && replaced > 0) {

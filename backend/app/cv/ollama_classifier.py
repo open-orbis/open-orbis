@@ -113,12 +113,58 @@ Valid node_types and their expected properties:
 - Education: only extract actual degrees (BSc, MSc, PhD, etc.), not workshops or short courses.
 - If something does not clearly fit any node_type, put the raw text in the "unmatched" array.
 
-## Relationships
+## Relationships (USED_SKILL)
 
-For each skill mentioned in the context of a work_experience, project, education,
-publication, patent, award, outreach, or training entry, include a relationship entry linking
-the source node (by its index in the nodes array) to the skill node (by its index).
-Use type "USED_SKILL".
+This is the most important part. You MUST create USED_SKILL relationships to connect
+skill nodes to the entries where those skills were used or referenced.
+
+### How to detect skills in entries
+
+For EVERY work_experience, project, education, publication, patent, award, outreach,
+and training entry, carefully read its title, description, and all properties. Then:
+
+1. **Explicit skills**: if the entry explicitly mentions a technology, tool, language,
+   framework, methodology, or domain (e.g. "developed in Python using TensorFlow"),
+   create USED_SKILL links to those skill nodes.
+
+2. **Implicit/inferred skills**: if the entry's topic clearly implies a skill even without
+   naming it explicitly, create the link. For example:
+   - A publication about "Quantum Gate Compilation" → link to "Quantum Computing"
+   - A work experience as "iOS Developer" → link to "Swift" or "iOS"
+   - A project about "blockchain-based voting" → link to "Blockchain", "Smart Contracts"
+   - An outreach talk at "PyCon" → link to "Python"
+
+3. **Create missing skill nodes**: if a skill is referenced in an entry but no
+   corresponding skill node exists yet in your nodes array, CREATE a new skill node
+   for it AND then create the USED_SKILL relationship. Do not skip a relationship
+   just because the skill node doesn't exist yet.
+
+### Relationship format
+
+Each relationship uses `from_index` (the source entry) and `to_index` (the skill node),
+both referring to positions in the `nodes` array. Type is always "USED_SKILL".
+
+### Example
+
+If nodes[0] is a work_experience "ML Engineer at Google" describing "Built recommendation
+systems using Python, TensorFlow, and BigQuery", and nodes[5] is skill "Python",
+nodes[6] is skill "TensorFlow", nodes[7] is skill "BigQuery", then:
+
+```
+"relationships": [
+  {"from_index": 0, "to_index": 5, "type": "USED_SKILL"},
+  {"from_index": 0, "to_index": 6, "type": "USED_SKILL"},
+  {"from_index": 0, "to_index": 7, "type": "USED_SKILL"}
+]
+```
+
+### Common mistakes to avoid
+
+- Do NOT skip relationships. Every entry should have at least one USED_SKILL link if
+  it involves any technology, tool, language, methodology, or domain.
+- Do NOT forget to link publications and outreach entries to their relevant skills.
+  A paper about "Quantum Algorithms" MUST link to the "Quantum Computing" skill.
+- Do NOT link only explicitly listed skills. Read descriptions carefully for implicit ones.
 
 ## Output Format
 
@@ -135,12 +181,17 @@ You MUST return valid JSON in exactly this format:
   "website_url": "https://...",
   "scholar_url": "https://scholar.google.com/...",
   "nodes": [
-    {"node_type": "work_experience", "properties": {"company": "...", "title": "...", ...}},
+    {"node_type": "work_experience", "properties": {"company": "Google", "title": "ML Engineer", ...}},
     {"node_type": "skill", "properties": {"name": "Python", "category": "Programming"}},
+    {"node_type": "skill", "properties": {"name": "TensorFlow", "category": "Framework"}},
+    {"node_type": "publication", "properties": {"title": "Quantum Gate Synthesis", ...}},
+    {"node_type": "skill", "properties": {"name": "Quantum Computing", "category": "Research Area"}},
     ...
   ],
   "relationships": [
     {"from_index": 0, "to_index": 1, "type": "USED_SKILL"},
+    {"from_index": 0, "to_index": 2, "type": "USED_SKILL"},
+    {"from_index": 3, "to_index": 4, "type": "USED_SKILL"},
     ...
   ],
   "unmatched": [
