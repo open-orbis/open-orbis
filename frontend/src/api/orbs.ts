@@ -51,6 +51,7 @@ export interface ShareToken {
   token_id: string;
   orb_id: string;
   keywords: string[];
+  hidden_node_types: string[];
   label: string | null;
   created_at: string;
   expires_at: string | null;
