@@ -10,6 +10,7 @@ import {
   createAccessGrant,
   createShareToken,
   enhanceNote,
+  getPublicFilters,
   linkSkill,
   listAccessGrants,
   listConnectionRequests,
@@ -19,6 +20,7 @@ import {
   revokeAccessGrant,
   revokeShareToken,
   updateAccessGrantFilters,
+  updatePublicFilters,
 } from '../api/orbs';
 import type { AccessGrant, ConnectionRequest, OrbVisibility, ShareToken } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
@@ -110,6 +112,7 @@ function SharePanel({
   const privacyHiddenTypesArray = useMemo(() => Array.from(privacyHiddenTypes), [privacyHiddenTypes]);
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || privacyHiddenTypesArray.length > 0;
+  const [savingPublicFilters, setSavingPublicFilters] = useState(false);
   const isRestricted = visibility === 'restricted';
   const isPublic = visibility === 'public';
   const bareUrl = `${window.location.origin}/${orbId}`;
@@ -123,15 +126,37 @@ function SharePanel({
     if (!hasActiveFilters) setApplyFiltersOnInvite(false);
   }, [hasActiveFilters]);
 
-  // Fetch existing share tokens when share panel is open in public/restricted mode
+  const handleSavePublicFilters = async () => {
+    setSavingPublicFilters(true);
+    try {
+      await updatePublicFilters(activeKeywords, privacyHiddenTypesArray);
+      addToast('Public filters saved', 'success');
+    } catch {
+      addToast('Failed to save filters', 'error');
+    } finally {
+      setSavingPublicFilters(false);
+    }
+  };
+
+  // Load saved public filters when the modal opens in public mode
   useEffect(() => {
-    if (!isPublic && !isRestricted) return;
+    if (!isPublic) return;
+    getPublicFilters().then((f) => {
+      f.keywords.forEach((kw) => { if (!keywords.includes(kw)) addKeyword(kw); });
+      setPrivacyHiddenTypes(new Set(f.hidden_node_types));
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPublic]);
+
+  // Fetch existing share tokens when share panel is open in restricted mode
+  useEffect(() => {
+    if (!isRestricted) return;
     setTokensLoading(true);
     listShareTokens()
       .then((data) => setShareTokens(data.tokens.filter(t => !t.revoked)))
       .catch(() => {})
       .finally(() => setTokensLoading(false));
-  }, [isPublic, isRestricted]);
+  }, [isRestricted]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
@@ -607,121 +632,132 @@ function SharePanel({
                   </div>
                 </div>
 
-                <div className="border-t border-gray-700/50 pt-3">
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
-                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
-
-                  {/* Create new token */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <input
-                      value={newTokenLabel}
-                      onChange={(e) => setNewTokenLabel(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
-                      placeholder="Token label (e.g. Recruiter view)"
-                      className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
-                    />
+                {isPublic && (
+                  <div className="border-t border-gray-700/50 pt-3">
                     <button
                       type="button"
-                      onClick={handleCreateToken}
-                      disabled={creatingToken}
-                      className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
+                      onClick={handleSavePublicFilters}
+                      disabled={savingPublicFilters}
+                      className="w-full h-10 rounded-lg bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
                     >
-                      {creatingToken ? 'Creating...' : 'Create Token'}
+                      {savingPublicFilters ? 'Saving...' : 'Save Public Filters'}
                     </button>
+                    <p className="text-[11px] text-gray-500 mt-2 text-center">
+                      These filters are automatically applied to anyone viewing your public orbis.
+                    </p>
                   </div>
+                )}
 
-                  {/* Token list */}
-                  {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
-                  {!tokensLoading && shareTokens.length === 0 && (
-                    <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get a share link.</p>
-                  )}
-                  {shareTokens.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {shareTokens.map((token) => (
-                        <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
-                              <p className="text-[10px] text-gray-500 mt-0.5">
-                                {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
-                                {' · '}{formatDate(token.created_at)}
-                              </p>
-                            </div>
-                            <div className="flex gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => setExpandedTokenId(expandedTokenId === token.token_id ? null : token.token_id)}
-                                className={`h-7 px-2 rounded-lg border text-[10px] font-medium transition-colors ${
-                                  expandedTokenId === token.token_id
-                                    ? 'border-purple-500/40 text-purple-300 bg-purple-500/10'
-                                    : 'border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700'
-                                }`}
-                              >
-                                Filters
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRevokeTokenTarget(token)}
-                                className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors"
-                              >
-                                Revoke
-                              </button>
-                            </div>
-                          </div>
-                          {expandedTokenId === token.token_id && (
-                            <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 px-3 py-2 space-y-1.5">
-                              <div>
-                                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Keywords</p>
-                                {token.keywords.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {token.keywords.map((kw) => (
-                                      <span key={kw} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{kw}</span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
-                                )}
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
-                                {(token.hidden_node_types || []).length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {(token.hidden_node_types || []).map((t) => (
-                                      <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300">{t}</span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              readOnly
-                              value={token.token_id}
-                              className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
-                              className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                            >
-                              Copy MCP
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${orbId}?token=${token.token_id}`); addToast('Orbis link copied', 'success'); }}
-                              className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                            >
-                              Copy URL
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                {isRestricted && (
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI.</p>
+
+                    {/* Create new token */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <input
+                        value={newTokenLabel}
+                        onChange={(e) => setNewTokenLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
+                        placeholder="Token label (e.g. Recruiter view)"
+                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateToken}
+                        disabled={creatingToken}
+                        className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
+                      >
+                        {creatingToken ? 'Creating...' : 'Create Token'}
+                      </button>
                     </div>
-                  )}
-                </div>
+
+                    {/* Token list */}
+                    {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
+                    {!tokensLoading && shareTokens.length === 0 && (
+                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get an MCP URI.</p>
+                    )}
+                    {shareTokens.length > 0 && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {shareTokens.map((token) => (
+                          <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                  {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
+                                  {' · '}{formatDate(token.created_at)}
+                                </p>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedTokenId(expandedTokenId === token.token_id ? null : token.token_id)}
+                                  className={`h-7 px-2 rounded-lg border text-[10px] font-medium transition-colors ${
+                                    expandedTokenId === token.token_id
+                                      ? 'border-purple-500/40 text-purple-300 bg-purple-500/10'
+                                      : 'border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700'
+                                  }`}
+                                >
+                                  Filters
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRevokeTokenTarget(token)}
+                                  className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors"
+                                >
+                                  Revoke
+                                </button>
+                              </div>
+                            </div>
+                            {expandedTokenId === token.token_id && (
+                              <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 px-3 py-2 space-y-1.5">
+                                <div>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Keywords</p>
+                                  {token.keywords.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {token.keywords.map((kw) => (
+                                        <span key={kw} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{kw}</span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
+                                  {(token.hidden_node_types || []).length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {(token.hidden_node_types || []).map((t) => (
+                                        <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300">{t}</span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                readOnly
+                                value={token.token_id}
+                                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
+                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                              >
+                                Copy MCP
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
             {isRestricted && (
@@ -1005,9 +1041,9 @@ function SharePanel({
                     : 'bg-orange-500/8 border border-orange-500/15 text-orange-100/80'
                 }`}>
                   {pendingVisibility === 'restricted' ? (
-                    <>Only people you explicitly invite will be able to view your orbis. Existing public share links will stop working.</>
+                    <>Only people you explicitly invite will be able to view your orbis. Public access will be disabled.</>
                   ) : (
-                    <>Anyone with a valid share link will be able to view your orbis. You can still control what they see using privacy filters.</>
+                    <>Anyone visiting your orbis link will be able to view it. You can still control what they see using privacy filters.</>
                   )}
                 </div>
 
@@ -1211,6 +1247,7 @@ export default function OrbViewPage() {
   const isPendingDeletion = user?.deletion_days_remaining != null;
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [orbSearchValue, setOrbSearchValue] = useState('');
   const [showDiscoverUses, setShowDiscoverUses] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [cameraDistance] = useState(getSavedCameraDistance);
@@ -1232,7 +1269,8 @@ export default function OrbViewPage() {
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
-  const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [showImportLimitWarning, setShowImportLimitWarning] = useState(false);
   const [importOldestDoc, setImportOldestDoc] = useState<{ name: string; date: string } | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
@@ -1663,8 +1701,116 @@ export default function OrbViewPage() {
               <div className="hidden sm:block w-px h-5 bg-white/10" />
               <span data-tour="node-count" className="text-white text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
 
+              {/* Tools hamburger — visible below lg */}
               {!isPendingDeletion && (
-                <div className="hidden sm:flex items-center gap-1.5 ml-2">
+                <div className="relative lg:hidden" ref={toolsMenuRef}>
+                  <button
+                    onClick={() => setShowToolsMenu((v) => !v)}
+                    className="h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    Tools
+                  </button>
+
+                  {showToolsMenu && (
+                    <div className="absolute left-0 top-full mt-2 w-64 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-3 space-y-2 z-50">
+                      {/* Undo / Redo */}
+                      <div className="flex items-center gap-1 mb-2">
+                        <button
+                          onClick={handleUndo}
+                          disabled={undoStack.length === 0}
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                            undoStack.length === 0
+                              ? 'border-teal-500/10 text-teal-500/20 cursor-default'
+                              : 'border-teal-500/30 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 cursor-pointer'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+                          </svg>
+                          Undo
+                        </button>
+                        <button
+                          onClick={handleRedo}
+                          disabled={redoStack.length === 0}
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                            redoStack.length === 0
+                              ? 'border-sky-500/10 text-sky-500/20 cursor-default'
+                              : 'border-sky-500/30 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 cursor-pointer'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+                          </svg>
+                          Redo
+                        </button>
+                      </div>
+                      <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs text-white/65">Node types</span>
+                        <NodeTypeFilter
+                          hiddenTypes={hiddenNodeTypes}
+                          onShowAll={handleShowAllNodeTypes}
+                          onHideAll={handleHideAllNodeTypes}
+                          onSetVisible={handleSetVisibleNodeTypes}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between px-1">
+                        <span className="text-xs text-white/65">Keywords</span>
+                        <KeywordFilterDropdown />
+                      </div>
+                      <button
+                        onClick={() => window.open('/cv-export', '_blank')}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
+                      >
+                        <IconDownload />
+                        Export Orbis
+                      </button>
+                      <label
+                        className={`w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                          importing
+                            ? 'border-purple-400/30 text-purple-300 bg-purple-500/15 cursor-wait'
+                            : 'border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 cursor-pointer'
+                        }`}
+                      >
+                        {importing ? (
+                          <div className="w-3.5 h-3.5 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                        )}
+                        <span>{importing ? 'Processing...' : 'Import document'}</span>
+                        <input
+                          type="file"
+                          accept=".pdf,.docx,.txt"
+                          className="hidden"
+                          disabled={importing}
+                          onChange={handleImportInputChange}
+                        />
+                      </label>
+                      {/* Notes */}
+                      <button
+                        onClick={() => { setShowDrafts(true); setShowToolsMenu(false); }}
+                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 transition-all"
+                      >
+                        <IconNotes />
+                        Notes
+                        {draftNotes.length > 0 && (
+                          <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                            {draftNotes.length}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!isPendingDeletion && (
+                <div className="hidden lg:flex items-center gap-1.5 ml-2">
                   {/* Undo / Redo */}
                   <div data-tour="undo-redo" className="flex items-center">
                     <button
@@ -1747,10 +1893,28 @@ export default function OrbViewPage() {
 
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
-              <div data-tour="notes">
+
+              <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
+              <form
+                onSubmit={(e) => { e.preventDefault(); const v = orbSearchValue.trim(); if (v) { navigate(`/${v}`); setOrbSearchValue(''); } }}
+                className="hidden sm:flex items-center"
+              >
+                <div className="flex items-center bg-white/10 border border-white/15 rounded-lg px-2.5 py-1.5 focus-within:border-purple-500/50 focus-within:bg-white/15 transition-all">
+                  <svg className="w-3.5 h-3.5 text-white/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    value={orbSearchValue}
+                    onChange={(e) => setOrbSearchValue(e.target.value)}
+                    placeholder="Search Orbis ID..."
+                    className="bg-transparent text-white text-xs placeholder-white/30 focus:outline-none ml-2 w-28 sm:w-36"
+                  />
+                </div>
+              </form>
+              <div data-tour="notes" className="hidden lg:block">
                 <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
                   <IconNotes />
-                  <span className="hidden sm:inline">Notes</span>
+                  <span>Notes</span>
                   {draftNotes.length > 0 && (
                     <span className="bg-purple-500 text-white text-[10px] font-bold leading-none w-4 h-4 rounded-full flex items-center justify-center">
                       {draftNotes.length}
@@ -1758,128 +1922,6 @@ export default function OrbViewPage() {
                   )}
                 </HeaderBtn>
               </div>
-
-              {!isPendingDeletion && (
-                <div className="relative sm:hidden" ref={toolsMenuRef}>
-                  <button
-                    onClick={() => setShowToolsMenu((v) => !v)}
-                    className="h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                    Tools
-                  </button>
-
-                  {showToolsMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-64 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl p-3 space-y-2">
-                      {/* Undo / Redo (mobile) */}
-                      <div className="flex items-center gap-1 mb-2">
-                        <button
-                          onClick={handleUndo}
-                          disabled={undoStack.length === 0}
-                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
-                            undoStack.length === 0
-                              ? 'border-teal-500/10 text-teal-500/20 cursor-default'
-                              : 'border-teal-500/30 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 cursor-pointer'
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
-                          </svg>
-                          Undo
-                        </button>
-                        <button
-                          onClick={handleRedo}
-                          disabled={redoStack.length === 0}
-                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
-                            redoStack.length === 0
-                              ? 'border-sky-500/10 text-sky-500/20 cursor-default'
-                              : 'border-sky-500/30 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 cursor-pointer'
-                          }`}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
-                          </svg>
-                          Redo
-                        </button>
-                      </div>
-                      <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-xs text-white/65">Node types</span>
-                        <NodeTypeFilter
-                          hiddenTypes={hiddenNodeTypes}
-                          onShowAll={handleShowAllNodeTypes}
-                          onHideAll={handleHideAllNodeTypes}
-                          onSetVisible={handleSetVisibleNodeTypes}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-xs text-white/65">Keywords</span>
-                        <KeywordFilterDropdown />
-                      </div>
-                      <button
-                        onClick={() => window.open('/cv-export', '_blank')}
-                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
-                      >
-                        <IconDownload />
-                        Export Orbis
-                      </button>
-                      <label
-                        className={`w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
-                          importing
-                            ? 'border-purple-400/30 text-purple-300 bg-purple-500/15 cursor-wait'
-                            : 'border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 cursor-pointer'
-                        }`}
-                      >
-                        {importing ? (
-                          <div className="w-3.5 h-3.5 border-2 border-purple-300 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                        )}
-                        <span>{importing ? 'Processing...' : 'Import new document'}</span>
-                        {importing && importStatus && (
-                          <span className="text-[10px] text-purple-200/80 whitespace-nowrap">{importStatus}</span>
-                        )}
-                        <input
-                          type="file"
-                          accept=".pdf,.docx,.txt"
-                          className="hidden"
-                          disabled={importing}
-                          onChange={handleImportInputChange}
-                        />
-                      </label>
-                      {/* Document history */}
-                      {documents.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          <span className="text-[10px] text-white/30 uppercase tracking-wider font-medium">Documents ({documents.length}/3)</span>
-                          {documents.map((doc) => (
-                            <div
-                              key={doc.document_id}
-                              className="flex items-center gap-1.5 text-[11px] text-white/50 bg-white/[0.03] rounded-lg px-2 py-1.5"
-                            >
-                              <svg className="w-3 h-3 flex-shrink-0 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate">{doc.original_filename}</div>
-                                <div className="text-white/25 text-[10px]">
-                                  {new Date(doc.uploaded_at).toLocaleDateString()}
-                                  {doc.entities_count != null && ` · ${doc.entities_count} nodes`}
-                                  {doc.edges_count != null && ` · ${doc.edges_count} edges`}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
                 <UserMenu

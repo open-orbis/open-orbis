@@ -199,15 +199,14 @@ def test_delete_node_success(client, mock_db):
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-@patch("app.orbs.router.validate_share_token")
-def test_get_public_orb_success(mock_validate, mock_visibility, client, mock_db):
-    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+def test_get_public_orb_success(mock_visibility, client, mock_db):
     mock_visibility.return_value = "public"
 
     person_node = MockNode({"orb_id": "test-orb", "name": "Test User"}, ["Person"])
     node1 = MockNode({"uid": "node-1", "name": "Python"}, ["Skill"])
 
-    record = {
+    filter_record = {"keywords": [], "hidden_types": []}
+    orb_record = {
         "p": person_node,
         "connections": [{"node": node1, "rel": "HAS_SKILL"}],
         "cross_skill_nodes": [],
@@ -215,57 +214,58 @@ def test_get_public_orb_success(mock_validate, mock_visibility, client, mock_db)
     }
 
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value=record)
+        AsyncMock(side_effect=[filter_record, orb_record])
     )
 
-    response = client.get("/orbs/test-orb?token=valid-token")
+    response = client.get("/orbs/test-orb")
     assert response.status_code == 200
     assert response.json()["person"]["name"] == "Test User"
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-@patch("app.orbs.router.validate_share_token")
-def test_get_public_orb_not_found(mock_validate, mock_visibility, client, mock_db):
-    mock_validate.return_value = {"orb_id": "nonexistent", "keywords": []}
+def test_get_public_orb_not_found(mock_visibility, client, mock_db):
     mock_visibility.return_value = "public"
 
+    filter_record = {"keywords": [], "hidden_types": []}
+
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value=None)
+        AsyncMock(side_effect=[filter_record, None])
     )
 
-    response = client.get("/orbs/nonexistent?token=valid-token")
+    response = client.get("/orbs/nonexistent")
     assert response.status_code == 404
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-def test_get_public_orb_no_token_public_orb_returns_403(
+def test_get_public_orb_no_token_public_orb_returns_200(
     mock_visibility, client, mock_db
 ):
-    """Calling a public orb without a share token returns 403."""
+    """Public orbs are accessible without a token."""
     mock_visibility.return_value = "public"
+
+    person_node = MockNode({"orb_id": "test-orb", "name": "Test User"}, ["Person"])
+    filter_record = {"keywords": [], "hidden_types": []}
+    orb_record = {
+        "p": person_node,
+        "connections": [],
+        "cross_skill_nodes": [],
+        "cross_links": [],
+    }
+
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(side_effect=[filter_record, orb_record])
+    )
+
     response = client.get("/orbs/test-orb")
-    assert response.status_code == 403
-    assert "share token" in response.json()["detail"].lower()
-
-
-@patch("app.orbs.router.validate_share_token")
-def test_get_public_orb_invalid_token(mock_validate, client, mock_db):
-    mock_validate.return_value = None
-
-    response = client.get("/orbs/test-orb?token=bad-token")
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-@patch("app.orbs.router.validate_share_token")
-def test_get_public_orb_private_returns_403(
-    mock_validate, mock_visibility, client, mock_db
-):
-    """Private orbs reject access even with a valid share token."""
-    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
+def test_get_public_orb_private_returns_403(mock_visibility, client, mock_db):
+    """Private orbs reject access."""
     mock_visibility.return_value = "private"
 
-    response = client.get("/orbs/test-orb?token=valid-token")
+    response = client.get("/orbs/test-orb")
     assert response.status_code == 403
     assert "private" in response.json()["detail"].lower()
 
@@ -287,19 +287,18 @@ def test_add_node_invalid_type(client):
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-@patch("app.orbs.router.validate_share_token")
 @patch("app.orbs.router.node_matches_filters")
 def test_get_public_orb_with_keyword_filters(
-    mock_matches, mock_validate, mock_visibility, client, mock_db
+    mock_matches, mock_visibility, client, mock_db
 ):
-    mock_validate.return_value = {"orb_id": "test-orb", "keywords": ["secret"]}
     mock_visibility.return_value = "public"
 
     person_node = MockNode({"orb_id": "test-orb"}, ["Person"])
     node1 = MockNode({"uid": "node-1", "name": "Python"}, ["Skill"])
     node2 = MockNode({"uid": "node-2", "name": "Secret"}, ["Skill"])
 
-    record = {
+    filter_record = {"keywords": ["secret"], "hidden_types": []}
+    orb_record = {
         "p": person_node,
         "connections": [
             {"node": node1, "rel": "HAS_SKILL"},
@@ -310,12 +309,12 @@ def test_get_public_orb_with_keyword_filters(
     }
 
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value=record)
+        AsyncMock(side_effect=[filter_record, orb_record])
     )
 
     mock_matches.side_effect = lambda node, _filters: node.get("name") == "Secret"
 
-    response = client.get("/orbs/test-orb?token=valid-token")
+    response = client.get("/orbs/test-orb")
     assert response.status_code == 200
     data = response.json()
     assert len(data["nodes"]) == 1
