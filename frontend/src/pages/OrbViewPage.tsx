@@ -483,13 +483,27 @@ function SharePanel({
           </div>
         </div>
 
-          <div className="space-y-4">
+        <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
+          <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Link to your orbis.</p>
+          <div className="flex items-center gap-2">
+            <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+            <button
+              type="button"
+              onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
+              className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
 
-            {isPublic && (
+          <div className="space-y-4 mt-4">
+
               <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-4">
                 <div>
                   <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
-                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share links and excluded from exports.</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to share tokens and excluded from exports.</p>
                   <div className="flex items-center gap-2 mb-2">
                     <input
                       value={inlineFilterKeyword}
@@ -590,21 +604,6 @@ function SharePanel({
                         {privacyHiddenTypesArray.length} type{privacyHiddenTypesArray.length !== 1 ? 's' : ''} hidden from shares.
                       </p>
                     )}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-700/50 pt-3">
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
-                  <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Direct link to your orbis.</p>
-                  <div className="flex items-center gap-2">
-                    <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-                    <button
-                      type="button"
-                      onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
-                      className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
-                    >
-                      Copy
-                    </button>
                   </div>
                 </div>
 
@@ -724,7 +723,6 @@ function SharePanel({
                   )}
                 </div>
               </div>
-            )}
 
             {isRestricted && (
               <>
@@ -813,225 +811,27 @@ function SharePanel({
                   </div>
                 )}
 
-                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-4">
-                  <div>
-                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Privacy Filters</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Active filters are applied to new invites and excluded from shares.</p>
-                    <div className="flex items-center gap-2 mb-2">
-                      <input
-                        value={inlineFilterKeyword}
-                        onChange={(e) => setInlineFilterKeyword(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } } }}
-                        placeholder="e.g. confidential, private..."
-                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => { const t = inlineFilterKeyword.trim(); if (t) { addKeyword(t); setInlineFilterKeyword(''); } }}
-                        className="h-9 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium transition-colors shrink-0"
-                      >
-                        Add
-                      </button>
-                      <button type="button" onClick={deactivateAll} disabled={activeKeywords.length === 0} className="h-9 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium transition-colors shrink-0 whitespace-nowrap">
-                        Deactivate All
-                      </button>
-                    </div>
-                    {keywords.length === 0 ? (
-                      <p className="text-white/20 text-xs italic">No filter keywords configured.</p>
-                    ) : (
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                        {keywords.map((kw) => {
-                          const isActive = activeKeywords.includes(kw);
-                          return (
-                            <div
-                              key={kw}
-                              className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border transition-all ${
-                                isActive
-                                  ? 'bg-amber-600/15 border-amber-500/40'
-                                  : 'bg-white/5 border-white/5 hover:border-white/10'
-                              }`}
-                            >
-                              <span className="text-white text-xs font-mono truncate">{kw}</span>
-                              <div className="flex items-center gap-1.5 flex-shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleKeyword(kw)}
-                                  className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer ${
-                                    isActive
-                                      ? 'bg-amber-500 text-white'
-                                      : 'bg-white/10 text-white/40 hover:text-white hover:bg-white/20'
-                                  }`}
-                                >
-                                  {isActive ? 'Active' : 'Activate'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => removeKeyword(kw)}
-                                  className="text-white/20 hover:text-red-400 transition-colors cursor-pointer"
-                                  title="Remove"
-                                >
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {activeKeywords.length > 0 && (
-                      <p className="text-amber-400/70 text-[11px] mt-2">
-                        {activeKeywords.length} keyword filter{activeKeywords.length !== 1 ? 's' : ''} active.
-                      </p>
-                    )}
-
-                    <div className="mt-3">
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Hidden Node Types</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {ALL_FILTERABLE_TYPES.map((type) => {
-                          const hidden = privacyHiddenTypes.has(type);
-                          return (
-                            <button
-                              key={type}
-                              type="button"
-                              onClick={() => setPrivacyHiddenTypes((prev) => {
-                                const next = new Set(prev);
-                                if (hidden) next.delete(type);
-                                else next.add(type);
-                                return next;
-                              })}
-                              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
-                                hidden
-                                  ? 'bg-red-500/15 border-red-500/40 text-red-300'
-                                  : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                              }`}
-                            >
-                              {hidden ? '✕ ' : '✓ '}{type}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {privacyHiddenTypesArray.length > 0 && (
-                        <p className="text-red-400/70 text-[11px] mt-2">
-                          {privacyHiddenTypesArray.length} type{privacyHiddenTypesArray.length !== 1 ? 's' : ''} hidden from shares.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-700/50 pt-3">
-                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Direct link to your orbis.</p>
-                    <div className="flex items-center gap-2">
-                      <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-                      <button
-                        type="button"
-                        onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
-                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-700/50 pt-3">
-                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
-
-                    {/* Create new token */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <input
-                        value={newTokenLabel}
-                        onChange={(e) => setNewTokenLabel(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
-                        placeholder="Token label (e.g. Recruiter view)"
-                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCreateToken}
-                        disabled={creatingToken}
-                        className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
-                      >
-                        {creatingToken ? 'Creating...' : 'Create Token'}
-                      </button>
-                    </div>
-
-                    {/* Token list */}
-                    {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
-                    {!tokensLoading && shareTokens.length === 0 && (
-                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get a share link.</p>
-                    )}
-                    {shareTokens.length > 0 && (
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {shareTokens.map((token) => (
-                          <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
-                                <p className="text-[10px] text-gray-500 mt-0.5">
-                                  {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
-                                  {' · '}{formatDate(token.created_at)}
-                                </p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setRevokeTokenTarget(token)}
-                                className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors shrink-0"
-                              >
-                                Revoke
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <input
-                                readOnly
-                                value={`orb://${orbId}+${token.token_id}`}
-                                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
-                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                              >
-                                Copy MCP
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${orbId}`); addToast('Orbis link copied', 'success'); }}
-                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                              >
-                                Copy Orbis
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-gray-700/50 pt-3">
-                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in according to the filters selected.</p>
-                    <form onSubmit={handleGrantSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <input
-                        type="email"
-                        value={grantEmail}
-                        onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
-                        placeholder="name@example.com"
-                        disabled={grantSubmitting}
-                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
-                      />
-                      <button
-                        type="submit"
-                        disabled={grantSubmitting || !grantEmail.trim()}
-                        className="h-11 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
-                      >
-                        {grantSubmitting ? 'Granting...' : 'Grant Access'}
-                      </button>
-                    </form>
-                    {grantError && <p className="text-[11px] text-red-400 mt-2">{grantError}</p>}
-                  </div>
+                <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in according to the filters selected.</p>
+                  <form onSubmit={handleGrantSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="email"
+                      value={grantEmail}
+                      onChange={(e) => { setGrantEmail(e.target.value); setGrantError(null); }}
+                      placeholder="name@example.com"
+                      disabled={grantSubmitting}
+                      className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={grantSubmitting || !grantEmail.trim()}
+                      className="h-11 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors"
+                    >
+                      {grantSubmitting ? 'Granting...' : 'Grant Access'}
+                    </button>
+                  </form>
+                  {grantError && <p className="text-[11px] text-red-400 mt-2">{grantError}</p>}
                 </div>
 
                 <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
