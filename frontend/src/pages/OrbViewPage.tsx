@@ -699,7 +699,7 @@ function SharePanel({
                           <div className="flex items-center gap-1.5">
                             <input
                               readOnly
-                              value={`orb://${orbId}+${token.token_id}`}
+                              value={token.token_id}
                               className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
                             />
                             <button
@@ -714,7 +714,7 @@ function SharePanel({
                               onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${orbId}?token=${token.token_id}`); addToast('Orbis link copied', 'success'); }}
                               className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
                             >
-                              Copy Orbis
+                              Copy URL
                             </button>
                           </div>
                         </div>
