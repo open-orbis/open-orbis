@@ -30,38 +30,42 @@ def _make_orb_record(orb_id="test-orb"):
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-@patch("app.orbs.router.validate_share_token")
-def test_public_orb_rate_limit(mock_validate, mock_visibility, client, mock_db):
+def test_public_orb_rate_limit(mock_visibility, client, mock_db):
     """GET /orbs/{orb_id} returns 429 after exceeding 30 requests/minute."""
-    mock_validate.return_value = {"orb_id": "rate-limit-orb", "keywords": []}
     mock_visibility.return_value = "public"
+
+    filter_record = {"keywords": [], "hidden_types": []}
+    orb_record = _make_orb_record("rate-limit-orb")
+
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value=_make_orb_record("rate-limit-orb"))
+        AsyncMock(
+            side_effect=[filter_record, orb_record] * 30 + [filter_record, orb_record]
+        )
     )
 
     for _ in range(30):
-        resp = client.get("/orbs/rate-limit-orb?token=valid")
+        resp = client.get("/orbs/rate-limit-orb")
         assert resp.status_code == 200
 
-    resp = client.get("/orbs/rate-limit-orb?token=valid")
+    resp = client.get("/orbs/rate-limit-orb")
     assert resp.status_code == 429
     assert "Rate limit exceeded" in resp.json()["detail"]
 
 
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
-@patch("app.orbs.router.validate_share_token")
-def test_public_orb_access_logging(
-    mock_validate, mock_visibility, client, mock_db, caplog
-):
+def test_public_orb_access_logging(mock_visibility, client, mock_db, caplog):
     """GET /orbs/{orb_id} logs access with IP and orb_id."""
-    mock_validate.return_value = {"orb_id": "test-orb", "keywords": []}
     mock_visibility.return_value = "public"
+
+    filter_record = {"keywords": [], "hidden_types": []}
+    orb_record = _make_orb_record("test-orb")
+
     mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
-        AsyncMock(return_value=_make_orb_record("test-orb"))
+        AsyncMock(side_effect=[filter_record, orb_record])
     )
 
     with caplog.at_level(logging.INFO):
-        resp = client.get("/orbs/test-orb?token=valid")
+        resp = client.get("/orbs/test-orb")
 
     assert resp.status_code == 200
     assert any(

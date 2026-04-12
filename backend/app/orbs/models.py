@@ -114,3 +114,8 @@ class ConnectionRequestListResponse(BaseModel):
 class AcceptConnectionRequestBody(BaseModel):
     keywords: list[str] = []
     hidden_node_types: list[str] = []
+
+
+class PublicFiltersUpdate(BaseModel):
+    keywords: list[str] = []
+    hidden_node_types: list[str] = []

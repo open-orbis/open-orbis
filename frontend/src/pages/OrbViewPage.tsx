@@ -10,6 +10,7 @@ import {
   createAccessGrant,
   createShareToken,
   enhanceNote,
+  getPublicFilters,
   linkSkill,
   listAccessGrants,
   listConnectionRequests,
@@ -19,6 +20,7 @@ import {
   revokeAccessGrant,
   revokeShareToken,
   updateAccessGrantFilters,
+  updatePublicFilters,
 } from '../api/orbs';
 import type { AccessGrant, ConnectionRequest, OrbVisibility, ShareToken } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
@@ -110,6 +112,7 @@ function SharePanel({
   const privacyHiddenTypesArray = useMemo(() => Array.from(privacyHiddenTypes), [privacyHiddenTypes]);
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || privacyHiddenTypesArray.length > 0;
+  const [savingPublicFilters, setSavingPublicFilters] = useState(false);
   const isRestricted = visibility === 'restricted';
   const isPublic = visibility === 'public';
   const bareUrl = `${window.location.origin}/${orbId}`;
@@ -123,15 +126,37 @@ function SharePanel({
     if (!hasActiveFilters) setApplyFiltersOnInvite(false);
   }, [hasActiveFilters]);
 
-  // Fetch existing share tokens when share panel is open in public/restricted mode
+  const handleSavePublicFilters = async () => {
+    setSavingPublicFilters(true);
+    try {
+      await updatePublicFilters(activeKeywords, privacyHiddenTypesArray);
+      addToast('Public filters saved', 'success');
+    } catch {
+      addToast('Failed to save filters', 'error');
+    } finally {
+      setSavingPublicFilters(false);
+    }
+  };
+
+  // Load saved public filters when the modal opens in public mode
   useEffect(() => {
-    if (!isPublic && !isRestricted) return;
+    if (!isPublic) return;
+    getPublicFilters().then((f) => {
+      f.keywords.forEach((kw) => { if (!keywords.includes(kw)) addKeyword(kw); });
+      setPrivacyHiddenTypes(new Set(f.hidden_node_types));
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPublic]);
+
+  // Fetch existing share tokens when share panel is open in restricted mode
+  useEffect(() => {
+    if (!isRestricted) return;
     setTokensLoading(true);
     listShareTokens()
       .then((data) => setShareTokens(data.tokens.filter(t => !t.revoked)))
       .catch(() => {})
       .finally(() => setTokensLoading(false));
-  }, [isPublic, isRestricted]);
+  }, [isRestricted]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
@@ -607,121 +632,132 @@ function SharePanel({
                   </div>
                 </div>
 
-                <div className="border-t border-gray-700/50 pt-3">
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
-                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
-
-                  {/* Create new token */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <input
-                      value={newTokenLabel}
-                      onChange={(e) => setNewTokenLabel(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
-                      placeholder="Token label (e.g. Recruiter view)"
-                      className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
-                    />
+                {isPublic && (
+                  <div className="border-t border-gray-700/50 pt-3">
                     <button
                       type="button"
-                      onClick={handleCreateToken}
-                      disabled={creatingToken}
-                      className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
+                      onClick={handleSavePublicFilters}
+                      disabled={savingPublicFilters}
+                      className="w-full h-10 rounded-lg bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
                     >
-                      {creatingToken ? 'Creating...' : 'Create Token'}
+                      {savingPublicFilters ? 'Saving...' : 'Save Public Filters'}
                     </button>
+                    <p className="text-[11px] text-gray-500 mt-2 text-center">
+                      These filters are automatically applied to anyone viewing your public orbis.
+                    </p>
                   </div>
+                )}
 
-                  {/* Token list */}
-                  {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
-                  {!tokensLoading && shareTokens.length === 0 && (
-                    <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get a share link.</p>
-                  )}
-                  {shareTokens.length > 0 && (
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {shareTokens.map((token) => (
-                        <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
-                              <p className="text-[10px] text-gray-500 mt-0.5">
-                                {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
-                                {' · '}{formatDate(token.created_at)}
-                              </p>
-                            </div>
-                            <div className="flex gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => setExpandedTokenId(expandedTokenId === token.token_id ? null : token.token_id)}
-                                className={`h-7 px-2 rounded-lg border text-[10px] font-medium transition-colors ${
-                                  expandedTokenId === token.token_id
-                                    ? 'border-purple-500/40 text-purple-300 bg-purple-500/10'
-                                    : 'border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700'
-                                }`}
-                              >
-                                Filters
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setRevokeTokenTarget(token)}
-                                className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors"
-                              >
-                                Revoke
-                              </button>
-                            </div>
-                          </div>
-                          {expandedTokenId === token.token_id && (
-                            <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 px-3 py-2 space-y-1.5">
-                              <div>
-                                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Keywords</p>
-                                {token.keywords.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {token.keywords.map((kw) => (
-                                      <span key={kw} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{kw}</span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
-                                )}
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
-                                {(token.hidden_node_types || []).length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {(token.hidden_node_types || []).map((t) => (
-                                      <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300">{t}</span>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              readOnly
-                              value={token.token_id}
-                              className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
-                              className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                            >
-                              Copy MCP
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${orbId}?token=${token.token_id}`); addToast('Orbis link copied', 'success'); }}
-                              className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                            >
-                              Copy URL
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                {isRestricted && (
+                  <div className="border-t border-gray-700/50 pt-3">
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI.</p>
+
+                    {/* Create new token */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <input
+                        value={newTokenLabel}
+                        onChange={(e) => setNewTokenLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
+                        placeholder="Token label (e.g. Recruiter view)"
+                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateToken}
+                        disabled={creatingToken}
+                        className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
+                      >
+                        {creatingToken ? 'Creating...' : 'Create Token'}
+                      </button>
                     </div>
-                  )}
-                </div>
+
+                    {/* Token list */}
+                    {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
+                    {!tokensLoading && shareTokens.length === 0 && (
+                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get an MCP URI.</p>
+                    )}
+                    {shareTokens.length > 0 && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {shareTokens.map((token) => (
+                          <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                  {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
+                                  {' · '}{formatDate(token.created_at)}
+                                </p>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedTokenId(expandedTokenId === token.token_id ? null : token.token_id)}
+                                  className={`h-7 px-2 rounded-lg border text-[10px] font-medium transition-colors ${
+                                    expandedTokenId === token.token_id
+                                      ? 'border-purple-500/40 text-purple-300 bg-purple-500/10'
+                                      : 'border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700'
+                                  }`}
+                                >
+                                  Filters
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRevokeTokenTarget(token)}
+                                  className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors"
+                                >
+                                  Revoke
+                                </button>
+                              </div>
+                            </div>
+                            {expandedTokenId === token.token_id && (
+                              <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 px-3 py-2 space-y-1.5">
+                                <div>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Keywords</p>
+                                  {token.keywords.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {token.keywords.map((kw) => (
+                                        <span key={kw} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-200">{kw}</span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
+                                  {(token.hidden_node_types || []).length > 0 ? (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {(token.hidden_node_types || []).map((t) => (
+                                        <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-300">{t}</span>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-[10px] text-gray-600 italic mt-0.5">None</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                readOnly
+                                value={token.token_id}
+                                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
+                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                              >
+                                Copy MCP
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
             {isRestricted && (
@@ -1005,9 +1041,9 @@ function SharePanel({
                     : 'bg-orange-500/8 border border-orange-500/15 text-orange-100/80'
                 }`}>
                   {pendingVisibility === 'restricted' ? (
-                    <>Only people you explicitly invite will be able to view your orbis. Existing public share links will stop working.</>
+                    <>Only people you explicitly invite will be able to view your orbis. Public access will be disabled.</>
                   ) : (
-                    <>Anyone with a valid share link will be able to view your orbis. You can still control what they see using privacy filters.</>
+                    <>Anyone visiting your orbis link will be able to view it. You can still control what they see using privacy filters.</>
                   )}
                 </div>
 

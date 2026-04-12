@@ -38,11 +38,23 @@ export async function discardOrbContent(): Promise<void> {
 }
 
 export async function getPublicOrb(orbId: string, token?: string | null): Promise<OrbData> {
-  // Token is required only for public orbs. Restricted orbs use the
-  // axios interceptor's Bearer auth instead.
+  // Public orbs no longer require a token. The token parameter is kept
+  // for backward compatibility but the backend ignores it for public orbs.
+  // Restricted orbs use the axios interceptor's Bearer auth instead.
   const params = token ? { token } : undefined;
   const { data } = await client.get(`/orbs/${orbId}`, { params });
   return data;
+}
+
+// ── Public Filters ──
+
+export async function getPublicFilters(): Promise<{ keywords: string[]; hidden_node_types: string[] }> {
+  const { data } = await client.get('/orbs/me/public-filters');
+  return data;
+}
+
+export async function updatePublicFilters(keywords: string[], hiddenNodeTypes: string[]): Promise<void> {
+  await client.put('/orbs/me/public-filters', { keywords, hidden_node_types: hiddenNodeTypes });
 }
 
 // ── Share Tokens ──

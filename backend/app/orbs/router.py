@@ -61,6 +61,7 @@ from app.orbs.models import (
     NodeUpdate,
     OrbIdUpdate,
     PersonUpdate,
+    PublicFiltersUpdate,
     ShareTokenCreate,
     ShareTokenListResponse,
     ShareTokenResponse,
@@ -71,7 +72,6 @@ from app.orbs.share_token import (
     list_share_tokens,
     node_matches_filters,
     revoke_share_token,
-    validate_share_token,
 )
 from app.orbs.visibility import (
     assert_orb_accessible,
@@ -507,6 +507,48 @@ async def delete_version(
     return {"status": "deleted"}
 
 
+@router.put("/me/public-filters")
+async def update_public_filters(
+    data: PublicFiltersUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Save the public view filters (keywords + hidden node types)."""
+    normalized_kw = [kw.strip().lower() for kw in data.keywords if kw.strip()]
+    async with db.session() as session:
+        await session.run(
+            "MATCH (p:Person {user_id: $user_id}) "
+            "SET p.public_filter_keywords = $keywords, "
+            "p.public_filter_hidden_types = $hidden_types",
+            user_id=current_user["user_id"],
+            keywords=normalized_kw,
+            hidden_types=data.hidden_node_types,
+        )
+    return {"keywords": normalized_kw, "hidden_node_types": data.hidden_node_types}
+
+
+@router.get("/me/public-filters")
+async def get_public_filters(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Retrieve the saved public view filters."""
+    async with db.session() as session:
+        result = await session.run(
+            "MATCH (p:Person {user_id: $user_id}) "
+            "RETURN p.public_filter_keywords AS keywords, "
+            "p.public_filter_hidden_types AS hidden_types",
+            user_id=current_user["user_id"],
+        )
+        record = await result.single()
+        if record is None:
+            return {"keywords": [], "hidden_node_types": []}
+        return {
+            "keywords": list(record["keywords"] or []),
+            "hidden_node_types": list(record["hidden_types"] or []),
+        }
+
+
 @router.post("/me/share-tokens", response_model=ShareTokenResponse)
 async def create_share_token_endpoint(
     data: ShareTokenCreate,
@@ -743,22 +785,23 @@ async def get_public_orb(
         if token_data is None:
             token_data = {"keywords": [], "hidden_node_types": []}
     else:
-        # public: require a valid share token
-        if not token:
-            raise HTTPException(
-                status_code=403, detail="Share token required for this orb."
+        # public: apply owner's saved public filters (no token needed)
+        async with db.session() as session:
+            filter_result = await session.run(
+                "MATCH (p:Person {orb_id: $orb_id}) "
+                "RETURN p.public_filter_keywords AS keywords, "
+                "p.public_filter_hidden_types AS hidden_types",
+                orb_id=orb_id,
             )
-        token_data = await validate_share_token(db, token)
-        if token_data is None:
-            raise HTTPException(
-                status_code=403,
-                detail="Invalid or expired share token.",
-            )
-        if token_data["orb_id"] != orb_id:
-            raise HTTPException(
-                status_code=403,
-                detail="Token does not grant access to this orb.",
-            )
+            filter_record = await filter_result.single()
+        token_data = {
+            "keywords": (
+                list(filter_record["keywords"] or []) if filter_record else []
+            ),
+            "hidden_node_types": (
+                list(filter_record["hidden_types"] or []) if filter_record else []
+            ),
+        }
 
     async with db.session() as session:
         result = await session.run(GET_FULL_ORB_PUBLIC, orb_id=orb_id)
