@@ -175,7 +175,7 @@ export default function ActivatePage() {
                 type="button"
                 onClick={handleJoinWaitlist}
                 disabled={joiningWaitlist}
-                className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-emerald-300/35 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-950 text-sm font-semibold px-5 py-2.5 shadow-[0_10px_28px_-14px_rgba(16,185,129,0.9)] transition-all"
+                className="w-full flex items-center justify-center rounded-xl border border-emerald-300/35 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-950 text-sm font-semibold px-5 py-2.5 shadow-[0_10px_28px_-14px_rgba(16,185,129,0.9)] transition-all"
               >
                 {joiningWaitlist ? 'Joining...' : 'Join waiting list'}
               </button>
