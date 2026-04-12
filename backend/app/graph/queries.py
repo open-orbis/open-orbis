@@ -121,7 +121,9 @@ RETURN p
 GET_FULL_ORB = """
 MATCH (p:Person {user_id: $user_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken AND NOT n:AccessGrant
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken
+      AND NOT n:AccessGrant AND NOT n:ConnectionRequest AND NOT n:LLMUsage
+      AND NOT n:RefreshToken
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
@@ -134,7 +136,9 @@ RETURN p, connections, cross_links, cross_skill_nodes
 GET_FULL_ORB_PUBLIC = """
 MATCH (p:Person {orb_id: $orb_id})
 OPTIONAL MATCH (p)-[r]->(n)
-WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken AND NOT n:AccessGrant
+WHERE NOT n:ProcessingRecord AND NOT n:OntologyVersion AND NOT n:ShareToken
+      AND NOT n:AccessGrant AND NOT n:ConnectionRequest AND NOT n:LLMUsage
+      AND NOT n:RefreshToken
 
 WITH p, collect({node: n, rel: type(r), rel_id: id(r)}) AS connections
 OPTIONAL MATCH (p)-[]->(src)-[cr:USED_SKILL]->(tgt:Skill)
