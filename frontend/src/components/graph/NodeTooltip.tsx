@@ -18,6 +18,7 @@ const TITLE_FIELD: Record<string, string> = {
   Patent: 'title',
   Award: 'name',
   Outreach: 'title',
+  Training: 'title',
 };
 
 // Which fields to show as the "subtitle"
@@ -32,6 +33,7 @@ const SUBTITLE_FIELD: Record<string, string> = {
   Patent: 'patent_number',
   Award: 'issuing_organization',
   Outreach: 'venue',
+  Training: 'provider',
 };
 
 // Nice display labels
@@ -47,6 +49,7 @@ const DISPLAY_LABELS: Record<string, string> = {
   Patent: 'Patent',
   Award: 'Award',
   Outreach: 'Outreach',
+  Training: 'Training',
 };
 
 // Map PascalCase label to snake_case for color lookup
@@ -61,6 +64,7 @@ const LABEL_TO_TYPE: Record<string, string> = {
   Patent: 'patent',
   Award: 'award',
   Outreach: 'outreach',
+  Training: 'training',
 };
 
 // Fields to show in the detail section (ordered)
@@ -76,6 +80,7 @@ const DETAIL_FIELDS: Record<string, string[]> = {
   Language: ['proficiency'],
   Award: ['issuing_organization', 'date'],
   Outreach: ['type', 'role', 'date'],
+  Training: ['provider', 'date'],
 };
 
 function formatDate(val: unknown): string {

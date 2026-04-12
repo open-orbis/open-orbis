@@ -151,6 +151,7 @@ NODE_TYPE_LABELS = {
     "patent": "Patent",
     "award": "Award",
     "outreach": "Outreach",
+    "training": "Training",
 }
 
 NODE_TYPE_RELATIONSHIPS = {
@@ -164,6 +165,7 @@ NODE_TYPE_RELATIONSHIPS = {
     "patent": "HAS_PATENT",
     "award": "HAS_AWARD",
     "outreach": "HAS_OUTREACH",
+    "training": "HAS_TRAINING",
 }
 
 # ── Generic Node CRUD ──
@@ -199,6 +201,7 @@ NODE_TYPE_MERGE_KEYS: dict[str, list[str]] = {
     "patent": ["title"],
     "award": ["name"],
     "outreach": ["title", "venue"],
+    "training": ["title", "provider"],
 }
 
 # ── Cross-node relationships ──

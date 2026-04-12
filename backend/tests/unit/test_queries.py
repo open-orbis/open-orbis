@@ -109,6 +109,7 @@ class TestFullOrbExclusions:
             "patent",
             "award",
             "outreach",
+            "training",
         }
         assert set(NODE_TYPE_LABELS.keys()) == expected
 

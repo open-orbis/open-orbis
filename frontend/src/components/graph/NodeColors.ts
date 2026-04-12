@@ -12,6 +12,7 @@ export const NODE_COLORS: Record<string, string> = {
   Patent: '#DC267F',       // Magenta (IBM)
   Award: '#FFB000',        // Gold (IBM)
   Outreach: '#20B2AA',     // Light Sea Green — distinct from Project vermillion
+  Training: '#FF6B6B',     // Coral Red — courses and workshops attended
 };
 
 export function getNodeColor(labels: string[]): string {
@@ -32,6 +33,7 @@ export const NODE_TYPE_COLORS: Record<string, string> = {
   patent: '#DC267F',
   award: '#FFB000',
   outreach: '#20B2AA',
+  training: '#FF6B6B',
 };
 
 export const NODE_TYPE_LABELS: Record<string, string> = {
@@ -45,6 +47,7 @@ export const NODE_TYPE_LABELS: Record<string, string> = {
   patent: 'Patent',
   award: 'Award',
   outreach: 'Outreach',
+  training: 'Training',
 };
 
 // Secondary visual cues — shape markers so color is never the sole differentiator.
@@ -60,5 +63,6 @@ export const NODE_SHAPE_MARKERS: Record<string, string> = {
   Patent: '\u2B1F',        // ⬟ pentagon
   Award: '\u2606',         // ☆ open star
   Outreach: '\u25E3',      // ◣ triangle (lower left)
+  Training: '\u25C8',      // ◈ diamond with dot
 };
 

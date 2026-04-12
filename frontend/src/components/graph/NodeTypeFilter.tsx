@@ -12,6 +12,7 @@ const TYPE_KEY_MAP: Record<string, string> = {
   Patent: 'patent',
   Award: 'award',
   Outreach: 'outreach',
+  Training: 'training',
 };
 
 const ALL_TYPES = Object.keys(TYPE_KEY_MAP);

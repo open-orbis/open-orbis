@@ -20,6 +20,7 @@ const REVIEW_REQUIRED_FIELDS: Record<string, string[]> = {
   patent: ['title'],
   award: ['name'],
   outreach: ['title', 'venue'],
+  training: ['title', 'provider'],
 };
 
 function normalizeNodeType(type: string) {

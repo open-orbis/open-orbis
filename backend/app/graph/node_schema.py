@@ -71,6 +71,7 @@ ALLOWED_NODE_PROPERTIES: dict[str, frozenset[str]] = {
     ),
     "award": frozenset({"name", "issuer", "date", "description"}),
     "outreach": frozenset({"title", "venue", "date", "description", "url"}),
+    "training": frozenset({"title", "provider", "date", "description", "url"}),
 }
 
 # Inverse lookup for update paths that only have the Neo4j label.

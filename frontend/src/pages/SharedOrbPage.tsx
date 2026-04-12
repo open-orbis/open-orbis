@@ -10,7 +10,7 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
 
-const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
+const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 
 export default function SharedOrbPage() {
   const { orbId } = useParams<{ orbId: string }>();
