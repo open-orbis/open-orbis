@@ -78,7 +78,7 @@ export default function CreateOrbPage() {
     return (
       <ConsentGate>
         <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 relative">
-        <Navbar />
+        <Navbar hideSearch hideUserMenu />
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -133,7 +133,7 @@ export default function CreateOrbPage() {
   if (selectedPath === 'upload') {
     return (
       <div className="relative">
-        <Navbar />
+        <Navbar hideSearch hideUserMenu />
         <CVUploadOnboarding />
       </div>
     );
@@ -162,6 +162,8 @@ export default function CreateOrbPage() {
 
       {/* Top bar */}
       <Navbar
+        hideSearch
+        hideUserMenu
         center={
           <div className="text-white/70 text-sm">
             <span className="font-medium text-white">{user?.name || 'My Orbis'}</span>

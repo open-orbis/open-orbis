@@ -10,9 +10,11 @@ interface NavbarProps {
   rightBefore?: React.ReactNode;
   /** Hide the Orbis ID search bar */
   hideSearch?: boolean;
+  /** Hide the user menu */
+  hideUserMenu?: boolean;
 }
 
-export default function Navbar({ center, rightBefore, hideSearch }: NavbarProps) {
+export default function Navbar({ center, rightBefore, hideSearch, hideUserMenu }: NavbarProps) {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [searchValue, setSearchValue] = useState('');
@@ -83,7 +85,7 @@ export default function Navbar({ center, rightBefore, hideSearch }: NavbarProps)
             </>
           )}
 
-          <UserMenu />
+          {!hideUserMenu && <UserMenu />}
         </div>
       </div>
     </div>
