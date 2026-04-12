@@ -1269,7 +1269,8 @@ export default function OrbViewPage() {
   const [hiddenNodeTypes, setHiddenNodeTypes] = useState<Set<string>>(new Set());
   const [showToolsMenu, setShowToolsMenu] = useState(false);
   const toolsMenuRef = useRef<HTMLDivElement>(null);
-  const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [showImportLimitWarning, setShowImportLimitWarning] = useState(false);
   const [importOldestDoc, setImportOldestDoc] = useState<{ name: string; date: string } | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
