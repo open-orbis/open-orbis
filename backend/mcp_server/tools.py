@@ -58,22 +58,25 @@ async def _check_access(
     if record is None:
         return {"error": f"Orb '{orb_id}' not accessible"}
 
-    # Owner bypass: API key owner reads their own orb unfiltered.
-    if record["owner"] == user_id:
+    is_owner = record["owner"] == user_id
+
+    # Token provided → always validate and apply its filters (even for owner).
+    # The token encodes the privacy filters that were active when the MCP URI
+    # was created, so filtered data must never leave Neo4j.
+    if token:
+        token_data = await validate_share_token(driver, token)
+        if token_data is None or token_data["orb_id"] != orb_id:
+            return {"error": f"Orb '{orb_id}' not accessible"}
+        return {
+            "keywords": token_data.get("keywords", []),
+            "hidden_node_types": token_data.get("hidden_node_types", []),
+        }
+
+    # No token → owner can access unfiltered, strangers rejected.
+    if is_owner:
         return {"keywords": [], "hidden_node_types": []}
 
-    # Stranger path: require a valid share token for this specific orb.
-    if not token:
-        return {"error": f"Orb '{orb_id}' not accessible"}
-
-    token_data = await validate_share_token(driver, token)
-    if token_data is None or token_data["orb_id"] != orb_id:
-        return {"error": f"Orb '{orb_id}' not accessible"}
-
-    return {
-        "keywords": token_data.get("keywords", []),
-        "hidden_node_types": token_data.get("hidden_node_types", []),
-    }
+    return {"error": f"Orb '{orb_id}' not accessible"}
 
 
 def _apply_filters(
