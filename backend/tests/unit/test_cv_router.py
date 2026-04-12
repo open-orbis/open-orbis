@@ -83,16 +83,25 @@ def test_get_processing_count(mock_counter, client):
     assert response.json()["count"] == 5
 
 
+def _setup_tx_mock(mock_db, tx_side_effect):
+    """Set up a mock Neo4j transaction so _persist_nodes can call
+    session.begin_transaction() → tx.run(...)  →  tx.commit().
+
+    The session-level run (used by the snapshot code) gets a generic None
+    result; the transaction-level run gets the caller-supplied side_effect.
+    """
+    session_mock = mock_db.session.return_value.__aenter__.return_value
+    session_mock.run.return_value = MagicMock(single=AsyncMock(return_value=None))
+
+    tx_mock = AsyncMock()
+    tx_mock.run = AsyncMock(side_effect=tx_side_effect)
+    tx_mock.commit = AsyncMock()
+    tx_mock.rollback = AsyncMock()
+    session_mock.begin_transaction = AsyncMock(return_value=tx_mock)
+    return tx_mock
+
+
 def test_confirm_cv_success(client, mock_db):
-    # Mock multiple run results. Consent is gated by the require_gdpr_consent
-    # dependency which the client fixture overrides, so no consent-query
-    # entry is needed in the side_effect list.
-    run_mock = mock_db.session.return_value.__aenter__.return_value.run
-
-    # Auto-snapshot GET_FULL_ORB returns None (no existing orb), caught by try/except
-    result_mock_snapshot = MagicMock()
-    result_mock_snapshot.single = AsyncMock(return_value=None)
-
     result_mock_1 = MagicMock()
     result_mock_1.single = AsyncMock(return_value=None)
 
@@ -110,14 +119,16 @@ def test_confirm_cv_success(client, mock_db):
     result_mock_5 = MagicMock()
     result_mock_5.single = AsyncMock(return_value=None)
 
-    run_mock.side_effect = [
-        result_mock_snapshot,  # auto-snapshot GET_FULL_ORB
-        result_mock_1,  # DELETE_USER_GRAPH
-        result_mock_2,  # UPDATE_PERSON
-        result_mock_3,  # ADD_NODE 1
-        result_mock_4,  # ADD_NODE 2
-        result_mock_5,  # LINK_SKILL
-    ]
+    _setup_tx_mock(
+        mock_db,
+        [
+            result_mock_1,  # DELETE_USER_GRAPH
+            result_mock_2,  # UPDATE_PERSON
+            result_mock_3,  # ADD_NODE 1
+            result_mock_4,  # ADD_NODE 2
+            result_mock_5,  # LINK_SKILL
+        ],
+    )
 
     payload = {
         "cv_owner_name": "Test User",
@@ -138,15 +149,9 @@ def test_confirm_cv_success(client, mock_db):
 
 
 def test_confirm_cv_partial_link_failure(client, mock_db):
-    # Node creation succeeds but LINK_SKILL fails (work_experience -> skill).
-    # Consent is gated by the require_gdpr_consent dependency (overridden in
-    # the client fixture) so no consent-query entry is in the side_effect.
-    run_mock = mock_db.session.return_value.__aenter__.return_value.run
-
-    # Auto-snapshot GET_FULL_ORB returns None (no existing orb), caught by try/except
-    res_snapshot = MagicMock()
-    res_snapshot.single = AsyncMock(return_value=None)
-
+    """LINK_SKILL failure is caught inside the transaction — the commit
+    still succeeds because the exception is swallowed with a warning,
+    not re-raised."""
     res_ok = MagicMock()
     res_ok.single = AsyncMock(return_value=None)
 
@@ -158,13 +163,15 @@ def test_confirm_cv_partial_link_failure(client, mock_db):
     res_node_2 = MagicMock()
     res_node_2.single = AsyncMock(return_value=node_rec_2)
 
-    run_mock.side_effect = [
-        res_snapshot,  # auto-snapshot GET_FULL_ORB
-        res_ok,  # DELETE_USER_GRAPH
-        res_node_1,  # MERGE (work_experience)
-        res_node_2,  # MERGE (skill)
-        Exception("Link error"),  # LINK_SKILL raises directly from session.run()
-    ]
+    _setup_tx_mock(
+        mock_db,
+        [
+            res_ok,  # DELETE_USER_GRAPH
+            res_node_1,  # MERGE (work_experience)
+            res_node_2,  # MERGE (skill)
+            Exception("Link error"),  # LINK_SKILL raises inside tx.run()
+        ],
+    )
 
     payload = {
         "nodes": [
