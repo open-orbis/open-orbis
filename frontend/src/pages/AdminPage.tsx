@@ -216,6 +216,10 @@ export default function AdminPage() {
     failed: { name: string; reason: string }[];
   } | null>(null);
 
+  const isPendingWaitlistUser = (
+    u: Pick<AdminUser, 'signup_code' | 'is_admin' | 'waitlist_joined'>,
+  ) => !u.signup_code && !u.is_admin && u.waitlist_joined;
+
   const refresh = useCallback(async () => {
     try {
       const [s, c, p, u, id, f, ins] = await Promise.all([
@@ -403,7 +407,7 @@ export default function AdminPage() {
 
   const handleBatchActivate = () => {
     const pending = Array.from(selectedUsers).filter((id) =>
-      users.find((u) => u.user_id === id && !u.signup_code && !u.is_admin),
+      users.find((u) => u.user_id === id && isPendingWaitlistUser(u)),
     );
     if (pending.length === 0) return;
     setConfirmAction({
@@ -536,7 +540,7 @@ export default function AdminPage() {
   };
 
   const hasPendingSelected = Array.from(selectedUsers).some((id) =>
-    users.find((u) => u.user_id === id && !u.signup_code && !u.is_admin),
+    users.find((u) => u.user_id === id && isPendingWaitlistUser(u)),
   );
 
   const filteredUsers = users.filter((u) => {
@@ -547,7 +551,7 @@ export default function AdminPage() {
       u.user_id.toLowerCase().includes(userSearch.toLowerCase());
     if (!matchesSearch) return false;
     if (userFilter === 'active') return u.signup_code !== null || u.is_admin;
-    if (userFilter === 'pending') return u.signup_code === null && !u.is_admin;
+    if (userFilter === 'pending') return isPendingWaitlistUser(u);
     if (userFilter === 'admin') return u.is_admin;
     return true;
   });
@@ -902,7 +906,7 @@ export default function AdminPage() {
                       <tr><td colSpan={8} className="text-center text-white/20 py-8">No users found.</td></tr>
                     )}
                     {filteredUsers.map((u) => {
-                      const isPending = !u.signup_code && !u.is_admin;
+                      const isPending = isPendingWaitlistUser(u);
                       return (
                         <tr key={u.user_id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                           <td className="px-4 py-2.5">
@@ -927,8 +931,10 @@ export default function AdminPage() {
                               <span className="text-xs bg-purple-500/15 text-purple-400 px-2 py-0.5 rounded-md">admin</span>
                             ) : u.signup_code ? (
                               <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">active</span>
-                            ) : (
+                            ) : isPending ? (
                               <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md">pending</span>
+                            ) : (
+                              <span className="text-xs bg-white/[0.06] text-white/40 px-2 py-0.5 rounded-md">registered</span>
                             )}
                           </td>
                           <td className="px-4 py-2.5 text-white/30 font-mono text-xs">{u.signup_code || '—'}</td>
@@ -1368,8 +1374,10 @@ export default function AdminPage() {
                       <span className="text-xs bg-purple-500/15 text-purple-400 px-2 py-0.5 rounded-md">admin</span>
                     ) : userDetail.signup_code ? (
                       <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-md">active</span>
-                    ) : (
+                    ) : userDetail.waitlist_joined ? (
                       <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md">pending</span>
+                    ) : (
+                      <span className="text-xs bg-white/[0.06] text-white/40 px-2 py-0.5 rounded-md">registered</span>
                     )}
                   </div>
                 </div>
@@ -1488,7 +1496,7 @@ export default function AdminPage() {
 
               {/* Actions */}
               <div className="flex gap-2 mt-5 pt-4 border-t border-white/[0.06]">
-                {!userDetail.signup_code && !userDetail.is_admin && (
+                {isPendingWaitlistUser(userDetail) && (
                   <button
                     onClick={() => { setShowDetail(false); handleActivateUser(userDetail.user_id, userDetail.name); }}
                     className="text-xs bg-green-600 hover:bg-green-500 text-white font-medium px-3 py-1.5 rounded-lg transition-colors"

@@ -123,6 +123,8 @@ export interface AdminUser {
   provider: string;
   is_admin: boolean;
   signup_code: string | null;
+  waitlist_joined: boolean;
+  waitlist_joined_at?: string | null;
   activated_at: string | null;
   created_at: string;
 }

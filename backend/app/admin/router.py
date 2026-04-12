@@ -98,6 +98,10 @@ def _serialize_user(node: dict) -> UserResponse:
         provider=node.get("provider", "") or "",
         is_admin=bool(node.get("is_admin", False)),
         signup_code=node.get("signup_code"),
+        waitlist_joined=bool(node.get("waitlist_joined", False)),
+        waitlist_joined_at=(
+            str(node["waitlist_joined_at"]) if node.get("waitlist_joined_at") else None
+        ),
         activated_at=str(node["activated_at"]) if node.get("activated_at") else None,
         created_at=str(node.get("created_at", "")),
     )
@@ -111,6 +115,10 @@ def _serialize_user_detail(node: dict) -> UserDetailResponse:
         provider=node.get("provider", "") or "",
         is_admin=bool(node.get("is_admin", False)),
         signup_code=node.get("signup_code"),
+        waitlist_joined=bool(node.get("waitlist_joined", False)),
+        waitlist_joined_at=(
+            str(node["waitlist_joined_at"]) if node.get("waitlist_joined_at") else None
+        ),
         activated_at=str(node["activated_at"]) if node.get("activated_at") else None,
         created_at=str(node.get("created_at", "")),
         orb_id=node.get("orb_id", "") or "",
