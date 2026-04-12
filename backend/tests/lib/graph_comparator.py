@@ -22,7 +22,6 @@ KEY_PROPERTIES: dict[str, list[str]] = {
     "publication": ["title"],
     "project": ["name"],
     "patent": ["title"],
-    "collaborator": ["name"],
 }
 
 MATCH_THRESHOLD = 0.4

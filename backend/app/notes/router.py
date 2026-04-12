@@ -63,9 +63,6 @@ Valid node_types and their expected properties:
     title (string), patent_number (string or null), filing_date (string or null),
     grant_date (string or null), description (string or null), url (string or null)
 
-- collaborator:
-    name (string), email (string or null)
-
 Rules:
 - Use ISO date format (YYYY-MM-DD, YYYY-MM, or YYYY)
 - If end_date is "Present", "Current", or ongoing, set it to null

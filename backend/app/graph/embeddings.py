@@ -51,7 +51,6 @@ def build_embedding_text(node_type: str, properties: dict) -> str:
         "publication": ["title", "venue", "abstract"],
         "project": ["name", "role", "description"],
         "skill": ["name", "category"],
-        "collaborator": ["name"],
         "language": ["name", "proficiency"],
     }
 

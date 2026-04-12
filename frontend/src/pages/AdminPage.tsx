@@ -1152,7 +1152,7 @@ export default function AdminPage() {
                       {insights.node_type_distribution.map((n) => {
                         const maxN = insights.node_type_distribution[0]?.count || 1;
                         const pct = (n.count / maxN) * 100;
-                        const colors: Record<string, string> = { Skill: 'bg-teal-500/50', WorkExperience: 'bg-indigo-500/50', Collaborator: 'bg-pink-500/50', Education: 'bg-amber-500/50', Project: 'bg-purple-500/50' };
+                        const colors: Record<string, string> = { Skill: 'bg-teal-500/50', WorkExperience: 'bg-indigo-500/50', Education: 'bg-amber-500/50', Project: 'bg-purple-500/50' };
                         return (
                           <div key={n.label}>
                             <div className="flex justify-between text-sm mb-1">
