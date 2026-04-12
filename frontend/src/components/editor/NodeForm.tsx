@@ -246,7 +246,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   certification: ['name', 'issuing_organization'],
   publication: ['title'],
   project: ['name'],
-  patent: ['title', 'patent_number'],
+  patent: ['title', 'patent_number', 'inventors'],
   award: ['name'],
   outreach: ['title', 'venue'],
   training: ['title', 'provider'],
@@ -254,6 +254,11 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
 
 // Additional fields that should be required whenever they exist in the active modal.
 const ALWAYS_REQUIRED_IF_PRESENT = ['field_of_study', 'location', 'start_date', 'end_date', 'issue_date', 'expiry_date', 'date', 'filing_date', 'grant_date'];
+
+interface FieldMessage {
+  text: string;
+  tone: 'error' | 'warning';
+}
 
 function FieldInput({
   field,
@@ -263,6 +268,7 @@ function FieldInput({
   required = false,
   missing = false,
   allowYearOnly = false,
+  message,
 }: {
   field: string;
   value: string;
@@ -271,28 +277,31 @@ function FieldInput({
   required?: boolean;
   missing?: boolean;
   allowYearOnly?: boolean;
+  message?: FieldMessage | null;
 }) {
   const label = field.replace(/_/g, ' ');
   const isDate = field.includes('date');
-  const isUrl = field.includes('url');
   const isTextarea = field === 'description' || field === 'abstract';
-  const dateRe = allowYearOnly ? DATE_FORMAT_WITH_YEAR_RE : DATE_FORMAT_RE;
-  const showUrlHint = isUrl && value.trim() !== '' && !/^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i.test(value.trim());
-  const showDateHint = isDate && value.trim() !== '' && (!dateRe.test(value.trim()) || (/^\d{4}$/.test(value.trim()) ? false : isValidDate(value.trim()) !== null));
-
-  const isFilled = required && !missing;
-  const borderClass = required
-    ? (missing ? 'border-red-500/85' : '')
-    : 'border-white/10';
-  const baseClass = `w-full bg-white/5 border rounded-lg px-3 py-2 text-white text-sm placeholder:text-white/25 focus:outline-none focus:ring-1 focus:border-transparent transition-colors`;
+  const hasValue = value.trim() !== '';
+  const hasError = message?.tone === 'error';
+  const hasWarning = message?.tone === 'warning';
+  const isRequiredSatisfied = required && !missing && hasValue;
+  const focusRingColor = hasError ? '#fb7185' : hasWarning ? '#f59e0b' : `${color}70`;
+  const baseClass = `w-full rounded-xl border bg-black/35 px-3.5 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:border-transparent transition-colors`;
+  const toneBorderClass = hasError
+    ? 'border-red-500/80'
+    : hasWarning
+      ? 'border-amber-500/60'
+      : 'border-white/15';
+  const displayLabel = label.replace(/\b\w/g, (m) => m.toUpperCase());
 
   return (
-    <div>
-      <label className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider mb-1" style={{ color: isFilled ? color : undefined }}>
-        <span className={isFilled ? '' : 'text-white/35'}>{label}</span>
-        {required && <span style={isFilled ? { color } : undefined} className={isFilled ? '' : 'text-red-400 ml-0.5'}>*</span>}
+    <div className="space-y-1.5">
+      <label className="flex items-center gap-1.5 text-xs font-medium tracking-wide">
+        <span className={isRequiredSatisfied ? 'text-white' : 'text-white/70'}>{displayLabel}</span>
+        {required && <span style={isRequiredSatisfied ? { color } : undefined} className={isRequiredSatisfied ? '' : 'text-red-400'}>*</span>}
         {isDate && (
-          <svg className="w-3 h-3 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3 h-3 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         )}
@@ -301,10 +310,11 @@ function FieldInput({
         <textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={label}
-          className={`${baseClass} ${borderClass}`}
-          style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
-          rows={3}
+          placeholder={displayLabel}
+          className={`${baseClass} ${toneBorderClass} min-h-[90px] resize-y`}
+          aria-invalid={hasError || undefined}
+          style={{ '--tw-ring-color': focusRingColor, ...(isRequiredSatisfied && !hasError && !hasWarning ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
+          rows={4}
         />
       ) : (
         <input
@@ -318,21 +328,15 @@ function FieldInput({
             }
           }}
           maxLength={isDate ? 10 : undefined}
-          placeholder={isDate ? (allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY') : label}
-          className={`${baseClass} ${borderClass}`}
-          style={{ '--tw-ring-color': `${color}60`, ...(isFilled ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
+          placeholder={isDate ? (allowYearOnly ? 'YYYY, MM/YYYY, or DD/MM/YYYY' : 'MM/YYYY or DD/MM/YYYY') : displayLabel}
+          className={`${baseClass} ${toneBorderClass}`}
+          aria-invalid={hasError || undefined}
+          style={{ '--tw-ring-color': focusRingColor, ...(isRequiredSatisfied && !hasError && !hasWarning ? { borderColor: `${color}70` } : {}) } as React.CSSProperties}
         />
       )}
-      {showUrlHint && (
-        <p className="text-[10px] text-amber-400/60 mt-1">
-          This doesn't look like a valid URL (e.g. example.com)
-        </p>
-      )}
-      {showDateHint && (
-        <p className="text-[10px] text-amber-400/60 mt-1">
-          {!dateRe.test(value.trim())
-            ? (allowYearOnly ? 'Use format YYYY, MM/YYYY, or DD/MM/YYYY' : 'Use format MM/YYYY or DD/MM/YYYY')
-            : isValidDate(value.trim()) || 'Invalid date'}
+      {message && (
+        <p className={`text-[11px] ${message.tone === 'error' ? 'text-red-300/90' : 'text-amber-300/85'}`}>
+          {message.text}
         </p>
       )}
     </div>
@@ -439,233 +443,233 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
   const hasAnyText = Object.values(values).some((v) => v && v.trim());
 
   const color = NODE_TYPE_COLORS[nodeType] || '#8b5cf6';
-  const layout = layoutForType;
-  const simple = SIMPLE_FIELDS[nodeType];
+  const toggleField = layoutForType?.currentToggle;
+  const hiddenField = isCurrent && toggleField ? toggleField : null;
+  const visibleFields = renderableFields.filter((field) => field !== hiddenField);
+  const requiredVisibleFields = visibleFields.filter((field) => isRequiredField(field));
+  const optionalVisibleFields = visibleFields.filter((field) => !isRequiredField(field));
+  const allowYearOnlyForType = YEAR_ONLY_TYPES.has(nodeType);
+  const dateFormatRe = allowYearOnlyForType ? DATE_FORMAT_WITH_YEAR_RE : DATE_FORMAT_RE;
+  const dateFormatHint = allowYearOnlyForType ? 'Use YYYY, MM/YYYY, or DD/MM/YYYY.' : 'Use MM/YYYY or DD/MM/YYYY.';
+  const urlRe = /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}/i;
+
+  const fieldMessages: Record<string, FieldMessage | null> = {};
+  for (const field of visibleFields) {
+    const val = (values[field] || '').trim();
+    if (isMissingRequiredField(field)) {
+      fieldMessages[field] = { text: 'This field is required.', tone: 'error' };
+      continue;
+    }
+    if (!val) {
+      fieldMessages[field] = null;
+      continue;
+    }
+    if (field.includes('date')) {
+      if (!dateFormatRe.test(val)) {
+        fieldMessages[field] = { text: dateFormatHint, tone: 'error' };
+        continue;
+      }
+      if (!/^\d{4}$/.test(val)) {
+        const dateValidationError = isValidDate(val);
+        if (dateValidationError) {
+          fieldMessages[field] = { text: dateValidationError, tone: 'error' };
+          continue;
+        }
+      }
+    }
+    if (field.includes('url') && !urlRe.test(val)) {
+      fieldMessages[field] = { text: 'This does not look like a valid URL (e.g. example.com).', tone: 'warning' };
+      continue;
+    }
+    fieldMessages[field] = null;
+  }
+
+  const renderField = (field: string) => (
+    <div key={field} className={field === 'description' || field === 'abstract' ? 'sm:col-span-2' : undefined}>
+      <FieldInput
+        field={field}
+        value={values[field] || ''}
+        onChange={(v) => set(field, v)}
+        color={color}
+        required={isRequiredField(field)}
+        missing={isMissingRequiredField(field)}
+        allowYearOnly={allowYearOnlyForType}
+        message={fieldMessages[field]}
+      />
+    </div>
+  );
 
   const actionButtons = (
-    <div className="mt-5">
+    <div className="mt-5 border-t border-white/10 pt-4">
       {dateError && (
-        <p className="text-red-400 text-xs mb-2 flex items-center gap-1.5">
+        <p className="text-red-300 text-xs mb-3 flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
           {dateError}
         </p>
       )}
-    <div className="flex gap-2">
-      {onEnhance && (
-        <button
-          type="button"
-          onClick={handleEnhanceClick}
-          disabled={enhancing || !hasAnyText}
-          className={`flex items-center gap-1.5 font-medium py-2.5 px-4 rounded-lg transition-all text-sm border ${
-            enhancing
-              ? 'border-amber-500/30 bg-amber-500/10 text-amber-400/80'
-              : hasAnyText
-                ? 'border-amber-500/20 text-amber-400/70 hover:border-amber-500/40 hover:bg-amber-500/10 hover:text-amber-300'
-                : 'border-white/5 text-white/15 cursor-not-allowed'
-          }`}
-          title="Enhance with AI: translate, improve, and extract fields"
-        >
-          {enhancing ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              Enhancing...
-            </>
-          ) : (
-            <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-              Enhance
-            </>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {onEnhance && (
+            <button
+              type="button"
+              onClick={handleEnhanceClick}
+              disabled={enhancing || !hasAnyText}
+              className={`flex items-center gap-1.5 font-medium py-2.5 px-3.5 rounded-xl transition-all text-sm border ${
+                enhancing
+                  ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                  : hasAnyText
+                    ? 'border-amber-500/35 text-amber-300/90 hover:border-amber-400/70 hover:bg-amber-500/10'
+                    : 'border-white/10 text-white/25 cursor-not-allowed'
+              }`}
+              title="Enhance with AI: translate, improve, and extract fields"
+            >
+              {enhancing ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Enhancing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  Enhance
+                </>
+              )}
+            </button>
           )}
-        </button>
-      )}
-      {onSaveDraft && !initialValues?.uid && (
-        <button
-          type="button"
-          onClick={handleSaveDraftClick}
-          disabled={!hasAnyText}
-          className={`flex items-center gap-1.5 font-medium py-2.5 px-4 rounded-lg transition-all text-sm border ${
-            hasAnyText
-              ? 'border-purple-500/30 text-purple-300 hover:border-purple-500/50 hover:bg-purple-500/10'
-              : 'border-white/5 text-white/15 cursor-not-allowed'
-          }`}
-          title="Save as draft to keep refining later"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          Save Draft
-        </button>
-      )}
-      <button
-        type="submit"
-        disabled={missingRequiredFields.length > 0}
-        className="flex-1 text-white font-medium py-2.5 px-4 rounded-lg transition-all hover:brightness-110 text-sm shadow-lg disabled:opacity-35 disabled:cursor-not-allowed disabled:hover:brightness-100"
-        style={{ backgroundColor: color, boxShadow: `0 4px 14px ${color}30` }}
-      >
-        {initialValues ? 'Update' : 'Add to Graph'}
-      </button>
-      <button
-        type="button"
-        onClick={onCancel}
-        className="flex-1 border border-white/10 hover:bg-white/5 text-white/50 hover:text-white/70 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
-      >
-        Cancel
-      </button>
-      {onDelete && (
-        confirmDelete ? (
+          {onSaveDraft && !initialValues?.uid && (
+            <button
+              type="button"
+              onClick={handleSaveDraftClick}
+              disabled={!hasAnyText}
+              className={`flex items-center gap-1.5 font-medium py-2.5 px-3.5 rounded-xl transition-all text-sm border ${
+                hasAnyText
+                  ? 'border-violet-500/35 text-violet-200 hover:border-violet-400/70 hover:bg-violet-500/10'
+                  : 'border-white/10 text-white/25 cursor-not-allowed'
+              }`}
+              title="Save as draft to keep refining later"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+              Save Draft
+            </button>
+          )}
+          {onDelete && (
+            confirmDelete ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="h-10 px-4 rounded-xl border border-red-400/60 bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors text-sm font-medium"
+              >
+                Confirm Delete
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="h-10 px-3 rounded-xl border border-white/10 text-white/35 hover:text-red-300 hover:border-red-400/40 hover:bg-red-500/10 transition-colors"
+                title="Delete this entry"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            )
+          )}
+        </div>
+
+        <div className="ml-auto flex w-full sm:w-auto flex-col sm:flex-row gap-2">
           <button
             type="button"
-            onClick={onDelete}
-            className="text-white bg-red-500/80 hover:bg-red-500 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
+            onClick={onCancel}
+            className="h-10 px-4 rounded-xl border border-white/15 text-white/70 hover:text-white hover:bg-white/10 transition-colors text-sm font-medium"
           >
-            Confirm
+            Cancel
           </button>
-        ) : (
           <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="text-white/25 hover:text-red-400 hover:bg-red-500/10 p-2.5 rounded-lg transition-colors"
-            title="Delete this entry"
+            type="submit"
+            disabled={missingRequiredFields.length > 0}
+            className="h-10 px-5 rounded-xl text-sm font-semibold text-white transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ backgroundColor: color, boxShadow: `0 8px 22px ${color}45` }}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
+            {initialValues ? 'Update Node' : 'Add to Graph'}
           </button>
-        )
-      )}
-    </div>
+        </div>
+      </div>
     </div>
   );
 
-  // 3-column structured layout
-  if (layout) {
-    const toggleField = layout.currentToggle;
-
-    return (
-      <form onSubmit={handleSubmit}>
-        <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); }} />
-
-        <AnimatePresence mode="wait">
-        <motion.div
-          key={nodeType}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2, ease: 'easeInOut' }}
-        >
-        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          {/* LEFT: dates */}
-          <div className="w-full sm:w-1/3 border-b sm:border-b-0 sm:border-r border-white/5 pb-3 sm:pb-0 sm:pr-4 space-y-3">
-            {layout.left.map((field) => {
-              if (isCurrent && field === toggleField) return null;
-              return (
-                <FieldInput
-                  key={field}
-                  field={field}
-                  value={values[field] || ''}
-                  onChange={(v) => set(field, v)}
-                  color={color}
-                  required={isRequiredField(field)}
-                  missing={isMissingRequiredField(field)}
-                  allowYearOnly={YEAR_ONLY_TYPES.has(nodeType)}
-                />
-              );
-            })}
-            {toggleField && (
-              <label className="flex items-center gap-2 cursor-pointer mt-2">
-                <input
-                  type="checkbox"
-                  checked={isCurrent}
-                  onChange={(e) => setIsCurrent(e.target.checked)}
-                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500/50"
-                />
-                <span className="text-xs text-white/40">Current</span>
-              </label>
-            )}
-          </div>
-
-          {/* RIGHT 2/3: main fields */}
-          <div className="w-full sm:w-2/3 space-y-3">
-            {layout.main.map((field) => (
-              <FieldInput
-                key={field}
-                field={field}
-                value={values[field] || ''}
-                onChange={(v) => set(field, v)}
-                color={color}
-                required={isRequiredField(field)}
-                missing={isMissingRequiredField(field)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Extra fields */}
-        {layout.extra.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-            {layout.extra.map((field) => (
-              <FieldInput
-                key={field}
-                field={field}
-                value={values[field] || ''}
-                onChange={(v) => set(field, v)}
-                color={color}
-                required={isRequiredField(field)}
-                missing={isMissingRequiredField(field)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Skill linker for work_experience and project */}
-        {initialValues?.uid && (nodeType === 'work_experience' || nodeType === 'project') && (
-          <SkillLinker nodeUid={initialValues.uid as string} />
-        )}
-        </motion.div>
-        </AnimatePresence>
-
-        {actionButtons}
-      </form>
-    );
-  }
-
-  // Simple layout (skill, language, collaborator)
   return (
-    <form onSubmit={handleSubmit}>
-      <TypeSelector nodeType={nodeType} color={color} onChange={(t) => { setNodeType(t); setValues({}); }} />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
+        <aside className="md:w-56 md:flex-shrink-0">
+          <TypeSelector nodeType={nodeType} onChange={(t) => { setNodeType(t); setValues({}); }} />
+        </aside>
 
-      <AnimatePresence mode="wait">
-      <motion.div
-        key={nodeType}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2, ease: 'easeInOut' }}
-      >
-      <div className="space-y-3">
-        {(simple || []).map((field) => (
-          <FieldInput
-            key={field}
-            field={field}
-            value={values[field] || ''}
-            onChange={(v) => set(field, v)}
-            color={color}
-            required={isRequiredField(field)}
-            missing={isMissingRequiredField(field)}
-          />
-        ))}
+        <div className="min-w-0 flex-1 space-y-4">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={nodeType}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.24, ease: 'easeInOut' }}
+              className="space-y-3.5"
+            >
+              <section className="rounded-2xl border border-white/12 bg-white/[0.04] p-3.5 sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/50">Required Fields</p>
+                  <span className="text-[11px] text-white/40">{requiredVisibleFields.length}</span>
+                </div>
+                {requiredVisibleFields.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {requiredVisibleFields.map(renderField)}
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/45">No required fields for this node type.</p>
+                )}
+
+                {toggleField && (
+                  <label className="mt-3 flex items-center gap-2.5 rounded-xl border border-white/10 bg-black/35 px-3 py-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isCurrent}
+                      onChange={(e) => setIsCurrent(e.target.checked)}
+                      className="h-4 w-4 rounded border-white/25 bg-black/35 text-violet-500 focus:ring-violet-500/50"
+                    />
+                    <span className="text-xs text-white/65">This entry is current</span>
+                  </label>
+                )}
+              </section>
+
+              {optionalVisibleFields.length > 0 && (
+                <section className="rounded-2xl border border-white/10 bg-white/[0.025] p-3.5 sm:p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/45">Optional Details</p>
+                    <span className="text-[11px] text-white/35">{optionalVisibleFields.length}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {optionalVisibleFields.map(renderField)}
+                  </div>
+                </section>
+              )}
+
+              {Boolean(initialValues?.uid) && (nodeType === 'work_experience' || nodeType === 'project') && (
+                <SkillLinker nodeUid={initialValues.uid as string} />
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {actionButtons}
+        </div>
       </div>
-      </motion.div>
-      </AnimatePresence>
-
-      {actionButtons}
     </form>
   );
 }
@@ -700,11 +704,11 @@ function SkillLinker({ nodeUid }: { nodeUid: string }) {
   };
 
   return (
-    <div className="mt-4 pt-4 border-t border-white/5">
-      <label className="block text-[10px] font-medium text-white/35 uppercase tracking-wider mb-2">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5 sm:p-4">
+      <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em] mb-2.5">
         Linked Skills
       </label>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {allSkills.map((skill) => {
           const isLinked = linkedSkillUids.has(skill.uid);
           return (
@@ -713,10 +717,10 @@ function SkillLinker({ nodeUid }: { nodeUid: string }) {
               type="button"
               disabled={linking}
               onClick={() => handleToggle(skill.uid)}
-              className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
                 isLinked
-                  ? 'bg-orange-500/15 border-orange-500/30 text-orange-300 font-medium'
-                  : 'bg-white/5 border-white/10 text-white/30 hover:border-white/20 hover:text-white/50'
+                  ? 'bg-orange-500/20 border-orange-500/45 text-orange-200 font-medium'
+                  : 'bg-black/35 border-white/12 text-white/45 hover:border-white/25 hover:text-white/75'
               } ${linking ? 'opacity-50' : ''}`}
             >
               {isLinked ? '\u2713 ' : '+ '}{(skill.name || 'Skill') as string}
@@ -728,33 +732,92 @@ function SkillLinker({ nodeUid }: { nodeUid: string }) {
   );
 }
 
-function TypeSelector({ nodeType, onChange }: { nodeType: string; color: string; onChange: (t: string) => void }) {
+const NODE_TYPE_DESCRIPTIONS: Record<string, string> = {
+  education: 'Degrees and studies',
+  work_experience: 'Jobs and positions',
+  certification: 'Credentials and licenses',
+  language: 'Spoken languages',
+  publication: 'Articles and papers',
+  project: 'Projects and products',
+  skill: 'Technical or soft skills',
+  patent: 'Inventions and filings',
+  award: 'Awards and honors',
+  outreach: 'Events and speaking',
+  training: 'Courses and workshops',
+};
+
+function TypeSelector({ nodeType, onChange }: { nodeType: string; onChange: (t: string) => void }) {
   return (
-    <div className="mb-4">
-      <div className="flex flex-wrap gap-1 sm:gap-1.5">
-        {Object.entries(NODE_TYPE_LABELS).map(([key, label]) => {
-          const isSelected = key === nodeType;
-          const btnColor = NODE_TYPE_COLORS[key] || '#8b5cf6';
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onChange(key)}
-              className={`text-[10px] sm:text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border transition-all font-medium ${
-                isSelected
-                  ? 'text-white border-transparent'
-                  : 'text-white/30 border-white/10 hover:border-white/20 hover:text-white/50 bg-transparent'
-              }`}
-              style={isSelected ? {
-                backgroundColor: `${btnColor}25`,
-                borderColor: `${btnColor}50`,
-                color: btnColor,
-              } : undefined}
-            >
-              {label}
-            </button>
-          );
-        })}
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/45">Node Type</p>
+
+      <div className="md:hidden -mx-1 px-1 overflow-x-auto pb-1">
+        <div className="flex min-w-max gap-2" role="tablist" aria-label="Node type tabs">
+          {Object.entries(NODE_TYPE_LABELS).map(([key, label]) => {
+            const isSelected = key === nodeType;
+            const btnColor = NODE_TYPE_COLORS[key] || '#8b5cf6';
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                tabIndex={isSelected ? 0 : -1}
+                onClick={() => onChange(key)}
+                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all ${
+                  isSelected
+                    ? 'text-white border-white/25 bg-white/[0.1]'
+                    : 'text-white/70 border-white/12 bg-black/35 hover:border-white/25 hover:text-white'
+                }`}
+                style={isSelected ? { borderColor: `${btnColor}80`, boxShadow: `inset 0 0 0 1px ${btnColor}35` } : undefined}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: btnColor }} />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="hidden md:block rounded-2xl border border-white/12 bg-white/[0.03] p-2">
+        <div
+          role="tablist"
+          aria-label="Node type tabs"
+          aria-orientation="vertical"
+          className="max-h-[54vh] overflow-y-auto space-y-1 pr-1"
+        >
+          {Object.entries(NODE_TYPE_LABELS).map(([key, label]) => {
+            const isSelected = key === nodeType;
+            const btnColor = NODE_TYPE_COLORS[key] || '#8b5cf6';
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                tabIndex={isSelected ? 0 : -1}
+                onClick={() => onChange(key)}
+                className={`w-full text-left rounded-xl border p-2.5 transition-all ${
+                  isSelected
+                    ? 'border-white/25 bg-white/[0.09] shadow-[0_0_0_1px_rgba(255,255,255,0.08)]'
+                    : 'border-white/12 bg-black/35 hover:border-white/25 hover:bg-white/[0.05]'
+                }`}
+                style={isSelected ? { borderColor: `${btnColor}80`, boxShadow: `inset 0 0 0 1px ${btnColor}35` } : undefined}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: btnColor, boxShadow: `0 0 10px ${btnColor}66` }}
+                  />
+                  <span className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-white/80'}`}>{label}</span>
+                </div>
+                <p className={`mt-1 text-[10px] leading-snug ${isSelected ? 'text-white/70' : 'text-white/45'}`}>
+                  {NODE_TYPE_DESCRIPTIONS[key] || 'Entry details'}
+                </p>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
