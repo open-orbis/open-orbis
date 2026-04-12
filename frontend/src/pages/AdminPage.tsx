@@ -572,7 +572,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Navbar center={
+      <Navbar hideSearch center={
         <div className="flex items-center gap-3">
           <span className="text-white/50 text-sm font-medium">Admin Dashboard</span>
           {user?.name && <span className="text-green-400/70 text-xs">Logged as {user.name}</span>}

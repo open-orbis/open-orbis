@@ -8,9 +8,11 @@ interface NavbarProps {
   center?: React.ReactNode;
   /** Optional right content placed before the user menu */
   rightBefore?: React.ReactNode;
+  /** Hide the Orbis ID search bar */
+  hideSearch?: boolean;
 }
 
-export default function Navbar({ center, rightBefore }: NavbarProps) {
+export default function Navbar({ center, rightBefore, hideSearch }: NavbarProps) {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const [searchValue, setSearchValue] = useState('');
@@ -46,8 +48,8 @@ export default function Navbar({ center, rightBefore }: NavbarProps) {
         <div className="flex items-center gap-2">
           {rightBefore}
 
-          {/* Search by Orbis ID — authenticated only */}
-          {user && (
+          {/* Search by Orbis ID — authenticated only, hidden on some pages */}
+          {user && !hideSearch && (
             <>
               {/* Mobile: icon toggle */}
               <button
