@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from neo4j import AsyncDriver
 
 from app.admin.models import (
     AccessCodeBatchCreate,
     AccessCodeCreate,
     AccessCodeResponse,
+    AccessCodesPage,
     AccessCodeUpdate,
     BatchActivateRequest,
     BetaConfigResponse,
@@ -24,6 +25,7 @@ from app.admin.models import (
     StatsResponse,
     UserDetailResponse,
     UserResponse,
+    UsersPage,
 )
 from app.admin.service import (
     activate_user_by_admin,
@@ -207,12 +209,22 @@ async def patch_beta_config(
 # ── AccessCode ──
 
 
-@router.get("/access-codes", response_model=list[AccessCodeResponse])
+@router.get("/access-codes", response_model=AccessCodesPage)
 async def list_codes(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     _admin: dict = Depends(require_admin),
     db: AsyncDriver = Depends(get_db),
 ):
-    return [_serialize_access_code(c) for c in await list_access_codes(db)]
+    """List access codes with pagination. ``limit`` is capped at 200 to
+    bound the response size even for an admin caller."""
+    items, total = await list_access_codes(db, offset=offset, limit=limit)
+    return AccessCodesPage(
+        items=[_serialize_access_code(c) for c in items],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.post("/access-codes", response_model=AccessCodeResponse, status_code=201)
@@ -290,12 +302,21 @@ async def get_pending_users(
 # ── User Management ──
 
 
-@router.get("/users", response_model=list[UserResponse])
+@router.get("/users", response_model=UsersPage)
 async def list_users(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     _admin: dict = Depends(require_admin),
     db: AsyncDriver = Depends(get_db),
 ):
-    return [_serialize_user(u) for u in await list_all_users(db)]
+    """List registered users with pagination. ``limit`` is capped at 200."""
+    items, total = await list_all_users(db, offset=offset, limit=limit)
+    return UsersPage(
+        items=[_serialize_user(u) for u in items],
+        total=total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.get("/users/{user_id}", response_model=UserDetailResponse)

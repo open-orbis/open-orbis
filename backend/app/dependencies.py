@@ -84,3 +84,26 @@ async def require_admin(
         if record is None or not record["is_admin"]:
             raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+async def require_gdpr_consent(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+) -> dict:
+    """Block any write / LLM endpoint until the user has granted GDPR consent.
+
+    Used on endpoints that process or store user-controlled data: the CV
+    pipeline, the LLM note enhancer, the orb node CRUD, and anything
+    else that persists beyond the session. Returns ``current_user`` so
+    consuming endpoints can drop-in replace ``Depends(get_current_user)``.
+    """
+    async with db.session() as session:
+        result = await session.run(
+            "MATCH (p:Person {user_id: $user_id}) "
+            "RETURN coalesce(p.gdpr_consent, false) AS consent",
+            user_id=current_user["user_id"],
+        )
+        record = await result.single()
+    if record is None or not record["consent"]:
+        raise HTTPException(status_code=403, detail="GDPR consent required")
+    return current_user

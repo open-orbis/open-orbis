@@ -266,6 +266,8 @@ LIST_ACCESS_CODES = """
 MATCH (a:AccessCode)
 RETURN a
 ORDER BY a.created_at DESC
+SKIP $offset
+LIMIT $limit
 """
 
 SET_ACCESS_CODE_ACTIVE = """
@@ -361,6 +363,13 @@ LIST_ALL_PERSONS = """
 MATCH (p:Person)
 RETURN p
 ORDER BY p.created_at DESC
+SKIP $offset
+LIMIT $limit
+"""
+
+COUNT_ALL_PERSONS = """
+MATCH (p:Person)
+RETURN count(p) AS total
 """
 
 GET_PERSON_DETAIL = """

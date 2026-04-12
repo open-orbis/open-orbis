@@ -12,7 +12,12 @@ from neo4j.time import Time as Neo4jTime
 from pydantic import BaseModel
 
 from app.config import settings
-from app.dependencies import get_current_user, get_current_user_optional, get_db
+from app.dependencies import (
+    get_current_user,
+    get_current_user_optional,
+    get_db,
+    require_gdpr_consent,
+)
 from app.email.service import send_access_grant_email
 from app.graph.encryption import decrypt_properties, encrypt_properties
 from app.graph.node_schema import LABEL_TO_NODE_TYPE, sanitize_node_properties
@@ -187,7 +192,7 @@ async def get_my_orb(
 @router.put("/me")
 async def update_my_profile(
     data: PersonUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     props = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -245,7 +250,7 @@ async def update_visibility(
 @router.post("/me/profile-image")
 async def upload_profile_image(
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     """Upload a profile picture. Stored as base64 on the Person node."""
@@ -294,7 +299,7 @@ async def delete_profile_image(
 @router.post("/me/nodes")
 async def add_node(
     data: NodeCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     if data.node_type not in NODE_TYPE_LABELS:
@@ -327,7 +332,7 @@ async def add_node(
 async def update_node(
     uid: str,
     data: NodeUpdate,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:

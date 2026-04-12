@@ -21,7 +21,7 @@ from app.cv_storage.storage import (
     evict_oldest_if_at_limit,
     load_document,
 )
-from app.dependencies import get_current_user, get_db
+from app.dependencies import get_current_user, get_db, require_gdpr_consent
 from app.graph.encryption import encrypt_properties, encrypt_value
 from app.graph.llm_usage import record_llm_usage
 from app.graph.node_schema import sanitize_node_properties
@@ -44,28 +44,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cv", tags=["cv"])
 
 
-async def _require_consent(current_user: dict, db: AsyncDriver) -> None:
-    """Raise 403 if user hasn't given GDPR consent."""
-    async with db.session() as session:
-        result = await session.run(
-            "MATCH (p:Person {user_id: $user_id}) RETURN p.gdpr_consent AS consent",
-            user_id=current_user["user_id"],
-        )
-        record = await result.single()
-        if not record or not record["consent"]:
-            raise HTTPException(status_code=403, detail="GDPR consent required")
-
-
 @router.post("/upload", response_model=ExtractedData)
 @limiter.limit("3/minute")
 async def upload_cv(
     request: Request,
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     """Upload a PDF CV: extract text via Docling, classify via LLM."""
-    await _require_consent(current_user, db)
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -247,11 +234,10 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
 async def import_document(
     request: Request,
     file: UploadFile = File(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     """Import a supplementary document (PDF, DOCX, TXT) to enrich the orb."""
-    await _require_consent(current_user, db)
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -332,11 +318,10 @@ async def import_document(
 @router.post("/import-confirm")
 async def import_confirm(
     data: ConfirmRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     """Merge imported nodes into existing orb (no deletion of existing data)."""
-    await _require_consent(current_user, db)
     user_id = current_user["user_id"]
 
     if data.document_id:
@@ -560,11 +545,10 @@ def _build_person_updates(data: ConfirmRequest) -> dict:
 @router.post("/confirm")
 async def confirm_cv(
     data: ConfirmRequest,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
     """Persist confirmed CV nodes to Neo4j with dedup and cross-entity linking."""
-    await _require_consent(current_user, db)
     user_id = current_user["user_id"]
 
     # Auto-snapshot before destructive CV import

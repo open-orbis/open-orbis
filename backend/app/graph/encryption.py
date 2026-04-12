@@ -93,6 +93,11 @@ def _get_multi() -> MultiFernet:
 
 ENCRYPTED_FIELDS = {"email", "phone", "address"}
 
+# Marker surfaced to API consumers when a ciphertext fails to decrypt.
+# Callers should hide the field from the UI rather than display raw
+# ciphertext or a confusing empty value. See L1 in security audit #253.
+DECRYPTION_FAILED_MARKER = "__decryption_failed__"
+
 
 def encrypt_value(value: str) -> str:
     return _get_primary().encrypt(value.encode()).decode()
@@ -119,11 +124,24 @@ def encrypt_properties(properties: dict) -> dict:
 
 
 def decrypt_properties(properties: dict) -> dict:
+    """Decrypt known-encrypted fields in place.
+
+    On failure the plaintext field is replaced with ``None`` and a
+    companion ``_decryption_failed`` list is added listing the affected
+    field names. This is strictly better than the previous "leave the
+    ciphertext in place" behavior, which let gibberish leak to the UI
+    and made silent ``email == ciphertext`` comparisons always fail.
+    """
     result = dict(properties)
+    failed: list[str] = []
     for field in ENCRYPTED_FIELDS:
         if field in result and result[field]:
             try:
                 result[field] = decrypt_value(result[field])
             except Exception as e:
                 logger.warning("Failed to decrypt field '%s': %s", field, e)
+                result[field] = None
+                failed.append(field)
+    if failed:
+        result["_decryption_failed"] = failed
     return result

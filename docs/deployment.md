@@ -70,6 +70,92 @@ All configuration is via environment variables. See `.env.example` for the full 
 
 Optional: set `ENCRYPTION_KEYS_HISTORIC` to a comma-separated list of previous Fernet keys when rotating. New writes use `ENCRYPTION_KEY`; reads transparently try the historic keys for legacy ciphertext.
 
+### Rotating the Fernet encryption key
+
+PII fields (`email`, `phone`, `address` on `Person` nodes; PDF bytes in `backend/data/cv_files/`) are encrypted at rest with the active `ENCRYPTION_KEY`. The application supports zero-downtime key rotation via a dual-key window driven by `ENCRYPTION_KEYS_HISTORIC`. Rotate whenever you have reason to believe the current key has been leaked, or on a scheduled cadence (recommended: annually, or when offboarding anyone with production access).
+
+The rotation is four phases. Each phase maps to a single config change + restart; nothing in the database is touched until the opportunistic re-encryption script in phase 3.
+
+**Phase 0 — prepare a fresh key.** On a trusted workstation:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Call the output `NEW_KEY`. Record it in your secret manager alongside the current `OLD_KEY` (the value currently in `ENCRYPTION_KEY`).
+
+**Phase 1 — deploy with both keys, old still primary.** Set environment:
+
+```
+ENCRYPTION_KEY=<OLD_KEY>
+ENCRYPTION_KEYS_HISTORIC=<NEW_KEY>
+```
+
+Restart the backend. This phase changes nothing functionally — `MultiFernet` still decrypts with `OLD_KEY` first — but it verifies every node in your cluster has loaded the new key before you promote it. Watch the logs for `Ignoring invalid key in ENCRYPTION_KEYS_HISTORIC` warnings; if any appear, fix `NEW_KEY` and redo this phase before continuing.
+
+**Phase 2 — promote `NEW_KEY` as primary.** Swap:
+
+```
+ENCRYPTION_KEY=<NEW_KEY>
+ENCRYPTION_KEYS_HISTORIC=<OLD_KEY>
+```
+
+Restart. New writes are encrypted with `NEW_KEY`; existing ciphertext still decrypts because `OLD_KEY` is in the historic list. This is the longest-lived phase — it stays in place until every PII field has been re-encrypted with the new key, which happens opportunistically on any read-modify-write path, plus explicitly via the script in phase 3.
+
+**Phase 3 — bulk re-encrypt to close the window.** To force every remaining `OLD_KEY` ciphertext to migrate, run the following admin one-shot from a backend shell (e.g., `uv run python`):
+
+```python
+import asyncio
+from app.graph.encryption import decrypt_value, encrypt_value, ENCRYPTED_FIELDS
+from app.graph.neo4j_client import get_driver
+
+async def re_encrypt_all_persons() -> int:
+    driver = await get_driver()
+    updated = 0
+    async with driver.session() as session:
+        result = await session.run("MATCH (p:Person) RETURN p.user_id AS uid, p AS node")
+        records = [r async for r in result]
+    for r in records:
+        user_id = r["uid"]
+        node = dict(r["node"])
+        new_props: dict = {}
+        for field in ENCRYPTED_FIELDS:
+            ct = node.get(field)
+            if not ct:
+                continue
+            try:
+                pt = decrypt_value(ct)
+            except Exception:
+                # Already failed under the historic key — leave it alone.
+                continue
+            # encrypt_value always uses the primary (NEW) key.
+            new_props[field] = encrypt_value(pt)
+        if new_props:
+            async with driver.session() as session:
+                await session.run(
+                    "MATCH (p:Person {user_id: $uid}) SET p += $props",
+                    uid=user_id, props=new_props,
+                )
+            updated += 1
+    await driver.close()
+    return updated
+
+print(asyncio.run(re_encrypt_all_persons()))
+```
+
+For the encrypted CV files on disk (`backend/data/cv_files/*.pdf.enc`), the same pattern applies with `decrypt_bytes` / `encrypt_bytes` — there are rarely many of these, so a shell loop is usually enough.
+
+**Phase 4 — drop the old key.** After the script reports a stable zero-delta run (no more ciphertext can still be decrypted by `OLD_KEY` alone) and after your backup retention window has rolled over the old ciphertext, remove `OLD_KEY` from the environment:
+
+```
+ENCRYPTION_KEY=<NEW_KEY>
+ENCRYPTION_KEYS_HISTORIC=
+```
+
+Restart. Rotation complete. Revoke `OLD_KEY` in your secret manager.
+
+If any of the above goes wrong mid-flight, rolling back is always "put the old key back in `ENCRYPTION_KEYS_HISTORIC` and restart" — `MultiFernet` will find it again on the next read.
+
 ### Optional
 
 | Variable | Default | Purpose |
