@@ -105,6 +105,15 @@ class Settings(BaseSettings):
                 + "\n  - ".join(errors)
                 + "\nRefusing to start. See .env.example for guidance."
             )
+        if not self.cookie_domain:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "COOKIE_DOMAIN is empty in ENV=%s. Cookies will be host-only "
+                "and won't work if frontend and API are on different "
+                "subdomains. Set COOKIE_DOMAIN to the parent domain.",
+                self.env,
+            )
         return self
 
 
