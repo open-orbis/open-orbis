@@ -61,6 +61,7 @@ function formatDate(iso: string): string {
 }
 
 const SHARE_QR_SIZE = 160;
+const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 
 // ── Modals ──
 
@@ -103,8 +104,10 @@ function SharePanel({
   const addToast = useToastStore((s) => s.addToast);
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
   const [inlineFilterKeyword, setInlineFilterKeyword] = useState('');
+  const [privacyHiddenTypes, setPrivacyHiddenTypes] = useState<Set<string>>(new Set());
+  const privacyHiddenTypesArray = useMemo(() => Array.from(privacyHiddenTypes), [privacyHiddenTypes]);
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
-  const hasActiveFilters = activeKeywords.length > 0 || hiddenTypesArray.length > 0;
+  const hasActiveFilters = activeKeywords.length > 0 || privacyHiddenTypesArray.length > 0;
   const isPrivate = visibility === 'private';
   const isRestricted = visibility === 'restricted';
   const isPublic = visibility === 'public';
@@ -135,7 +138,7 @@ function SharePanel({
     if (orbId && (isPublic || isRestricted)) {
       setShareTokenId(null);
       setGeneratingToken(true);
-      createShareToken(activeKeywords, hiddenTypesArray)
+      createShareToken(activeKeywords, privacyHiddenTypesArray)
         .then((token) => {
           if (!active) return;
           setShareTokenId(token.token_id);
@@ -156,7 +159,7 @@ function SharePanel({
     return () => {
       active = false;
     };
-  }, [activeKeywords, addToast, hiddenTypesArray, orbId, isPublic, isRestricted, tokenGeneration]);
+  }, [activeKeywords, addToast, privacyHiddenTypesArray, orbId, isPublic, isRestricted, tokenGeneration]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
@@ -615,9 +618,42 @@ function SharePanel({
                   )}
                   {activeKeywords.length > 0 && (
                     <p className="text-amber-400/70 text-[11px] mt-2">
-                      {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
+                      {activeKeywords.length} keyword filter{activeKeywords.length !== 1 ? 's' : ''} active.
                     </p>
                   )}
+
+                  <div className="mt-3">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Hidden Node Types</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALL_FILTERABLE_TYPES.map((type) => {
+                        const hidden = privacyHiddenTypes.has(type);
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setPrivacyHiddenTypes((prev) => {
+                              const next = new Set(prev);
+                              if (hidden) next.delete(type);
+                              else next.add(type);
+                              return next;
+                            })}
+                            className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+                              hidden
+                                ? 'bg-red-500/15 border-red-500/40 text-red-300'
+                                : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                            }`}
+                          >
+                            {hidden ? '✕ ' : ''}{type}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {privacyHiddenTypesArray.length > 0 && (
+                      <p className="text-red-400/70 text-[11px] mt-2">
+                        {privacyHiddenTypesArray.length} type{privacyHiddenTypesArray.length !== 1 ? 's' : ''} hidden from shares.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border-t border-gray-700/50 pt-3">
@@ -846,9 +882,42 @@ function SharePanel({
                     )}
                     {activeKeywords.length > 0 && (
                       <p className="text-amber-400/70 text-[11px] mt-2">
-                        {activeKeywords.length} filter{activeKeywords.length !== 1 ? 's' : ''} active.
+                        {activeKeywords.length} keyword filter{activeKeywords.length !== 1 ? 's' : ''} active.
                       </p>
                     )}
+
+                    <div className="mt-3">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Hidden Node Types</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ALL_FILTERABLE_TYPES.map((type) => {
+                          const hidden = privacyHiddenTypes.has(type);
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setPrivacyHiddenTypes((prev) => {
+                                const next = new Set(prev);
+                                if (hidden) next.delete(type);
+                                else next.add(type);
+                                return next;
+                              })}
+                              className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
+                                hidden
+                                  ? 'bg-red-500/15 border-red-500/40 text-red-300'
+                                  : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                              }`}
+                            >
+                              {hidden ? '✕ ' : ''}{type}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {privacyHiddenTypesArray.length > 0 && (
+                        <p className="text-red-400/70 text-[11px] mt-2">
+                          {privacyHiddenTypesArray.length} type{privacyHiddenTypesArray.length !== 1 ? 's' : ''} hidden from shares.
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="border-t border-gray-700/50 pt-3">
@@ -1231,7 +1300,6 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 
 // ── Constants ──
 
-const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 const DEFAULT_CAMERA_DISTANCE = 200;
 const CAMERA_DISTANCE_KEY = 'orbis_camera_distance';
 
