@@ -459,15 +459,51 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
     ? 'Ready to review'
     : STEPS.find((s) => s.key === currentStep)?.label || 'Working...';
   const statusText = detail || currentStepLabel;
-  const displayPercent = currentStep === 'done'
+
+  // Smooth progress: 50% → 99% over 7 minutes during classifying/parsing
+  const [classifyStart, setClassifyStart] = useState<number | null>(null);
+  const [smoothExtra, setSmoothExtra] = useState(0);
+  const prevStep = useRef(currentStep);
+
+  useEffect(() => {
+    if (prevStep.current !== currentStep) {
+      prevStep.current = currentStep;
+      if (currentStep === 'classifying' || currentStep === 'parsing_response') {
+        if (!classifyStart) setClassifyStart(Date.now());
+      } else {
+        setClassifyStart(null);
+        setSmoothExtra(0);
+      }
+    }
+  }, [currentStep, classifyStart]);
+
+  useEffect(() => {
+    if (!classifyStart || currentStep === 'done') return;
+    const maxMs = 7 * 60 * 1000; // 7 minutes
+    const maxExtra = 49; // 50% → 99%
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - classifyStart;
+      const progress = Math.min(elapsed / maxMs, 1);
+      // Ease-out curve so it starts faster and slows down
+      const eased = 1 - Math.pow(1 - progress, 2);
+      setSmoothExtra(Math.round(eased * maxExtra));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [classifyStart, currentStep]);
+
+  const basePercent = currentStep === 'done'
     ? 100
     : Math.round((completedSteps / STEPS.length) * 100);
+  const displayPercent = currentStep === 'done'
+    ? 100
+    : Math.min(basePercent + (currentStep === 'classifying' || currentStep === 'parsing_response' ? smoothExtra : 0), 99);
 
   return (
     <div className="w-full max-w-md mx-auto rounded-xl border border-white/10 bg-black/20 px-4 py-4 sm:px-5 sm:py-5">
       <div className="text-left">
         <p className="text-sm font-semibold text-white">Processing your CV</p>
         <p className="text-[11px] text-white/45 mt-0.5">We are preparing your orbis from the uploaded document.</p>
+        <p className="text-[10px] text-white/30 mt-1 italic">Processing time varies depending on the length of your CV.</p>
       </div>
 
       {/* Steps */}
