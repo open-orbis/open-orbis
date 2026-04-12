@@ -37,6 +37,51 @@ function getTypeLabel(node: any): string {
   return NODE_TYPE_LABELS[snakeCase] || label || '';
 }
 
+// ── Shared canvas for label rendering (#228.9) ──
+// Instead of creating a new <canvas> + CanvasTexture per node (200+ DOM
+// allocations), we reuse ONE canvas and snapshot pixels into a DataTexture.
+// This eliminates canvas allocation overhead while keeping the simple
+// sprite-per-label approach.
+const LABEL_CANVAS = document.createElement('canvas');
+LABEL_CANVAS.width = 512;
+LABEL_CANVAS.height = 64;
+const LABEL_CTX = LABEL_CANVAS.getContext('2d')!;
+
+function createLabelTexture(
+  name: string,
+  color: string,
+  isPerson: boolean,
+  isFiltered: boolean,
+  isDimmed: boolean,
+  typeLabel: string,
+  marker: string,
+): THREE.DataTexture {
+  LABEL_CTX.clearRect(0, 0, 512, 64);
+
+  LABEL_CTX.font = `600 ${isPerson ? 18 : 13}px Inter, -apple-system, sans-serif`;
+  LABEL_CTX.textAlign = 'center';
+  const textAlpha = isFiltered ? 0.06 : isDimmed ? 0.12 : 0.9;
+  LABEL_CTX.fillStyle = `rgba(255,255,255,${textAlpha})`;
+  const displayName = name.length > 28 ? name.slice(0, 26) + '\u2026' : name;
+  LABEL_CTX.fillText(displayName, 256, isPerson ? 24 : 20);
+
+  if (!isPerson && typeLabel) {
+    LABEL_CTX.font = '500 10px Inter, -apple-system, sans-serif';
+    LABEL_CTX.fillStyle = isFiltered ? 'rgba(255,255,255,0.03)' : isDimmed ? 'rgba(255,255,255,0.06)' : color;
+    LABEL_CTX.fillText(`${marker} ${typeLabel}`, 256, 38);
+  }
+
+  const imageData = LABEL_CTX.getImageData(0, 0, 512, 64);
+  const texture = new THREE.DataTexture(
+    new Uint8Array(imageData.data.buffer),
+    512,
+    64,
+    THREE.RGBAFormat,
+  );
+  texture.needsUpdate = true;
+  return texture;
+}
+
 // ── Shared geometry pool (created once, reused for all nodes) ──
 const SHARED_GEO = {
   personCore: new THREE.SphereGeometry(6, 24, 24),
@@ -535,35 +580,14 @@ export default function OrbGraph3D({
 
     }
 
-    // Text label sprite
+    // Text label sprite — uses the shared canvas + DataTexture helper
     const name = getNodeName(node);
     if (name) {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d')!;
-      canvas.width = 512;
-      canvas.height = 64;
-
-      ctx.clearRect(0, 0, 512, 64);
-
-      ctx.font = `600 ${isPerson ? 18 : 13}px Inter, -apple-system, sans-serif`;
-      ctx.textAlign = 'center';
-      const textAlpha = isFiltered ? 0.06 : isDimmed ? 0.12 : 0.9;
-      ctx.fillStyle = `rgba(255,255,255,${textAlpha})`;
-      const displayName = name.length > 28 ? name.slice(0, 26) + '\u2026' : name;
-      ctx.fillText(displayName, 256, isPerson ? 24 : 20);
-
-      if (!isPerson) {
-        const typeLabel = getTypeLabel(node);
-        const marker = NODE_SHAPE_MARKERS[node._labels?.[0] || ''] || '';
-        if (typeLabel) {
-          ctx.font = '500 10px Inter, -apple-system, sans-serif';
-          ctx.fillStyle = isFiltered ? 'rgba(255,255,255,0.03)' : isDimmed ? 'rgba(255,255,255,0.06)' : color;
-          ctx.fillText(`${marker} ${typeLabel}`, 256, 38);
-        }
-      }
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.needsUpdate = true;
+      const typeLabel = isPerson ? '' : getTypeLabel(node);
+      const marker = isPerson ? '' : (NODE_SHAPE_MARKERS[node._labels?.[0] || ''] || '');
+      const texture = createLabelTexture(
+        name, color, isPerson, isFiltered, isDimmed, typeLabel, marker,
+      );
       const spriteMat = new THREE.SpriteMaterial({
         map: texture,
         transparent: true,
