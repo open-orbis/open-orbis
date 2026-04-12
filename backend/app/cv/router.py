@@ -20,6 +20,7 @@ from app.cv_storage import db as cv_db
 from app.cv_storage.storage import (
     evict_oldest_if_at_limit,
     load_document,
+    save_document,
 )
 from app.dependencies import get_current_user, get_db, require_gdpr_consent
 from app.graph.encryption import encrypt_properties, encrypt_value
@@ -72,6 +73,16 @@ async def upload_cv(
 
     user_id = current_user.get("user_id", "")
     document_id = str(uuid.uuid4())
+
+    # Store the original PDF (encrypted) before processing
+    evict_oldest_if_at_limit(user_id)
+    save_document(
+        user_id=user_id,
+        document_id=document_id,
+        pdf_bytes=pdf_bytes,
+        filename=file.filename or "cv-upload.pdf",
+        page_count=0,
+    )
 
     counter.increment()
     try:
@@ -254,6 +265,17 @@ async def import_document(
 
     user_id = current_user.get("user_id", "")
     document_id = str(uuid.uuid4())
+
+    # Store the original document (encrypted) before processing
+    evict_oldest_if_at_limit(user_id)
+    save_document(
+        user_id=user_id,
+        document_id=document_id,
+        pdf_bytes=file_bytes,
+        filename=file.filename or "document",
+        page_count=0,
+    )
+
     try:
         progress.set_progress(user_id, CVStep.EXTRACTING_TEXT, file.filename)
         raw_text = await multi_extract(file_bytes, file.filename)
