@@ -35,14 +35,15 @@ export const useUndoStore = create<UndoState>((set, get) => ({
     const { undoStack } = get();
     if (undoStack.length === 0) return;
 
-    const entry = undoStack[undoStack.length - 1];
+    // Clone so we never mutate the stack entry in place (#228 undo bug).
+    let redoEntry = { ...undoStack[undoStack.length - 1] };
 
-    if (entry.type === 'add') {
-      await orbsApi.deleteNode(entry.nodeUid);
+    if (redoEntry.type === 'add') {
+      await orbsApi.deleteNode(redoEntry.nodeUid);
     } else {
-      const node = await orbsApi.addNode(entry.nodeType, entry.properties);
-      if (entry.relationships) {
-        for (const rel of entry.relationships) {
+      const node = await orbsApi.addNode(redoEntry.nodeType, redoEntry.properties);
+      if (redoEntry.relationships) {
+        for (const rel of redoEntry.relationships) {
           if (rel.type === 'USED_SKILL') {
             try {
               await orbsApi.linkSkill(node.uid, rel.target);
@@ -50,12 +51,12 @@ export const useUndoStore = create<UndoState>((set, get) => ({
           }
         }
       }
-      entry.nodeUid = node.uid;
+      redoEntry = { ...redoEntry, nodeUid: node.uid };
     }
 
     set((state) => ({
       undoStack: state.undoStack.slice(0, -1),
-      redoStack: [...state.redoStack, entry],
+      redoStack: [...state.redoStack, redoEntry],
     }));
   },
 
@@ -63,18 +64,18 @@ export const useUndoStore = create<UndoState>((set, get) => ({
     const { redoStack } = get();
     if (redoStack.length === 0) return;
 
-    const entry = redoStack[redoStack.length - 1];
+    let undoEntry = { ...redoStack[redoStack.length - 1] };
 
-    if (entry.type === 'add') {
-      const node = await orbsApi.addNode(entry.nodeType, entry.properties);
-      entry.nodeUid = node.uid;
+    if (undoEntry.type === 'add') {
+      const node = await orbsApi.addNode(undoEntry.nodeType, undoEntry.properties);
+      undoEntry = { ...undoEntry, nodeUid: node.uid };
     } else {
-      await orbsApi.deleteNode(entry.nodeUid);
+      await orbsApi.deleteNode(undoEntry.nodeUid);
     }
 
     set((state) => ({
       redoStack: state.redoStack.slice(0, -1),
-      undoStack: [...state.undoStack, entry],
+      undoStack: [...state.undoStack, undoEntry],
     }));
   },
 
