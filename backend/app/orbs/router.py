@@ -337,7 +337,9 @@ async def update_node(
 ):
     async with db.session() as session:
         label_result = await session.run(
-            "MATCH (n {uid: $uid}) RETURN labels(n) AS labels LIMIT 1",
+            "MATCH (p:Person {user_id: $user_id})-[]->(n {uid: $uid}) "
+            "RETURN labels(n) AS labels LIMIT 1",
+            user_id=current_user["user_id"],
             uid=uid,
         )
         label_record = await label_result.single()
@@ -352,7 +354,12 @@ async def update_node(
             raise HTTPException(status_code=400, detail="Node has no supported type")
         safe_props = sanitize_node_properties(node_type, data.properties)
         properties = encrypt_properties(safe_props)
-        result = await session.run(UPDATE_NODE, uid=uid, properties=properties)
+        result = await session.run(
+            UPDATE_NODE,
+            user_id=current_user["user_id"],
+            uid=uid,
+            properties=properties,
+        )
         record = await result.single()
         if record is None:
             raise HTTPException(status_code=404, detail="Node not found")
@@ -368,7 +375,9 @@ async def delete_node(
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:
-        await session.run(DELETE_NODE, uid=uid)
+        await session.run(
+            DELETE_NODE, user_id=current_user["user_id"], uid=uid
+        )
         return {"status": "deleted"}
 
 

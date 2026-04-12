@@ -178,13 +178,13 @@ RETURN n
 """
 
 UPDATE_NODE = """
-MATCH (n {uid: $uid})
+MATCH (p:Person {user_id: $user_id})-[]->(n {uid: $uid})
 SET n += $properties
 RETURN n
 """
 
 DELETE_NODE = """
-MATCH (n {uid: $uid})
+MATCH (p:Person {user_id: $user_id})-[]->(n {uid: $uid})
 DETACH DELETE n
 """
 
