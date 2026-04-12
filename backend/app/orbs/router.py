@@ -247,23 +247,52 @@ async def update_visibility(
         return {"visibility": data.visibility}
 
 
+_PROFILE_MAX_DIM = 256
+_PROFILE_JPEG_QUALITY = 80
+_PROFILE_MAX_UPLOAD = 5 * 1024 * 1024  # accept up to 5MB raw, compress down
+
+
+def _compress_profile_image(raw_bytes: bytes) -> str:
+    """Resize to max 256×256 and compress to JPEG. Returns a data URI.
+
+    The previous implementation stored the raw upload (up to 2MB) as a
+    base64 data URI on the Person node, bloating Neo4j and slowing every
+    GET_FULL_ORB. Compressing to a ~20-50KB JPEG thumbnail keeps the
+    simple data-URI-on-node architecture without the performance cost.
+    """
+    import io
+
+    from PIL import Image
+
+    img = Image.open(io.BytesIO(raw_bytes))
+    img.thumbnail((_PROFILE_MAX_DIM, _PROFILE_MAX_DIM), Image.LANCZOS)
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=_PROFILE_JPEG_QUALITY, optimize=True)
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/jpeg;base64,{b64}"
+
+
 @router.post("/me/profile-image")
 async def upload_profile_image(
     file: UploadFile = File(...),
     current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Upload a profile picture. Stored as base64 on the Person node."""
+    """Upload a profile picture. Resized to 256×256 JPEG and stored as a
+    compressed data URI on the Person node (~20-50KB instead of up to 2MB)."""
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
     image_bytes = await file.read()
-    max_size = 2 * 1024 * 1024  # 2MB
-    if len(image_bytes) > max_size:
-        raise HTTPException(status_code=400, detail="Image too large (max 2MB)")
+    if len(image_bytes) > _PROFILE_MAX_UPLOAD:
+        raise HTTPException(status_code=400, detail="Image too large (max 5MB)")
 
-    b64 = base64.b64encode(image_bytes).decode("ascii")
-    data_uri = f"data:{file.content_type};base64,{b64}"
+    try:
+        data_uri = _compress_profile_image(image_bytes)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not process image") from None
 
     async with db.session() as session:
         result = await session.run(
