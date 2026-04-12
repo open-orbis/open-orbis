@@ -13,13 +13,14 @@ import {
   linkSkill,
   listAccessGrants,
   listConnectionRequests,
+  listShareTokens,
   acceptConnectionRequest,
   rejectConnectionRequest,
   revokeAccessGrant,
   revokeShareToken,
   updateAccessGrantFilters,
 } from '../api/orbs';
-import type { AccessGrant, ConnectionRequest, OrbVisibility } from '../api/orbs';
+import type { AccessGrant, ConnectionRequest, OrbVisibility, ShareToken } from '../api/orbs';
 import { QRCodeCanvas } from 'qrcode.react';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
@@ -78,8 +79,10 @@ function SharePanel({
   visibility: OrbVisibility;
   onVisibilityChange: (v: OrbVisibility) => Promise<void>;
 }) {
-  const [shareTokenId, setShareTokenId] = useState<string | null>(null);
-  const [generatingToken, setGeneratingToken] = useState(false);
+  const [shareTokens, setShareTokens] = useState<ShareToken[]>([]);
+  const [tokensLoading, setTokensLoading] = useState(false);
+  const [creatingToken, setCreatingToken] = useState(false);
+  const [newTokenLabel, setNewTokenLabel] = useState('');
   const [updatingVisibility, setUpdatingVisibility] = useState(false);
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [grantsLoading, setGrantsLoading] = useState(false);
@@ -112,14 +115,14 @@ function SharePanel({
   const isRestricted = visibility === 'restricted';
   const isPublic = visibility === 'public';
   const bareUrl = `${window.location.origin}/${orbId}`;
+  const selectedTokenId = shareTokens.length > 0 ? shareTokens[0].token_id : null;
   const shareUrl = isRestricted
     ? bareUrl
-    : (shareTokenId ? `${bareUrl}?token=${shareTokenId}` : '');
+    : (selectedTokenId ? `${bareUrl}?token=${selectedTokenId}` : '');
   const shareableUrl = isPrivate ? '' : shareUrl;
   const qrValue = shareableUrl || bareUrl;
-  const canDownloadQr = !isPrivate && (isRestricted || Boolean(shareTokenId));
+  const canDownloadQr = !isPrivate && (isRestricted || Boolean(selectedTokenId));
   const canCopyShareLink = !isPrivate && Boolean(shareableUrl);
-  const mcpUri = shareTokenId ? `orb://${orbId}+${shareTokenId}` : `orb://${orbId}`;
   const filteredGrants = useMemo(() => {
     const query = grantSearch.trim().toLowerCase();
     if (!query) return grants;
@@ -130,36 +133,15 @@ function SharePanel({
     if (!hasActiveFilters) setApplyFiltersOnInvite(false);
   }, [hasActiveFilters]);
 
-  const [tokenGeneration, setTokenGeneration] = useState(0);
-
-  // Generate a share token for public and restricted modes (used for share links and MCP Orbis ID)
+  // Fetch existing share tokens when share panel is open in public/restricted mode
   useEffect(() => {
-    let active = true;
-    if (orbId && (isPublic || isRestricted)) {
-      setShareTokenId(null);
-      setGeneratingToken(true);
-      createShareToken(activeKeywords, privacyHiddenTypesArray)
-        .then((token) => {
-          if (!active) return;
-          setShareTokenId(token.token_id);
-        })
-        .catch(() => {
-          if (!active) return;
-          setShareTokenId(null);
-          addToast('Failed to generate share link', 'error');
-        })
-        .finally(() => {
-          if (!active) return;
-          setGeneratingToken(false);
-        });
-    } else {
-      setShareTokenId(null);
-      setGeneratingToken(false);
-    }
-    return () => {
-      active = false;
-    };
-  }, [activeKeywords, addToast, privacyHiddenTypesArray, orbId, isPublic, isRestricted, tokenGeneration]);
+    if (!isPublic && !isRestricted) return;
+    setTokensLoading(true);
+    listShareTokens()
+      .then((data) => setShareTokens(data.tokens.filter(t => !t.revoked)))
+      .catch(() => {})
+      .finally(() => setTokensLoading(false));
+  }, [isPublic, isRestricted]);
 
   // Load access grants when restricted mode is active
   useEffect(() => {
@@ -268,26 +250,30 @@ function SharePanel({
     if (copied) flashQrHint('copied');
   }, [canCopyShareLink, copyText, flashQrHint, shareableUrl]);
 
-  const handleCopyMcp = useCallback(() => {
-    if (isPrivate) return;
-    void copyText(mcpUri, 'MCP Orbis ID');
-  }, [copyText, isPrivate, mcpUri]);
-
-  const [revokingToken, setRevokingToken] = useState(false);
-  const handleRevokeAndRegenerate = useCallback(async () => {
-    if (!shareTokenId) return;
-    setRevokingToken(true);
+  const handleCreateToken = useCallback(async () => {
+    if (creatingToken) return;
+    setCreatingToken(true);
     try {
-      await revokeShareToken(shareTokenId);
-      addToast('Token revoked. Generating a new one...', 'info');
-      // Bump counter to trigger useEffect regeneration
-      setTokenGeneration((n) => n + 1);
+      const token = await createShareToken(activeKeywords, privacyHiddenTypesArray, newTokenLabel || undefined);
+      setShareTokens(prev => [token, ...prev]);
+      setNewTokenLabel('');
+      addToast('Token created', 'success');
+    } catch {
+      addToast('Failed to create token', 'error');
+    } finally {
+      setCreatingToken(false);
+    }
+  }, [creatingToken, activeKeywords, privacyHiddenTypesArray, newTokenLabel, addToast]);
+
+  const handleRevokeToken = useCallback(async (tokenId: string) => {
+    try {
+      await revokeShareToken(tokenId);
+      setShareTokens(prev => prev.filter(t => t.token_id !== tokenId));
+      addToast('Token revoked', 'success');
     } catch {
       addToast('Failed to revoke token', 'error');
-    } finally {
-      setRevokingToken(false);
     }
-  }, [shareTokenId, addToast]);
+  }, [addToast]);
 
   const handleDownloadQr = useCallback(() => {
     if (!canDownloadQr || !qrCanvasRef.current) return;
@@ -657,26 +643,82 @@ function SharePanel({
                 </div>
 
                 <div className="border-t border-gray-700/50 pt-3">
-                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
-                  <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access.</p>
-                  <div className="flex items-center gap-2">
-                    <input readOnly value={mcpUri} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                  <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
+                  <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
+
+                  {/* Create new token */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <input
+                      value={newTokenLabel}
+                      onChange={(e) => setNewTokenLabel(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
+                      placeholder="Token label (e.g. Recruiter view)"
+                      className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                    />
                     <button
                       type="button"
-                      onClick={handleCopyMcp}
-                      className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                      onClick={handleCreateToken}
+                      disabled={creatingToken}
+                      className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
                     >
-                      Copy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRevokeAndRegenerate}
-                      disabled={!shareTokenId || revokingToken}
-                      className="h-10 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium transition-colors shrink-0 whitespace-nowrap"
-                    >
-                      {revokingToken ? 'Revoking...' : 'Revoke'}
+                      {creatingToken ? 'Creating...' : 'Create Token'}
                     </button>
                   </div>
+
+                  {/* Token list */}
+                  {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
+                  {!tokensLoading && shareTokens.length === 0 && (
+                    <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get a share link.</p>
+                  )}
+                  {shareTokens.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {shareTokens.map((token) => (
+                        <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
+                              <p className="text-[10px] text-gray-500 mt-0.5">
+                                {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
+                                {' · '}{formatDate(token.created_at)}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeToken(token.token_id)}
+                              className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors shrink-0"
+                            >
+                              Revoke
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              readOnly
+                              value={`orb://${orbId}+${token.token_id}`}
+                              className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
+                              className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                            >
+                              Copy MCP
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const url = `${window.location.origin}/${orbId}?token=${token.token_id}`;
+                                navigator.clipboard.writeText(url);
+                                addToast('Share link copied', 'success');
+                              }}
+                              className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                            >
+                              Copy Link
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -696,15 +738,15 @@ function SharePanel({
                     <button
                       type="button"
                       onClick={handleCopyShareLink}
-                      disabled={!canCopyShareLink || generatingToken}
+                      disabled={!canCopyShareLink}
                       className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
                     >
-                      {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                      Copy Share Link
                     </button>
                     <button
                       type="button"
                       onClick={handleDownloadQr}
-                      disabled={!canDownloadQr || generatingToken}
+                      disabled={!canDownloadQr}
                       className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
                     >
                       Download QR (.png)
@@ -921,26 +963,82 @@ function SharePanel({
                   </div>
 
                   <div className="border-t border-gray-700/50 pt-3">
-                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP Orbis ID</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this with the OpenOrbis MCP server for AI agent access according to your active privacy filters.</p>
-                    <div className="flex items-center gap-2">
-                      <input readOnly value={mcpUri} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                    <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI and share link.</p>
+
+                    {/* Create new token */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <input
+                        value={newTokenLabel}
+                        onChange={(e) => setNewTokenLabel(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCreateToken(); } }}
+                        placeholder="Token label (e.g. Recruiter view)"
+                        className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs placeholder-gray-500"
+                      />
                       <button
                         type="button"
-                        onClick={handleCopyMcp}
-                        className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                        onClick={handleCreateToken}
+                        disabled={creatingToken}
+                        className="h-9 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-medium transition-colors shrink-0"
                       >
-                        Copy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleRevokeAndRegenerate}
-                        disabled={!shareTokenId || revokingToken}
-                        className="h-10 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium transition-colors shrink-0 whitespace-nowrap"
-                      >
-                        {revokingToken ? 'Revoking...' : 'Revoke'}
+                        {creatingToken ? 'Creating...' : 'Create Token'}
                       </button>
                     </div>
+
+                    {/* Token list */}
+                    {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
+                    {!tokensLoading && shareTokens.length === 0 && (
+                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get a share link.</p>
+                    )}
+                    {shareTokens.length > 0 && (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {shareTokens.map((token) => (
+                          <div key={token.token_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
+                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                  {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
+                                  {' · '}{formatDate(token.created_at)}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeToken(token.token_id)}
+                                className="h-7 px-2 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 text-[10px] font-medium transition-colors shrink-0"
+                              >
+                                Revoke
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                readOnly
+                                value={`orb://${orbId}+${token.token_id}`}
+                                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
+                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                              >
+                                Copy MCP
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const url = `${window.location.origin}/${orbId}`;
+                                  navigator.clipboard.writeText(url);
+                                  addToast('Share link copied', 'success');
+                                }}
+                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                              >
+                                Copy Link
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="border-t border-gray-700/50 pt-3">
@@ -1092,15 +1190,15 @@ function SharePanel({
                       <button
                         type="button"
                         onClick={handleCopyShareLink}
-                        disabled={!canCopyShareLink || generatingToken}
+                        disabled={!canCopyShareLink}
                         className="h-10 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
                       >
-                        {generatingToken ? 'Generating Link...' : 'Copy Share Link'}
+                        Copy Share Link
                       </button>
                       <button
                         type="button"
                         onClick={handleDownloadQr}
-                        disabled={!canDownloadQr || generatingToken}
+                        disabled={!canDownloadQr}
                         className="h-10 rounded-lg border border-gray-600/80 bg-gray-800/70 hover:bg-gray-700/80 disabled:opacity-50 disabled:cursor-not-allowed text-gray-100 text-sm font-semibold transition-colors"
                       >
                         Download QR (.png)
