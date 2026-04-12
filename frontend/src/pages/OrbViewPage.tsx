@@ -640,10 +640,10 @@ function SharePanel({
                             className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
                               hidden
                                 ? 'bg-red-500/15 border-red-500/40 text-red-300'
-                                : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                                : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                             }`}
                           >
-                            {hidden ? '✕ ' : ''}{type}
+                            {hidden ? '✕ ' : '✓ '}{type}
                           </button>
                         );
                       })}
@@ -904,10 +904,10 @@ function SharePanel({
                               className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
                                 hidden
                                   ? 'bg-red-500/15 border-red-500/40 text-red-300'
-                                  : 'bg-white/5 border-white/10 text-white/50 hover:text-white/80 hover:border-white/20'
+                                  : 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                               }`}
                             >
-                              {hidden ? '✕ ' : ''}{type}
+                              {hidden ? '✕ ' : '✓ '}{type}
                             </button>
                           );
                         })}

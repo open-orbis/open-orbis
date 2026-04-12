@@ -95,6 +95,7 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
 
       {open && (
         <div className="absolute top-full left-0 mt-1 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl p-3 w-56">
+          <p className="text-white/30 text-[10px] mb-2 italic">Visual only — does not affect shared links or privacy filters.</p>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">
               Node Types
@@ -109,9 +110,6 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
               </svg>
             </button>
           </div>
-          <p className="text-[10px] text-white/40 mb-2">
-            First click isolates one type. Click more to include/exclude.
-          </p>
 
           <div className="sticky top-0 z-10 bg-gray-900/95 py-1 flex items-center gap-1.5 mb-2 border-b border-white/5">
             <button
