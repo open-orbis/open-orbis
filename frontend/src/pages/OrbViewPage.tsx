@@ -1211,6 +1211,7 @@ export default function OrbViewPage() {
   const isPendingDeletion = user?.deletion_days_remaining != null;
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [orbSearchValue, setOrbSearchValue] = useState('');
   const [showDiscoverUses, setShowDiscoverUses] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
   const [cameraDistance] = useState(getSavedCameraDistance);
@@ -1880,6 +1881,23 @@ export default function OrbViewPage() {
                 </div>
               )}
 
+              <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
+              <form
+                onSubmit={(e) => { e.preventDefault(); const v = orbSearchValue.trim(); if (v) { navigate(`/${v}`); setOrbSearchValue(''); } }}
+                className="hidden sm:flex items-center"
+              >
+                <div className="flex items-center bg-white/10 border border-white/15 rounded-lg px-2.5 py-1.5 focus-within:border-purple-500/50 focus-within:bg-white/15 transition-all">
+                  <svg className="w-3.5 h-3.5 text-white/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    value={orbSearchValue}
+                    onChange={(e) => setOrbSearchValue(e.target.value)}
+                    placeholder="Search Orbis ID..."
+                    className="bg-transparent text-white text-xs placeholder-white/30 focus:outline-none ml-2 w-28 sm:w-36"
+                  />
+                </div>
+              </form>
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <div data-tour="user-menu">
                 <UserMenu
