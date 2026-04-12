@@ -93,12 +93,40 @@ class TestEncryptDecryptProperties:
         encrypt_properties(props)
         assert props["email"] == original_email
 
-    def test_decrypt_handles_corrupt_ciphertext(self):
+    def test_decrypt_marks_corrupt_ciphertext(self):
+        """L1: decryption failure must be visible to the caller.
+
+        Pre-L1 behavior was to leave the ciphertext in place and log a
+        warning, which silently leaked gibberish into API responses and
+        made equality checks against the plaintext always fail. Now the
+        field is blanked and ``_decryption_failed`` lists it.
+        """
         props = {"email": "not-a-valid-ciphertext", "name": "Dave"}
         result = decrypt_properties(props)
-        # Should keep the corrupt value and not raise
-        assert result["email"] == "not-a-valid-ciphertext"
+        assert result["email"] is None
         assert result["name"] == "Dave"
+        assert result["_decryption_failed"] == ["email"]
+
+    def test_decrypt_successful_does_not_set_marker(self):
+        props = {"email": "alice@example.com", "name": "Alice"}
+        encrypted = encrypt_properties(props)
+        result = decrypt_properties(encrypted)
+        assert "_decryption_failed" not in result
+        assert result["email"] == "alice@example.com"
+
+    def test_decrypt_mixed_success_and_failure(self):
+        """If some encrypted fields decrypt and others don't, only the
+        failing ones are listed in the marker."""
+        good = encrypt_properties({"email": "alice@example.com"})["email"]
+        props = {
+            "email": good,
+            "phone": "corrupt-phone-ciphertext",
+            "name": "Alice",
+        }
+        result = decrypt_properties(props)
+        assert result["email"] == "alice@example.com"
+        assert result["phone"] is None
+        assert result["_decryption_failed"] == ["phone"]
 
 
 # ── Fernet initialization ──
