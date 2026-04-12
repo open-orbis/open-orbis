@@ -197,6 +197,68 @@ def test_me_not_activated_when_no_code_and_required(client, mock_db):
     assert response.json()["activated"] is False
 
 
+def test_me_waitlist_defaults_to_not_joined_when_flag_missing(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(
+            return_value={"p": MockNode({"user_id": "test-user", "name": "Test User"})}
+        )
+    )
+
+    with patch("app.auth.router.is_invite_code_required", AsyncMock(return_value=True)):
+        response = client.get("/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["waitlist_joined"] is False
+
+
+def test_me_waitlist_uses_boolean_value_only(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(
+            return_value={
+                "p": MockNode(
+                    {
+                        "user_id": "test-user",
+                        "name": "Test User",
+                        "waitlist_joined": "true",
+                    }
+                )
+            }
+        )
+    )
+
+    with patch("app.auth.router.is_invite_code_required", AsyncMock(return_value=True)):
+        response = client.get("/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["waitlist_joined"] is False
+
+
+def test_join_waitlist_requires_explicit_post(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"joined_at": "2026-04-12T10:00:00Z"})
+    )
+
+    response = client.post("/auth/waitlist/join")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "joined"
+    assert body["waitlist_joined_at"] == "2026-04-12T10:00:00Z"
+
+    run_mock = mock_db.session.return_value.__aenter__.return_value.run
+    called_query = run_mock.await_args.args[0]
+    assert "SET p.waitlist_joined = true" in called_query
+
+
+def test_join_waitlist_returns_404_when_user_missing(client, mock_db):
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value=None)
+    )
+
+    response = client.post("/auth/waitlist/join")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Admin endpoints
 # ─────────────────────────────────────────────────────────────────────────

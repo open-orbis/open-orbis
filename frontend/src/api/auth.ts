@@ -9,6 +9,8 @@ export interface UserInfo {
   gdpr_consent: boolean;
   is_admin: boolean;
   activated: boolean;
+  waitlist_joined: boolean;
+  waitlist_joined_at?: string | null;
   deletion_requested_at?: string | null;
   deletion_days_remaining?: number | null;
 }
@@ -52,6 +54,11 @@ export async function activateAccount(
 
 export async function grantGdprConsent(): Promise<void> {
   await client.post('/auth/gdpr-consent');
+}
+
+export async function joinWaitlist(): Promise<{ status: string; waitlist_joined_at: string | null }> {
+  const { data } = await client.post('/auth/waitlist/join');
+  return data;
 }
 
 export async function recoverAccount(): Promise<void> {

@@ -10,6 +10,8 @@ class UserInfo(BaseModel):
     gdpr_consent: bool = False
     is_admin: bool = False
     activated: bool = False
+    waitlist_joined: bool = False
+    waitlist_joined_at: str | None = None
     deletion_requested_at: str | None = None
     deletion_days_remaining: int | None = None
 

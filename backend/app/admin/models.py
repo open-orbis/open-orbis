@@ -142,6 +142,8 @@ class UserResponse(BaseModel):
     provider: str = ""
     is_admin: bool = False
     signup_code: str | None = None
+    waitlist_joined: bool = False
+    waitlist_joined_at: str | None = None
     activated_at: str | None = None
     created_at: str = ""
 

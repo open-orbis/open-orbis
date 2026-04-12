@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { activateAccount, getMe } from '../api/auth';
+import { activateAccount, getMe, joinWaitlist } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
 
@@ -18,7 +18,14 @@ export default function ActivatePage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
+  const [joinedWaitlist, setJoinedWaitlist] = useState<boolean>(Boolean(user?.waitlist_joined));
+  const [waitlistError, setWaitlistError] = useState<string | null>(null);
   const navigatingRef = useRef(false);
+
+  useEffect(() => {
+    setJoinedWaitlist(Boolean(user?.waitlist_joined));
+  }, [user?.waitlist_joined]);
 
   const goToApp = useCallback(async () => {
     if (navigatingRef.current) return;
@@ -63,6 +70,21 @@ export default function ActivatePage() {
   const handleLogout = () => {
     logout();
     navigate('/', { replace: true });
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (joinedWaitlist || joiningWaitlist) return;
+    setWaitlistError(null);
+    setJoiningWaitlist(true);
+    try {
+      await joinWaitlist();
+      setJoinedWaitlist(true);
+      await fetchUser();
+    } catch {
+      setWaitlistError('Could not join the waiting list. Please try again.');
+    } finally {
+      setJoiningWaitlist(false);
+    }
   };
 
   return (
@@ -128,11 +150,41 @@ export default function ActivatePage() {
           </motion.div>
         )}
 
-        {/* Waitlist info */}
-        <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl px-5 py-4 mb-4 text-left">
-          <p className="text-white/50 text-xs leading-relaxed">
-            Don&apos;t have a code? No problem — by signing up you&apos;ve been added to our waiting list. We&apos;ll reach out as soon as your access is enabled.
-          </p>
+        {/* Waitlist opt-in */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent px-5 py-5 mb-5 text-left backdrop-blur-sm">
+          <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-emerald-400/10 blur-2xl" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_45%)]" />
+
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 mb-3">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+              <span className="text-[10px] font-semibold tracking-[0.14em] text-white/65">WAITLIST</span>
+            </div>
+
+            <p className="text-white/70 text-sm leading-relaxed mb-4">
+              Don&apos;t have a code yet? Join the waiting list and we&apos;ll contact you as soon as access opens.
+            </p>
+
+            {joinedWaitlist ? (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-3.5 py-2.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+                <span className="text-emerald-100 text-sm font-medium">You&apos;re on the waiting list</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleJoinWaitlist}
+                disabled={joiningWaitlist}
+                className="w-full flex items-center justify-center rounded-xl border border-emerald-300/35 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-950 text-sm font-semibold px-5 py-2.5 shadow-[0_10px_28px_-14px_rgba(16,185,129,0.9)] transition-all"
+              >
+                {joiningWaitlist ? 'Joining...' : 'Join waiting list'}
+              </button>
+            )}
+
+            {waitlistError && (
+              <p className="text-amber-300/90 text-xs mt-3">{waitlistError}</p>
+            )}
+          </div>
         </div>
 
         {/* Logout link */}
