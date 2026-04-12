@@ -375,9 +375,7 @@ async def delete_node(
     db: AsyncDriver = Depends(get_db),
 ):
     async with db.session() as session:
-        await session.run(
-            DELETE_NODE, user_id=current_user["user_id"], uid=uid
-        )
+        await session.run(DELETE_NODE, user_id=current_user["user_id"], uid=uid)
         return {"status": "deleted"}
 
 
