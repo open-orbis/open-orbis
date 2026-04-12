@@ -396,19 +396,24 @@ async def import_confirm(
         )
 
     if data.document_id:
-        from datetime import datetime, timezone
+        try:
+            from datetime import datetime, timezone
 
-        now = datetime.now(timezone.utc).isoformat()
-        cv_db.insert_document(
-            document_id=data.document_id,
-            user_id=user_id,
-            filename=data.original_filename or "document-import",
-            size=data.file_size_bytes or 0,
-            page_count=data.page_count or 0,
-            entities_count=len(data.nodes),
-            edges_count=len(data.relationships),
-            now=now,
-        )
+            now = datetime.now(timezone.utc).isoformat()
+            cv_db.insert_document(
+                document_id=data.document_id,
+                user_id=user_id,
+                filename=data.original_filename or "document-import",
+                size=data.file_size_bytes or 0,
+                page_count=data.page_count or 0,
+                entities_count=len(data.nodes),
+                edges_count=len(data.relationships),
+                now=now,
+            )
+        except Exception:
+            logger.debug(
+                "Document %s already recorded, skipping insert", data.document_id
+            )
 
     return result
 
@@ -645,18 +650,23 @@ async def confirm_cv(
         )
 
     if data.document_id:
-        from datetime import datetime, timezone
+        try:
+            from datetime import datetime, timezone
 
-        now = datetime.now(timezone.utc).isoformat()
-        cv_db.insert_document(
-            document_id=data.document_id,
-            user_id=user_id,
-            filename=data.original_filename or "cv-upload",
-            size=data.file_size_bytes or 0,
-            page_count=data.page_count or 0,
-            entities_count=len(data.nodes),
-            edges_count=len(data.relationships),
-            now=now,
-        )
+            now = datetime.now(timezone.utc).isoformat()
+            cv_db.insert_document(
+                document_id=data.document_id,
+                user_id=user_id,
+                filename=data.original_filename or "cv-upload",
+                size=data.file_size_bytes or 0,
+                page_count=data.page_count or 0,
+                entities_count=len(data.nodes),
+                edges_count=len(data.relationships),
+                now=now,
+            )
+        except Exception:
+            logger.debug(
+                "Document %s already recorded, skipping insert", data.document_id
+            )
 
     return result
