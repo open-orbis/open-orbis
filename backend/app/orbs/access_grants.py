@@ -71,7 +71,10 @@ async def create_access_grant(
 
     Returns ``None`` if the user has no orb_id set.
     """
-    grant_id = secrets.token_urlsafe(16)
+    # 32 bytes (256 bit) matches share_token and access-token hash widths.
+    # Grant ids are used in URLs shared by owners to recipients, so the
+    # extra margin guards against any future brute-force enumeration.
+    grant_id = secrets.token_urlsafe(32)
     normalized = _normalize_email(email)
     normalized_keywords = _normalize_keywords(keywords)
     normalized_hidden_types = _normalize_hidden_types(hidden_node_types)

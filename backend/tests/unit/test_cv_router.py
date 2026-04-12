@@ -44,6 +44,37 @@ def test_upload_cv_invalid_extension(client):
     assert "Only PDF files are supported" in response.json()["detail"]
 
 
+def test_upload_cv_rejects_non_pdf_magic_bytes(client):
+    """A file with .pdf extension but not starting with %PDF- must be
+    rejected at the magic-byte check, before any extractor runs."""
+    file = BytesIO(b"<html>not a pdf</html>")
+    response = client.post(
+        "/cv/upload", files={"file": ("fake.pdf", file, "application/pdf")}
+    )
+    assert response.status_code == 400
+    assert "not a valid PDF" in response.json()["detail"]
+
+
+def test_safe_content_disposition_strips_traversal_and_ctrl_chars():
+    from app.http_helpers import safe_content_disposition
+
+    assert (
+        safe_content_disposition("../../etc/passwd") == 'attachment; filename="passwd"'
+    )
+    # The regex collapses runs of unsafe chars into a single underscore.
+    assert (
+        safe_content_disposition('evil"\r\nSet-Cookie: x=y.pdf')
+        == 'attachment; filename="evil_Set-Cookie: x=y.pdf"'
+    )
+    assert safe_content_disposition("") == 'attachment; filename="document.pdf"'
+    assert safe_content_disposition("..") == 'attachment; filename="document.pdf"'
+    # Plain, safe names pass through.
+    assert (
+        safe_content_disposition("my resume.pdf")
+        == 'attachment; filename="my resume.pdf"'
+    )
+
+
 @patch("app.cv.router.counter")
 def test_get_processing_count(mock_counter, client):
     mock_counter.get_count.return_value = 5

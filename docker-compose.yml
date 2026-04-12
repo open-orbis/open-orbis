@@ -2,8 +2,11 @@ services:
   neo4j:
     image: neo4j:5-community
     ports:
-      - "7474:7474"  # Browser
-      - "7687:7687"  # Bolt
+      # Bind to loopback only so the Neo4j browser and bolt port are not
+      # exposed on any network interface of the dev machine. Prod deploys
+      # should keep bolt internal to the docker network and drop 7474.
+      - "127.0.0.1:7474:7474"  # Browser
+      - "127.0.0.1:7687:7687"  # Bolt
     environment:
       NEO4J_AUTH: neo4j/orbis_dev_password
       NEO4J_PLUGINS: '[]'
@@ -15,7 +18,7 @@ services:
     image: ollama/ollama:latest
     container_name: orbis-ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
 

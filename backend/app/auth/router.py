@@ -126,7 +126,11 @@ async def google_login(
     try:
         userinfo = await exchange_google_code(body.code)
     except Exception as e:
-        logger.error("Google OAuth failed: %s", e)
+        # Log only the exception class — the %s of an httpx HTTPStatusError
+        # can surface the Google token-endpoint response body, which may
+        # contain the leaked authorization code or a correlation id useful
+        # to replay against us.
+        logger.error("Google OAuth failed (%s)", type(e).__name__)
         raise HTTPException(
             status_code=401, detail="Google authentication failed"
         ) from None
@@ -167,7 +171,7 @@ async def linkedin_login(
             body.code, settings.linkedin_redirect_uri
         )
     except Exception as e:
-        logger.error("LinkedIn OAuth failed: %s", e)
+        logger.error("LinkedIn OAuth failed (%s)", type(e).__name__)
         raise HTTPException(
             status_code=401, detail="LinkedIn authentication failed"
         ) from None

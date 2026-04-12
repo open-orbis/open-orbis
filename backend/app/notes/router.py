@@ -254,14 +254,19 @@ async def enhance_note(
 
         return _parse_enhance_result(result, valid_skill_uids)
     except ValueError as e:
-        logger.error("Failed to parse enhance result: %s", e)
+        logger.error("Failed to parse enhance result (%s)", type(e).__name__)
         raise HTTPException(
             status_code=502, detail="Failed to parse LLM response"
         ) from None
     except Exception as e:
-        logger.error("Note enhance failed: %s", e, exc_info=True)
+        logger.error(
+            "Note enhance failed for user %s (%s)",
+            current_user["user_id"],
+            type(e).__name__,
+        )
+        logger.debug("Note enhance traceback", exc_info=True)
         raise HTTPException(
-            status_code=502, detail=f"LLM processing failed: {str(e)}"
+            status_code=502, detail="LLM processing failed. Please try again."
         ) from None
 
 
