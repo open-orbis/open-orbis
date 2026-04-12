@@ -24,6 +24,7 @@ from app.graph.queries import (
     CODE_EFFICIENCY,
     CONSUME_ACCESS_CODE,
     COUNT_ACCESS_CODES,
+    COUNT_ALL_PERSONS,
     COUNT_PENDING_PERSONS,
     COUNT_PERSONS,
     CREATE_ACCESS_CODE,
@@ -212,11 +213,21 @@ async def get_access_code(db: AsyncDriver, code: str) -> dict | None:
         return dict(record["a"]) if record else None
 
 
-async def list_access_codes(db: AsyncDriver) -> list[dict]:
+async def list_access_codes(
+    db: AsyncDriver, *, offset: int = 0, limit: int = 50
+) -> tuple[list[dict], int]:
+    """Return a page of access codes plus the total count.
+
+    ``offset`` / ``limit`` are clamped by the caller (the admin router)
+    to protect against huge page requests.
+    """
     async with db.session() as session:
-        result = await session.run(LIST_ACCESS_CODES)
+        result = await session.run(LIST_ACCESS_CODES, offset=offset, limit=limit)
         records = [r async for r in result]
-    return [dict(r["a"]) for r in records]
+        total_result = await session.run(COUNT_ACCESS_CODES)
+        total_record = await total_result.single()
+    total = int(total_record["total"]) if total_record else 0
+    return [dict(r["a"]) for r in records], total
 
 
 async def set_access_code_active(
@@ -294,11 +305,16 @@ async def create_batch_access_codes(
 # ── User management ──
 
 
-async def list_all_users(db: AsyncDriver) -> list[dict]:
-    """Return all registered users with decrypted emails."""
+async def list_all_users(
+    db: AsyncDriver, *, offset: int = 0, limit: int = 50
+) -> tuple[list[dict], int]:
+    """Return a page of registered users with decrypted emails + total count."""
     async with db.session() as session:
-        result = await session.run(LIST_ALL_PERSONS)
+        result = await session.run(LIST_ALL_PERSONS, offset=offset, limit=limit)
         records = [r async for r in result]
+        total_result = await session.run(COUNT_ALL_PERSONS)
+        total_record = await total_result.single()
+    total = int(total_record["total"]) if total_record else 0
     out = []
     for r in records:
         person = dict(r["p"])
@@ -307,7 +323,7 @@ async def list_all_users(db: AsyncDriver) -> list[dict]:
             with contextlib.suppress(Exception):
                 email = decrypt_value(email)
         out.append({**person, "email": email})
-    return out
+    return out, total
 
 
 async def get_user_detail(db: AsyncDriver, user_id: str) -> dict | None:

@@ -64,8 +64,12 @@ export async function updateBetaConfig(
 // ── Access Codes ──
 
 export async function listAccessCodes(): Promise<AccessCode[]> {
-  const { data } = await client.get('/admin/access-codes');
-  return data;
+  // Backend is paginated (L2 fix). Hit the cap so the admin dashboard
+  // keeps showing everything until proper pagination UI lands.
+  const { data } = await client.get('/admin/access-codes', {
+    params: { limit: 200 },
+  });
+  return data.items;
 }
 
 export async function createAccessCode(
@@ -149,8 +153,13 @@ export interface AdminUserDetail extends AdminUser {
 }
 
 export async function listUsers(): Promise<AdminUser[]> {
-  const { data } = await client.get('/admin/users');
-  return data;
+  // Backend is paginated (L2 fix). Hit the cap to preserve the existing
+  // "show everything" admin-dashboard behavior; swap to real pagination
+  // UI once the user base grows past 200.
+  const { data } = await client.get('/admin/users', {
+    params: { limit: 200 },
+  });
+  return data.items;
 }
 
 export async function getUser(userId: string): Promise<AdminUserDetail> {

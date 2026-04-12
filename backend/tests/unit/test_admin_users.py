@@ -71,15 +71,46 @@ def admin_client(mock_db, mock_neo4j_driver):
 def test_list_users(admin_client):
     with patch(
         "app.admin.router.list_all_users",
-        AsyncMock(return_value=[SAMPLE_USER, PENDING_USER]),
+        AsyncMock(return_value=([SAMPLE_USER, PENDING_USER], 2)),
     ):
         response = admin_client.get("/admin/users")
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 2
-    assert body[0]["user_id"] == "google-111"
-    assert body[1]["signup_code"] is None
+    assert body["total"] == 2
+    assert body["offset"] == 0
+    assert body["limit"] == 50
+    assert len(body["items"]) == 2
+    assert body["items"][0]["user_id"] == "google-111"
+    assert body["items"][1]["signup_code"] is None
+
+
+def test_list_users_pagination_params(admin_client):
+    with patch(
+        "app.admin.router.list_all_users",
+        AsyncMock(return_value=([SAMPLE_USER], 42)),
+    ) as mock:
+        response = admin_client.get("/admin/users?offset=20&limit=10")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 42
+    assert body["offset"] == 20
+    assert body["limit"] == 10
+    # Service layer is called with keyword args matching the query params.
+    mock.assert_awaited_once()
+    _, kwargs = mock.call_args
+    assert kwargs == {"offset": 20, "limit": 10}
+
+
+def test_list_users_caps_limit_at_200(admin_client):
+    with patch(
+        "app.admin.router.list_all_users",
+        AsyncMock(return_value=([], 0)),
+    ):
+        # 999 exceeds the Query(le=200) bound, FastAPI rejects with 422
+        response = admin_client.get("/admin/users?limit=999")
+    assert response.status_code == 422
 
 
 # ── GET /admin/users/{user_id} ──

@@ -53,6 +53,13 @@ class AccessCodeUpdate(BaseModel):
     active: bool
 
 
+class AccessCodesPage(BaseModel):
+    items: list[AccessCodeResponse]
+    total: int
+    offset: int
+    limit: int
+
+
 class BetaConfigResponse(BaseModel):
     invite_code_required: bool
     updated_at: str
@@ -137,6 +144,13 @@ class UserResponse(BaseModel):
     signup_code: str | None = None
     activated_at: str | None = None
     created_at: str = ""
+
+
+class UsersPage(BaseModel):
+    items: list[UserResponse]
+    total: int
+    offset: int
+    limit: int
 
 
 class ProcessingRecordInfo(BaseModel):
