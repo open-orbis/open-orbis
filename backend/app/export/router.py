@@ -107,6 +107,7 @@ def _generate_pdf(  # noqa: C901
         ("Patent", "Patents"),
         ("Award", "Awards"),
         ("Outreach", "Outreach"),
+        ("Training", "Training"),
         ("Skill", "Skills"),
         ("Language", "Languages"),
     ]
@@ -335,6 +336,7 @@ async def export_orb(  # noqa: C901
             "Language": "Language",
             "Award": "MonetaryGrant",
             "Outreach": "Event",
+            "Training": "Course",
         }
 
         for node in nodes:

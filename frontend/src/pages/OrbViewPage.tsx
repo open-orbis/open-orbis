@@ -1231,7 +1231,7 @@ function HeaderBtn({ onClick, children, variant = 'ghost' }: {
 
 // ── Constants ──
 
-const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach'];
+const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 const DEFAULT_CAMERA_DISTANCE = 200;
 const CAMERA_DISTANCE_KEY = 'orbis_camera_distance';
 
@@ -1436,7 +1436,7 @@ export default function OrbViewPage() {
     const typeMap: Record<string, string> = {
       Education: 'education', WorkExperience: 'work_experience', Certification: 'certification',
       Language: 'language', Publication: 'publication', Project: 'project',
-      Skill: 'skill', Patent: 'patent', Award: 'award', Outreach: 'outreach',
+      Skill: 'skill', Patent: 'patent', Award: 'award', Outreach: 'outreach', Training: 'training',
     };
     const nodeType = typeMap[labels[0]];
     if (!nodeType) return;

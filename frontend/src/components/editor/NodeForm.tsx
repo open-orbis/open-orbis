@@ -70,6 +70,11 @@ const LAYOUT_CONFIG: Record<string, {
     main: ['title', 'type', 'venue', 'role'],
     extra: ['description', 'url'],
   },
+  training: {
+    left: ['date'],
+    main: ['title', 'provider'],
+    extra: ['description', 'url'],
+  },
 };
 
 // Date pair validation rules per node type
@@ -244,6 +249,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   patent: ['title', 'patent_number'],
   award: ['name'],
   outreach: ['title', 'venue'],
+  training: ['title', 'provider'],
 };
 
 // Additional fields that should be required whenever they exist in the active modal.

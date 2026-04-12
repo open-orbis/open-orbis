@@ -34,6 +34,10 @@ CREATE VECTOR INDEX project_embedding IF NOT EXISTS
   FOR (p:Project) ON (p.embedding)
   OPTIONS {indexConfig: {`vector.dimensions`: 1536, `vector.similarity_function`: 'cosine'}};
 
+CREATE VECTOR INDEX training_embedding IF NOT EXISTS
+  FOR (t:Training) ON (t.embedding)
+  OPTIONS {indexConfig: {`vector.dimensions`: 1536, `vector.similarity_function`: 'cosine'}};
+
 // Ontology versioning
 CREATE CONSTRAINT ontology_version_id IF NOT EXISTS FOR (ov:OntologyVersion) REQUIRE ov.version_id IS UNIQUE;
 CREATE INDEX ontology_content_hash IF NOT EXISTS FOR (ov:OntologyVersion) ON (ov.content_hash);

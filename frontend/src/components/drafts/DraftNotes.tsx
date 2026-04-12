@@ -12,6 +12,7 @@ const HEADING_FIELDS: Record<string, string[]> = {
   patent: ['title', 'patent_number'],
   award: ['name', 'issuing_organization'],
   outreach: ['title', 'venue'],
+  training: ['title', 'provider'],
   skill: ['name', 'category'],
   language: ['name', 'proficiency'],
 };

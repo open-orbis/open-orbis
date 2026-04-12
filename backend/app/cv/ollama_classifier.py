@@ -93,6 +93,15 @@ Valid node_types and their expected properties:
     venue (string), date (string), description (string or null),
     role (string, e.g. "Speaker", "Organizer", "Panelist"),
     url (string or null)
+    NOTE: Outreach is ONLY for activities where the person is a speaker, organizer,
+    panelist, or contributor. Courses and workshops ATTENDED as a participant should
+    be classified as "training", NOT "outreach".
+
+- training:
+    title (string), provider (string, e.g. "Coursera", "Udemy", "Frontend Masters"),
+    date (string), description (string or null), url (string or null)
+    NOTE: Use this for courses, workshops, bootcamps, and seminars the person
+    attended as a participant. Do NOT use "outreach" for attended courses.
 
 ## Rules
 
@@ -107,7 +116,7 @@ Valid node_types and their expected properties:
 ## Relationships
 
 For each skill mentioned in the context of a work_experience, project, education,
-publication, patent, award, or outreach entry, include a relationship entry linking
+publication, patent, award, outreach, or training entry, include a relationship entry linking
 the source node (by its index in the nodes array) to the skill node (by its index).
 Use type "USED_SKILL".
 
@@ -157,6 +166,7 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "patent": ["title"],
     "award": ["name"],
     "outreach": ["title"],
+    "training": ["title"],
 }
 
 # ── Date fields that should be normalized ──
