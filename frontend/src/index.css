@@ -1,14 +1,61 @@
 @import "tailwindcss";
 
+:root {
+  --orb-scrollbar-size: 10px;
+  --orb-scrollbar-track: rgba(255, 255, 255, 0.05);
+  --orb-scrollbar-track-border: rgba(255, 255, 255, 0.1);
+  --orb-scrollbar-thumb: rgba(182, 193, 213, 0.48);
+  --orb-scrollbar-thumb-hover: rgba(196, 207, 228, 0.68);
+  --orb-scrollbar-thumb-active: rgba(208, 219, 236, 0.82);
+}
+
 html, body {
   margin: 0;
   background-color: #000;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  scrollbar-width: thin;
+  scrollbar-color: var(--orb-scrollbar-thumb) var(--orb-scrollbar-track);
 }
 
 #root {
   min-height: 100svh;
   background-color: #000;
+}
+
+/* Unified dark scrollbar styling for all scrollable containers. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--orb-scrollbar-thumb) var(--orb-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--orb-scrollbar-size);
+  height: var(--orb-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--orb-scrollbar-track);
+  border: 1px solid var(--orb-scrollbar-track-border);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--orb-scrollbar-thumb) 0%, rgba(146, 160, 183, 0.4) 100%);
+  border-radius: 999px;
+  border: 2px solid rgba(6, 10, 18, 0.86);
+  min-height: 36px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--orb-scrollbar-thumb-hover) 0%, rgba(166, 182, 208, 0.62) 100%);
+}
+
+*::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, var(--orb-scrollbar-thumb-active) 0%, rgba(182, 198, 222, 0.78) 100%);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Override react-force-graph nav info text */
