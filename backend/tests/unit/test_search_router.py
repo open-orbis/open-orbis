@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.search.router import _SEARCH_FIELDS
 from tests.unit.conftest import MockNode
 
 
@@ -125,8 +124,8 @@ def test_public_text_search_fuzzy_trigger(
     result_full.__aiter__ = mock_async_iter_full
 
     run_mock = mock_db.session.return_value.__aenter__.return_value.run
-    n_labels = len(_SEARCH_FIELDS)
-    run_mock.side_effect = [result_empty] * n_labels + [result_full] * n_labels
+    # 1 call for the exact UNION, 1 for the fuzzy all-nodes query
+    run_mock.side_effect = [result_empty, result_full]
 
     payload = {"query": "Javscript", "orb_id": "test-orb", "token": "valid-token"}
     response = client.post("/search/text/public", json=payload)
@@ -231,15 +230,13 @@ def test_text_search_query_skipped_on_error(client, mock_db):
 
 
 def test_text_search_fuzzy_trigger(client, mock_db):
-    # Mock first query (substring) returns empty, triggers second query (fuzzy)
+    """Exact UNION returns empty → fuzzy all-nodes query fires and finds a match."""
     node_data = {"uid": "node-fuzzy", "name": "Javascript"}
     node_mock = MockNode(node_data, ["Skill"])
 
-    # First call: empty result
-    # Second call: returns all nodes for fuzzy match
     async def mock_async_iter_empty(*args, **kwargs):
         if False:
-            yield  # Generator
+            yield
         return
 
     async def mock_async_iter_full(*args, **kwargs):
@@ -252,9 +249,8 @@ def test_text_search_fuzzy_trigger(client, mock_db):
     result_full.__aiter__ = mock_async_iter_full
 
     run_mock = mock_db.session.return_value.__aenter__.return_value.run
-
-    n_labels = len(_SEARCH_FIELDS)
-    run_mock.side_effect = [result_empty] * n_labels + [result_full] * n_labels
+    # 1 call for the exact UNION, 1 for the fuzzy all-nodes query
+    run_mock.side_effect = [result_empty, result_full]
 
     response = client.post("/search/text", json={"query": "Javscript"})  # Typo
     assert response.status_code == 200

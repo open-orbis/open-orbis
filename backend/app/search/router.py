@@ -193,71 +193,74 @@ async def text_search(  # noqa: C901
     if not terms:
         terms = [raw_term]
 
-    # First: exact substring match via Cypher
+    # First: exact substring match via a single UNION query (one round-trip
+    # to Neo4j instead of one per label type).
     results = []
     seen_uids: set[str] = set()
 
+    union_parts = []
+    for label, fields in _SEARCH_FIELDS.items():
+        where = " OR ".join(f"toLower(toString(n.{f})) CONTAINS $term" for f in fields)
+        union_parts.append(
+            f"MATCH (p:Person {{user_id: $user_id}})-[]->(n:{label}) "
+            f"WHERE {where} "
+            f"RETURN n, labels(n) AS node_labels"
+        )
+    cypher_exact = " UNION ALL ".join(union_parts)
+
     async with db.session() as session:
-        for label, fields in _SEARCH_FIELDS.items():
-            where_clauses = " OR ".join(
-                f"toLower(toString(n.{f})) CONTAINS $term" for f in fields
+        try:
+            result = await session.run(
+                cypher_exact, user_id=current_user["user_id"], term=raw_term
             )
-            cypher = (
-                f"MATCH (p:Person {{user_id: $user_id}})-[r]->(n:{label}) "
-                f"WHERE {where_clauses} "
-                f"RETURN n, labels(n) AS node_labels"
-            )
+            async for record in result:
+                node = dict(record["n"])
+                node.pop("embedding", None)
+                node_labels = record["node_labels"]
+                node["_labels"] = node_labels
+                label = node_labels[0] if node_labels else ""
+                fields = _SEARCH_FIELDS.get(label, [])
+                node["score"] = _node_match_score(node, fields, raw_term, terms)
+                uid = node.get("uid", "")
+                if uid not in seen_uids:
+                    seen_uids.add(uid)
+                    results.append(node)
+        except Exception as e:
+            logger.warning("Text search exact query failed: %s", type(e).__name__)
+
+    # Second: if few results, fetch all user nodes in one query and fuzzy-match client-side
+    if len(results) < 3:
+        fuzzy_cypher = (
+            "MATCH (p:Person {user_id: $user_id})-[]->(n) "
+            "RETURN n, labels(n) AS node_labels"
+        )
+        async with db.session() as session:
             try:
                 result = await session.run(
-                    cypher, user_id=current_user["user_id"], term=raw_term
+                    fuzzy_cypher, user_id=current_user["user_id"]
                 )
                 async for record in result:
                     node = dict(record["n"])
-                    node.pop("embedding", None)
-                    node["_labels"] = record["node_labels"]
-                    node["score"] = _node_match_score(node, fields, raw_term, terms)
-                    if node.get("uid") not in seen_uids:
-                        seen_uids.add(node.get("uid", ""))
+                    uid = node.get("uid", "")
+                    if uid in seen_uids:
+                        continue
+                    node_labels = record["node_labels"]
+                    label = node_labels[0] if node_labels else ""
+                    fields = _SEARCH_FIELDS.get(label, [])
+                    if not fields:
+                        continue
+                    matched = any(
+                        node.get(f) and _fuzzy_match(str(node[f]), terms)
+                        for f in fields
+                    )
+                    if matched:
+                        node.pop("embedding", None)
+                        node["_labels"] = node_labels
+                        node["score"] = _node_match_score(node, fields, raw_term, terms)
+                        seen_uids.add(uid)
                         results.append(node)
             except Exception as e:
-                logger.warning("Text search query failed for label %s: %s", label, e)
-                continue
-
-    # Second: if few results, do fuzzy matching on all nodes
-    if len(results) < 3:
-        async with db.session() as session:
-            for label, fields in _SEARCH_FIELDS.items():
-                cypher = (
-                    f"MATCH (p:Person {{user_id: $user_id}})-[r]->(n:{label}) "
-                    f"RETURN n, labels(n) AS node_labels"
-                )
-                try:
-                    result = await session.run(cypher, user_id=current_user["user_id"])
-                    async for record in result:
-                        node = dict(record["n"])
-                        uid = node.get("uid", "")
-                        if uid in seen_uids:
-                            continue
-                        # Check fuzzy match against all searchable fields
-                        matched = False
-                        for f in fields:
-                            val = node.get(f)
-                            if val and _fuzzy_match(str(val), terms):
-                                matched = True
-                                break
-                        if matched:
-                            node.pop("embedding", None)
-                            node["_labels"] = record["node_labels"]
-                            node["score"] = _node_match_score(
-                                node, fields, raw_term, terms
-                            )
-                            seen_uids.add(uid)
-                            results.append(node)
-                except Exception as e:
-                    logger.warning(
-                        "Fuzzy search query failed for label %s: %s", label, e
-                    )
-                    continue
+                logger.warning("Fuzzy search query failed: %s", type(e).__name__)
 
     results.sort(key=lambda n: n.get("score", 0), reverse=True)
     return results
@@ -320,85 +323,81 @@ async def public_text_search(  # noqa: C901
     results = []
     seen_uids: set[str] = set()
 
+    # Single UNION query instead of one per label type
+    union_parts = []
+    for label, fields in _SEARCH_FIELDS.items():
+        where = " OR ".join(f"toLower(toString(n.{f})) CONTAINS $term" for f in fields)
+        union_parts.append(
+            f"MATCH (p:Person {{orb_id: $orb_id}})-[]->(n:{label}) "
+            f"WHERE {where} "
+            f"RETURN n, labels(n) AS node_labels"
+        )
+    cypher_exact = " UNION ALL ".join(union_parts)
+
     async with db.session() as session:
-        for label, fields in _SEARCH_FIELDS.items():
-            where_clauses = " OR ".join(
-                f"toLower(toString(n.{f})) CONTAINS $term" for f in fields
+        try:
+            result = await session.run(cypher_exact, orb_id=data.orb_id, term=raw_term)
+            async for record in result:
+                node = dict(record["n"])
+                node.pop("embedding", None)
+                node_labels = record["node_labels"]
+                node["_labels"] = node_labels
+                label = node_labels[0] if node_labels else ""
+                fields = _SEARCH_FIELDS.get(label, [])
+                node["score"] = _node_match_score(node, fields, raw_term, terms)
+                uid = node.get("uid", "")
+                if uid not in seen_uids:
+                    if hidden_types and set(node_labels) & hidden_types:
+                        continue
+                    if filter_keywords and node_matches_filters(node, filter_keywords):
+                        continue
+                    seen_uids.add(uid)
+                    results.append(node)
+        except Exception as e:
+            logger.warning(
+                "Public text search failed for orb %s: %s",
+                data.orb_id,
+                type(e).__name__,
             )
-            cypher = (
-                f"MATCH (p:Person {{orb_id: $orb_id}})-[r]->(n:{label}) "
-                f"WHERE {where_clauses} "
-                f"RETURN n, labels(n) AS node_labels"
-            )
+
+    if len(results) < 3:
+        fuzzy_cypher = (
+            "MATCH (p:Person {orb_id: $orb_id})-[]->(n) "
+            "RETURN n, labels(n) AS node_labels"
+        )
+        async with db.session() as session:
             try:
-                result = await session.run(cypher, orb_id=data.orb_id, term=raw_term)
+                result = await session.run(fuzzy_cypher, orb_id=data.orb_id)
                 async for record in result:
                     node = dict(record["n"])
-                    node.pop("embedding", None)
-                    node["_labels"] = record["node_labels"]
-                    node["score"] = _node_match_score(node, fields, raw_term, terms)
-                    if node.get("uid") not in seen_uids:
-                        node_labels = set(node.get("_labels", []))
-                        if hidden_types and node_labels & hidden_types:
-                            continue
-                        if filter_keywords and node_matches_filters(
-                            node, filter_keywords
-                        ):
-                            continue
-                        seen_uids.add(node.get("uid", ""))
+                    uid = node.get("uid", "")
+                    if uid in seen_uids:
+                        continue
+                    node_labels = record["node_labels"]
+                    label = node_labels[0] if node_labels else ""
+                    fields = _SEARCH_FIELDS.get(label, [])
+                    if not fields:
+                        continue
+                    if hidden_types and set(node_labels) & hidden_types:
+                        continue
+                    if filter_keywords and node_matches_filters(node, filter_keywords):
+                        continue
+                    matched = any(
+                        node.get(f) and _fuzzy_match(str(node[f]), terms)
+                        for f in fields
+                    )
+                    if matched:
+                        node.pop("embedding", None)
+                        node["_labels"] = node_labels
+                        node["score"] = _node_match_score(node, fields, raw_term, terms)
+                        seen_uids.add(uid)
                         results.append(node)
             except Exception as e:
                 logger.warning(
-                    "Public text search failed for label %s on orb %s: %s",
-                    label,
+                    "Public fuzzy search failed for orb %s: %s",
                     data.orb_id,
-                    e,
+                    type(e).__name__,
                 )
-                continue
-
-    if len(results) < 3:
-        async with db.session() as session:
-            for label, fields in _SEARCH_FIELDS.items():
-                cypher = (
-                    f"MATCH (p:Person {{orb_id: $orb_id}})-[r]->(n:{label}) "
-                    f"RETURN n, labels(n) AS node_labels"
-                )
-                try:
-                    result = await session.run(cypher, orb_id=data.orb_id)
-                    async for record in result:
-                        node = dict(record["n"])
-                        uid = node.get("uid", "")
-                        if uid in seen_uids:
-                            continue
-                        node_labels = set(record.get("node_labels", []))
-                        if hidden_types and node_labels & hidden_types:
-                            continue
-                        if filter_keywords and node_matches_filters(
-                            node, filter_keywords
-                        ):
-                            continue
-                        matched = False
-                        for f in fields:
-                            val = node.get(f)
-                            if val and _fuzzy_match(str(val), terms):
-                                matched = True
-                                break
-                        if matched:
-                            node.pop("embedding", None)
-                            node["_labels"] = record["node_labels"]
-                            node["score"] = _node_match_score(
-                                node, fields, raw_term, terms
-                            )
-                            seen_uids.add(uid)
-                            results.append(node)
-                except Exception as e:
-                    logger.warning(
-                        "Public fuzzy search failed for label %s on orb %s: %s",
-                        label,
-                        data.orb_id,
-                        e,
-                    )
-                    continue
 
     results.sort(key=lambda n: n.get("score", 0), reverse=True)
     return results
