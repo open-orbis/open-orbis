@@ -11,6 +11,18 @@ interface SkippedNode {
   reason: string;
 }
 
+export interface ExtractedProfile {
+  headline?: string;
+  location?: string;
+  email?: string;
+  phone?: string;
+  linkedin_url?: string;
+  github_url?: string;
+  twitter_url?: string;
+  website_url?: string;
+  scholar_url?: string;
+}
+
 export interface ExtractedData {
   nodes: Array<{
     node_type: string;
@@ -21,6 +33,7 @@ export interface ExtractedData {
   relationships?: ExtractedRelationship[];
   truncated?: boolean;
   cv_owner_name?: string | null;
+  profile?: ExtractedProfile | null;
   document_id?: string | null;
 }
 
@@ -53,11 +66,13 @@ export async function confirmCV(
   original_filename?: string | null,
   file_size_bytes?: number | null,
   page_count?: number | null,
+  profile?: ExtractedProfile | null,
 ): Promise<void> {
   await client.post('/cv/confirm', {
     nodes,
     relationships: relationships || [],
     cv_owner_name: cv_owner_name || null,
+    profile: profile || null,
     document_id: document_id || null,
     original_filename: original_filename || null,
     file_size_bytes: file_size_bytes || null,
@@ -97,11 +112,13 @@ export async function confirmImport(
   original_filename?: string | null,
   file_size_bytes?: number | null,
   page_count?: number | null,
+  profile?: ExtractedProfile | null,
 ): Promise<void> {
   await client.post('/cv/import-confirm', {
     nodes,
     relationships: relationships || [],
     cv_owner_name: cv_owner_name || null,
+    profile: profile || null,
     document_id: document_id || null,
     original_filename: original_filename || null,
     file_size_bytes: file_size_bytes || null,
