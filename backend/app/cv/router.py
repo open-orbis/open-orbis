@@ -10,10 +10,10 @@ from neo4j import AsyncDriver
 
 from app.config import settings
 from app.cv import counter, progress
-from app.cv.docling_extractor import extract_text as pdf_extract
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import SYSTEM_PROMPT as EXTRACTION_PROMPT
 from app.cv.ollama_classifier import classify_entries
+from app.cv.pdf_extractor import extract_text as pdf_extract
 from app.cv.progress import CVStep
 from app.cv.text_extractor import extract_text as multi_extract
 from app.cv_storage import db as cv_db

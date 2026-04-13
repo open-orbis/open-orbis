@@ -1,66 +1,67 @@
-"""Generate baseline KG extractions by running the current pipeline.
+"""Generate baseline KG extractions using the full production pipeline.
 
 Usage (from ``backend/`` directory):
 
     python -m tests.integration.generate_baseline [OUTPUT_DIR]
 
-Discovers every ``*_cv.txt`` fixture and produces a corresponding
-``<name>_baseline.json`` in *OUTPUT_DIR*.
+Discovers every ``*_cv.pdf`` fixture (falling back to ``*_cv.txt``),
+extracts text via ``pdf_extractor`` (PyMuPDF), classifies entries
+via ``classify_entries()`` (the same LLM fallback chain used in production),
+and produces a corresponding ``<name>_baseline.json`` in *OUTPUT_DIR*.
 
-The model is read from the ``KG_TEST_MODEL`` env-var (default: claude-opus-4-6).
+Extracted text is cached in *OUTPUT_DIR*/text_cache/ so that the subsequent
+test run can skip re-extraction of the same PDFs.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
-import os
 import sys
 from pathlib import Path
 
-from app.cv.claude_classifier import call_claude
-from app.cv.ollama_classifier import SYSTEM_PROMPT, _parse_result
+from app.cv.ollama_classifier import classify_entries
+from app.cv.pdf_extractor import extract_text
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 MAX_RETRIES = 2
 
 
-def _build_user_message(cv_text: str) -> str:
-    text_for_llm = cv_text[:12000]
-    return (
-        "Here is the text extracted from a CV/resume document:\n\n"
-        f"---\n{text_for_llm}\n---\n\n"
-        "Parse every entry in this CV into structured nodes. "
-        'Return JSON with "nodes" and "unmatched" arrays.'
-    )
+async def generate_one(
+    cv_path: Path,
+    output_path: Path,
+    text_cache_dir: Path,
+) -> None:
+    name = cv_path.stem
 
+    # ── text extraction (PDF-first, .txt fallback) ──
+    if cv_path.suffix == ".pdf":
+        cache_path = text_cache_dir / f"{name}.txt"
+        if cache_path.exists():
+            cv_text = cache_path.read_text(encoding="utf-8")
+            print(f"  {name}: using cached text ({len(cv_text)} chars)")
+        else:
+            pdf_bytes = cv_path.read_bytes()
+            cv_text = await extract_text(pdf_bytes)
+            cache_path.write_text(cv_text, encoding="utf-8")
+            print(f"  {name}: extracted {len(cv_text)} chars from PDF")
+    else:
+        cv_text = cv_path.read_text(encoding="utf-8")
+        print(f"  {name}: loaded {len(cv_text)} chars from TXT")
 
-async def generate_one(cv_path: Path, output_path: Path, model: str) -> None:
-    cv_text = cv_path.read_text(encoding="utf-8")
-    user_message = _build_user_message(cv_text)
-
-    nodes = None
+    # ── classification via full production pipeline ──
+    result = None
     for attempt in range(1, MAX_RETRIES + 1):
-        claude_resp = await call_claude(
-            system_prompt=SYSTEM_PROMPT,
-            user_message=user_message,
-            model=model,
-        )
-
-        result = _parse_result(claude_resp["content"])
+        result = await classify_entries(cv_text)
         if result.nodes:
-            nodes = result.nodes
-            unmatched = result.unmatched or []
             break
-
         print(
             f"  WARNING: attempt {attempt}/{MAX_RETRIES} returned 0 nodes "
-            f"for {cv_path.name}. Raw response (first 500 chars):",
+            f"for {cv_path.name}",
             file=sys.stderr,
         )
-        print(f"  {claude_resp['content'][:500]}", file=sys.stderr)
 
-    if not nodes:
+    if not result or not result.nodes:
         print(
             f"ERROR: extraction produced zero nodes for {cv_path.name} "
             f"after {MAX_RETRIES} attempts",
@@ -70,35 +71,55 @@ async def generate_one(cv_path: Path, output_path: Path, model: str) -> None:
 
     data = {
         "nodes": [
-            {"node_type": n.node_type, "properties": n.properties} for n in nodes
+            {"node_type": n.node_type, "properties": n.properties} for n in result.nodes
         ],
-        "unmatched": unmatched,
+        "relationships": [
+            {
+                "from_index": r.from_index,
+                "to_index": r.to_index,
+                "type": r.type,
+            }
+            for r in result.relationships
+        ],
+        "unmatched": result.unmatched,
     }
 
     output_path.write_text(
         json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    print(f"  {output_path.name}: {len(nodes)} nodes")
+    print(
+        f"  {output_path.name}: {len(result.nodes)} nodes, "
+        f"{len(result.relationships)} relationships"
+    )
 
 
-async def generate_all(output_dir: str, model: str) -> None:
+def _discover_cv_fixtures() -> list[Path]:
+    """Return CV fixture paths, preferring PDF over TXT."""
+    pdf_files = {p.stem.removesuffix("_cv"): p for p in FIXTURES_DIR.glob("*_cv.pdf")}
+    txt_files = {p.stem.removesuffix("_cv"): p for p in FIXTURES_DIR.glob("*_cv.txt")}
+    all_names = sorted(set(pdf_files) | set(txt_files))
+    return [pdf_files.get(n) or txt_files[n] for n in all_names]
+
+
+async def generate_all(output_dir: str) -> None:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
+    text_cache_dir = out / "text_cache"
+    text_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    cv_files = sorted(FIXTURES_DIR.glob("*_cv.txt"))
+    cv_files = _discover_cv_fixtures()
     if not cv_files:
-        print("ERROR: no *_cv.txt fixtures found", file=sys.stderr)
+        print("ERROR: no *_cv.pdf or *_cv.txt fixtures found", file=sys.stderr)
         sys.exit(1)
 
     print(f"Generating baselines for {len(cv_files)} CV(s) …")
     for cv_path in cv_files:
         name = cv_path.stem.removesuffix("_cv")
-        await generate_one(cv_path, out / f"{name}_baseline.json", model)
+        await generate_one(cv_path, out / f"{name}_baseline.json", text_cache_dir)
 
     print("Done.")
 
 
 if __name__ == "__main__":
     out_dir = sys.argv[1] if len(sys.argv) > 1 else "baselines"
-    mdl = os.environ.get("KG_TEST_MODEL", "claude-opus-4-6")
-    asyncio.run(generate_all(out_dir, mdl))
+    asyncio.run(generate_all(out_dir))

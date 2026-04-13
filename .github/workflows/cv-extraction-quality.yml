@@ -66,16 +66,19 @@ jobs:
       - name: Generate baselines from main branch
         if: steps.claude-auth.outputs.available == 'true'
         id: baseline
+        timeout-minutes: 8
         working-directory: backend
+        env:
+          UV_PROJECT_ENVIRONMENT: /tmp/venv-main
         run: |
           if [ ! -f tests/integration/generate_baseline.py ]; then
             echo "generate_baseline.py not found on main (bootstrapping)"
             echo "available=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          echo "available=true" >> "$GITHUB_OUTPUT"
           uv sync --all-extras
           uv run python -m tests.integration.generate_baseline /tmp/kg_baselines
+          echo "available=true" >> "$GITHUB_OUTPUT"
 
       # ── phase 2: test PR branch against baselines ──────────────────
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -87,15 +90,17 @@ jobs:
 
       - name: Run KG quality integration test
         if: steps.claude-auth.outputs.available == 'true'
+        timeout-minutes: 8
         working-directory: backend
         run: |
           set -o pipefail
           if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
             export KG_BASELINE_DIR=/tmp/kg_baselines
+            # Reuse text extracted during baseline generation
+            export KG_TEXT_CACHE_DIR=/tmp/kg_baselines/text_cache
             echo "Baseline: main branch extraction"
           else
             echo "Baseline: static golden references (first run — main lacks generate_baseline.py)"
           fi
           uv run python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
-

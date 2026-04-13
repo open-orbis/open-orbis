@@ -4,27 +4,27 @@ In CI the baseline is generated from the **main** branch extraction
 (via ``generate_baseline.py``), so the test acts as a regression gate.
 Locally it falls back to the static golden reference files.
 
-The test is parametrized over every ``*_cv.txt`` fixture, so adding a
-new CV only requires dropping a text + golden JSON into ``fixtures/``.
+The test exercises the **full production pipeline**: text has already been
+extracted from PDF fixtures by the ``cv_fixture`` (via ``pdf_extractor``),
+and classification goes through ``classify_entries()`` — the same LLM
+fallback chain used in the running application.
+
+The test is parametrized over every ``*_cv.pdf`` (or ``*_cv.txt``) fixture,
+so adding a new CV only requires dropping a PDF + golden JSON into ``fixtures/``.
 
 Requires:
     - ``claude`` CLI installed, accessible on PATH, and authenticated
       (either via interactive login / Claude Pro subscription, or via
       ``ANTHROPIC_API_KEY`` environment variable).
-
-The model defaults to ``claude-opus-4-6`` (same as production) but can
-be overridden via the ``KG_TEST_MODEL`` environment variable.
 """
 
 from __future__ import annotations
 
-import os
 import shutil
 
 import pytest
 
-from app.cv.claude_classifier import call_claude
-from app.cv.ollama_classifier import SYSTEM_PROMPT, _parse_result
+from app.cv.ollama_classifier import classify_entries
 from tests.lib.graph_comparator import ComparisonResult, compare_graphs, format_report
 
 # ── config ───────────────────────────────────────────────────────────
@@ -43,97 +43,85 @@ PER_TYPE_RECALL_MIN: dict[str, float] = {
 }
 
 
-# ── helpers ──────────────────────────────────────────────────────────
-
-
-def _build_user_message(cv_text: str) -> str:
-    """Build the user message exactly as ``classify_entries`` does."""
-    text_for_llm = cv_text[:12000]
-    return (
-        "Here is the text extracted from a CV/resume document:\n\n"
-        f"---\n{text_for_llm}\n---\n\n"
-        "Parse every entry in this CV into structured nodes. "
-        'Return JSON with "nodes" and "unmatched" arrays.'
-    )
-
-
 # ── test ─────────────────────────────────────────────────────────────
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_kg_extraction_quality(
-    cv_fixture: tuple[str, list[dict], str],
+    cv_fixture: tuple[str, list[dict], list[dict], str],
 ) -> None:
-    """Classify a test CV with Claude CLI and assert quality against baseline."""
-    cv_text, baseline_nodes, cv_name = cv_fixture
+    """Classify a test CV with the full pipeline and assert quality against baseline."""
+    cv_text, baseline_nodes, baseline_rels, cv_name = cv_fixture
 
     if not shutil.which("claude"):
         pytest.skip("claude CLI not found on PATH — skipping integration test")
 
-    model = os.environ.get("KG_TEST_MODEL", "claude-opus-4-6")
-
-    # Call Claude CLI with retry (LLM responses are non-deterministic)
-    user_message = _build_user_message(cv_text)
-    nodes = None
-
+    # ── classification via full production pipeline (with retry) ──
+    result = None
     for attempt in range(1, MAX_RETRIES + 1):
-        claude_resp = await call_claude(
-            system_prompt=SYSTEM_PROMPT,
-            user_message=user_message,
-            model=model,
-        )
-
-        result = _parse_result(claude_resp["content"])
+        result = await classify_entries(cv_text)
         if result.nodes:
-            nodes = result.nodes
             break
-
         print(
             f"\n[{cv_name}] attempt {attempt}/{MAX_RETRIES}: "
-            f"parser returned 0 nodes. Raw response (first 500 chars):\n"
-            f"{claude_resp['content'][:500]}"
+            f"classify_entries returned 0 nodes"
         )
 
-    assert nodes, (
-        f"Claude returned zero classified nodes for {cv_name} "
+    assert result and result.nodes, (
+        f"classify_entries returned zero nodes for {cv_name} "
         f"after {MAX_RETRIES} attempts"
     )
 
-    # Convert ExtractedNode to dicts for the comparator
-    predicted = [{"node_type": n.node_type, "properties": n.properties} for n in nodes]
+    # Convert to dicts for the comparator
+    predicted_nodes = [
+        {"node_type": n.node_type, "properties": n.properties} for n in result.nodes
+    ]
+    predicted_rels = [
+        {"from_index": r.from_index, "to_index": r.to_index, "type": r.type}
+        for r in result.relationships
+    ]
 
     # Compare against baseline (main branch output or static golden reference)
-    result: ComparisonResult = compare_graphs(predicted, baseline_nodes)
+    comparison: ComparisonResult = compare_graphs(
+        predicted_nodes,
+        baseline_nodes,
+        predicted_relationships=predicted_rels,
+        golden_relationships=baseline_rels,
+    )
 
     # Print report (captured by pytest -s and by CI tee)
-    report = format_report(result)
+    report = format_report(comparison)
     print(f"\n[{cv_name}]\n{report}")
 
-    if result.composite_score >= COMPOSITE_MIN:
+    if comparison.composite_score >= COMPOSITE_MIN:
         print(
-            f"\nRESULT: PASS (composite={result.composite_score:.2f} >= {COMPOSITE_MIN})"
+            f"\nRESULT: PASS (composite={comparison.composite_score:.2f} "
+            f">= {COMPOSITE_MIN})"
         )
     else:
         print(
-            f"\nRESULT: FAIL (composite={result.composite_score:.2f} < {COMPOSITE_MIN})"
+            f"\nRESULT: FAIL (composite={comparison.composite_score:.2f} "
+            f"< {COMPOSITE_MIN})"
         )
 
     # ── assertions ───────────────────────────────────────────────────
 
-    assert result.overall_f1 >= OVERALL_F1_MIN, (
-        f"[{cv_name}] Overall F1 {result.overall_f1:.2f} < {OVERALL_F1_MIN}"
+    assert comparison.overall_f1 >= OVERALL_F1_MIN, (
+        f"[{cv_name}] Overall F1 {comparison.overall_f1:.2f} < {OVERALL_F1_MIN}"
     )
-    assert result.overall_recall >= OVERALL_RECALL_MIN, (
-        f"[{cv_name}] Overall Recall {result.overall_recall:.2f} < {OVERALL_RECALL_MIN}"
+    assert comparison.overall_recall >= OVERALL_RECALL_MIN, (
+        f"[{cv_name}] Overall Recall {comparison.overall_recall:.2f} "
+        f"< {OVERALL_RECALL_MIN}"
     )
-    assert result.composite_score >= COMPOSITE_MIN, (
-        f"[{cv_name}] Composite score {result.composite_score:.2f} < {COMPOSITE_MIN}"
+    assert comparison.composite_score >= COMPOSITE_MIN, (
+        f"[{cv_name}] Composite score {comparison.composite_score:.2f} "
+        f"< {COMPOSITE_MIN}"
     )
 
     # Per-type recall checks (only for types present in baseline)
     for node_type, min_recall in PER_TYPE_RECALL_MIN.items():
-        type_result = result.per_type.get(node_type)
+        type_result = comparison.per_type.get(node_type)
         if type_result is None:
             continue  # type not in this CV's baseline, skip
         assert type_result.recall >= min_recall, (

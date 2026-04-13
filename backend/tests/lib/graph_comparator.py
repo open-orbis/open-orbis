@@ -3,6 +3,9 @@
 Compares predicted nodes against a golden reference using token-level
 Jaccard similarity with SequenceMatcher fallback.  Produces per-type
 and overall precision / recall / F1 plus a property-similarity score.
+
+Optionally compares USED_SKILL relationships after node matching,
+reporting relationship precision / recall / F1 separately.
 """
 
 from __future__ import annotations
@@ -22,6 +25,9 @@ KEY_PROPERTIES: dict[str, list[str]] = {
     "publication": ["title"],
     "project": ["name"],
     "patent": ["title"],
+    "award": ["name"],
+    "outreach": ["title"],
+    "training": ["title"],
 }
 
 MATCH_THRESHOLD = 0.4
@@ -40,6 +46,18 @@ class TypeResult:
     predicted_count: int = 0
     golden_count: int = 0
     matched_count: int = 0
+    # Raw (pred_local_idx, gold_local_idx, similarity) triples from greedy matching.
+    matches: list[tuple[int, int, float]] = field(default_factory=list)
+
+
+@dataclass
+class RelationshipResult:
+    precision: float = 0.0
+    recall: float = 0.0
+    f1: float = 0.0
+    predicted_count: int = 0
+    golden_count: int = 0
+    matched_count: int = 0
 
 
 @dataclass
@@ -50,6 +68,7 @@ class ComparisonResult:
     mean_property_similarity: float = 0.0
     composite_score: float = 0.0
     per_type: dict[str, TypeResult] = field(default_factory=dict)
+    relationship_result: RelationshipResult | None = None
 
 
 # ── similarity helpers ───────────────────────────────────────────────
@@ -188,11 +207,13 @@ def match_nodes_by_type(
     if not predicted_nodes:
         return result  # recall=0
 
-    matches = _greedy_match(predicted_nodes, golden_nodes, node_type)
-    result.matched_count = len(matches)
+    result.matches = _greedy_match(predicted_nodes, golden_nodes, node_type)
+    result.matched_count = len(result.matches)
 
-    result.precision = len(matches) / len(predicted_nodes) if predicted_nodes else 0.0
-    result.recall = len(matches) / len(golden_nodes) if golden_nodes else 0.0
+    result.precision = (
+        len(result.matches) / len(predicted_nodes) if predicted_nodes else 0.0
+    )
+    result.recall = len(result.matches) / len(golden_nodes) if golden_nodes else 0.0
 
     if result.precision + result.recall > 0:
         result.f1 = (
@@ -201,7 +222,7 @@ def match_nodes_by_type(
 
     # property similarity for matched pairs
     prop_sims = []
-    for pi, gi, _ in matches:
+    for pi, gi, _ in result.matches:
         prop_sims.append(
             _matched_property_similarity(predicted_nodes[pi], golden_nodes[gi])
         )
@@ -212,14 +233,87 @@ def match_nodes_by_type(
     return result
 
 
+# ── relationship comparison ─────────────────────────────────────────
+
+
+def _compare_relationships(
+    predicted_rels: list[dict],
+    golden_rels: list[dict],
+    pred_to_gold_map: dict[int, int],
+    gold_to_pred_map: dict[int, int],
+) -> RelationshipResult:
+    """Compare relationships after node matching.
+
+    Relationships use ``from_index`` / ``to_index`` referencing positions in
+    the node arrays.  We remap predicted indices to golden space via the node
+    match mapping, then check for overlap.
+    """
+    result = RelationshipResult(
+        predicted_count=len(predicted_rels),
+        golden_count=len(golden_rels),
+    )
+
+    if not golden_rels and not predicted_rels:
+        result.precision = 1.0
+        result.recall = 1.0
+        result.f1 = 1.0
+        return result
+
+    if not golden_rels or not predicted_rels:
+        return result
+
+    # Normalize golden rels to a set of (from_gold_idx, to_gold_idx, type) tuples
+    golden_set: set[tuple[int, int, str]] = {
+        (r["from_index"], r["to_index"], r.get("type", "USED_SKILL"))
+        for r in golden_rels
+    }
+
+    # Map predicted rels into golden index space
+    matched = 0
+    for rel in predicted_rels:
+        pred_from = rel["from_index"]
+        pred_to = rel["to_index"]
+        rel_type = rel.get("type", "USED_SKILL")
+
+        gold_from = pred_to_gold_map.get(pred_from)
+        gold_to = pred_to_gold_map.get(pred_to)
+
+        if (
+            gold_from is not None
+            and gold_to is not None
+            and (gold_from, gold_to, rel_type) in golden_set
+        ):
+            matched += 1
+
+    result.matched_count = matched
+    result.precision = matched / len(predicted_rels) if predicted_rels else 0.0
+    result.recall = matched / len(golden_rels) if golden_rels else 0.0
+    if result.precision + result.recall > 0:
+        result.f1 = (
+            2 * result.precision * result.recall / (result.precision + result.recall)
+        )
+
+    return result
+
+
 # ── top-level comparison ─────────────────────────────────────────────
 
 
-def compare_graphs(predicted: list[dict], golden: list[dict]) -> ComparisonResult:
+def compare_graphs(
+    predicted: list[dict],
+    golden: list[dict],
+    *,
+    predicted_relationships: list[dict] | None = None,
+    golden_relationships: list[dict] | None = None,
+) -> ComparisonResult:
     """Compare full predicted graph against golden reference.
 
     Both *predicted* and *golden* are lists of dicts with keys
     ``node_type`` and ``properties``.
+
+    When *predicted_relationships* and *golden_relationships* are provided,
+    relationship matching is performed after node matching and included in
+    the result.
     """
     # Group by node_type
     pred_by_type: dict[str, list[dict]] = defaultdict(list)
@@ -238,18 +332,33 @@ def compare_graphs(predicted: list[dict], golden: list[dict]) -> ComparisonResul
     total_golden = 0
     all_prop_sims: list[float] = []
 
+    # Build global index mapping: predicted global idx -> golden global idx
+    # We need this for relationship comparison.
+    pred_to_gold_global: dict[int, int] = {}
+    gold_to_pred_global: dict[int, int] = {}
+
+    # Map each node object id to its position in the original flat list
+    pred_node_to_global: dict[int, int] = {id(n): i for i, n in enumerate(predicted)}
+    gold_node_to_global: dict[int, int] = {id(n): i for i, n in enumerate(golden)}
+
     for nt in sorted(all_types):
-        tr = match_nodes_by_type(
-            pred_by_type.get(nt, []),
-            gold_by_type.get(nt, []),
-            nt,
-        )
+        pred_nodes = pred_by_type.get(nt, [])
+        gold_nodes = gold_by_type.get(nt, [])
+
+        tr = match_nodes_by_type(pred_nodes, gold_nodes, nt)
         per_type[nt] = tr
         total_matched += tr.matched_count
         total_predicted += tr.predicted_count
         total_golden += tr.golden_count
         if tr.matched_count > 0:
             all_prop_sims.extend([tr.mean_property_similarity] * tr.matched_count)
+
+        # Reuse matches already computed by match_nodes_by_type (no double call)
+        for pi, gi, _ in tr.matches:
+            pred_global = pred_node_to_global[id(pred_nodes[pi])]
+            gold_global = gold_node_to_global[id(gold_nodes[gi])]
+            pred_to_gold_global[pred_global] = gold_global
+            gold_to_pred_global[gold_global] = pred_global
 
     overall_precision = total_matched / total_predicted if total_predicted else 0.0
     overall_recall = total_matched / total_golden if total_golden else 0.0
@@ -261,6 +370,16 @@ def compare_graphs(predicted: list[dict], golden: list[dict]) -> ComparisonResul
     mean_prop_sim = sum(all_prop_sims) / len(all_prop_sims) if all_prop_sims else 0.0
     composite = 0.5 * overall_f1 + 0.5 * mean_prop_sim
 
+    # ── relationship comparison ──
+    rel_result = None
+    if predicted_relationships is not None and golden_relationships is not None:
+        rel_result = _compare_relationships(
+            predicted_relationships,
+            golden_relationships,
+            pred_to_gold_global,
+            gold_to_pred_global,
+        )
+
     return ComparisonResult(
         overall_precision=overall_precision,
         overall_recall=overall_recall,
@@ -268,6 +387,7 @@ def compare_graphs(predicted: list[dict], golden: list[dict]) -> ComparisonResul
         mean_property_similarity=mean_prop_sim,
         composite_score=composite,
         per_type=per_type,
+        relationship_result=rel_result,
     )
 
 
@@ -293,6 +413,15 @@ def format_report(result: ComparisonResult) -> str:
             f"  {nt:20s} P={tr.precision:.2f}  R={tr.recall:.2f}  "
             f"F1={tr.f1:.2f}  count={tr.matched_count}/{tr.golden_count}  "
             f"propSim={tr.mean_property_similarity:.2f}"
+        )
+
+    if result.relationship_result is not None:
+        rr = result.relationship_result
+        lines.append("")
+        lines.append(
+            f"Relationships: P={rr.precision:.2f}  R={rr.recall:.2f}  "
+            f"F1={rr.f1:.2f}  "
+            f"matched={rr.matched_count}/{rr.golden_count}"
         )
 
     return "\n".join(lines)
