@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     llm_provider: str = "claude"
     claude_model: str = "claude-opus-4-6"
 
+    # LLM fallback chain — comma-separated list of providers to try in order.
+    # Valid entries: "claude-opus", "claude-sonnet", "ollama", "rule-based".
+    # When empty, a single-provider chain is derived from llm_provider.
+    llm_fallback_chain: str = "claude-opus,claude-sonnet,ollama,rule-based"
+    # Per-provider timeout in seconds before falling back to the next provider.
+    llm_timeout_seconds: int = 300
+
     # Ollama (local LLM)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"

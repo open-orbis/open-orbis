@@ -112,11 +112,16 @@ async def upload_cv(
             text_chars=len(raw_text),
         )
         logger.info(
-            "Classifying entries with %s (%d chars)",
-            settings.llm_provider,
+            "Classifying entries (%d chars), chain=%s",
             len(raw_text),
+            settings.llm_fallback_chain,
         )
-        result = await classify_entries(raw_text)
+        result = await classify_entries(
+            raw_text,
+            progress_callback=lambda detail: progress.set_progress(
+                user_id, CVStep.CLASSIFYING, detail, text_chars=len(raw_text)
+            ),
+        )
 
         # Step 4: Parse response
         progress.set_progress(
@@ -291,7 +296,12 @@ async def import_document(
             f"Analyzing {len(raw_text):,} characters",
             text_chars=len(raw_text),
         )
-        result = await classify_entries(raw_text)
+        result = await classify_entries(
+            raw_text,
+            progress_callback=lambda detail: progress.set_progress(
+                user_id, CVStep.CLASSIFYING, detail, text_chars=len(raw_text)
+            ),
+        )
 
         if not result.nodes and not result.unmatched:
             raise HTTPException(

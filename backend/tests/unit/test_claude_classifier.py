@@ -1,9 +1,18 @@
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.cv.claude_classifier import call_claude
+
+
+@pytest.fixture(autouse=True)
+def _mock_settings():
+    """Provide a mock settings so call_claude can resolve its default timeout."""
+    mock = MagicMock()
+    mock.llm_timeout_seconds = 120
+    with patch("app.config.settings", mock):
+        yield mock
 
 
 @pytest.mark.asyncio
