@@ -46,6 +46,8 @@ class TypeResult:
     predicted_count: int = 0
     golden_count: int = 0
     matched_count: int = 0
+    # Raw (pred_local_idx, gold_local_idx, similarity) triples from greedy matching.
+    matches: list[tuple[int, int, float]] = field(default_factory=list)
 
 
 @dataclass
@@ -205,11 +207,13 @@ def match_nodes_by_type(
     if not predicted_nodes:
         return result  # recall=0
 
-    matches = _greedy_match(predicted_nodes, golden_nodes, node_type)
-    result.matched_count = len(matches)
+    result.matches = _greedy_match(predicted_nodes, golden_nodes, node_type)
+    result.matched_count = len(result.matches)
 
-    result.precision = len(matches) / len(predicted_nodes) if predicted_nodes else 0.0
-    result.recall = len(matches) / len(golden_nodes) if golden_nodes else 0.0
+    result.precision = (
+        len(result.matches) / len(predicted_nodes) if predicted_nodes else 0.0
+    )
+    result.recall = len(result.matches) / len(golden_nodes) if golden_nodes else 0.0
 
     if result.precision + result.recall > 0:
         result.f1 = (
@@ -218,7 +222,7 @@ def match_nodes_by_type(
 
     # property similarity for matched pairs
     prop_sims = []
-    for pi, gi, _ in matches:
+    for pi, gi, _ in result.matches:
         prop_sims.append(
             _matched_property_similarity(predicted_nodes[pi], golden_nodes[gi])
         )
@@ -333,25 +337,9 @@ def compare_graphs(
     pred_to_gold_global: dict[int, int] = {}
     gold_to_pred_global: dict[int, int] = {}
 
-    # Track global offsets for each type
-    pred_offsets: dict[str, int] = {}
-    gold_offsets: dict[str, int] = {}
-    pred_offset = 0
-    gold_offset = 0
-    for nt in sorted(all_types):
-        pred_offsets[nt] = pred_offset
-        gold_offsets[nt] = gold_offset
-        pred_offset += len(pred_by_type.get(nt, []))
-        gold_offset += len(gold_by_type.get(nt, []))
-
-    # Map: for each node in the flat predicted list, find its global index
-    # We need to map from the type-grouped local index back to original order.
-    pred_node_to_global: dict[int, int] = {}
-    for gi, node in enumerate(predicted):
-        pred_node_to_global[id(node)] = gi
-    gold_node_to_global: dict[int, int] = {}
-    for gi, node in enumerate(golden):
-        gold_node_to_global[id(node)] = gi
+    # Map each node object id to its position in the original flat list
+    pred_node_to_global: dict[int, int] = {id(n): i for i, n in enumerate(predicted)}
+    gold_node_to_global: dict[int, int] = {id(n): i for i, n in enumerate(golden)}
 
     for nt in sorted(all_types):
         pred_nodes = pred_by_type.get(nt, [])
@@ -365,9 +353,8 @@ def compare_graphs(
         if tr.matched_count > 0:
             all_prop_sims.extend([tr.mean_property_similarity] * tr.matched_count)
 
-        # Build global node match mapping from greedy match results
-        matches = _greedy_match(pred_nodes, gold_nodes, nt)
-        for pi, gi, _ in matches:
+        # Reuse matches already computed by match_nodes_by_type (no double call)
+        for pi, gi, _ in tr.matches:
             pred_global = pred_node_to_global[id(pred_nodes[pi])]
             gold_global = gold_node_to_global[id(gold_nodes[gi])]
             pred_to_gold_global[pred_global] = gold_global
