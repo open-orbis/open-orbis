@@ -146,13 +146,16 @@ class TestSuccessfulClassification:
             assert result.relationships[0].type == "USED_SKILL"
 
     async def test_ollama_only_chain(self):
-        with patch(
-            "app.cv.ollama_classifier.settings",
-            _make_settings(llm_fallback_chain="ollama,rule-based"),
-        ), patch(
-            "app.cv.ollama_classifier._call_ollama_provider",
-            new_callable=AsyncMock,
-            return_value=(GOOD_LLM_RESPONSE, {}),
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama,rule-based"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
         ):
             result = await classify_entries("Some CV text here")
             assert len(result.nodes) == 2
@@ -255,26 +258,32 @@ class TestFallbackChain:
 
 class TestTruncation:
     async def test_ollama_short_text_not_truncated(self):
-        with patch(
-            "app.cv.ollama_classifier.settings",
-            _make_settings(llm_fallback_chain="ollama"),
-        ), patch(
-            "app.cv.ollama_classifier._call_ollama_provider",
-            new_callable=AsyncMock,
-            return_value=(GOOD_LLM_RESPONSE, {}),
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
         ):
             result = await classify_entries("Short CV")
             assert result.truncated is False
 
     async def test_ollama_long_text_truncated(self):
         long_text = "x" * (TEXT_LIMIT_OLLAMA + 3000)
-        with patch(
-            "app.cv.ollama_classifier.settings",
-            _make_settings(llm_fallback_chain="ollama"),
-        ), patch(
-            "app.cv.ollama_classifier._call_ollama_provider",
-            new_callable=AsyncMock,
-            return_value=(GOOD_LLM_RESPONSE, {}),
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
         ):
             result = await classify_entries(long_text)
             assert result.truncated is True
@@ -460,13 +469,16 @@ class TestFinalFallback:
 
 class TestSingleProviderChain:
     async def test_single_entry_chain_works(self):
-        with patch(
-            "app.cv.ollama_classifier.settings",
-            _make_settings(llm_fallback_chain="ollama"),
-        ), patch(
-            "app.cv.ollama_classifier._call_ollama_provider",
-            new_callable=AsyncMock,
-            return_value=(GOOD_LLM_RESPONSE, {}),
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
         ):
             result = await classify_entries("Some CV text here")
             assert len(result.nodes) == 2
