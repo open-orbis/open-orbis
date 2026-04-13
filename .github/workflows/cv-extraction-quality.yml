@@ -38,24 +38,15 @@ jobs:
       - name: Install Claude CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      # FIX #1 (CRITICAL): pass secret via env var, never interpolate in shell
-      - name: Check Claude CLI credentials
-        id: claude-auth
+      - name: Setup Claude CLI credentials
         env:
           CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
         run: |
-          if [ -z "$CLAUDE_CREDENTIALS" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::CLAUDE_CREDENTIALS secret not set — skipping KG quality tests"
-          else
-            mkdir -p ~/.claude
-            printenv CLAUDE_CREDENTIALS > ~/.claude/.credentials.json
-            chmod 600 ~/.claude/.credentials.json
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          fi
+          mkdir -p ~/.claude
+          printenv CLAUDE_CREDENTIALS > ~/.claude/.credentials.json
+          chmod 600 ~/.claude/.credentials.json
 
       - name: Verify Claude CLI auth
-        if: steps.claude-auth.outputs.available == 'true'
         run: claude auth status
 
       # ── phase 1: generate baseline from main ───────────────────────
@@ -64,7 +55,6 @@ jobs:
           ref: main
 
       - name: Generate baselines from main branch
-        if: steps.claude-auth.outputs.available == 'true'
         id: baseline
         timeout-minutes: 8
         working-directory: backend
@@ -78,27 +68,22 @@ jobs:
           fi
           uv sync --all-extras
           uv run python -m tests.integration.generate_baseline /tmp/kg_baselines
-          # FIX #11: only set available=true AFTER the script succeeds
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       # ── phase 2: test PR branch against baselines ──────────────────
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      # FIX #2 (HIGH): use a separate venv so main's deps don't leak into the PR
       - name: Install backend dependencies (PR)
-        if: steps.claude-auth.outputs.available == 'true'
         working-directory: backend
         run: uv sync --all-extras
 
       - name: Run KG quality integration test
-        if: steps.claude-auth.outputs.available == 'true'
         timeout-minutes: 8
         working-directory: backend
         run: |
           set -o pipefail
           if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
             export KG_BASELINE_DIR=/tmp/kg_baselines
-            # Reuse text extracted during baseline generation
             export KG_TEXT_CACHE_DIR=/tmp/kg_baselines/text_cache
             echo "Baseline: main branch extraction"
           else
@@ -106,12 +91,3 @@ jobs:
           fi
           uv run python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
-
-      # FIX #3 (HIGH): warn visibly when credentials were unavailable
-      - name: Ensure tests actually ran
-        if: always()
-        run: |
-          if [ "${{ steps.claude-auth.outputs.available }}" != "true" ]; then
-            echo "::warning::KG quality tests were SKIPPED because CLAUDE_CREDENTIALS is not configured."
-            echo "Configure the CLAUDE_CREDENTIALS secret to enable CV extraction quality regression tests."
-          fi
