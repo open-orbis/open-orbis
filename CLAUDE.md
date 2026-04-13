@@ -47,6 +47,7 @@ infra/           # Neo4j init script (constraints, indexes, vector indexes)
 
 ## Key Conventions
 
+- **Git commits:** Do NOT add `Co-Authored-By` lines. Commit as the git user only.
 - Backend formatting: `ruff format` (line-length 88, double quotes)
 - Backend linting: `ruff check .` (rules: E, W, F, I, C4, B, UP, C90, SIM, ARG, PTH; max complexity 12)
 - Frontend linting: `eslint .` (flat config with typescript-eslint + react-hooks + react-refresh)
@@ -74,7 +75,8 @@ cd backend
 uv sync --all-extras          # Install deps
 uv run uvicorn app.main:app --reload  # Start API
 uv run ruff check .           # Lint
-uv run ruff format .          # Format
+uv run ruff format --check .  # Format check (CI uses this)
+uv run ruff format .          # Format (auto-fix)
 uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75  # Tests
 
 # Frontend
