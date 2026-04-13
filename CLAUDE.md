@@ -85,6 +85,11 @@ npm ci                        # Install deps
 npm run dev                   # Start dev server
 npm run lint                  # ESLint
 npm run build                 # Type-check + build
+npm run e2e                   # Playwright E2E (all browsers)
+npm run e2e:ui                # Playwright interactive UI mode
+
+# Cross-browser manual testing (macOS)
+./scripts/cross-browser-test.sh  # Open site in all installed browsers
 
 # Infrastructure
 docker compose up -d          # Start Neo4j + Ollama
@@ -101,6 +106,7 @@ Detailed docs live in `docs/`. Key files:
 - `docs/testing.md` — test strategy, running tests, CI pipelines, coverage
 - `docs/deployment.md` — production setup, Docker, environment variables
 - `docs/cv-extraction-quality.md` — CV extraction quality metrics and CI
+- `docs/cross-browser-checklist.md` — manual cross-browser smoke test checklist
 - `docs/navigation-flow.md` — user-flow state diagrams (pages, modals, guards)
 - `docs/navigation-actions.yaml` — action catalog for every UI interaction
 - `docs/agent-navigation-guide.md` — agent traversal strategy for UX evaluation

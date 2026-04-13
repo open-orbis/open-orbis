@@ -28,3 +28,5 @@ e2e/.auth/
 
 # Test artifacts
 test-results/
+playwright-report/
+blob-report/
