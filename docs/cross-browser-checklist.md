@@ -91,12 +91,3 @@ These are expected — not bugs:
 | Clipboard API | Secure context | Secure context | Prompts permission |
 | WebGL 2.0 | Yes | Yes | Yes (15+) |
 
----
-
-## Issues Log
-
-| # | Browser | Version | Issue Description | Severity | Screenshot | Console Output |
-|---|---------|---------|-------------------|----------|------------|----------------|
-| 1 | | | | | | |
-| 2 | | | | | | |
-| 3 | | | | | | |
