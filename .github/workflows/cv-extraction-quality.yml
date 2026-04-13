@@ -8,7 +8,7 @@ on:
       - "backend/tests/**"
 
 concurrency:
-  group: kg-quality-${{ github.head_ref || github.ref }}
+  group: kg-quality-${{ github.head_ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,6 +21,9 @@ jobs:
 
     # Security: only run for PRs from the same repo (not forks)
     if: github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      KG_TEST_MODEL: ${{ vars.KG_TEST_MODEL || 'claude-opus-4-6' }}
 
     steps:
       # ── common setup ────────────────────────────────────────────────
@@ -38,15 +41,21 @@ jobs:
       - name: Install Claude CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Setup Claude CLI credentials
-        env:
-          CLAUDE_CREDENTIALS: ${{ secrets.CLAUDE_CREDENTIALS }}
+      - name: Check Claude CLI credentials
+        id: claude-auth
         run: |
-          mkdir -p ~/.claude
-          printenv CLAUDE_CREDENTIALS > ~/.claude/.credentials.json
-          chmod 600 ~/.claude/.credentials.json
+          if [ -z "${{ secrets.CLAUDE_CREDENTIALS }}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::CLAUDE_CREDENTIALS secret not set — skipping KG quality tests"
+          else
+            mkdir -p ~/.claude
+            echo '${{ secrets.CLAUDE_CREDENTIALS }}' > ~/.claude/.credentials.json
+            chmod 600 ~/.claude/.credentials.json
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Verify Claude CLI auth
+        if: steps.claude-auth.outputs.available == 'true'
         run: claude auth status
 
       # ── phase 1: generate baseline from main ───────────────────────
@@ -55,6 +64,7 @@ jobs:
           ref: main
 
       - name: Generate baselines from main branch
+        if: steps.claude-auth.outputs.available == 'true'
         id: baseline
         timeout-minutes: 8
         working-directory: backend
@@ -74,16 +84,19 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install backend dependencies (PR)
+        if: steps.claude-auth.outputs.available == 'true'
         working-directory: backend
         run: uv sync --all-extras
 
       - name: Run KG quality integration test
+        if: steps.claude-auth.outputs.available == 'true'
         timeout-minutes: 8
         working-directory: backend
         run: |
           set -o pipefail
           if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
             export KG_BASELINE_DIR=/tmp/kg_baselines
+            # Reuse text extracted during baseline generation
             export KG_TEXT_CACHE_DIR=/tmp/kg_baselines/text_cache
             echo "Baseline: main branch extraction"
           else
