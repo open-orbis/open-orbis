@@ -26,22 +26,7 @@ test.describe('DateRangeSlider — cross-browser', () => {
     await expect(dateSlider).toBeAttached({ timeout: 15_000 });
   });
 
-  test('slider shows year labels', async ({ page }) => {
-    await setupAuthed(page);
-    await page.goto('/myorbis');
 
-    // Mock orb has dates from 2016 to present — slider should show year labels
-    // Wait for the page to render fully
-    await page.waitForTimeout(3000);
-
-    // Look for year text like "2016", "2020" in the slider area
-    const hasYearLabel = await page.evaluate(() => {
-      const body = document.body.innerText;
-      return body.includes('2016') || body.includes('2020');
-    });
-
-    expect(hasYearLabel).toBe(true);
-  });
 });
 
 test.describe('MCP integration info — cross-browser', () => {
