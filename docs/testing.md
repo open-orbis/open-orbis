@@ -162,15 +162,6 @@ Runs on all PRs and pushes to `main`. Two parallel jobs:
 Runs on PRs/pushes to `main` when `backend/**` files change:
 - `uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75`
 
-### E2E Cross-Browser (`e2e-tests.yml`)
-
-Runs on PRs/pushes to `main` when `frontend/**` files change. Matrix strategy with `fail-fast: false` across three browser engines:
-- **Chromium** (Chrome, Edge, Brave, Arc)
-- **Firefox** (Gecko)
-- **WebKit** (Safari)
-
-Uploads HTML test report as artifact on every run; uploads traces on failure.
-
 ### CV Extraction Quality (`cv-extraction-quality.yml`)
 
 Runs on PRs touching `backend/app/cv/**`, `backend/app/graph/queries.py`, or `backend/tests/**`. Two-phase:
