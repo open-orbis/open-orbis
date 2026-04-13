@@ -92,10 +92,11 @@ jobs:
           set -o pipefail
           if [ "${{ steps.baseline.outputs.available }}" = "true" ]; then
             export KG_BASELINE_DIR=/tmp/kg_baselines
+            # Reuse text extracted during baseline generation
+            export KG_TEXT_CACHE_DIR=/tmp/kg_baselines/text_cache
             echo "Baseline: main branch extraction"
           else
             echo "Baseline: static golden references (first run — main lacks generate_baseline.py)"
           fi
           uv run python -m pytest tests/integration/test_kg_quality.py \
             -v -s -m integration --tb=long 2>&1 | tee test_output.txt
-

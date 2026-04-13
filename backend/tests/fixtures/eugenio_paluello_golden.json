@@ -115,5 +115,6 @@
     {"node_type": "skill", "properties": {"name": "Hardhat"}},
     {"node_type": "skill", "properties": {"name": "Truffle"}}
   ],
+  "relationships": [],
   "unmatched": []
 }
