@@ -1,4 +1,4 @@
-"""Unit tests for app.cv.docling_extractor module (PyMuPDF-based)."""
+"""Unit tests for app.cv.pdf_extractor module (PyMuPDF-based)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.cv.docling_extractor import extract_text
+from app.cv.pdf_extractor import extract_text
 
 FAKE_PDF_BYTES = b"%PDF-1.4 fake content"
 
@@ -20,7 +20,7 @@ class TestExtractText:
         mock_doc = MagicMock()
         mock_doc.__iter__ = lambda _self: iter([mock_page])
 
-        with patch("app.cv.docling_extractor.fitz") as mock_fitz:
+        with patch("app.cv.pdf_extractor.fitz") as mock_fitz:
             mock_fitz.open.return_value = mock_doc
             result = await extract_text(FAKE_PDF_BYTES)
 
@@ -34,7 +34,7 @@ class TestExtractText:
         mock_doc.__iter__ = lambda _self: iter([mock_page])
 
         with (
-            patch("app.cv.docling_extractor.fitz") as mock_fitz,
+            patch("app.cv.pdf_extractor.fitz") as mock_fitz,
             pytest.raises(RuntimeError, match="PyMuPDF failed"),
         ):
             mock_fitz.open.return_value = mock_doc
@@ -58,8 +58,8 @@ class TestExtractText:
         mock_doc.__iter__ = lambda _self: iter([mock_page])
 
         with (
-            patch("app.cv.docling_extractor.tempfile.NamedTemporaryFile", tracking_ntf),
-            patch("app.cv.docling_extractor.fitz") as mock_fitz,
+            patch("app.cv.pdf_extractor.tempfile.NamedTemporaryFile", tracking_ntf),
+            patch("app.cv.pdf_extractor.fitz") as mock_fitz,
         ):
             mock_fitz.open.return_value = mock_doc
             await extract_text(FAKE_PDF_BYTES)
@@ -76,7 +76,7 @@ class TestExtractText:
         mock_doc = MagicMock()
         mock_doc.__iter__ = lambda _self: iter([mock_page1, mock_page2])
 
-        with patch("app.cv.docling_extractor.fitz") as mock_fitz:
+        with patch("app.cv.pdf_extractor.fitz") as mock_fitz:
             mock_fitz.open.return_value = mock_doc
             result = await extract_text(FAKE_PDF_BYTES)
 

@@ -22,9 +22,9 @@ CV_NAMES = _pdf_names + _txt_only_names
 
 
 def _extract_text_from_pdf(pdf_path: Path) -> str:
-    """Extract text from a PDF file using docling_extractor (PyMuPDF).
+    """Extract text from a PDF file using pdf_extractor (PyMuPDF).
 
-    Mirrors the production flow: ``docling_extractor.extract_text(pdf_bytes)``.
+    Mirrors the production flow: ``pdf_extractor.extract_text(pdf_bytes)``.
     Supports optional caching via ``KG_TEXT_CACHE_DIR`` to avoid re-extracting
     the same PDF across baseline generation and test runs.
     """
@@ -35,7 +35,7 @@ def _extract_text_from_pdf(pdf_path: Path) -> str:
         if cache_path.exists():
             return cache_path.read_text(encoding="utf-8")
 
-    from app.cv.docling_extractor import extract_text
+    from app.cv.pdf_extractor import extract_text
 
     pdf_bytes = pdf_path.read_bytes()
     text = asyncio.get_event_loop().run_until_complete(extract_text(pdf_bytes))
@@ -51,7 +51,7 @@ def _extract_text_from_pdf(pdf_path: Path) -> str:
 def cv_fixture(request) -> tuple[str, list[dict], list[dict], str]:
     """Yield (cv_text, baseline_nodes, baseline_relationships, cv_name).
 
-    PDF fixtures are preferred: text is extracted via ``docling_extractor``
+    PDF fixtures are preferred: text is extracted via ``pdf_extractor``
     to exercise the full production pipeline.  Falls back to ``.txt`` if no
     PDF exists.
 

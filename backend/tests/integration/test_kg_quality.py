@@ -5,7 +5,7 @@ In CI the baseline is generated from the **main** branch extraction
 Locally it falls back to the static golden reference files.
 
 The test exercises the **full production pipeline**: text has already been
-extracted from PDF fixtures by the ``cv_fixture`` (via ``docling_extractor``),
+extracted from PDF fixtures by the ``cv_fixture`` (via ``pdf_extractor``),
 and classification goes through ``classify_entries()`` — the same LLM
 fallback chain used in the running application.
 

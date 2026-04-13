@@ -5,7 +5,7 @@ Usage (from ``backend/`` directory):
     python -m tests.integration.generate_baseline [OUTPUT_DIR]
 
 Discovers every ``*_cv.pdf`` fixture (falling back to ``*_cv.txt``),
-extracts text via ``docling_extractor`` (PyMuPDF), classifies entries
+extracts text via ``pdf_extractor`` (PyMuPDF), classifies entries
 via ``classify_entries()`` (the same LLM fallback chain used in production),
 and produces a corresponding ``<name>_baseline.json`` in *OUTPUT_DIR*.
 
@@ -20,8 +20,8 @@ import json
 import sys
 from pathlib import Path
 
-from app.cv.docling_extractor import extract_text
 from app.cv.ollama_classifier import classify_entries
+from app.cv.pdf_extractor import extract_text
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 MAX_RETRIES = 2
