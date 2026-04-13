@@ -23,7 +23,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [chromium, firefox, webkit]
+        include:
+          - project: chromium
+            browser: chromium
+          - project: firefox
+            browser: firefox
+          - project: webkit
+            browser: webkit
+          - project: mobile-safari
+            browser: webkit
+          - project: mobile-chrome
+            browser: chromium
 
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +50,7 @@ jobs:
 
       - name: Install Playwright browser (${{ matrix.project }})
         working-directory: frontend
-        run: npx playwright install --with-deps ${{ matrix.project }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
 
       - name: Run E2E tests (${{ matrix.project }})
         working-directory: frontend
