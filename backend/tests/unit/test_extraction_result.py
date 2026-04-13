@@ -45,22 +45,16 @@ def test_extraction_metadata_rule_based():
 async def test_classify_entries_returns_metadata_claude():
     """classify_entries populates metadata when using Claude provider."""
     mock_content = '{"cv_owner_name": "John", "nodes": [{"node_type": "skill", "properties": {"name": "Python"}}], "relationships": [], "unmatched": []}'
-    mock_response = {
-        "content": mock_content,
-        "cost_usd": None,
-        "duration_ms": None,
-        "input_tokens": None,
-        "output_tokens": None,
-    }
 
     with patch("app.cv.ollama_classifier.settings") as mock_settings:
+        mock_settings.llm_fallback_chain = "claude-opus"
+        mock_settings.llm_timeout_seconds = 120
         mock_settings.llm_provider = "claude"
-        mock_settings.claude_model = "claude-opus-4-6"
 
         with patch(
-            "app.cv.claude_classifier.call_claude",
+            "app.cv.ollama_classifier._call_claude_provider",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=(mock_content, {}),
         ):
             result = await classify_entries("Some CV text")
 
@@ -79,14 +73,16 @@ async def test_classify_entries_returns_metadata_ollama():
     mock_response = '{"cv_owner_name": "Jane", "nodes": [{"node_type": "skill", "properties": {"name": "Java"}}], "relationships": [], "unmatched": []}'
 
     with patch("app.cv.ollama_classifier.settings") as mock_settings:
+        mock_settings.llm_fallback_chain = "ollama"
+        mock_settings.llm_timeout_seconds = 120
         mock_settings.llm_provider = "ollama"
         mock_settings.ollama_model = "llama3.2:3b"
         mock_settings.ollama_base_url = "http://localhost:11434"
 
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_ollama_provider",
             new_callable=AsyncMock,
-            return_value=mock_response,
+            return_value=(mock_response, {}),
         ):
             result = await classify_entries("Some CV text")
 
@@ -100,11 +96,12 @@ async def test_classify_entries_returns_metadata_ollama():
 async def test_classify_entries_metadata_fallback_rule_based():
     """When LLM fails and rule-based fallback is used, metadata reflects that."""
     with patch("app.cv.ollama_classifier.settings") as mock_settings:
+        mock_settings.llm_fallback_chain = "claude-opus,rule-based"
+        mock_settings.llm_timeout_seconds = 120
         mock_settings.llm_provider = "claude"
-        mock_settings.claude_model = "claude-opus-4-6"
 
         with patch(
-            "app.cv.claude_classifier.call_claude",
+            "app.cv.ollama_classifier._call_claude_provider",
             new_callable=AsyncMock,
             side_effect=RuntimeError("fail"),
         ):

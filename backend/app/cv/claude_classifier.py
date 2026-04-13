@@ -13,11 +13,18 @@ async def call_claude(
     system_prompt: str,
     user_message: str,
     model: str | None = None,
+    timeout: int | None = None,
 ) -> dict:
     """Call Claude Code CLI in print mode and return response with usage metadata.
 
     Uses the ``claude -p`` non-interactive mode which leverages the user's
     Claude subscription (no API key required).
+
+    Args:
+        system_prompt: System prompt to send to Claude.
+        user_message: User message to send to Claude.
+        model: Optional model override (e.g. "claude-sonnet-4-6").
+        timeout: Timeout in seconds. Defaults to ``settings.llm_timeout_seconds``.
 
     Returns a dict with keys:
         content (str): The result text from Claude.
@@ -26,6 +33,11 @@ async def call_claude(
         input_tokens (int | None): Input token count if available.
         output_tokens (int | None): Output token count if available.
     """
+    from app.config import settings
+
+    if timeout is None:
+        timeout = settings.llm_timeout_seconds
+
     cmd = ["claude", "-p", "--output-format", "json"]
 
     if model:
@@ -43,12 +55,12 @@ async def call_claude(
     try:
         stdout, stderr = await asyncio.wait_for(
             process.communicate(input=user_message.encode("utf-8")),
-            timeout=1800,  # 30 minutes
+            timeout=timeout,
         )
     except asyncio.TimeoutError:
         process.kill()
-        logger.error("Claude CLI timed out after 30 minutes")
-        raise RuntimeError("Claude CLI timed out after 30 minutes") from None
+        logger.error("Claude CLI timed out after %ds", timeout)
+        raise RuntimeError(f"Claude CLI timed out after {timeout}s") from None
 
     if process.returncode != 0:
         error_msg = stderr.decode("utf-8", errors="replace").strip()

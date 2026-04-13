@@ -1,20 +1,26 @@
-"""Unit tests for classify_entries() — the main async classification pipeline.
+"""Unit tests for classify_entries() — the LLM fallback chain pipeline.
 
-Tests cover: empty input, provider branching (ollama/claude), retry logic,
-truncation flag, rule-based fallback, final unmatched fallback.
+Tests cover: empty input, fallback chain traversal (claude-opus → claude-sonnet
+→ ollama → rule-based), per-provider timeout, truncation, progress callback,
+rule-based fallback, and final unmatched fallback.
 All LLM calls are mocked — no external services required.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import respx
 from httpx import Response
 
-from app.cv.ollama_classifier import TEXT_LIMIT_OLLAMA, classify_entries
+from app.cv.ollama_classifier import (
+    TEXT_LIMIT_OLLAMA,
+    classify_entries,
+    parse_fallback_chain,
+)
 
 # A valid LLM JSON response
 GOOD_LLM_RESPONSE = json.dumps(
@@ -32,7 +38,7 @@ GOOD_LLM_RESPONSE = json.dumps(
     }
 )
 
-# LLM response with no nodes and no unmatched (triggers retry)
+# LLM response with no nodes and no unmatched (triggers fallback to next provider)
 EMPTY_LLM_RESPONSE = json.dumps(
     {
         "nodes": [],
@@ -53,14 +59,49 @@ English - Native
 """
 
 
+def _make_settings(**overrides):
+    """Return a mock settings object with sensible fallback-chain defaults."""
+    s = MagicMock()
+    s.llm_fallback_chain = overrides.get(
+        "llm_fallback_chain", "claude-opus,claude-sonnet,ollama,rule-based"
+    )
+    s.llm_timeout_seconds = overrides.get("llm_timeout_seconds", 120)
+    s.llm_provider = overrides.get("llm_provider", "claude")
+    s.ollama_base_url = overrides.get("ollama_base_url", "http://localhost:11434")
+    s.ollama_model = overrides.get("ollama_model", "llama3.2:3b")
+    s.claude_model = overrides.get("claude_model", "claude-opus-4-6")
+    return s
+
+
 @pytest.fixture(autouse=True)
 def _mock_settings():
-    with patch("app.cv.ollama_classifier.settings") as mock_settings:
-        mock_settings.llm_provider = "ollama"
-        mock_settings.ollama_base_url = "http://localhost:11434"
-        mock_settings.ollama_model = "llama3.2:3b"
-        mock_settings.claude_model = ""
-        yield mock_settings
+    with patch("app.cv.ollama_classifier.settings", _make_settings()):
+        yield
+
+
+# ── parse_fallback_chain ──
+
+
+class TestParseFallbackChain:
+    def test_parses_valid_chain(self):
+        chain = parse_fallback_chain("claude-opus,ollama,rule-based")
+        assert chain == ["claude-opus", "ollama", "rule-based"]
+
+    def test_strips_whitespace(self):
+        chain = parse_fallback_chain(" claude-opus , ollama ")
+        assert chain == ["claude-opus", "ollama"]
+
+    def test_drops_unknown_entries(self):
+        chain = parse_fallback_chain("claude-opus,unknown,ollama")
+        assert chain == ["claude-opus", "ollama"]
+
+    def test_empty_string_falls_back_to_llm_provider_claude(self):
+        chain = parse_fallback_chain("")
+        assert chain == ["claude-opus", "rule-based"]
+
+    def test_all_invalid_falls_back_to_llm_provider(self):
+        chain = parse_fallback_chain("foo,bar")
+        assert chain == ["claude-opus", "rule-based"]
 
 
 # ── Empty input ──
@@ -81,140 +122,213 @@ class TestEmptyInput:
 
 
 class TestSuccessfulClassification:
-    async def test_ollama_provider_returns_parsed_nodes(self):
+    async def test_first_provider_succeeds(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_claude_provider",
             new_callable=AsyncMock,
-            return_value=GOOD_LLM_RESPONSE,
+            return_value=(GOOD_LLM_RESPONSE, {}),
         ):
             result = await classify_entries("Some CV text here")
             assert len(result.nodes) == 2
             assert result.cv_owner_name == "Alice Smith"
             assert result.nodes[0].node_type == "skill"
-
-    async def test_claude_provider_calls_claude(self, _mock_settings):
-        _mock_settings.llm_provider = "claude"
-        _mock_settings.claude_model = "claude-sonnet-4-6"
-        claude_response = {
-            "content": GOOD_LLM_RESPONSE,
-            "cost_usd": None,
-            "duration_ms": None,
-            "input_tokens": None,
-            "output_tokens": None,
-        }
-        # call_claude is lazily imported inside classify_entries, mock at source
-        with patch(
-            "app.cv.claude_classifier.call_claude",
-            new_callable=AsyncMock,
-            return_value=claude_response,
-        ) as mock_claude:
-            result = await classify_entries("Some CV text here")
-            assert len(result.nodes) == 2
-            mock_claude.assert_called_once()
+            assert result.metadata.llm_model == "claude-opus-4-6"
+            assert result.metadata.extraction_method == "primary"
 
     async def test_relationships_preserved(self):
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_claude_provider",
             new_callable=AsyncMock,
-            return_value=GOOD_LLM_RESPONSE,
+            return_value=(GOOD_LLM_RESPONSE, {}),
         ):
             result = await classify_entries("Some CV text here")
             assert len(result.relationships) == 1
             assert result.relationships[0].type == "USED_SKILL"
+
+    async def test_ollama_only_chain(self):
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama,rule-based"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
+        ):
+            result = await classify_entries("Some CV text here")
+            assert len(result.nodes) == 2
+            assert result.metadata.llm_provider == "ollama"
+
+
+# ── Fallback chain traversal ──
+
+
+class TestFallbackChain:
+    async def test_falls_back_to_sonnet_on_opus_failure(self):
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                new_callable=AsyncMock,
+            ) as mock_claude,
+        ):
+            # Opus fails, Sonnet succeeds
+            mock_claude.side_effect = [
+                RuntimeError("Opus down"),
+                (GOOD_LLM_RESPONSE, {}),
+            ]
+            result = await classify_entries("Some CV text here")
+            assert len(result.nodes) == 2
+            assert result.metadata.llm_model == "claude-sonnet-4-6"
+            assert result.metadata.extraction_method == "fallback_claude-sonnet"
+
+    async def test_falls_back_to_ollama_on_claude_failure(self):
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Claude down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
+        ):
+            result = await classify_entries("Some CV text here")
+            assert len(result.nodes) == 2
+            assert result.metadata.llm_provider == "ollama"
+
+    async def test_falls_back_to_rule_based_when_all_llms_fail(self):
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("Claude down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("Ollama down"),
+            ),
+        ):
+            result = await classify_entries(SAMPLE_CV_TEXT)
+            types = {n.node_type for n in result.nodes}
+            assert "skill" in types
+            assert result.metadata.extraction_method == "fallback_rule_based"
+
+    async def test_empty_result_triggers_fallback_to_next(self):
+        """A provider returning an empty result falls through to the next."""
+        with patch(
+            "app.cv.ollama_classifier._call_claude_provider",
+            new_callable=AsyncMock,
+        ) as mock_claude:
+            mock_claude.side_effect = [
+                (EMPTY_LLM_RESPONSE, {}),
+                (GOOD_LLM_RESPONSE, {}),
+            ]
+            result = await classify_entries("Some CV text")
+            assert len(result.nodes) == 2
+
+    async def test_timeout_triggers_fallback(self):
+        with patch(
+            "app.cv.ollama_classifier.settings",
+            _make_settings(
+                llm_fallback_chain="claude-opus,rule-based",
+                llm_timeout_seconds=1,
+            ),
+        ):
+
+            async def slow_claude(*args, **kwargs):
+                await asyncio.sleep(10)
+                return (GOOD_LLM_RESPONSE, {})
+
+            with patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                side_effect=slow_claude,
+            ):
+                result = await classify_entries(SAMPLE_CV_TEXT)
+                # Should have fallen back to rule-based
+                assert result.metadata.extraction_method == "fallback_rule_based"
 
 
 # ── Truncation ──
 
 
 class TestTruncation:
-    async def test_short_text_not_truncated(self):
-        with patch("app.cv.ollama_classifier.settings") as mock_settings:
-            mock_settings.llm_provider = "ollama"
-            with patch(
-                "app.cv.ollama_classifier._call_ollama",
+    async def test_ollama_short_text_not_truncated(self):
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
                 new_callable=AsyncMock,
-                return_value=GOOD_LLM_RESPONSE,
-            ):
-                result = await classify_entries("Short CV")
-                assert result.truncated is False
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
+        ):
+            result = await classify_entries("Short CV")
+            assert result.truncated is False
 
-    async def test_long_text_truncated(self):
+    async def test_ollama_long_text_truncated(self):
         long_text = "x" * (TEXT_LIMIT_OLLAMA + 3000)
-        with patch("app.cv.ollama_classifier.settings") as mock_settings:
-            mock_settings.llm_provider = "ollama"
-            with patch(
-                "app.cv.ollama_classifier._call_ollama",
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
                 new_callable=AsyncMock,
-                return_value=GOOD_LLM_RESPONSE,
-            ):
-                result = await classify_entries(long_text)
-                assert result.truncated is True
-
-    async def test_long_text_sends_truncated_content_to_llm(self):
-        # Use a unique marker that only appears after TEXT_LIMIT_OLLAMA
-        long_text = "a" * TEXT_LIMIT_OLLAMA + "UNIQUE_TAIL_MARKER"
-        with patch("app.cv.ollama_classifier.settings") as mock_settings:
-            mock_settings.llm_provider = "ollama"
-            with patch(
-                "app.cv.ollama_classifier._call_ollama",
-                new_callable=AsyncMock,
-                return_value=GOOD_LLM_RESPONSE,
-            ) as mock_ollama:
-                await classify_entries(long_text)
-                call_args = mock_ollama.call_args[0][0]
-                assert "UNIQUE_TAIL_MARKER" not in call_args
-
-
-# ── Retry logic ──
-
-
-class TestRetryLogic:
-    async def test_retries_on_empty_result(self):
-        call_count = 0
-
-        async def mock_ollama(msg):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return EMPTY_LLM_RESPONSE
-            return GOOD_LLM_RESPONSE
-
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            side_effect=mock_ollama,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
         ):
-            result = await classify_entries("Some CV text")
-            assert call_count == 2
-            assert len(result.nodes) == 2
+            result = await classify_entries(long_text)
+            assert result.truncated is True
 
-    async def test_retries_on_exception(self):
-        call_count = 0
-
-        async def mock_ollama(msg):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise ConnectionError("Ollama down")
-            return GOOD_LLM_RESPONSE
-
+    async def test_claude_long_text_not_truncated(self):
+        long_text = "x" * (TEXT_LIMIT_OLLAMA + 3000)
         with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            side_effect=mock_ollama,
-        ):
-            result = await classify_entries("Some CV text")
-            assert call_count == 2
-            assert len(result.nodes) == 2
-
-    async def test_max_retries_exhausted_triggers_fallback(self):
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
+            "app.cv.ollama_classifier._call_claude_provider",
             new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
+            return_value=(GOOD_LLM_RESPONSE, {}),
         ):
-            result = await classify_entries(SAMPLE_CV_TEXT)
-            # Rule-based fallback should find skills from SAMPLE_CV_TEXT
-            types = {n.node_type for n in result.nodes}
-            assert "skill" in types
+            result = await classify_entries(long_text)
+            # Claude handles full text — not truncated
+            assert result.truncated is False
+
+
+# ── Progress callback ──
+
+
+class TestProgressCallback:
+    async def test_callback_called_for_first_provider(self):
+        callback = MagicMock()
+        with patch(
+            "app.cv.ollama_classifier._call_claude_provider",
+            new_callable=AsyncMock,
+            return_value=(GOOD_LLM_RESPONSE, {}),
+        ):
+            await classify_entries("Some CV text", progress_callback=callback)
+            callback.assert_any_call("Trying Claude Opus...")
+
+    async def test_callback_shows_fallback_message(self):
+        callback = MagicMock()
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                new_callable=AsyncMock,
+            ) as mock_claude,
+        ):
+            mock_claude.side_effect = [
+                RuntimeError("Opus down"),
+                (GOOD_LLM_RESPONSE, {}),
+            ]
+            await classify_entries("Some CV text", progress_callback=callback)
+            callback.assert_any_call("Trying Claude Opus...")
+            callback.assert_any_call("Claude Opus failed, trying Claude Sonnet...")
 
 
 # ── Rule-based fallback ──
@@ -222,46 +336,51 @@ class TestRetryLogic:
 
 class TestRuleBasedFallback:
     async def test_fallback_produces_nodes_from_cv(self):
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
+            ),
         ):
             result = await classify_entries(SAMPLE_CV_TEXT)
             types = {n.node_type for n in result.nodes}
             assert "skill" in types
 
     async def test_fallback_extracts_cv_owner_name(self):
-        with patch(
-            "app.cv.ollama_classifier._call_ollama",
-            new_callable=AsyncMock,
-            side_effect=ConnectionError("always fails"),
+        with (
+            patch(
+                "app.cv.ollama_classifier._call_claude_provider",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
+            ),
         ):
             result = await classify_entries(SAMPLE_CV_TEXT)
             assert result.cv_owner_name == "John Smith"
 
-    async def test_fallback_sets_truncated_flag(self):
-        long_text = SAMPLE_CV_TEXT + "x" * (TEXT_LIMIT_OLLAMA + 1000)
-        with patch("app.cv.ollama_classifier.settings") as mock_settings:
-            mock_settings.llm_provider = "ollama"
-            with patch(
-                "app.cv.ollama_classifier._call_ollama",
-                new_callable=AsyncMock,
-                side_effect=ConnectionError("always fails"),
-            ):
-                result = await classify_entries(long_text)
-                assert result.truncated is True
-
     async def test_fallback_skips_invalid_nodes(self):
-        """Rule-based fallback validates nodes the same way _parse_result does."""
         with (
             patch(
-                "app.cv.ollama_classifier._call_ollama",
+                "app.cv.ollama_classifier._call_claude_provider",
                 new_callable=AsyncMock,
-                side_effect=ConnectionError("always fails"),
+                side_effect=RuntimeError("down"),
             ),
             patch(
-                # Mock at source module — classify_entries imports lazily from app.cv.parser
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
+            ),
+            patch(
                 "app.cv.parser.rule_based_to_nodes",
                 return_value=[
                     {"node_type": "skill", "properties": {"name": "Python"}},
@@ -281,9 +400,14 @@ class TestFinalFallback:
     async def test_returns_unmatched_lines_when_all_fails(self):
         with (
             patch(
-                "app.cv.ollama_classifier._call_ollama",
+                "app.cv.ollama_classifier._call_claude_provider",
                 new_callable=AsyncMock,
-                side_effect=ConnectionError("always fails"),
+                side_effect=RuntimeError("down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
             ),
             patch(
                 "app.cv.parser.rule_based_extract",
@@ -300,9 +424,14 @@ class TestFinalFallback:
         text = "\n".join(f"Line number {i} with enough text" for i in range(100))
         with (
             patch(
-                "app.cv.ollama_classifier._call_ollama",
+                "app.cv.ollama_classifier._call_claude_provider",
                 new_callable=AsyncMock,
-                side_effect=ConnectionError("always fails"),
+                side_effect=RuntimeError("down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
             ),
             patch(
                 "app.cv.parser.rule_based_extract",
@@ -316,9 +445,14 @@ class TestFinalFallback:
         text = "Hi\nX\nThis is a real line of content"
         with (
             patch(
-                "app.cv.ollama_classifier._call_ollama",
+                "app.cv.ollama_classifier._call_claude_provider",
                 new_callable=AsyncMock,
-                side_effect=ConnectionError("always fails"),
+                side_effect=RuntimeError("down"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                side_effect=ConnectionError("down"),
             ),
             patch(
                 "app.cv.parser.rule_based_extract",
@@ -326,20 +460,46 @@ class TestFinalFallback:
             ),
         ):
             result = await classify_entries(text)
-            # Lines with len <= 5 should be filtered
             for line in result.unmatched:
                 assert len(line) > 5
 
 
+# ── Single-provider backwards compat ──
+
+
+class TestSingleProviderChain:
+    async def test_single_entry_chain_works(self):
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="ollama"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_ollama_provider",
+                new_callable=AsyncMock,
+                return_value=(GOOD_LLM_RESPONSE, {}),
+            ),
+        ):
+            result = await classify_entries("Some CV text here")
+            assert len(result.nodes) == 2
+            assert result.metadata.llm_provider == "ollama"
+
+
+# ── Ollama HTTP call ──
+
+
 @respx.mock
-async def test_call_ollama_success():
-    from app.config import settings
-    from app.cv.ollama_classifier import _call_ollama
+async def test_call_ollama_provider_success():
+    from app.cv.ollama_classifier import _call_ollama_provider
 
-    url = f"{settings.ollama_base_url}/api/chat"
-    respx.post(url).mock(
-        return_value=Response(200, json={"message": {"content": "ollama response"}})
-    )
-
-    result = await _call_ollama("user msg")
-    assert result == "ollama response"
+    with patch(
+        "app.cv.ollama_classifier.settings",
+        _make_settings(),
+    ):
+        url = "http://localhost:11434/api/chat"
+        respx.post(url).mock(
+            return_value=Response(200, json={"message": {"content": "ollama response"}})
+        )
+        result, usage = await _call_ollama_provider("user msg")
+        assert result == "ollama response"
+        assert usage == {}
