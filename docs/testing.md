@@ -43,6 +43,53 @@ uv run pytest tests/integration/ -v -s -m integration
 
 Integration tests call the real Claude CLI to classify CVs and measure extraction quality against golden baselines. Requires Claude CLI installed and authenticated.
 
+### Frontend Unit Tests
+
+```bash
+cd frontend
+npm test
+```
+
+Uses Vitest with jsdom environment. Tests in `src/**/*.test.{ts,tsx}`.
+
+### E2E Cross-Browser Tests (Playwright)
+
+```bash
+cd frontend
+npm run e2e              # All browsers (Chromium, Firefox, WebKit)
+npm run e2e:ui           # Interactive UI mode
+npm run e2e:chromium     # Chromium only
+npm run e2e:firefox      # Firefox only
+npm run e2e:webkit       # WebKit (Safari engine) only
+```
+
+E2E tests live in `frontend/e2e/`. They focus on **cross-browser compatibility** (not business logic):
+
+- **page-load** — public routes render without console errors
+- **webgl** — Three.js canvas presence and WebGL context creation
+- **css-compat** — backdrop-filter, scrollbar-width, gradient bg-clip
+- **animations** — Framer Motion opacity/transform transitions complete
+- **browser-apis** — Clipboard API, Blob/createObjectURL, localStorage/sessionStorage
+- **responsive** — desktop (1440x900), tablet (768x1024), mobile (375x667)
+
+Auth is mocked via `page.route()` intercepting `/api/auth/me` — no real backend needed.
+
+First-time setup:
+```bash
+cd frontend
+npm install
+npx playwright install --with-deps
+```
+
+### Manual Cross-Browser Smoke Test
+
+```bash
+./scripts/cross-browser-test.sh           # Opens all installed browsers
+./scripts/cross-browser-test.sh <URL>     # Custom URL
+```
+
+Follow the checklist at `docs/cross-browser-checklist.md` for structured manual testing covering areas that automated tests cannot verify (visual quality, animation smoothness, OAuth popup flow).
+
 ## CI Pipelines
 
 ### Lint (`lint.yml`)
@@ -55,6 +102,15 @@ Runs on all PRs and pushes to `main`. Two parallel jobs:
 
 Runs on PRs/pushes to `main` when `backend/**` files change:
 - `uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75`
+
+### E2E Cross-Browser (`e2e-tests.yml`)
+
+Runs on PRs/pushes to `main` when `frontend/**` files change. Matrix strategy with `fail-fast: false` across three browser engines:
+- **Chromium** (Chrome, Edge, Brave, Arc)
+- **Firefox** (Gecko)
+- **WebKit** (Safari)
+
+Uploads HTML test report as artifact on every run; uploads traces on failure.
 
 ### CV Extraction Quality (`cv-extraction-quality.yml`)
 
