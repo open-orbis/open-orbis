@@ -475,6 +475,7 @@ export default function ChatBox({
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {onShare && (
               <button
+                data-tour="visibility"
                 onClick={onShare}
                 className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border text-white/90 hover:text-white transition-all shadow-lg ${shareButtonClass}`}
                 title="Share"

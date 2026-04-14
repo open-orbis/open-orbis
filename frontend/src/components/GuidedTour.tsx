@@ -44,6 +44,12 @@ const STEPS: TourStep[] = [
     placement: 'bottom',
   },
   {
+    target: '[data-tour="orbis-pulse"]',
+    title: 'Bottom-Right Metrics',
+    content: 'Orbis Pulse gives you live graph metrics (active nodes/edges, density, skill coverage, top hub, and share readiness) based on the current view and filters.',
+    placement: 'left',
+  },
+  {
     target: '[data-tour="undo-redo"]',
     title: 'Undo And Redo',
     content: 'Undo and redo your recent changes — adding or deleting nodes can be reversed.',
@@ -77,6 +83,12 @@ const STEPS: TourStep[] = [
     target: '[data-tour="chatbox"]',
     title: 'Search With Chat',
     content: 'Search your orbis by typing queries here. Matching nodes will be highlighted in the graph. You can also share your orbis from here.',
+    placement: 'top',
+  },
+  {
+    target: '[data-tour="visibility"]',
+    title: 'Set Visibility',
+    content: 'Use this Share button to open sharing controls and set your visibility mode (public, restricted, or private), then configure who can access your orbis.',
     placement: 'top',
   },
   {
