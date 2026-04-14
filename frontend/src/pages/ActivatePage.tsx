@@ -159,7 +159,7 @@ export default function ActivatePage() {
               You&apos;ve been automatically added to the waiting list. We&apos;ll notify you when your account is activated.
             </p>
 
-            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-3.5 py-2.5">
+            <div className="w-full flex items-center justify-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-3.5 py-2.5">
               <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
               <span className="text-emerald-100 text-sm font-medium">You&apos;re on the waiting list</span>
             </div>
