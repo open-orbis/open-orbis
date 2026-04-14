@@ -1,34 +1,15 @@
 {
   "nodes": [
     {
-      "node_type": "education",
-      "properties": {
-        "institution": "University of Pisa",
-        "degree": "Master's Degree in Computer Science",
-        "description": "Thesis: Fully Distributed IoT Layer utilizing Ethereum Blockchain and IPFS, featuring Solidity Smart Contracts integrated with IPFS, enabling secure device interaction, data notarization, and firmware certification, substantiated by a Case Study and Formal Analysis.",
-        "start_date": "2017-09",
-        "end_date": "2020-06"
-      }
-    },
-    {
-      "node_type": "education",
-      "properties": {
-        "institution": "University of Perugia",
-        "degree": "Bachelor's Degree in Computer Science",
-        "description": "Thesis: Developed Blockchain analysis tools to detect user behavioral patterns in Bitcoin, enabling identification of addresses associated with malicious activities through pattern-focused analysis. Obtained Microsoft Azure research grant and AWS research grant.",
-        "start_date": "2012-10",
-        "end_date": "2017-07"
-      }
-    },
-    {
       "node_type": "work_experience",
       "properties": {
         "company": "Kakarot Labs",
         "title": "Senior Blockchain Engineer",
-        "description": "Primarily focused on the development of the kakarot RPC. Gas fee rebalancing, enhanced Kakarot Indexer by optimizing transaction indexing and mapping of Ethereum transactions to Starknet transactions.",
         "start_date": "2024-05",
         "end_date": null,
-        "location": "Paris, France"
+        "description": "Primarily focused on the development of the Kakarot RPC. Gas fee rebalancing: Investigated and proposed solutions to balance relayer operational costs with user EVM fees in Kakarot Core. Enhanced Kakarot Indexer: Improved the Kakarot Indexer by optimizing transaction indexing, ensuring efficient mapping of Ethereum transactions to Starknet transactions. Contributed to improve performance and maintainability of the indexer module.",
+        "location": "Paris, France",
+        "company_url": ""
       }
     },
     {
@@ -36,9 +17,11 @@
       "properties": {
         "company": "Polygon",
         "title": "Senior Blockchain Engineer",
-        "description": "Developed Polygon Nightfall core. Built Regulator service with 3-way Diffie-Hellman encryption, integrated atomic transactions, developed transformTransfer operation for L2 token transformation.",
         "start_date": "2023-03",
-        "end_date": "2023-11"
+        "end_date": "2023-11",
+        "description": "Primarily focused on the development of the Polygon Nightfall core. Developed a Regulator service employing modified 3-way Diffie-Hellman encryption for secure transaction secret sharing with third parties. Integrated the ability to perform atomic transactions within each Nightfall transaction type. Developed the transformTransfer operation that allows token transformation on L2 and enables the transfer in a single step.",
+        "location": "",
+        "company_url": ""
       }
     },
     {
@@ -46,9 +29,11 @@
       "properties": {
         "company": "Polygon",
         "title": "Blockchain Engineer",
-        "description": "Developed Polygon Nightfall core. Enhanced wallet block communication scalability by transitioning from WebSocket to hybrid system. Developed Nightfall's POS mechanism with multiple-proposer system.",
         "start_date": "2022-06",
-        "end_date": "2023-03"
+        "end_date": "2023-03",
+        "description": "Primarily focused on the development of the Polygon Nightfall core. Enhanced wallet block communication scalability by transitioning from WebSocket to a hybrid system with message broker and an AWS Lambda, drastically improving synchronization speed from minutes to just a few tens of seconds. Developed Nightfall's POS mechanism, with transition from a single-proposer system to a multiple-proposer system.",
+        "location": "",
+        "company_url": ""
       }
     },
     {
@@ -56,65 +41,661 @@
       "properties": {
         "company": "EthereansOS",
         "title": "Smart Contract Engineer",
-        "description": "Developed a protocol that allows arbitrage between various DEX on the Ethereum blockchain, involving complex swaps to achieve profitable arbitrage.",
         "start_date": "2021-03",
-        "end_date": "2022-03"
+        "end_date": "2022-03",
+        "description": "Developed a protocol that allows arbitrage between various DEX on the Ethereum blockchain. Smart Contracts allows the execution of even complex swaps, involving many swaps to achieve profitable arbitrage.",
+        "location": "",
+        "company_url": ""
       }
     },
     {
       "node_type": "work_experience",
       "properties": {
         "company": "Tocket S.r.l.",
-        "title": "Co-founder & CTO",
-        "description": "Blockchain-based startup combating ticket scalping on live events, reached 65K users and organized 1K events. Managed technical team, developed ERC721/ERC1155/ERC20 tokens, smart contracts, serverless APIs, and web interface.",
+        "title": "Co-Founder & CTO",
         "start_date": "2019-03",
         "end_date": "2022-03",
+        "description": "Tocket was a blockchain-based startup combating ticket scalping on live events, reached 65K users and organized 1K events. Management: Developed the business model and managed technical team of 5 people. Blockchain: Created ERC721, ERC1155 and ERC20 tokens, secondary market Smart Contracts, used meta-transactions to simplify marketplace usage, smart contract testing with Truffle and Hardhat. Backend: Managed user authentication with Firebase, implemented serverless APIs with AWS Lambda, handled databases with DynamoDB and RDS, integrated live streaming via Amazon IVS, managed cluster of EC2 to run a video call service. Frontend: Developed the web interface using React.",
+        "location": "Pisa, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Superhero Valley",
+        "role": "Co-Founder",
+        "description": "A non-profit community of 2K members that prepares individuals for FAANG interviews through talks, mock interviews, coding challenges, and a mentorship program, resulting in numerous successful placements at FAANG and other major tech companies.",
+        "start_date": "2020-10",
+        "end_date": null,
+        "url": ""
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "PointerPodcast",
+        "role": "Co-Host",
+        "description": "Explores emerging technologies and innovation through insightful interviews and discussions, spotlighting Blockchain, Quantum Computing, and AI. Recorded more than 170 episodes with guests from both industry and academia.",
+        "start_date": "2019-02",
+        "end_date": null,
+        "url": ""
+      }
+    },
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "University of Pisa",
+        "degree": "Master's Degree",
+        "field_of_study": "Computer Science",
+        "start_date": "2017-09",
+        "end_date": "2020-06",
+        "description": "Thesis: Fully Distributed IoT Layer utilizing Ethereum Blockchain and IPFS, featuring Solidity Smart Contracts integrated with IPFS, enabling secure device interaction, data notarization, and firmware certification, substantiated by a Case Study and Formal Analysis.",
         "location": "Pisa, Italy"
       }
     },
     {
-      "node_type": "work_experience",
+      "node_type": "education",
       "properties": {
-        "company": "Superhero Valley",
-        "title": "Co-Founder",
-        "description": "Non-profit community of 2K members preparing individuals for FAANG interviews through talks, mock interviews, coding challenges, and mentorship program.",
-        "start_date": "2020-10",
-        "end_date": null
+        "institution": "University of Perugia",
+        "degree": "Bachelor's Degree",
+        "field_of_study": "Computer Science",
+        "start_date": "2012-10",
+        "end_date": "2017-07",
+        "description": "Thesis: Developed Blockchain analysis tools to detect user behavioral patterns in Bitcoin, enabling identification of addresses associated with malicious activities through pattern-focused analysis. Obtained Microsoft Azure research grant and AWS research grant.",
+        "location": "Perugia, Italy"
       }
     },
     {
-      "node_type": "work_experience",
+      "node_type": "skill",
       "properties": {
-        "company": "PointerPodcast",
-        "title": "Co-Host",
-        "description": "Explores emerging technologies and innovation through interviews and discussions, spotlighting Blockchain, Quantum Computing, and AI. Recorded more than 170 episodes.",
-        "start_date": "2019-02",
-        "end_date": null
+        "name": "Rust",
+        "category": "Programming",
+        "proficiency": null
       }
     },
-    {"node_type": "skill", "properties": {"name": "Rust"}},
-    {"node_type": "skill", "properties": {"name": "Typescript"}},
-    {"node_type": "skill", "properties": {"name": "Python"}},
-    {"node_type": "skill", "properties": {"name": "Javascript"}},
-    {"node_type": "skill", "properties": {"name": "Solidity"}},
-    {"node_type": "skill", "properties": {"name": "Circom"}},
-    {"node_type": "skill", "properties": {"name": "React"}},
-    {"node_type": "skill", "properties": {"name": "AWS"}},
-    {"node_type": "skill", "properties": {"name": "Docker"}},
-    {"node_type": "skill", "properties": {"name": "MongoDB"}},
-    {"node_type": "skill", "properties": {"name": "PostgreSQL"}},
-    {"node_type": "skill", "properties": {"name": "Blockchain"}},
-    {"node_type": "skill", "properties": {"name": "Ethereum"}},
-    {"node_type": "skill", "properties": {"name": "Smart Contracts"}},
-    {"node_type": "skill", "properties": {"name": "Zero Knowledge"}},
-    {"node_type": "skill", "properties": {"name": "IPFS"}},
-    {"node_type": "skill", "properties": {"name": "Firebase"}},
-    {"node_type": "skill", "properties": {"name": "DynamoDB"}},
-    {"node_type": "skill", "properties": {"name": "Starknet"}},
-    {"node_type": "skill", "properties": {"name": "Bitcoin"}},
-    {"node_type": "skill", "properties": {"name": "Hardhat"}},
-    {"node_type": "skill", "properties": {"name": "Truffle"}}
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "TypeScript",
+        "category": "Programming",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Python",
+        "category": "Programming",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "JavaScript",
+        "category": "Programming",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Solidity",
+        "category": "Programming",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Circom",
+        "category": "Programming",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "AWS",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Docker",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "MongoDB",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "React",
+        "category": "Framework",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Blockchain",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Smart Contracts",
+        "category": "Domain Knowledge",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Zero Knowledge Proofs",
+        "category": "Research Area",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Ethereum",
+        "category": "Domain Knowledge",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Starknet",
+        "category": "Domain Knowledge",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "PostgreSQL",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "DynamoDB",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Firebase",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Truffle",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Hardhat",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "IPFS",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "IoT",
+        "category": "Research Area",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Cryptography",
+        "category": "Research Area",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "ERC721",
+        "category": "Domain Knowledge",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "ERC1155",
+        "category": "Domain Knowledge",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "ERC20",
+        "category": "Domain Knowledge",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "AWS Lambda",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Team Management",
+        "category": "Soft Skill",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Bitcoin",
+        "category": "Domain Knowledge",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum Computing",
+        "category": "Research Area",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Artificial Intelligence",
+        "category": "Research Area",
+        "proficiency": null
+      }
+    }
   ],
-  "relationships": [],
+  "relationships": [
+    {
+      "from_index": 0,
+      "to_index": 9,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 10,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 11,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 16,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 17,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 23,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 24,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 10,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 12,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 14,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 16,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 17,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 18,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 21,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 22,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 33,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 10,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 12,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 14,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 16,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 17,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 18,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 21,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 22,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 37,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 10,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 12,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 21,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 23,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 10,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 12,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 16,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 17,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 18,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 19,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 11,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 21,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 25,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 26,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 27,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 28,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 29,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 34,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 35,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 36,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 37,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 38,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 23,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 38,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 6,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 21,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 23,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 30,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 31,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 32,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 8,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 8,
+      "to_index": 39,
+      "type": "USED_SKILL"
+    }
+  ],
   "unmatched": []
 }

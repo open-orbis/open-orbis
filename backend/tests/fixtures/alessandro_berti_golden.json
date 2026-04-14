@@ -3,321 +3,37 @@
     {
       "node_type": "education",
       "properties": {
-        "institution": "Universita di Pisa",
-        "degree": "Dottorato di Ricerca in Informatica (PhD)",
+        "institution": "Università di Pisa",
+        "degree": "PhD",
+        "field_of_study": "Computer Science",
+        "start_date": "2020-11",
+        "end_date": "2024-05",
         "description": "Thesis: Effectiveness of Quantum Algorithms: From Compilation to Measurement. Supervisors: Anna Bernasconi, Gianna Maria Del Corso, Riccardo Guidotti. Grade: Ottimo.",
-        "start_date": "2020-11",
-        "end_date": "2024-05"
+        "location": "Pisa, Italy"
       }
     },
     {
       "node_type": "education",
       "properties": {
-        "institution": "Universita di Pisa",
-        "degree": "Laurea Magistrale in Informatica (LM-18)",
-        "description": "Thesis: A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis. Grade: 110/110 e lode.",
+        "institution": "Università di Pisa",
+        "degree": "MSc",
+        "field_of_study": "Computer Science (LM-18)",
         "start_date": "2017-09",
-        "end_date": "2020-06"
+        "end_date": "2020-06",
+        "description": "Thesis: A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis. Supervisors: Chiara Bodei, Stefano Chessa. Grade: 110/110 e lode.",
+        "location": "Pisa, Italy"
       }
     },
     {
       "node_type": "education",
       "properties": {
-        "institution": "Universita di Pisa",
-        "degree": "Laurea Triennale in Informatica (L-31)",
-        "description": "Thesis: Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin. Grade: 100/110.",
+        "institution": "Università di Pisa",
+        "degree": "BSc",
+        "field_of_study": "Computer Science (L-31)",
         "start_date": "2013-09",
-        "end_date": "2017-12"
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "Universita di Pisa - Dipartimento di Fisica",
-        "title": "Assegnista di Ricerca (Postdoc Researcher)",
-        "description": "Quantum algorithms for Machine Learning. Research on quantum subroutines for matrix/activation functions in quantum ML.",
-        "start_date": "2024-04",
-        "end_date": null
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "Universita di Pisa - Dipartimento di Informatica",
-        "title": "Cultore della Materia in Computazione Quantistica",
-        "description": "Teaching support and examination role in Quantum Computing courses.",
-        "start_date": "2024-09",
-        "end_date": null
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "SQMS Center - Fermilab",
-        "title": "Visiting PhD Student",
-        "description": "Design and implementation of a quantum reservoir computing model for learning noise-resilient quantum gates on superconductor architectures.",
-        "start_date": "2022-08",
-        "end_date": "2023-01"
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "Universita di Pisa - Dipartimento di Informatica",
-        "title": "Dottorando (PhD Student)",
-        "description": "Research on quantum algorithms effectiveness, from compilation to measurement. Published 24+ papers.",
-        "start_date": "2020-11",
-        "end_date": "2024-05"
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "Cinello",
-        "title": "Consulente Tecnico (Technical Consultant)",
-        "description": "Blockchain training sessions for R&D team. Supervised development of an Ethereum ERC-721 smart contract for digital art tokenization.",
-        "start_date": "2020-10",
-        "end_date": "2020-10"
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "IBM Quantum",
-        "title": "Qiskit Advocate",
-        "description": "Recognized by IBM Quantum for deep knowledge of quantum algorithms and circuits, contributing to the Qiskit Global Community.",
-        "start_date": "2023-10",
-        "end_date": null
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "Superhero Valley",
-        "title": "Fondatore & Head of Mentorship",
-        "description": "Founded an Italian community connecting university students with Big Tech. 2300+ members from 8+ universities. Manages mentorship program and corporate relations.",
-        "start_date": "2020-11",
-        "end_date": "2025-09"
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "Tocket",
-        "title": "Chief Technology Officer",
-        "description": "Startup to eliminate ticket scalping at live events. Built payment system with Stripe API, Ethereum smart contracts, Flutter mobile app for Android and iOS.",
-        "start_date": "2019-09",
-        "end_date": "2020-09"
-      }
-    },
-    {
-      "node_type": "work_experience",
-      "properties": {
-        "company": "PointerPodcast",
-        "title": "Co-Host",
-        "description": "Weekly podcast on research and tech innovation. 230+ episodes. Interviewed experts from NASA, IBM, INFN, Fermilab/SQMS.",
-        "start_date": "2019-05",
-        "end_date": null
-      }
-    },
-    {"node_type": "skill", "properties": {"name": "Quantum Computing"}},
-    {"node_type": "skill", "properties": {"name": "Quantum Algorithms"}},
-    {"node_type": "skill", "properties": {"name": "Quantum Machine Learning"}},
-    {"node_type": "skill", "properties": {"name": "Quantum State Preparation"}},
-    {"node_type": "skill", "properties": {"name": "Variational Quantum Algorithms"}},
-    {"node_type": "skill", "properties": {"name": "Qiskit"}},
-    {"node_type": "skill", "properties": {"name": "Pennylane"}},
-    {"node_type": "skill", "properties": {"name": "Python"}},
-    {"node_type": "skill", "properties": {"name": "Java"}},
-    {"node_type": "skill", "properties": {"name": "C"}},
-    {"node_type": "skill", "properties": {"name": "C++"}},
-    {"node_type": "skill", "properties": {"name": "Blockchain"}},
-    {"node_type": "skill", "properties": {"name": "Ethereum"}},
-    {"node_type": "skill", "properties": {"name": "Smart Contracts"}},
-    {"node_type": "skill", "properties": {"name": "Flutter"}},
-    {"node_type": "skill", "properties": {"name": "Dart"}},
-    {"node_type": "skill", "properties": {"name": "Machine Learning"}},
-    {"node_type": "skill", "properties": {"name": "Data Science"}},
-    {"node_type": "skill", "properties": {"name": "Neo4j"}},
-    {"node_type": "skill", "properties": {"name": "Graph Algorithms"}},
-    {"node_type": "skill", "properties": {"name": "Scientific Writing"}},
-    {"node_type": "skill", "properties": {"name": "Jupyter"}},
-    {"node_type": "skill", "properties": {"name": "Claude Code"}},
-    {"node_type": "skill", "properties": {"name": "Roo Code"}},
-    {"node_type": "skill", "properties": {"name": "Adobe Premiere"}},
-    {"node_type": "skill", "properties": {"name": "Adobe After Effects"}},
-    {"node_type": "skill", "properties": {"name": "3D Modeling"}},
-    {
-      "node_type": "certification",
-      "properties": {
-        "name": "Qiskit Fall Fest Mentor",
-        "issuing_organization": "IBM",
-        "issue_date": "2024-12"
-      }
-    },
-    {
-      "node_type": "certification",
-      "properties": {
-        "name": "Qiskit Advocate Certification",
-        "issuing_organization": "IBM",
-        "issue_date": "2023-10"
-      }
-    },
-    {
-      "node_type": "certification",
-      "properties": {
-        "name": "IBM Certified Associate Developer - Quantum Computation using Qiskit v0.2X",
-        "issuing_organization": "IBM Professional Certification",
-        "issue_date": "2023-07"
-      }
-    },
-    {
-      "node_type": "certification",
-      "properties": {
-        "name": "IBM Blockchain Foundation Developer",
-        "issuing_organization": "IBM",
-        "issue_date": "2019-12"
-      }
-    },
-    {
-      "node_type": "certification",
-      "properties": {
-        "name": "Data Science for Business",
-        "issuing_organization": "IBM",
-        "issue_date": "2019-12"
-      }
-    },
-    {
-      "node_type": "language",
-      "properties": {
-        "name": "Italiano",
-        "proficiency": "Madrelingua (Native)"
-      }
-    },
-    {
-      "node_type": "language",
-      "properties": {
-        "name": "English",
-        "proficiency": "Avanzato (C1)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Quantum subroutine for variance estimation: algorithmic design and applications",
-        "venue": "Quantum Machine Intelligence 6.2 (2024)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Quantum Subroutine for Efficient Matrix Multiplication",
-        "venue": "IEEE Access (2024)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "The role of encodings and distance metrics for the quantum nearest neighbor",
-        "venue": "Quantum Machine Intelligence 6.2 (2024)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Quantum clustering with k-Means: A hybrid approach",
-        "venue": "Theoretical Computer Science 992 (2024)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "XOR-AND-XOR Logic Forms for Autosymmetric Functions and Applications to Quantum Computing",
-        "venue": "IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems 42.6 (2023)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Logarithmic Quantum Forking",
-        "venue": "Proceedings of ESANN (2023)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
-        "venue": "PAKDD 2022, Springer"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Variational Compression of Circuits for State Preparation",
-        "venue": "IEEE QCE 2024"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Quantum Reservoir Computing Approach to Error-Mitigated Compilation",
-        "venue": "QTML Workshop (2023)"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Outlier Detection and other applications of Quantum Matrix Multiplication",
-        "venue": "IEEE IPDPSW 2025"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Variational Decision Trees with Structured Ansatzes",
-        "venue": "IEEE QCE 2025"
-      }
-    },
-    {
-      "node_type": "publication",
-      "properties": {
-        "title": "Efficient quantum state preparation with Bucket Brigade QRAM",
-        "venue": "Under Revision"
-      }
-    },
-    {
-      "node_type": "project",
-      "properties": {
-        "name": "GNCS Research Project - Quantum Subroutines (PI)",
-        "description": "Coordinator of research project on quantum subroutines for matrix/activation functions in quantum ML. Istituto Nazionale di Alta Matematica (2025-2026)."
-      }
-    },
-    {
-      "node_type": "project",
-      "properties": {
-        "name": "PNRR CN1 - HPC, Big Data and Quantum Computing",
-        "description": "National research project at Politecnico di Milano. Study of quantum ML techniques for state preparation and quantum AI subroutines (2024-ongoing)."
-      }
-    },
-    {
-      "node_type": "project",
-      "properties": {
-        "name": "SoBigData++ (H2020)",
-        "description": "European project for Social Mining & Big Data Ecosystem. Produced PyPI package for quantum k-Nearest Neighbors (2020-2024)."
-      }
-    },
-    {
-      "node_type": "project",
-      "properties": {
-        "name": "PRA-Quantum Computing",
-        "description": "University of Pisa research project on quantum computing technologies and applications (2020-2022)."
-      }
-    },
-    {
-      "node_type": "project",
-      "properties": {
-        "name": "Quantum Festival & Pisa Quantum Festival",
-        "description": "Co-organized quantum computing festivals in Pisa with 400+ participants, featuring speakers from academia and industry (2024-2025)."
+        "end_date": "2017-12",
+        "description": "Thesis: Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin. Supervisors: Andrea Marino, Laura Ricci. Grade: 100/110.",
+        "location": "Pisa, Italy"
       }
     },
     {
@@ -325,48 +41,3703 @@
       "properties": {
         "title": "Circuito quantistico per forking di uno stato quantistico",
         "patent_number": "IT202200024873A1",
-        "filing_date": "2022-12",
-        "grant_date": "2024-11",
-        "description": "Quantum circuit for forking a quantum state. Applicant: Universita di Pisa."
+        "filing_date": "2022-12-01",
+        "grant_date": "2024-11-08",
+        "status": "Granted",
+        "description": "Quantum circuit for forking of a quantum state. Inventor: Alessandro Berti. Applicant: Università di Pisa. Classification: G06N.",
+        "url": "https://bit.ly/4iSxQDG"
       }
     },
     {
-      "node_type": "collaborator",
+      "node_type": "work_experience",
       "properties": {
-        "name": "Davide Venturelli"
+        "company": "Università di Pisa, Dipartimento di Informatica",
+        "title": "Cultore della Materia in Computazione Quantistica",
+        "start_date": "2024-09-12",
+        "end_date": null,
+        "description": "Cultore della Materia in Computazione Quantistica - raggruppamento disciplinare INF01.",
+        "location": "Pisa, Italy",
+        "company_url": ""
       }
     },
     {
-      "node_type": "collaborator",
+      "node_type": "work_experience",
       "properties": {
-        "name": "Nishchay Suri"
+        "company": "Università di Pisa, Dipartimento di Fisica",
+        "title": "Assegnista di Ricerca (Postdoc Researcher)",
+        "start_date": "2024-04-18",
+        "end_date": null,
+        "description": "Algoritmi quantistici nell'ambito del Machine Learning.",
+        "location": "Pisa, Italy",
+        "company_url": ""
       }
     },
     {
-      "node_type": "collaborator",
+      "node_type": "work_experience",
       "properties": {
-        "name": "Silvia Zorzetti"
+        "company": "SQMS Center - Fermilab",
+        "title": "Visiting PhD Student",
+        "start_date": "2022-08-29",
+        "end_date": "2023-01-26",
+        "description": "Design ed implementazione di un modello di quantum reservoir computing per l'apprendimento di gate quantistici resistenti al rumore in architetture a qubit superconduttori.",
+        "location": "Batavia, Illinois, USA",
+        "company_url": ""
       }
     },
     {
-      "node_type": "collaborator",
+      "node_type": "work_experience",
       "properties": {
-        "name": "Anna Bernasconi"
+        "company": "Università di Pisa, Dipartimento di Informatica",
+        "title": "Dottorando (PhD Student)",
+        "start_date": "2020-11-01",
+        "end_date": "2024-05-07",
+        "description": "Thesis: Effectiveness of Quantum Algorithms: From Compilation to Measurement. Supervisors: Anna Bernasconi, Gianna Maria Del Corso, Riccardo Guidotti.",
+        "location": "Pisa, Italy",
+        "company_url": ""
       }
     },
     {
-      "node_type": "collaborator",
+      "node_type": "work_experience",
       "properties": {
-        "name": "Gianna Maria Del Corso"
+        "company": "Cinello",
+        "title": "Consulente Tecnico (Technical Consultant)",
+        "start_date": "2020-10-13",
+        "end_date": "2020-10-27",
+        "description": "Sessioni formative frontali sui principali concetti della tecnologia Blockchain per il team R&D di Cinello e supervisione dello sviluppo di uno smart contract Ethereum per la tokenizzazione di opere d'arte digitali seguendo lo standard ERC-721.",
+        "location": "Firenze, Italy",
+        "company_url": ""
       }
     },
     {
-      "node_type": "collaborator",
+      "node_type": "work_experience",
       "properties": {
-        "name": "Riccardo Guidotti"
+        "company": "Università di Pisa",
+        "title": "Collaboratore per il Trasferimento Tecnologico",
+        "start_date": "2020-04-24",
+        "end_date": "2020-09-14",
+        "description": "Supporto ai partecipanti dei percorsi offerti dal Contamination Lab Pisa attraverso lo scambio di esperienze e pratiche, ricerca di contatti, selezione di relatori e collaborazione nell'organizzazione degli eventi.",
+        "location": "Pisa, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "IBM Quantum",
+        "title": "Qiskit Advocate",
+        "start_date": "2023-10-01",
+        "end_date": null,
+        "description": "Riconosciuto da IBM Quantum come Qiskit Advocate. Un individuo con profonda conoscenza degli algoritmi e circuiti quantistici che ha contribuito alla Qiskit Global Community.",
+        "location": "",
+        "company_url": "https://qiskit.org/advocates"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Superhero Valley",
+        "title": "Fondatore & Head of Mentorship",
+        "start_date": "2020-11-01",
+        "end_date": "2025-09-01",
+        "description": "Community italiana volta a connettere studenti universitari con le Big Tech. Offre talk con dipendenti delle grandi aziende, gruppi di preparazione ai colloqui e un percorso di mentorship. Oltre 2300 membri universitari. Gestione relazioni con grandi aziende tecnologiche e università italiane, coordinamento del team di mentorship.",
+        "location": "Online",
+        "company_url": "https://superherovalley.fun"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Tocket",
+        "title": "Chief Technology Officer",
+        "start_date": "2019-09-01",
+        "end_date": "2020-09-01",
+        "description": "Startup per eliminare il bagarinaggio negli eventi dal vivo. Sviluppo del modello di business, sistema di pagamenti basato su API Stripe in Dart, API per interazione con smart contract Ethereum, frontend e backend in Flutter per piattaforme Android e iOS.",
+        "location": "Pisa, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "PointerPodcast",
+        "title": "Co-Host",
+        "start_date": "2019-05-12",
+        "end_date": null,
+        "description": "Podcast settimanale su ricerca e innovazione tecnologica. Oltre 230 episodi. Interviste con esperti in quantum computing tra cui personaggi di IBM, AWS Quantum, NASA Quantum AI Lab, Fermilab/SQMS, INFN.",
+        "location": "Pisa, Italy",
+        "company_url": "https://pointerpodcast.it"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "IBM Quantum Developer Conference",
+        "provider": "IBM Watson Research Center",
+        "date": "2024-11",
+        "description": "Panoramica sui più recenti sviluppi nella roadmap di IBM Quantum, utilizzo di Qiskit, processore IBM Heron R2, Qiskit Transpiler Service, Qiskit Code Assistant, ottimizzazione di circuiti quantistici su scala industriale.",
+        "url": "https://www.ibm.com/events/reg/flow/ibm/q7e1efmb/landing/page/landing"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "European Summer School on Quantum AI",
+        "provider": "Università di Verona e Udine",
+        "date": "2024-09",
+        "description": "Summer school su tematiche all'intersezione tra computazione quantistica e intelligenza artificiale.",
+        "url": "https://eqai.eu/"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Lipari Summer School on Computational Complex and Social Systems",
+        "provider": "Lipari Summer School",
+        "date": "2023-07",
+        "description": "Modelli per epidemie, Recupero privato dei dati, Sicurezza quantistica e teletrasporto, Algoritmi di rete, Internet of Things e Smart City.",
+        "url": "https://complex23.liparischool.it"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Summer School on Quantum Simulation",
+        "provider": "Galileo Galilei Institute / SQMS Center",
+        "date": "2022-07",
+        "description": "Computazione quantistica digitale, teoria dei campi quantistici, simulazione dell'evoluzione Hamiltoniana, mitigazione degli errori e metodi numerici.",
+        "url": "https://www.ggi.infn.it/showevent.pl?id=436"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "DeepTech School",
+        "provider": "PHYD Hub",
+        "date": "2021-09",
+        "description": "Programma rivolto a giovani, principal investigator e imprenditori per trasformare intuizioni di tecnologia avanzata (AI, quantum, robotica, fotonica, biotecnologie) in progetti di startup deep tech.",
+        "url": "http://deeptechschool.it"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Qiskit Global Summer School on Quantum Machine Learning",
+        "provider": "IBM Quantum",
+        "date": "2021-07",
+        "description": "Scuola estiva di due settimane su applicazioni quantistiche. Completati tutti i compiti di laboratorio con punteggio cumulativo finale del 100%.",
+        "url": "https://qiskit.org/events/summer-school"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "English for Research Publication and Presentation Purposes",
+        "provider": "Università di Pisa, Centro Linguistico",
+        "date": "2021-01",
+        "description": "Corso per competenze linguistiche per scrivere e presentare risultati scientifici in inglese. 30 ore su 30 complessive.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Global Quantum Programming Workshop",
+        "provider": "QWorld",
+        "date": "2020-11",
+        "description": "Workshop di una settimana sui fondamenti del calcolo quantistico e della programmazione quantistica. 24 ore su 24 complessive.",
+        "url": "https://qworld.net/global-quantum-programming-workshop-qbronze"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "xBlue - TVLP Institute Silicon Valley",
+        "provider": "TVLP Institute",
+        "date": "2019-07",
+        "description": "Programma intensivo di una settimana sul mindset imprenditoriale della Silicon Valley. Networking con investitori, imprenditori e aziende come Microsoft, Nvidia, Hewlett-Packard.",
+        "url": "https://www.tvlp.co"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "CyB+ (Contamination Lab advanced program)",
+        "provider": "Contamination Lab Pisa",
+        "date": "2019-03",
+        "description": "Seminari action-learning per rafforzare il processo di costruzione, formazione e sviluppo di progetti innovativi e di impresa. 43 ore su 46 previste. Il progetto BlockLock è arrivato primo nella competizione.",
+        "url": "http://contaminationlab.unipi.it/"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Soft Skills per le imprese di domani",
+        "provider": "Contamination Lab Pisa",
+        "date": "2019-03",
+        "description": "Percorso formativo sulle soft skills: people management, critical thinking and creativity, negotiation, coordination with others, judgement and decision making.",
+        "url": "http://contaminationlab.unipi.it/"
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "PhD+ (Contamination Lab)",
+        "provider": "Contamination Lab Pisa",
+        "date": "2019-01",
+        "description": "Percorso su trasferimento tecnologico, proprietà intellettuale, promozione di sé, modelli di business e gestione economico-finanziaria. 24 ore su 28 previste.",
+        "url": "http://contaminationlab.unipi.it/"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "Qiskit Fall Fest Mentor",
+        "issuing_organization": "IBM",
+        "issue_date": "2024-12-01",
+        "expiry_date": null,
+        "credential_url": "https://www.credly.com/badges/7b4fff87-8c2a-4d6e-ba65-15ea859ce9e9"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "Qiskit Advocate Certification",
+        "issuing_organization": "IBM",
+        "issue_date": "2023-10-05",
+        "expiry_date": null,
+        "credential_url": "https://www.credly.com/badges/2c39f665-16c9-4dfc-aeb4-4cee3f73baf5"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "IBM Certified Associate Developer - Quantum Computation using Qiskit v0.2X",
+        "issuing_organization": "IBM Professional Certification",
+        "issue_date": "2023-07-26",
+        "expiry_date": null,
+        "credential_url": "https://www.credly.com/badges/e7007403-4186-4cab-8002-5e25ee3ccb82"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "IBM Blockchain Foundation Developer",
+        "issuing_organization": "IBM",
+        "issue_date": "2019-12-28",
+        "expiry_date": null,
+        "credential_url": "https://www.credly.com/badges/c477666d-ed7f-40b6-966b-9d09ec794e1d"
+      }
+    },
+    {
+      "node_type": "certification",
+      "properties": {
+        "name": "Data Science for Business",
+        "issuing_organization": "IBM",
+        "issue_date": "2019-12-28",
+        "expiry_date": null,
+        "credential_url": "https://www.credly.com/badges/dee5b56e-ca33-4251-8d84-f2b99bce42b5"
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Bando Sviluppo di protocolli di ottimizzazione in sistemi quantistici aperti",
+        "issuing_organization": "Università di Firenze",
+        "date": "2024",
+        "description": "Won research grant for 'Development of optimization protocols in open quantum systems' at Department of Physics and Astronomy. Declined.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Rigetti Quantum Cloud Services Credits ($36,000)",
+        "issuing_organization": "Rigetti",
+        "date": "2024",
+        "description": "Obtained $36,000 in credits for executing circuits on Rigetti quantum machines Ankaa-2 and Ankaa-9Q-3.",
+        "url": "https://www.rigetti.com/"
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Bando Algoritmi Quantistici nell'ambito del Machine Learning",
+        "issuing_organization": "Università di Pisa",
+        "date": "2024",
+        "description": "Won research grant for 'Quantum Algorithms in Machine Learning' at the Department of Physics.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Bando ISCRA C - Access to HPC resources",
+        "issuing_organization": "Cineca",
+        "date": "2023",
+        "description": "Won access to G100 and LEONARDO HPC machines provided by Cineca.",
+        "url": "https://www.hpc.cineca.it/hpc-access/access-cineca-resources/iscra-projects/iscra-project-size/"
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Teaching H@ckathon - 1st Place",
+        "issuing_organization": "Teaching H2020",
+        "date": "2023",
+        "description": "First place developing Robust Vision AI (RVA), an application for low-power devices for obstacle identification on vehicle paths.",
+        "url": "https://teaching-h2020.eu/news-events/TEACHING-H@ckathon"
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Bando iniziative scientifiche organizzate dai dottorandi (Picture a Scientist)",
+        "issuing_organization": "Università di Pisa",
+        "date": "2022",
+        "description": "Won €4000 contribution to organize 'Picture a Scientist' event.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Bando Contributi di mobilità per dottorandi",
+        "issuing_organization": "Università di Pisa",
+        "date": "2022-09",
+        "description": "Won mobility grant for research abroad at SQMS Center, Fermilab, USA.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Supporto Economico Deposito Brevetto",
+        "issuing_organization": "Università di Pisa",
+        "date": "2022-09",
+        "description": "Patent filing and writing expenses support for 'Circuito quantistico per forking di uno stato quantistico'.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Bando iniziative scientifiche organizzate dai dottorandi (PhDCast)",
+        "issuing_organization": "Università di Pisa",
+        "date": "2021",
+        "description": "Won €4000 contribution to organize PhDCast event.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Borsa di Dottorato (PhD Fellowship)",
+        "issuing_organization": "Università di Pisa",
+        "date": "2020-09",
+        "description": "PhD fellowship at the Department of Computer Science, funded for 2020/2024.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Qiskit Fall Fest 2024 Organizer",
+        "issuing_organization": "IBM Quantum",
+        "date": "2024",
+        "description": "Selected by IBM Quantum to organize a quantum computing outreach event at University of Pisa.",
+        "url": "https://www.ibm.com/quantum/blog/qiskit-fall-fest-2024"
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Start Up Success! - Winner",
+        "issuing_organization": "Federmanager Toscana",
+        "date": "2020",
+        "description": "Won the StartUpSuccess! competition with the Tocket startup project.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "StartCup Toscana - 5th Place",
+        "issuing_organization": "Regione Toscana",
+        "date": "2019",
+        "description": "Fifth place with the Tocket startup project.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "CyB+ Create Your Business - Winner",
+        "issuing_organization": "Contamination Lab Pisa",
+        "date": "2019",
+        "description": "Won the competition with BlockLock project, a middleware for secure access control in IoT using Ethereum blockchain.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Nuovi Talenti per L'Europa - 2nd Place",
+        "issuing_organization": "RAI",
+        "date": "2012",
+        "description": "Second place in competition by RAI with European Parliament, European Commission and Department for European Policies.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Ottava Settimana dei Beni Culturali ed Ambientali - Winner",
+        "issuing_organization": "Fondazione Livorno",
+        "date": "2012",
+        "description": "Won competition to promote cultural and architectural heritage.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Segnali Diversi per il mio Ambiente - Winner",
+        "issuing_organization": "Comune di Piombino",
+        "date": "2011",
+        "description": "Won environmental awareness competition.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "GNCS Research Project: Subroutine Quantistiche per il Calcolo di Funzioni di Matrici e Funzioni di Attivazione",
+        "role": "Principal Investigator (Coordinator)",
+        "description": "Development of new quantum subroutines for computing matrix functions and activation functions in quantum machine learning. Uses quantum linear algebra techniques and innovative algorithms to improve computational efficiency. Implementation with Pennylane and Qiskit.",
+        "start_date": "2025",
+        "end_date": "2026",
+        "url": null
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "HPC, Big Data and Quantum Computing (PNRR CN 1)",
+        "role": "Researcher",
+        "description": "Research and innovation leveraging advanced HPC infrastructure and quantum computing. Study of new Quantum Machine Learning techniques for efficient quantum state preparation and quantum subroutines for Quantum AI.",
+        "start_date": "2024",
+        "end_date": null,
+        "url": null
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "GNCS Research Project: Strutture di matrici e di funzioni per la sintesi di circuiti quantistici efficienti",
+        "role": "Researcher",
+        "description": "Study of quantum circuit synthesis techniques using variational circuit approaches.",
+        "start_date": "2024",
+        "end_date": "2025",
+        "url": null
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "GNCS Research Project: Algoritmi Quantistici su Grafi",
+        "role": "Researcher",
+        "description": "Study of quantum algorithms on graphs and efficient quantum state preparation techniques.",
+        "start_date": "2023",
+        "end_date": "2024",
+        "url": null
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "PRA-Quantum Computing, Quantum computing, technologies and applications",
+        "role": "Researcher",
+        "description": "Study of computational problems with quantum advantage, from fundamental interactions to AI. Development of quantum technologies and new paradigms for the quantum era.",
+        "start_date": "2020",
+        "end_date": "2022",
+        "url": null
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "SoBigData++: Social Mining & Big Data Ecosystem",
+        "role": "Researcher",
+        "description": "European H2020 project for building data infrastructure to support Big Data analysis. Contributed scientific publications and a PyPI package implementing quantum k-Nearest Neighbors.",
+        "start_date": "2020",
+        "end_date": "2024",
+        "url": "http://www.sobigdata.eu"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Variational Learning of Compressed Quantum Data",
+        "role": "Developer",
+        "description": "Python code evaluating performance of variational circuits for compression of state preparation techniques.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/VariationalLearningCompressedQData"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Quantum Variance",
+        "role": "Developer",
+        "description": "Python code implementing quantum algorithm for variance calculation on datasets.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/AlessandroPoggiali/QVAR"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "QkNN Package",
+        "role": "Developer",
+        "description": "PyPI package implementing quantum kNN based on amplitude encoding.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://pypi.org/project/quantum-distance-based-classifier/0.0.4/"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Green QC",
+        "role": "Developer",
+        "description": "Python code analyzing performance of Grover's algorithm and Quantum Fourier Transform across different quantum computer architectures.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/Green_QC/blob/main/green_qc.py"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Logarithmic Quantum Forking",
+        "role": "Developer",
+        "description": "Python implementation of the quantum forking technique.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/logarithmic_quantum_forking"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Quantum Instance-based Classifiers",
+        "role": "Developer",
+        "description": "Python code for experimenting with two types of quantum K-Nearest Neighbors.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/exploring_different_encoding_and_distance_metrics_for_a_quantum_instance_based_classifier"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "VisualBlock",
+        "role": "Developer",
+        "description": "Java software for identification and export of interesting subgraphs.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/VisualBlock"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "VisualBiGraph",
+        "role": "Developer",
+        "description": "Gephi plugin in Java using Webgraph library for interactive navigation of subgraphs in very large graphs.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/VisualBiGraph"
+      }
+    },
+    {
+      "node_type": "project",
+      "properties": {
+        "name": "Quantum Lessons Notebooks",
+        "role": "Developer",
+        "description": "Jupyter notebooks describing implementation of quantum algorithms with Qiskit for the 'Introduction to Quantum Computing' course. Covers: Qiskit intro, Grover's algorithm, QFT, Phase Estimation, Quantum Teleportation, State Preparation.",
+        "start_date": null,
+        "end_date": null,
+        "url": "https://github.com/Brotherhood94/quantum_lessons"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Q-CASA 2025: Outlier Detection and other applications of Quantum Matrix Multiplication",
+        "type": "talk",
+        "venue": "Q-CASA 2025, Milan, Italy",
+        "date": "2025-06-03",
+        "description": "Conference talk on outlier detection and quantum matrix multiplication applications.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "QTML 2023: Quantum Reservoir Computing Approach to Error-Mitigated Compilation",
+        "type": "talk",
+        "venue": "QTML 2023, CERN, Switzerland",
+        "date": "2023-11-23",
+        "description": "Poster presentation on quantum reservoir computing for error-mitigated compilation.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "ESANN 2023: Logarithmic Quantum Forking",
+        "type": "talk",
+        "venue": "ESANN 2023, Bruges, Belgium",
+        "date": "2023-10-05",
+        "description": "Conference presentation on logarithmic quantum forking.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "QIP 2023: Logarithmic Quantum Forking",
+        "type": "talk",
+        "venue": "QIP 2023, Ghent, Belgium",
+        "date": "2022-05-19",
+        "description": "Poster presentation on logarithmic quantum forking at Quantum Information Processing.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PAKDD 2022: Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
+        "type": "talk",
+        "venue": "PAKDD 2022, Chengdu, China (Virtual)",
+        "date": "2022-05-19",
+        "description": "Conference presentation on quantum instance-based classifiers.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "QTML 2021: Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
+        "type": "talk",
+        "venue": "QTML 2021, Tokyo (Virtual)",
+        "date": "2022-05-19",
+        "description": "Poster presentation on quantum instance-based classifiers.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "QUASAR Keynote: An in-depth analysis of the Grover Algorithm",
+        "type": "keynote",
+        "venue": "QUASAR Workshop, ACM HPDC, Pisa, Italy",
+        "date": "2024-06-03",
+        "description": "Invited keynote for the first edition of the Quantum Search and Information Retrieval (QUASAR) workshop.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Guest Editor: Quantum-Centric Supercomputing Special Issue",
+        "type": "other",
+        "venue": "International Journal of Networked and Distributed Computing, Springer Nature",
+        "date": "2024",
+        "description": "Guest editor for special issue on quantum-centric supercomputing.",
+        "role": "Editor",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PC Member - IEEE QCE 2026",
+        "type": "other",
+        "venue": "IEEE International Conference on Quantum Computing and Engineering, Toronto, Canada",
+        "date": "2026-09",
+        "description": "Program Committee Member.",
+        "role": "Reviewer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PC Member - IEEE QCE 2025",
+        "type": "other",
+        "venue": "IEEE International Conference on Quantum Computing and Engineering, Albuquerque, New Mexico, USA",
+        "date": "2025-08",
+        "description": "Program Committee Member.",
+        "role": "Reviewer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PC Member - PAKDD 2025",
+        "type": "other",
+        "venue": "Pacific-Asia Conference on Knowledge Discovery and Data Mining, Sydney, Australia",
+        "date": "2025-06",
+        "description": "Program Committee Member.",
+        "role": "Reviewer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PC Member - IEEE QCE 2024",
+        "type": "other",
+        "venue": "IEEE International Conference on Quantum Computing and Engineering, Montréal, Canada",
+        "date": "2024-09",
+        "description": "Program Committee Member.",
+        "role": "Reviewer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PC Member - PAKDD 2024",
+        "type": "other",
+        "venue": "Pacific-Asia Conference on Knowledge Discovery and Data Mining, Taipei, Taiwan",
+        "date": "2024-05",
+        "description": "Program Committee Member.",
+        "role": "Reviewer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PC Member - PAKDD 2023",
+        "type": "other",
+        "venue": "Pacific-Asia Conference on Knowledge Discovery and Data Mining, Osaka, Japan",
+        "date": "2023-05",
+        "description": "Program Committee Member.",
+        "role": "Reviewer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Festival 2025",
+        "type": "event",
+        "venue": "Polo Fibonacci, Pisa, Italy",
+        "date": "2025-11-20",
+        "description": "Co-organized festival with Education, Research and Main tracks. Over 400 participants including students, professionals and researchers. Speakers from Scuola Normale Superiore, Intesa Sanpaolo, Politecnico di Milano, Rigetti, PsiQuantum, IBM Quantum, Quantinuum, Pasqal and others.",
+        "role": "Organizer",
+        "url": "https://quantumfestival.it/"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Pisa Quantum Festival 2024",
+        "type": "event",
+        "venue": "Aula Magna Polo Fibonacci, Pisa, Italy",
+        "date": "2024-11-21",
+        "description": "Co-organized event raising €7200 from sponsors (ICSC, Planckian, Quantum Italia, UniPi). 200 participants. Speakers from UniPi, IBM, UniFi, Scuola Normale Superiore, Intesa Sanpaolo, Generali.",
+        "role": "Organizer",
+        "url": "https://quantumfestival.it/Pisa-quantum-festival.github.io/index.html"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Picture a Scientist",
+        "type": "seminar",
+        "venue": "Casino dei Nobili, Pisa",
+        "date": "2023-02-03",
+        "description": "Co-organized seminar on unconscious biases and gender disparity in STEM disciplines, with PhD students from UniPi and Scuola Normale Superiore.",
+        "role": "Organizer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "PhDCast",
+        "type": "event",
+        "venue": "Online",
+        "date": "2021-12-13",
+        "description": "Co-organized scientific debate in podcast format. Interviewees included John M. Martinis (UC Santa Barbara), Carlo Bertolli (AMD), Alberto Montresor (Univ. Trento), Christopher Kanan (Univ. Rochester), Alberto Massidda (Meta).",
+        "role": "Organizer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Programming Quantum Computers with Qiskit (Seminar)",
+        "type": "seminar",
+        "venue": "Dipartimento di Informatica, Università di Pisa",
+        "date": "2024-03-08",
+        "description": "Seminar within Introduction to Quantum Computing course presenting Qiskit framework. Duration: 2 hours.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Let's Entangle (Invited Talk)",
+        "type": "seminar",
+        "venue": "Scuola Normale Superiore, Pisa",
+        "date": "2023-03-09",
+        "description": "Invited presentation on quantum algorithms research to Vittorio Giovannetti's group. Duration: 2 hours.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Reservoir Computing for Gate Synthesis (Seminar)",
+        "type": "seminar",
+        "venue": "SQMS Center, Fermilab, Batavia, Illinois, USA",
+        "date": "2022-10-11",
+        "description": "Seminar to Quantum Algorithms research group on the research project started during the visit at SQMS. Duration: 2 hours.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Computing - Research Directions (Invited Talk)",
+        "type": "seminar",
+        "venue": "Polifab, Politecnico di Milano",
+        "date": "2022-06-24",
+        "description": "Invited presentation on quantum algorithms research to Enrico Prati's group. Duration: 4 hours.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Introduction to Quantum Machine Learning: Quantum KNN (Seminar)",
+        "type": "seminar",
+        "venue": "Dipartimento di Informatica, Università di Pisa",
+        "date": "2022-04-29",
+        "description": "Seminar within Introduction to Quantum Computing course on quantum state preparation techniques and quantum KNN. Duration: 2 hours.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Classifying with Quantum Bits - Codemotion Milan 2025",
+        "type": "talk",
+        "venue": "Codemotion Milan 2025, Malpensa Fiere, Varese",
+        "date": "2025-10-14",
+        "description": "Talk on multi-agentic models and quantum classification approaches.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "F**k Agentic Coding - Pisa.dev",
+        "type": "talk",
+        "venue": "Pisa.dev, Pisa",
+        "date": "2025-07-07",
+        "description": "Presentation on data classification methods using quantum computing, explaining how qubits and quantum phenomena can redefine machine learning algorithm boundaries.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Classificare Quantisticamente - Google Developer Group",
+        "type": "talk",
+        "venue": "Google Developer Group, Pisa",
+        "date": "2024-11-07",
+        "description": "Presented quantum version of k-nearest neighbor implementation.",
+        "role": "Speaker",
+        "url": "https://gdgpisa.it/"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "F**k LinkedIn",
+        "type": "talk",
+        "venue": "Dipartimento di Informatica, Pisa",
+        "date": "2025-10-04",
+        "description": "Presentation on the importance of communicating scientific results and using LinkedIn to disseminate research.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Ho Teletrasportato dei dati usando un PC Quantistico - nFire YouTube",
+        "type": "talk",
+        "venue": "YouTube, nFire channel",
+        "date": "2024-09-05",
+        "description": "Invited by Danilo Belvedere on nFire YouTube channel to explain key aspects of quantum computing and tutorial on Quantum Teleportation using Qiskit.",
+        "role": "Speaker",
+        "url": "https://youtu.be/24kdWcUuJn8?si=10NfvjoKdSq3cDvM"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Tra 0 e 1: non solo computer quantistici - Incontri con la Scienza Young",
+        "type": "talk",
+        "venue": "Incontri con la Scienza Young, Piombino, Livorno",
+        "date": "2023-04-17",
+        "description": "Presented study and career path to high school students.",
+        "role": "Speaker",
+        "url": "https://www.youtube.com/watch?v=zYmPis4Ab5E"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "How is a Quantum Computer programmed? - GDG DevFest",
+        "type": "workshop",
+        "venue": "Google Developer Group DevFest, Pisa",
+        "date": "2023-04-17",
+        "description": "Workshop on fundamental principles of quantum computing and using Qiskit framework.",
+        "role": "Speaker",
+        "url": "https://devfest.gdgpisa.it/speakers"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Circuits for Noobs - Codemotion Workshop Fest 2023",
+        "type": "workshop",
+        "venue": "Codemotion Workshop Fest 2023, Online",
+        "date": "2023-03-28",
+        "description": "Seminar on fundamental principles of quantum computing with focus on Qiskit framework.",
+        "role": "Speaker",
+        "url": "https://events.hubilo.com/workshop-fest-it-2023/people"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Computing: Lov Grover - pisa.dev",
+        "type": "talk",
+        "venue": "pisa.dev, Casino Dei Nobili, Pisa",
+        "date": "2022-07-15",
+        "description": "Presented Grover's algorithm and the quantum mechanics properties enabling quadratic speedup.",
+        "role": "Speaker",
+        "url": "https://pisa.dev/event/quantum-computing-lov-grover"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Computing for Noobs - Google Developer Student Club",
+        "type": "talk",
+        "venue": "Google Developer Student Club, Online",
+        "date": "2022-02-02",
+        "description": "Talk presenting quantum computing characteristics and opportunities.",
+        "role": "Speaker",
+        "url": "https://bit.ly/49NVYCx"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Ma quantum ne capiamo poco! - Devmy",
+        "type": "talk",
+        "venue": "Devmy, YouTube Live, Online",
+        "date": "2021-07-03",
+        "description": "Interview on YouTube about potentials and challenges of current quantum computers.",
+        "role": "Speaker",
+        "url": "https://www.youtube.com/watch?v=UcfmZ8Hd6Hs"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Computing: From Zero to Classification - Codemotion",
+        "type": "talk",
+        "venue": "Codemotion Online Tech Conference, Online",
+        "date": "2021-03-21",
+        "description": "High-level presentation of the quantum k-nearest neighbor algorithm.",
+        "role": "Speaker",
+        "url": "https://talks.codemotion.com/quantum-computing-from-zero-to-classific"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Leap - Internet Festival",
+        "type": "event",
+        "venue": "Internet Festival, Le Benedettine, Pisa",
+        "date": "2025-10-09",
+        "description": "Presented quantum computing fundamentals through interactive activities with quantum simulators.",
+        "role": "Organizer",
+        "url": "https://www.internetfestival.it/programma/quantum-leap/"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Qubit e Sfere di Bloch: scopri la fisica quantistica - Bright Night 2025",
+        "type": "event",
+        "venue": "Bright Night 2025, Piazza Santa Caterina, Pisa",
+        "date": "2025-09-26",
+        "description": "Demonstrated quantum computing basics through interactive simulators and Quantum Tris board game. Tournament with over 30 participants.",
+        "role": "Organizer",
+        "url": "https://bright-night.it/one-planet-piazza-della-ricerca/"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "IAmAI - How an AI Thinks - Bright Night 2023",
+        "type": "workshop",
+        "venue": "Bright Night 2023, Logge di Banchi, Pisa",
+        "date": "2023-10-29",
+        "description": "Workshop showing how to build a small drone with Arduino guided through Emotiv Insight brain wave detection device.",
+        "role": "Speaker",
+        "url": "https://www.bright-night.it/2023/benvenuti-nei-cyber-mondi"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Researcher Next Door",
+        "type": "event",
+        "venue": "Dipartimento di Informatica, Pisa",
+        "date": "2023-05",
+        "description": "Organization of weekly events to facilitate knowledge sharing between research groups. May 2023 - June 2024.",
+        "role": "Organizer",
+        "url": "https://unipisa.github.io/ResearchNextDoor"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Dall'Unipi a Google by Antonio Gullì",
+        "type": "event",
+        "venue": "Dipartimento di Informatica, Pisa",
+        "date": "2023-02-20",
+        "description": "Invited Antonio Gullì, Senior Director at Google and UniPi alumnus, to present his career path.",
+        "role": "Organizer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Edvige Newsletter",
+        "type": "other",
+        "venue": "Dipartimento di Informatica, Pisa",
+        "date": "2022-05",
+        "description": "Created monthly newsletter for the Computer Science Department to raise awareness of researchers' activities. May 2022 - August 2024.",
+        "role": "Organizer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Diversity & Inclusion by Erika Yaug, Microsoft Director",
+        "type": "event",
+        "venue": "Polo Fibonacci, Pisa",
+        "date": "2021-12-07",
+        "description": "Invited Erika Yaug, Microsoft Director, to raise awareness on Diversity and Inclusion topics.",
+        "role": "Organizer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Quantum Tic Tac Toe - Bright Night 2021",
+        "type": "event",
+        "venue": "Bright Night 2021, Logge dei Banchi, Pisa",
+        "date": "2021-09-24",
+        "description": "Presented key quantum computing concepts through the quantum version of Tic Tac Toe.",
+        "role": "Speaker",
+        "url": null
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Behind Oracles: Grover's Algorithm & Amplitude Amplification (Article)",
+        "type": "other",
+        "venue": "Towards Data Science, Medium",
+        "date": "2022-09-24",
+        "description": "Divulgative article on oracle and diffuser concepts in quantum computing and SAT problem solving.",
+        "role": "Speaker",
+        "url": "https://bit.ly/3ss5XwD"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Visualizing Quantum Computation (Article)",
+        "type": "other",
+        "venue": "Towards Data Science, Medium",
+        "date": "2021-02-14",
+        "description": "Article presenting the quantum version of K-Nearest Neighbors through visual illustrations.",
+        "role": "Speaker",
+        "url": "https://bit.ly/3IujBUM"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "LinkedIn API + Python = Programmatically Publishing (Article)",
+        "type": "other",
+        "venue": "Towards Data Science, Medium",
+        "date": "2020-11-11",
+        "description": "Step-by-step guide for creating automated content publishing software on LinkedIn using APIs.",
+        "role": "Speaker",
+        "url": "https://bit.ly/4fxNoKr"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Flutter + Stripe Connect + 3DSecure (SCA) (Article)",
+        "type": "other",
+        "venue": "ITNEXT, Medium",
+        "date": "2020-08-03",
+        "description": "Article on integrating Stripe Connect with 3D Secure authentication in a Flutter application.",
+        "role": "Speaker",
+        "url": "https://bit.ly/3VQQd1W"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Università di Pisa, Dipartimento di Informatica",
+        "title": "Teaching Assistant - Introduction to Quantum Computing (LM-18)",
+        "start_date": "2023-02-23",
+        "end_date": "2023-05-19",
+        "description": "Held lab lectures introducing Qiskit SDK, Quantum Teleportation, Grover's algorithm, QFT, and state preparation techniques. 20 hours.",
+        "location": "Pisa, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Università di Pisa, Dipartimento di Informatica",
+        "title": "Teaching Assistant - Laboratorio I (LM-31)",
+        "start_date": "2022-02-14",
+        "end_date": "2022-05-27",
+        "description": "Assisted students in implementing algorithms for trees, graphs, languages, grammars, dictionaries and hash tables using JavaScript and TypeScript. 20 hours.",
+        "location": "Pisa, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Università di Pisa, Dipartimento di Informatica",
+        "title": "Teaching Assistant - Programmazione ed Algoritmica (L-31)",
+        "start_date": "2021-02-12",
+        "end_date": "2021-05-15",
+        "description": "Assisted students in programming and algorithms course. Introduced competitive programming problems and built a Discord bot. 20 hours.",
+        "location": "Pisa, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum subroutine for variance estimation: algorithmic design and applications",
+        "venue": "Quantum Machine Intelligence 6.2 (2024)",
+        "date": "2024",
+        "doi": "doi.org/10.1007/s42484-024-00213-9",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum Subroutine for Efficient Matrix Multiplication",
+        "venue": "IEEE Access (2024)",
+        "date": "2024",
+        "doi": "10.1109/ACCESS.2024.3446176",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "The role of encodings and distance metrics for the quantum nearest neighbor",
+        "venue": "Quantum Machine Intelligence 6.2 (2024)",
+        "date": "2024",
+        "doi": "10.1007/s42484-024-00197-6",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum clustering with k-Means: A hybrid approach",
+        "venue": "Theoretical Computer Science 992 (2024)",
+        "date": "2024",
+        "doi": "10.1016/j.tcs.2024.114466",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "XOR-AND-XOR Logic Forms for Autosymmetric Functions and Applications to Quantum Computing",
+        "venue": "IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems 42.6 (2023)",
+        "date": "2023",
+        "doi": "10.1109/TCAD.2022.3213214",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Efficient Quantum State Preparation with Bucket Brigade QRAM",
+        "venue": "Under Revision",
+        "date": null,
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Outlier Detection and other applications of Quantum Matrix Multiplication",
+        "venue": "2025 IEEE International Parallel and Distributed Processing Symposium Workshops (IPDPSW)",
+        "date": "2025",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Variational Compression of Circuits for State Preparation",
+        "venue": "2024 IEEE International Conference on Quantum Computing and Engineering (QCE)",
+        "date": "2024",
+        "doi": "10.1109/QCE60285.2024.10250",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Logarithmic Quantum Forking",
+        "venue": "Proceedings of ESANN 2023",
+        "date": "2023",
+        "doi": "10.14428/esann/2023.ES2023-93",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum feature selection with variance estimation",
+        "venue": "Proceedings of ESANN 2023",
+        "date": "2023",
+        "doi": "10.14428/esann/2023.ES2023-99",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Effect of Different Encodings and Distance Functions on Quantum Instance-Based Classifiers",
+        "venue": "Advances in Knowledge Discovery and Data Mining (PAKDD 2022), Springer",
+        "date": "2022",
+        "doi": "10.1007/978-3-031-05936-0_8",
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Clustering Classical Data with Quantum k-Means",
+        "venue": "Proceedings of the 23rd Italian Conference on Theoretical Computer Science, CEUR Workshop Proceedings, Roma",
+        "date": "2022",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Variational Compression of Circuits for State Preparation (AIQxQIA Workshop)",
+        "venue": "2nd International Workshop on AI for Quantum and Quantum for AI (AIQxQIA) 2025",
+        "date": "2025",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Efficient quantum state preparation with Bucket Brigade QRAM (QCSC Workshop)",
+        "venue": "QCSC 2025 Workshop",
+        "date": "2025",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "quWire: Quantum Simulation at Wire Speed on FPGA",
+        "venue": "BigHPC2024 Special Track of Italian Conference on Big Data and Data Science (ITADATA2022)",
+        "date": "2024",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum Based Outlier Detection",
+        "venue": "Workshop on Quantum Artificial Intelligence, Napoli, Italia, 2023",
+        "date": "2023",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum Reservoir Computing Approach to Error-Mitigated Compilation",
+        "venue": "2023",
+        "date": "2023",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Efficient quantum state preparation with Bucket Brigade QRAM (QIP Poster)",
+        "venue": "Quantum Information Processing (QIP) Conference, Riga, Latvia, 2025",
+        "date": "2025",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Efficient quantum state preparation with Bucket Brigade QRAM (QTML Poster)",
+        "venue": "Quantum Techniques on Machine Learning (QTML), Singapore, 2025",
+        "date": "2025",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Variational Decision Trees with Structured Ansatzes",
+        "venue": "Proceedings of the 6th IEEE International Conference on Quantum Computing and Engineering, 2025",
+        "date": "2025",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "SQMS Quantum R&D in Machine Learning, Optimization and Sensing beyond Fundamental Physics Applications",
+        "venue": "Fermi National Accelerator Laboratory (FNAL), 2024",
+        "date": "2024",
+        "doi": "10.2172/2448569",
+        "url": "https://www.osti.gov/biblio/2448569",
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Logarithmic Quantum Forking (QIP Poster)",
+        "venue": "Quantum Information Processing (QIP), Ghent, Belgium, 2023",
+        "date": "2023",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Quantum Reservoir Computing inspired study to compile unitaries in Many-Body Systems and NISQ Devices",
+        "venue": "Quantum Techniques on Machine Learning (QTML), Geneva, Switzerland, 2023",
+        "date": "2023",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Effects of Different Encodings and Distance Functions on Quantum Instance-based Classifiers (QTML Poster)",
+        "venue": "Quantum Techniques on Machine Learning (QTML), Tokyo, Japan, 2021",
+        "date": "2021",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Effectiveness of Quantum Algorithms: From Compilation to Measurement (PhD Thesis)",
+        "venue": "Università di Pisa",
+        "date": "2024-05",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "Sviluppo di un plugin per visualizzazione ed analisi della blockchain di Bitcoin (BSc Thesis)",
+        "venue": "Università di Pisa",
+        "date": "2017-12",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "publication",
+      "properties": {
+        "title": "A Fully Distributed IoT Layer using Blockchain & IPFS with Case Study and Formal Analysis (MSc Thesis)",
+        "venue": "Università di Pisa",
+        "date": "2020-06",
+        "doi": null,
+        "url": null,
+        "abstract": null
+      }
+    },
+    {
+      "node_type": "language",
+      "properties": {
+        "name": "Italian",
+        "proficiency": "Native"
+      }
+    },
+    {
+      "node_type": "language",
+      "properties": {
+        "name": "English",
+        "proficiency": "C1"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum Computing",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum Machine Learning",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum State Preparation",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Variational Quantum Algorithms",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum Algorithms",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Python",
+        "category": "Programming",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Java",
+        "category": "Programming",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "C",
+        "category": "Programming",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "C++",
+        "category": "Programming",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Qiskit",
+        "category": "Framework",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "PennyLane",
+        "category": "Framework",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Jupyter",
+        "category": "Tool",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Visual Studio Code",
+        "category": "Tool",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Roo Code",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Claude Code",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Blockchain",
+        "category": "Research Area",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Ethereum",
+        "category": "Domain Knowledge",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Smart Contracts",
+        "category": "Domain Knowledge",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Dart",
+        "category": "Programming",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Flutter",
+        "category": "Framework",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Stripe API",
+        "category": "Tool",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "IPFS",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "IoT",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "JavaScript",
+        "category": "Programming",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "TypeScript",
+        "category": "Programming",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Machine Learning",
+        "category": "Research Area",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Data Science",
+        "category": "Research Area",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Arduino",
+        "category": "Tool",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Reservoir Computing",
+        "category": "Research Area",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum Circuit Compilation",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Outlier Detection",
+        "category": "Research Area",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Clustering",
+        "category": "Methodology",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Classification",
+        "category": "Methodology",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "K-Nearest Neighbors",
+        "category": "Methodology",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "FPGA",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Adobe Premiere",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Adobe Illustrator",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Adobe After Effects",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Autodesk 3ds Max",
+        "category": "Tool",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Hyperledger",
+        "category": "Framework",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Community Building",
+        "category": "Soft Skill",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Mentorship",
+        "category": "Soft Skill",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Public Speaking",
+        "category": "Soft Skill",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Entrepreneurship",
+        "category": "Soft Skill",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Scientific Communication",
+        "category": "Soft Skill",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Event Organization",
+        "category": "Soft Skill",
+        "proficiency": "Advanced"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Discord Bot Development",
+        "category": "Other",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Gephi",
+        "category": "Tool",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Grover's Algorithm",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Quantum Fourier Transform",
+        "category": "Research Area",
+        "proficiency": "Expert"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "LinkedIn API",
+        "category": "Tool",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "HPC",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
       }
     }
   ],
-  "relationships": [],
-  "unmatched": []
+  "relationships": [
+    {
+      "from_index": 0,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 139,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 140,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 167,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 159,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 154,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 155,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 144,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 140,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 139,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 6,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 6,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 6,
+      "to_index": 166,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 139,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 7,
+      "to_index": 167,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 8,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 8,
+      "to_index": 154,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 8,
+      "to_index": 155,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 9,
+      "to_index": 186,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 9,
+      "to_index": 179,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 10,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 10,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 11,
+      "to_index": 185,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 11,
+      "to_index": 184,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 12,
+      "to_index": 156,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 12,
+      "to_index": 157,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 12,
+      "to_index": 158,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 12,
+      "to_index": 148,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 13,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 13,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 13,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 13,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 14,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 14,
+      "to_index": 185,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 15,
+      "to_index": 161,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 15,
+      "to_index": 160,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 16,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 16,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 16,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 17,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 17,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 18,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 18,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 19,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 19,
+      "to_index": 139,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 19,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 20,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 20,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 21,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 22,
+      "to_index": 186,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 23,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 23,
+      "to_index": 159,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 25,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 25,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 26,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 26,
+      "to_index": 154,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 27,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 27,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 28,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 28,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 29,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 29,
+      "to_index": 172,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 30,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 30,
+      "to_index": 163,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 31,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 31,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 32,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 32,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 33,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 33,
+      "to_index": 154,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 33,
+      "to_index": 155,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 33,
+      "to_index": 159,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 34,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 35,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 35,
+      "to_index": 164,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 36,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 36,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 37,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 37,
+      "to_index": 140,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 37,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 38,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 38,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 38,
+      "to_index": 139,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 39,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 39,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 39,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 40,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 40,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 40,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 41,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 41,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 41,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 42,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 42,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 42,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 42,
+      "to_index": 149,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 43,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 43,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 43,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 44,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 44,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 44,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 45,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 45,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 46,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 46,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 46,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 47,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 47,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 48,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 48,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 48,
+      "to_index": 192,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 48,
+      "to_index": 193,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 49,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 49,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 50,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 50,
+      "to_index": 163,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 51,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 51,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 51,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 52,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 52,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 52,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 53,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 53,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 54,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 54,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 55,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 55,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 56,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 56,
+      "to_index": 139,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 56,
+      "to_index": 167,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 57,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 57,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 57,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 58,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 58,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 59,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 59,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 60,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 60,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 61,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 61,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 62,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 62,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 63,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 63,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 64,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 64,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 65,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 65,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 66,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 66,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 66,
+      "to_index": 165,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 67,
+      "to_index": 189,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 67,
+      "to_index": 190,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 68,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 68,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 69,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 69,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 70,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 70,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 71,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 71,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 72,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 72,
+      "to_index": 192,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 73,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 73,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 73,
+      "to_index": 172,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 74,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 75,
+      "to_index": 148,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 75,
+      "to_index": 158,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 76,
+      "to_index": 161,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 76,
+      "to_index": 160,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 76,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 77,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 77,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 77,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 78,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 78,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 78,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 79,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 79,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 80,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 80,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 80,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 81,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 81,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 81,
+      "to_index": 169,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 82,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 82,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 82,
+      "to_index": 140,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 83,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 83,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 83,
+      "to_index": 170,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 84,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 84,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 84,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 85,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 85,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 85,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 86,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 86,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 86,
+      "to_index": 163,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 87,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 87,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 88,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 88,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 89,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 89,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 89,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 90,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 90,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 90,
+      "to_index": 173,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 91,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 91,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 91,
+      "to_index": 166,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 92,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 92,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 92,
+      "to_index": 162,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 93,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 93,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 94,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 94,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 94,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 95,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 95,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 96,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 96,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 96,
+      "to_index": 140,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 97,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 97,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 97,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 98,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 98,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 98,
+      "to_index": 166,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 99,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 99,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 99,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 100,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 100,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 101,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 101,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 101,
+      "to_index": 166,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 102,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 102,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 103,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 103,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 104,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 104,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 104,
+      "to_index": 167,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 105,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 105,
+      "to_index": 144,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 106,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 106,
+      "to_index": 159,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 106,
+      "to_index": 155,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 107,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 107,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 107,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 107,
+      "to_index": 192,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 107,
+      "to_index": 193,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 108,
+      "to_index": 161,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 108,
+      "to_index": 160,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 108,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 109,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 109,
+      "to_index": 188,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 110,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 110,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 110,
+      "to_index": 192,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 111,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 111,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 111,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 112,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 112,
+      "to_index": 171,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 113,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 113,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 113,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 114,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 114,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 114,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 115,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 115,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 115,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 116,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 116,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 117,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 117,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 118,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 118,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 118,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 119,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 119,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 120,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 120,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 121,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 121,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 122,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 122,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 123,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 123,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 124,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 124,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 124,
+      "to_index": 141,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 125,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 125,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 125,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 126,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 126,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 127,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 127,
+      "to_index": 144,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 128,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 128,
+      "to_index": 159,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 128,
+      "to_index": 155,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 129,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 129,
+      "to_index": 192,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 129,
+      "to_index": 193,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 129,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 130,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 130,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 130,
+      "to_index": 172,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 131,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 131,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 132,
+      "to_index": 143,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 132,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 132,
+      "to_index": 142,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 132,
+      "to_index": 147,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 133,
+      "to_index": 138,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 133,
+      "to_index": 167,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 134,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 134,
+      "to_index": 144,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 135,
+      "to_index": 153,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 135,
+      "to_index": 159,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 135,
+      "to_index": 155,
+      "type": "USED_SKILL"
+    }
+  ],
+  "unmatched": [
+    "Pisa Quantum Group membership (from 11/2024, Università di Pisa)",
+    "Applications Beyond Fundamental Physics group membership (from 06/2024, SQMS Fermilab)",
+    "Algorithms Thrust group membership (from 08/2022, SQMS Fermilab)",
+    "Quantum Algorithms Group membership (from 09/2020, Università di Pisa)",
+    "QTEdu - Quantum Technology Education affiliation (from 2023)",
+    "Gruppo Nazionale Calcolo Scientifico (GNCS/INdAM) affiliation (from 2022)",
+    "Reviewer for: Scientific Reports, Journal of Visualized Experiments, JDSA, Quantum Information Processing, The Journal of Supercomputing, IEEE QCE 2025, FGCS, IEEE TQE, IEEE QCE 2024, Quantum Machine Intelligence, CPM 2024, PAKDD 2024, PAKDD 2023, CIKM 2022",
+    "Book reviewer: Building Quantum Software with Python (Manning Publications, 2024)",
+    "Thesis supervision: 8 undergraduate and graduate theses supervised at Università di Pisa (2021-2025)",
+    "Orientation seminars at Università di Pisa and high schools (multiple events 2021-2025)"
+  ]
 }
