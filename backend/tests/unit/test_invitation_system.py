@@ -445,7 +445,7 @@ async def test_cleanup_creates_deletion_records():
     """Verify _cleanup_expired_accounts creates DeletionRecord nodes."""
     from unittest.mock import MagicMock
 
-    from app.main import _cleanup_expired_accounts
+    from app.main import cleanup_expired_accounts
 
     mock_session = AsyncMock()
     # First call: find expired accounts — return one user
@@ -479,11 +479,9 @@ async def test_cleanup_creates_deletion_records():
     mock_driver.session.return_value = mock_session_context
 
     with (
-        patch("app.main.delete_stored_cvs"),
-        patch("app.main.delete_user_drafts"),
-        patch("app.main.delete_user_snapshots"),
+        patch("app.main.get_driver", AsyncMock(return_value=mock_driver)),
     ):
-        await _cleanup_expired_accounts(mock_driver)
+        await cleanup_expired_accounts()
 
     # Check that a CREATE (d:DeletionRecord ...) query was issued
     assert any("DeletionRecord" in q for q in queries_seen), (

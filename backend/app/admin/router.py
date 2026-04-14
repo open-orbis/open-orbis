@@ -453,3 +453,14 @@ async def _cleanup_secondary_storage(user_id: str) -> None:
         from app.snapshots.db import delete_all_for_user as delete_snapshots
 
         await delete_snapshots(user_id)
+
+
+@router.post("/cleanup")
+async def run_cleanup(
+    _admin: dict = Depends(require_admin),
+):
+    """Run expired-account cleanup. Intended for Cloud Scheduler."""
+    from app.main import cleanup_expired_accounts
+
+    count = await cleanup_expired_accounts()
+    return {"status": "ok", "deleted": count}
