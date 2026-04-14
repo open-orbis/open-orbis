@@ -1,0 +1,385 @@
+{
+  "nodes": [
+    {
+      "node_type": "education",
+      "properties": {
+        "institution": "University of Pisa",
+        "degree": "Bachelor's Degree",
+        "field_of_study": "Computer Science",
+        "start_date": "2021-09",
+        "end_date": null,
+        "description": "Key Learnings: Familiarity with different algorithmic paradigms, asymptotic analysis of computational cost, and computational problems. Practical experience working with essential data structures such as arrays, linked lists, trees, and graphs. Proficiencies in object-oriented and functional programming. Learned the basic use of JavaScript, TypeScript, Java, C, Python. Exploration of cloud service models and the potential offered by cloud computing for application development and management, including hands-on experience at a fundamental level with Docker, AWS, and other cloud services. Knowledge of fundamental cryptographic primitives, public key cryptography, digital signatures, pseudo-random number generation, and basic protocols and their computational complexity requirements.",
+        "location": "Pisa, Italy"
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Amazon",
+        "title": "SDE Intern @ AWS",
+        "start_date": "2025-02",
+        "end_date": "2025-08",
+        "description": "Created a framework that improves the user experience for CloudWatch customers by enhancing the way alarms are communicated. Developed feature specifications and design documentation, establishing both functional requirements and overall architecture, then collaborated with the team to review and refine them based on feedback. Built the feature in the CloudWatch repository in Java, integrating with other AWS services.",
+        "location": "Dublin, Ireland",
+        "company_url": "https://aws.amazon.com"
+      }
+    },
+    {
+      "node_type": "outreach",
+      "properties": {
+        "title": "Pisa.dev Organizer",
+        "type": "event",
+        "venue": "Pisa.dev",
+        "date": "2023-05",
+        "description": "Engaged in actively organizing events, meetups, and activities for pisa.dev developer community. Pisa.dev is a community of about 500 people, which aims to foster knowledge exchange and professional growth by organizing free events every month. Facilitate meaningful networking and knowledge-sharing experiences within the local developer community. Organized 10+ events in the first year of the community.",
+        "role": "Organizer",
+        "url": null
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Samsung Innovation Campus",
+        "provider": "Samsung",
+        "date": "2024-10",
+        "description": "A project that aims to train a group of young problem-solvers with the technological knowledge and soft skills to successfully enter AI and IoT business work settings.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "work_experience",
+      "properties": {
+        "company": "Dog Training Center",
+        "title": "Dog Educator and Agility Dog Instructor",
+        "start_date": "2019-10",
+        "end_date": "2024-01",
+        "description": "Involved in the management of a dog center and the organization of competitions. Training dogs and educating dog owners about responsible pet ownership to create a harmonious relationship between the dog and its owner through positive reinforcement techniques and effective communication. Work with both dogs and their handlers to improve coordination, timing, and teamwork.",
+        "location": "Perugia, Italy",
+        "company_url": ""
+      }
+    },
+    {
+      "node_type": "training",
+      "properties": {
+        "title": "Superhero Valley",
+        "provider": "Superhero Valley",
+        "date": "2023-12",
+        "description": "Participated in the exercise group and followed the community talks. Superhero Valley is an Italian community that prepares for Big Tech Company interviews. Organizing talks, group exercises, and mock interviews.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "award",
+      "properties": {
+        "name": "Scientific Olympiad",
+        "issuing_organization": "Scientific Olympiad (Italy)",
+        "date": "2016",
+        "description": "Participation in both the Mathematics and the Computer Science Olympiad, involving tests on the logical aspects of those disciplines. Participation in the Science Olympiad, which involved taking tests regarding knowledge about the natural sciences, such as biology and Earth sciences.",
+        "url": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Java",
+        "category": "Programming",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "JavaScript",
+        "category": "Programming",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "TypeScript",
+        "category": "Programming",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "C",
+        "category": "Programming",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Python",
+        "category": "Programming",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Docker",
+        "category": "Tool",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "AWS",
+        "category": "Tool",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Cloud Computing",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Object-Oriented Programming",
+        "category": "Methodology",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Functional Programming",
+        "category": "Methodology",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Data Structures",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Algorithms",
+        "category": "Domain Knowledge",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Cryptography",
+        "category": "Domain Knowledge",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Software Design",
+        "category": "Methodology",
+        "proficiency": "Intermediate"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Community Organizing",
+        "category": "Soft Skill",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "AI",
+        "category": "Research Area",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "IoT",
+        "category": "Domain Knowledge",
+        "proficiency": "Beginner"
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Event Management",
+        "category": "Soft Skill",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Teamwork",
+        "category": "Soft Skill",
+        "proficiency": null
+      }
+    },
+    {
+      "node_type": "skill",
+      "properties": {
+        "name": "Communication",
+        "category": "Soft Skill",
+        "proficiency": null
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "from_index": 0,
+      "to_index": 8,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 9,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 10,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 11,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 12,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 14,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 15,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 16,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 17,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 18,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 19,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 0,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 7,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 13,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 14,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 20,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 1,
+      "to_index": 25,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 21,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 2,
+      "to_index": 24,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 22,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 3,
+      "to_index": 23,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 26,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 4,
+      "to_index": 24,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 18,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 5,
+      "to_index": 25,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 6,
+      "to_index": 18,
+      "type": "USED_SKILL"
+    },
+    {
+      "from_index": 6,
+      "to_index": 19,
+      "type": "USED_SKILL"
+    }
+  ],
+  "unmatched": []
+}

@@ -186,6 +186,23 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     )
 
 
+# In production, Firebase Hosting rewrites /api/** → Cloud Run.
+# The /api prefix is NOT stripped, so all routers must be mounted under /api.
+# In development, Vite proxies /api/** → localhost:8000 and strips the prefix,
+# so we also mount without prefix for backward compatibility.
+_API_PREFIX = "/api"
+
+app.include_router(auth_router, prefix=_API_PREFIX)
+app.include_router(orbs_router, prefix=_API_PREFIX)
+app.include_router(cv_router, prefix=_API_PREFIX)
+app.include_router(export_router, prefix=_API_PREFIX)
+app.include_router(notes_router, prefix=_API_PREFIX)
+app.include_router(drafts_router, prefix=_API_PREFIX)
+app.include_router(search_router, prefix=_API_PREFIX)
+app.include_router(admin_router, prefix=_API_PREFIX)
+app.include_router(ideas_router, prefix=_API_PREFIX)
+
+# Also mount without prefix for dev (Vite proxy strips /api)
 app.include_router(auth_router)
 app.include_router(orbs_router)
 app.include_router(cv_router)

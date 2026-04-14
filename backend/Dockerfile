@@ -10,5 +10,6 @@ COPY --from=builder /app/.venv /app/.venv
 COPY app/ app/
 COPY mcp_server/ mcp_server/
 ENV PATH="/app/.venv/bin:$PATH"
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV PORT=8080
+EXPOSE 8080
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
