@@ -11,8 +11,8 @@ CREATE (p:Person {
     picture: $picture,
     provider: $provider,
     signup_code: $signup_code,
-    waitlist_joined: false,
-    waitlist_joined_at: null,
+    waitlist_joined: true,
+    waitlist_joined_at: datetime(),
     is_admin: false,
     headline: '',
     location: '',
@@ -303,7 +303,7 @@ RETURN
 """
 
 # Pending users: registered but not yet activated (no signup_code, not admin),
-# and explicitly opted into the waitlist via CTA.
+# and currently marked as joined to the waitlist.
 
 LIST_PENDING_PERSONS = """
 MATCH (p:Person)

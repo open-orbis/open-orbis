@@ -259,6 +259,18 @@ def test_join_waitlist_returns_404_when_user_missing(client, mock_db):
     assert response.json()["detail"] == "User not found"
 
 
+def test_delete_me_also_clears_waitlist_flags(client, mock_db):
+    with patch("app.auth.router.revoke_all_for_user", AsyncMock(return_value=None)):
+        response = client.delete("/auth/me")
+
+    assert response.status_code == 200
+    run_mock = mock_db.session.return_value.__aenter__.return_value.run
+    called_query = run_mock.await_args.args[0]
+    assert "p.deletion_requested_at = $now" in called_query
+    assert "p.waitlist_joined = false" in called_query
+    assert "p.waitlist_joined_at = null" in called_query
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Admin endpoints
 # ─────────────────────────────────────────────────────────────────────────

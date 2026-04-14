@@ -494,7 +494,11 @@ async def delete_me(
     now = datetime.now(timezone.utc).isoformat()
     async with db.session() as session:
         await session.run(
-            "MATCH (p:Person {user_id: $user_id}) SET p.deletion_requested_at = $now",
+            "MATCH (p:Person {user_id: $user_id}) "
+            "SET p.deletion_requested_at = $now, "
+            "    p.waitlist_joined = false, "
+            "    p.waitlist_joined_at = null, "
+            "    p.updated_at = datetime()",
             user_id=current_user["user_id"],
             now=now,
         )

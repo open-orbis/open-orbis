@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { activateAccount, getMe, joinWaitlist } from '../api/auth';
+import { activateAccount, deleteAccount, getMe } from '../api/auth';
 import { useAuthStore } from '../stores/authStore';
 import { hasOrbContent } from '../api/orbs';
 
@@ -18,14 +18,9 @@ export default function ActivatePage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [joiningWaitlist, setJoiningWaitlist] = useState(false);
-  const [joinedWaitlist, setJoinedWaitlist] = useState<boolean>(Boolean(user?.waitlist_joined));
-  const [waitlistError, setWaitlistError] = useState<string | null>(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [accountRemovalError, setAccountRemovalError] = useState<string | null>(null);
   const navigatingRef = useRef(false);
-
-  useEffect(() => {
-    setJoinedWaitlist(Boolean(user?.waitlist_joined));
-  }, [user?.waitlist_joined]);
 
   const goToApp = useCallback(async () => {
     if (navigatingRef.current) return;
@@ -72,18 +67,17 @@ export default function ActivatePage() {
     navigate('/', { replace: true });
   };
 
-  const handleJoinWaitlist = async () => {
-    if (joinedWaitlist || joiningWaitlist) return;
-    setWaitlistError(null);
-    setJoiningWaitlist(true);
+  const handleRemoveWaitlistAndDelete = async () => {
+    if (deletingAccount) return;
+    setAccountRemovalError(null);
+    setDeletingAccount(true);
     try {
-      await joinWaitlist();
-      setJoinedWaitlist(true);
-      await fetchUser();
+      await deleteAccount();
+      await logout();
+      navigate('/', { replace: true });
     } catch {
-      setWaitlistError('Could not join the waiting list. Please try again.');
-    } finally {
-      setJoiningWaitlist(false);
+      setAccountRemovalError('Could not remove your account right now. Please try again.');
+      setDeletingAccount(false);
     }
   };
 
@@ -150,7 +144,7 @@ export default function ActivatePage() {
           </motion.div>
         )}
 
-        {/* Waitlist opt-in */}
+        {/* Waitlist status */}
         <div className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-gradient-to-br from-white/[0.06] via-white/[0.03] to-transparent px-5 py-5 mb-5 text-left backdrop-blur-sm">
           <div className="pointer-events-none absolute -right-10 -top-12 h-32 w-32 rounded-full bg-emerald-400/10 blur-2xl" />
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_45%)]" />
@@ -162,27 +156,25 @@ export default function ActivatePage() {
             </div>
 
             <p className="text-white/70 text-sm leading-relaxed mb-4">
-              Don&apos;t have a code yet? Join the waiting list and we&apos;ll contact you as soon as access opens.
+              You&apos;ve been automatically added to the waiting list. We&apos;ll notify you when your account is activated.
             </p>
 
-            {joinedWaitlist ? (
-              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-3.5 py-2.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-                <span className="text-emerald-100 text-sm font-medium">You&apos;re on the waiting list</span>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleJoinWaitlist}
-                disabled={joiningWaitlist}
-                className="w-full flex items-center justify-center rounded-xl border border-emerald-300/35 bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-950 text-sm font-semibold px-5 py-2.5 shadow-[0_10px_28px_-14px_rgba(16,185,129,0.9)] transition-all"
-              >
-                {joiningWaitlist ? 'Joining...' : 'Join waiting list'}
-              </button>
-            )}
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/35 bg-emerald-500/12 px-3.5 py-2.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
+              <span className="text-emerald-100 text-sm font-medium">You&apos;re on the waiting list</span>
+            </div>
 
-            {waitlistError && (
-              <p className="text-amber-300/90 text-xs mt-3">{waitlistError}</p>
+            <button
+              type="button"
+              onClick={handleRemoveWaitlistAndDelete}
+              disabled={deletingAccount}
+              className="w-full mt-4 flex items-center justify-center rounded-xl border border-red-300/35 bg-gradient-to-r from-red-500/90 to-orange-500/90 hover:from-red-400 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-red-50 text-sm font-semibold px-5 py-2.5 shadow-[0_10px_28px_-14px_rgba(248,113,113,0.9)] transition-all"
+            >
+              {deletingAccount ? 'Removing and deleting...' : 'Remove from waitlist and delete my account'}
+            </button>
+
+            {accountRemovalError && (
+              <p className="text-amber-300/90 text-xs mt-3">{accountRemovalError}</p>
             )}
           </div>
         </div>
