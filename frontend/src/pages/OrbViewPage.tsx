@@ -12,6 +12,7 @@ import {
 } from '../api/orbs';
 import type { OrbVisibility } from '../api/orbs';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
+import OrbisStatsOverlay from '../components/graph/OrbisStatsOverlay';
 import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
@@ -873,6 +874,13 @@ export default function OrbViewPage() {
           onCameraDistanceChange={handleCameraDistanceChange}
         />
       </div>
+      {!isPendingDeletion && (
+        <OrbisStatsOverlay
+          data={data}
+          filteredNodeIds={filteredNodeIds}
+          hiddenNodeTypes={hiddenNodeTypes}
+        />
+      )}
 
       {/* NodeTypeFilter moved to header bar */}
 
