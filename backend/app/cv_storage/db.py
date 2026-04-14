@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from app.db.postgres import get_pool
 
@@ -17,7 +18,7 @@ async def insert_document(
     page_count: int,
     entities_count: int | None,
     edges_count: int | None,
-    now: str,
+    now: datetime,
 ) -> dict:
     pool = await get_pool()
     await pool.execute(

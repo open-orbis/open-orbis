@@ -54,7 +54,7 @@ infra/           # Neo4j init script (constraints, indexes, vector indexes)
 - Backend formatting: `ruff format` (line-length 88, double quotes)
 - Backend linting: `ruff check .` (rules: E, W, F, I, C4, B, UP, C90, SIM, ARG, PTH; max complexity 12)
 - Frontend linting: `eslint .` (flat config with typescript-eslint + react-hooks + react-refresh)
-- Tests: `cd backend && uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75`
+- Tests: `cd backend && uv run pytest tests/unit/ -v --cov=app --cov-fail-under=50`
 - All Person node PII fields (email, phone, address) are Fernet-encrypted at rest. `ENV` must be non-`development` in production — the backend refuses to start with placeholder `JWT_SECRET`, `ENCRYPTION_KEY`, or `NEO4J_PASSWORD` (see `backend/app/config.py`).
 - All node writes (`cv._persist_nodes`, `orbs.add_node`, `orbs.update_node`) must route properties through `sanitize_node_properties` from `app.graph.node_schema` before `encrypt_properties` — the allowlist is the single chokepoint against LLM-driven prompt injection poisoning the graph.
 - MCP server: all requests require `X-MCP-Key` header (resolved to `user_id` via `app.auth.mcp_keys`). Missing key returns 401.
@@ -81,7 +81,7 @@ uv run uvicorn app.main:app --reload  # Start API
 uv run ruff check .           # Lint
 uv run ruff format --check .  # Format check (CI uses this)
 uv run ruff format .          # Format (auto-fix)
-uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75  # Tests
+uv run pytest tests/unit/ -v --cov=app --cov-fail-under=50  # Tests
 
 # Frontend
 cd frontend

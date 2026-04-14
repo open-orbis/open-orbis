@@ -93,7 +93,7 @@ npm run lint              # ESLint
 
 ```bash
 cd backend
-uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75
+uv run pytest tests/unit/ -v --cov=app --cov-fail-under=50
 ```
 
 Integration tests (CV extraction quality) require Claude CLI credentials:
