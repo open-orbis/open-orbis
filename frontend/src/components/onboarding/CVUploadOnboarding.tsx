@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { uploadCV, getCVProgress, getDocuments, discardCVProgress } from '../../api/cv';
 import type { ExtractedData, ExtractedProfile, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
@@ -512,7 +513,7 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
   useEffect(() => {
     const timer = setInterval(() => {
       setActiveIdeaIdx((prev) => (prev + 1) % PROCESSING_IDEAS.length);
-    }, 2500);
+    }, 3500);
     return () => clearInterval(timer);
   }, []);
 
@@ -589,11 +590,29 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
         </p>
       </div>
 
-      <div className="mt-4 rounded-lg border border-fuchsia-400/20 bg-fuchsia-500/[0.04] px-3 py-2.5 text-left">
-        <p className="text-[10px] font-semibold tracking-[0.14em] text-fuchsia-300/90 uppercase">Ideas While You Wait</p>
-        <p key={activeIdeaIdx} className="mt-1 text-xs text-white/80 leading-relaxed transition-opacity duration-300">
-          {activeIdea}
-        </p>
+      <div className="mt-4 rounded-lg border border-amber-400/25 bg-gradient-to-r from-yellow-500/[0.06] via-amber-500/[0.05] to-orange-500/[0.05] px-3 py-3">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-amber-300/30 bg-amber-500/10">
+            <svg className="h-4.5 w-4.5 text-amber-300/95" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1 text-left">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-amber-200/95 uppercase">Ideas While You Wait</p>
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={activeIdeaIdx}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="mt-1 text-xs text-white/80 leading-relaxed"
+              >
+                {activeIdea}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
     </div>
   );
