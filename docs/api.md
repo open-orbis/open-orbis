@@ -25,6 +25,12 @@ Admin endpoints additionally require `is_admin = true` on the Person node (retur
 | POST | `/auth/gdpr-consent` | JWT | Sets GDPR consent flag on Person node |
 | DELETE | `/auth/me` | JWT | Soft-deletes account (30-day grace period via `deletion_requested_at`) |
 | POST | `/auth/me/recover` | JWT | Cancel pending account deletion |
+| POST | `/auth/refresh` | JWT | Rotate refresh token (returns new access + refresh tokens) |
+| POST | `/auth/logout` | JWT | Revoke refresh token and clear session |
+| POST | `/auth/waitlist/join` | JWT | Opt in to waitlist (sets `waitlist_joined_at` on Person) |
+| POST | `/auth/api-keys` | JWT | Create MCP API key (returns raw key once; server stores SHA-256 hash). Keys use `orbk_` prefix. |
+| GET | `/auth/api-keys` | JWT | List user's API keys (metadata only — `key_id`, `label`, `created_at`, `last_used_at`) |
+| DELETE | `/auth/api-keys/{key_id}` | JWT | Revoke an API key |
 
 ## Admin (`/admin`)
 
@@ -42,7 +48,14 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | DELETE | `/admin/access-codes/{code}` | Admin | Delete unused code |
 | GET | `/admin/pending-users` | Admin | List users registered but not yet activated |
 | GET | `/admin/funnel` | Admin | Waitlist funnel metrics: daily signups/activations, conversion rate (`?days=30`) |
-| GET | `/admin/insights` | Admin | Provider breakdown, avg activation time, code attribution, engagement distribution |
+| GET | `/admin/insights` | Admin | Provider breakdown, avg activation time, code attribution, engagement distribution, LLM usage insights |
+| GET | `/admin/users` | Admin | List all users (paginated) |
+| GET | `/admin/users/{user_id}` | Admin | User detail including `llm_usage` list and `llm_usage_summary` |
+| POST | `/admin/users/{user_id}/activate` | Admin | Manually activate a single user |
+| POST | `/admin/users/activate-batch` | Admin | Batch activate multiple users |
+| POST | `/admin/users/{user_id}/promote` | Admin | Promote user to admin |
+| POST | `/admin/users/{user_id}/demote` | Admin | Remove admin role from user |
+| DELETE | `/admin/users/{user_id}` | Admin | Permanently delete a user |
 
 ## Orbs (`/orbs`)
 
@@ -58,11 +71,22 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | DELETE | `/orbs/me/nodes/{uid}` | JWT | — | Delete node |
 | POST | `/orbs/me/link-skill` | JWT | — | Add `USED_SKILL` relationship |
 | POST | `/orbs/me/unlink-skill` | JWT | — | Remove `USED_SKILL` relationship |
-| POST | `/orbs/me/filter-token` | JWT | — | Generate shareable filter token (JWT with keyword exclusions) |
-| PUT | `/orbs/me/visibility` | JWT | — | Set orb visibility: `private` \| `public` \| `restricted` |
+| DELETE | `/orbs/me/content` | JWT | — | Discard all orb nodes/links (preserves account, CVs, drafts, snapshots) |
+| PUT | `/orbs/me/visibility` | JWT | — | Set orb visibility: `public` \| `restricted` |
+| PUT | `/orbs/me/public-filters` | JWT | — | Save global public-view privacy filters (`keywords`, `hidden_node_types`) |
+| GET | `/orbs/me/public-filters` | JWT | — | Retrieve saved public-view filters |
+| POST | `/orbs/me/share-tokens` | JWT | — | Create share token with optional keyword/hidden-type filters, label, and expiry |
+| GET | `/orbs/me/share-tokens` | JWT | — | List all share tokens (active + revoked) |
+| DELETE | `/orbs/me/share-tokens/{token_id}` | JWT | — | Revoke a share token |
 | POST | `/orbs/me/access-grants` | JWT | — | Grant a specific email access to a `restricted` orb (sends notification email) |
 | GET | `/orbs/me/access-grants` | JWT | — | List active access grants on current user's orb |
 | DELETE | `/orbs/me/access-grants/{grant_id}` | JWT | — | Revoke an access grant |
+| PUT | `/orbs/me/access-grants/{grant_id}/filters` | JWT | — | Update keyword/hidden-type filters for a specific access grant |
+| POST | `/orbs/{orb_id}/connection-requests` | JWT | — | Request access to a restricted orb |
+| GET | `/orbs/{orb_id}/connection-requests/me` | JWT | — | Check if current user has a pending request for this orb |
+| GET | `/orbs/me/connection-requests` | JWT | — | List pending connection requests on the current user's orb |
+| POST | `/orbs/me/connection-requests/{request_id}/accept` | JWT | — | Accept a connection request (creates AccessGrant with optional filters) |
+| POST | `/orbs/me/connection-requests/{request_id}/reject` | JWT | — | Reject a connection request |
 | GET | `/orbs/{orb_id}` | JWT optional | 30/min | Public orb view. `private` → 403; `public` → requires `?token=` share token; `restricted` → requires auth and email on allowlist (owner bypass) |
 
 ## CV (`/cv`)
@@ -78,6 +102,7 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | GET | `/cv/download` | JWT | Download the latest uploaded CV (backward compat, delegates to documents endpoint). |
 | GET | `/cv/processing-count` | No | Count of PDFs currently being processed. |
 | GET | `/cv/progress` | JWT | Real-time progress for current user's CV processing. |
+| POST | `/cv/progress/discard` | JWT | Discard in-progress CV processing. |
 
 ### CV Upload/Import Response
 
@@ -173,3 +198,20 @@ Query params: `?format=json|jsonld|pdf`, `?filter_token=`, `?filter_keyword=`, `
 | POST | `/search/semantic` | JWT | Vector similarity search across 5 Neo4j indexes |
 | POST | `/search/text` | JWT | Fuzzy text search on own orb |
 | POST | `/search/text/public` | No | Fuzzy text search on any public orb (supports `?filter_token=`) |
+
+## Drafts (`/drafts`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/drafts` | JWT | List all draft notes for current user |
+| POST | `/drafts` | JWT | Create a new draft note |
+| PUT | `/drafts/{uid}` | JWT | Update a draft note |
+| DELETE | `/drafts/{uid}` | JWT | Delete a draft note |
+
+## Ideas (`/ideas`)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/ideas` | JWT | Submit a feature idea / feedback |
+| GET | `/admin/ideas` | Admin | List all submitted ideas |
+| DELETE | `/admin/ideas/{idea_id}` | Admin | Delete an idea |

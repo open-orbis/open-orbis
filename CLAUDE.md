@@ -16,20 +16,23 @@
 ```
 backend/
   app/
-    auth/        # JWT auth, Google/LinkedIn OAuth, GDPR consent, account lifecycle, invite code activation
-    admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users, funnel metrics, insights
+    auth/        # JWT auth, Google/LinkedIn OAuth, GDPR consent, account lifecycle, invite code activation, MCP API keys, refresh tokens
+    admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users, funnel metrics, insights, user management
     email/       # Transactional email via Resend (activation notifications, invite codes)
     cv/          # CV PDF parsing (PyMuPDF), LLM classification (Ollama/Claude CLI), rule-based fallback
-    graph/       # Neo4j async driver, Cypher queries, Fernet encryption (MultiFernet + historic keys), node-property allowlist, embeddings (placeholder)
-    orbs/        # Orb (knowledge graph) CRUD, filter tokens for privacy-aware sharing
+    graph/       # Neo4j async driver, Cypher queries, Fernet encryption (MultiFernet + historic keys), node-property allowlist, LLM usage tracking, embeddings (placeholder)
+    orbs/        # Orb (knowledge graph) CRUD, share tokens, access grants, connection requests, visibility management
     notes/       # LLM-enhanced note-to-node conversion
     search/      # Semantic (vector index) and fuzzy text search
     export/      # Public orb export (JSON, JSON-LD, PDF)
+    drafts/      # Draft notes CRUD
+    ideas/       # Feature idea / feedback submission
+    snapshots/   # Orb version snapshots (save, restore, delete)
     main.py      # FastAPI app factory, middleware (CORS, SlowAPI), router registration
     config.py    # Pydantic Settings (env-based)
     rate_limit.py # SlowAPI limiter keyed on user_id (authenticated) / IP (public). Explicit caps on LLM endpoints: /cv/upload 3/min, /cv/import 3/min, /notes/enhance 10/min.
     dependencies.py # get_db, get_current_user (JWT bearer), require_admin
-  mcp_server/    # MCP server exposing orb graph to AI agents (6 tools)
+  mcp_server/    # MCP server exposing orb graph to AI agents (5 tools, API key auth via X-MCP-Key)
   tests/
     unit/        # pytest unit tests (mocked Neo4j, no external deps)
     integration/ # CV extraction quality tests (calls real Claude CLI)
@@ -38,9 +41,9 @@ backend/
 frontend/
   src/
     api/         # Axios client (baseURL /api, auth interceptor, 401 redirect)
-    components/  # React components by domain (graph/, editor/, chat/, cv/, drafts/, landing/, onboarding/)
-    pages/       # Page-level components (Landing, CreateOrb, OrbView, SharedOrb, CvExport, About, Privacy, Activate, Admin)
-    stores/      # Zustand stores (auth, orb, filter, dateFilter, toast)
+    components/  # React components by domain (graph/, editor/, chat/, cv/, drafts/, landing/, onboarding/, layout/, profile/, sharing/)
+    pages/       # Page-level components (Landing, AuthCallback, LinkedInCallback, CreateOrb, OrbView, SharedOrb, CvExport, Privacy, Activate, Admin)
+    stores/      # Zustand stores (auth, orb, filter, dateFilter, toast, undo)
 docs/            # Detailed documentation (see below)
 infra/           # Neo4j init script (constraints, indexes, vector indexes)
 ```
@@ -54,6 +57,7 @@ infra/           # Neo4j init script (constraints, indexes, vector indexes)
 - Tests: `cd backend && uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75`
 - All Person node PII fields (email, phone, address) are Fernet-encrypted at rest. `ENV` must be non-`development` in production — the backend refuses to start with placeholder `JWT_SECRET`, `ENCRYPTION_KEY`, or `NEO4J_PASSWORD` (see `backend/app/config.py`).
 - All node writes (`cv._persist_nodes`, `orbs.add_node`, `orbs.update_node`) must route properties through `sanitize_node_properties` from `app.graph.node_schema` before `encrypt_properties` — the allowlist is the single chokepoint against LLM-driven prompt injection poisoning the graph.
+- MCP server: all requests require `X-MCP-Key` header (resolved to `user_id` via `app.auth.mcp_keys`). Missing key returns 401.
 - Environment config: `.env` (both backend and root), see `.env.example` for template
 - No pre-commit hooks — linting enforced via CI only
 - Backend runs directly (not containerized): `cd backend && uv run uvicorn app.main:app --reload`
@@ -107,6 +111,8 @@ Detailed docs live in `docs/`. Key files:
 - `docs/deployment.md` — production setup, Docker, environment variables
 - `docs/cv-extraction-quality.md` — CV extraction quality metrics and CI
 - `docs/cross-browser-checklist.md` — manual cross-browser smoke test checklist
+- `docs/llm-provider-benchmark.md` — LLM provider evaluation for CV extraction
+- `docs/invitation-system.md` — invite code system and closed-beta flow
 - `docs/navigation-flow.md` — user-flow state diagrams (pages, modals, guards)
 - `docs/navigation-actions.yaml` — action catalog for every UI interaction
 - `docs/agent-navigation-guide.md` — agent traversal strategy for UX evaluation

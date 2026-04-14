@@ -18,7 +18,7 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 | `scholar_url` | string | |
 | `website_url` | string | |
 | `open_to_work` | boolean | |
-| `visibility` | string | `private` (default) \| `public` \| `restricted` — gates `GET /orbs/{orb_id}` |
+| `visibility` | string | `restricted` (default) \| `public` — gates `GET /orbs/{orb_id}` |
 | `profile_image` | string | Base64 data URI |
 | `gdpr_consent` | boolean | |
 | `gdpr_consent_at` | string | ISO datetime |
@@ -56,7 +56,19 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 
 ### Patent
 
-`title`, `patent_number`, `filing_date`, `grant_date`, `status`, `description`, `url`, `uid`
+`title`, `patent_number`, `filing_date`, `grant_date`, `description`, `url`, `uid`
+
+### Award
+
+`name`, `issuer`, `date`, `description`, `uid`
+
+### Outreach
+
+`title`, `venue`, `date`, `description`, `url`, `uid`
+
+### Training
+
+`title`, `provider`, `date`, `description`, `url`, `uid`
 
 ### AccessGrant (restricted-mode allowlist)
 
@@ -73,6 +85,67 @@ Created when a user grants a specific email permission to view their orb while `
 
 Linked via `(Person)-[:GRANTED_ACCESS]->(AccessGrant)`. Parallel to `ShareToken` — share tokens gate `public` orbs, access grants gate `restricted` orbs.
 
+### ConnectionRequest (restricted-mode access request)
+
+Created when a user requests access to a restricted orb. The orb owner reviews and accepts (creating an AccessGrant) or rejects.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `request_id` | string | UUID |
+| `requester_user_id` | string | Requesting user's ID |
+| `requester_email` | string | Lowercase |
+| `requester_name` | string | |
+| `status` | string | `pending` / `accepted` / `rejected` |
+| `created_at` | datetime | |
+| `resolved_at` | datetime | Nullable — set on accept/reject |
+
+Linked via `(Person)-[:HAS_CONNECTION_REQUEST]->(ConnectionRequest)`.
+
+### LLMUsage (per-call usage tracking)
+
+Records every LLM invocation (CV extraction, note enhancement) for cost and token tracking.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `usage_id` | string | UUID |
+| `endpoint` | string | e.g. `/cv/upload`, `/notes/enhance` |
+| `llm_provider` | string | `claude`, `ollama`, `rule_based` |
+| `llm_model` | string | e.g. `claude-opus-4-6`, `llama3.2:3b` |
+| `input_tokens` | integer | Nullable |
+| `output_tokens` | integer | Nullable |
+| `total_tokens` | integer | Nullable (input + output) |
+| `cost_usd` | float | Nullable |
+| `duration_ms` | integer | Nullable |
+| `created_at` | datetime | |
+
+Linked via `(Person)-[:HAS_LLM_USAGE]->(LLMUsage)`.
+
+### RefreshToken
+
+Tracks JWT refresh tokens for token rotation. Old tokens are revoked on refresh.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `token_id` | string | UUID |
+| `hash` | string | SHA-256 of token |
+| `issued_at` | datetime | |
+| `expires_at` | datetime | |
+| `revoked` | boolean | |
+| `replaced_by` | string | Nullable — token_id of replacement |
+
+Linked via `(Person)-[:HAS_REFRESH_TOKEN]->(RefreshToken)`.
+
+### MCPApiKey
+
+API keys for MCP server authentication. Raw key returned once at creation; only the hash is persisted.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `key_id` | string | UUID |
+| `hash` | string | SHA-256 of API key (prefix `orbk_`) |
+
+Linked via `(Person)-[:HAS_MCP_API_KEY]->(MCPApiKey)`.
+
 ## Relationships
 
 | Relationship | From | To | Purpose |
@@ -85,7 +158,14 @@ Linked via `(Person)-[:GRANTED_ACCESS]->(AccessGrant)`. Parallel to `ShareToken`
 | `HAS_PUBLICATION` | Person | Publication | |
 | `HAS_PROJECT` | Person | Project | |
 | `HAS_PATENT` | Person | Patent | |
+| `HAS_AWARD` | Person | Award | |
+| `HAS_OUTREACH` | Person | Outreach | |
+| `HAS_TRAINING` | Person | Training | |
 | `GRANTED_ACCESS` | Person | AccessGrant | Allowlist entry for `restricted` orbs |
+| `HAS_CONNECTION_REQUEST` | Person | ConnectionRequest | Access request for `restricted` orbs |
+| `HAS_LLM_USAGE` | Person | LLMUsage | Per-call LLM cost/token tracking |
+| `HAS_REFRESH_TOKEN` | Person | RefreshToken | JWT refresh token tracking |
+| `HAS_MCP_API_KEY` | Person | MCPApiKey | MCP API key tracking |
 | `USED_SKILL` | WorkExperience / Project / Education / Publication | Skill | Cross-entity skill link |
 
 The `USED_SKILL` relationship is the key graph feature — it connects experience nodes directly to Skill nodes, enabling queries like "which skills were used at company X?"
@@ -104,16 +184,20 @@ Used during `POST /cv/confirm` with Cypher `MERGE`:
 | Publication | `title` |
 | Project | `name` |
 | Patent | `title` |
+| Award | `name` |
+| Outreach | `title`, `venue` |
+| Training | `title`, `provider` |
 
 ## Vector Indexes
 
-Five vector indexes for semantic search (1536 dimensions, cosine similarity):
+Six vector indexes for semantic search (1536 dimensions, cosine similarity):
 
 - `education_embedding`
 - `work_experience_embedding`
 - `certification_embedding`
 - `publication_embedding`
 - `project_embedding`
+- `training_embedding`
 
 Embeddings are currently placeholder (deterministic SHA-512 hash). The infrastructure is in place for real embeddings (OpenAI ada-002 or sentence-transformers).
 
@@ -251,6 +335,14 @@ Defined in `infra/neo4j/init.cypher`:
 - Uniqueness constraint on `ShareToken.token_id`
 - Uniqueness constraint on `AccessGrant.grant_id`
 - Index on `AccessGrant.email` and on `Person.visibility`
+- Uniqueness constraint on `LLMUsage.usage_id`
+- Index on `LLMUsage.endpoint`
+- Uniqueness constraint on `ConnectionRequest.request_id`
+- Index on `ConnectionRequest.status` and `ConnectionRequest.requester_user_id`
+- Uniqueness constraint on `RefreshToken.token_id`
+- Index on `RefreshToken.hash` and `RefreshToken.expires_at`
+- Uniqueness constraint on `MCPApiKey.key_id`
+- Index on `MCPApiKey.hash`
 
 ## Query Patterns
 

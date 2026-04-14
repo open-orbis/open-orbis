@@ -2,7 +2,7 @@
 # Each entry defines a user action with its trigger, preconditions, effect, and next state.
 # Used by autonomous agents for end-to-end UX evaluation.
 #
-# Last updated: 2026-04-09 | Issue: #193, #216
+# Last updated: 2026-04-14 | Issue: #193, #216, #274
 
 # ── Landing Page ──
 
@@ -31,15 +31,6 @@
   preconditions: [authenticated]
   expected_effect: Navigates to /myorbis
   next_state: ORB_VIEW
-  fallback_on_failure: null
-
-- id: LANDING_ABOUT
-  from_state: LANDING
-  action: Click About link
-  selector_or_control: "footer or header About link"
-  preconditions: []
-  expected_effect: Navigates to /about
-  next_state: ABOUT
   fallback_on_failure: null
 
 - id: LANDING_PRIVACY
