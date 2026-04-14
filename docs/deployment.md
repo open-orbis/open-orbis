@@ -50,6 +50,83 @@ This creates:
 - Indexes on node `uid` fields
 - Vector indexes (1536 dimensions, cosine) for semantic search
 
+## CI/CD — Automated Deploy
+
+Deployments are automated via GitHub Actions and triggered **only when a GitHub Release is published** (not on every merge to `main`).
+
+### How it works
+
+The workflow (`.github/workflows/deploy.yml`) runs two parallel jobs:
+
+1. **Backend**: builds a Docker image with Cloud Build, deploys it to Cloud Run, then runs a health check against `/health/ready` (verifies the app responds and Neo4j is reachable)
+2. **Frontend**: runs `npm ci && npm run build`, deploys to Firebase Hosting, then verifies the site returns HTTP 200
+
+The release tag (e.g. `v1.0.0`) is used as the Docker image tag, so you can always trace a running revision back to a specific release.
+
+### Creating a release (triggers deploy)
+
+From the terminal:
+
+```bash
+gh release create v1.0.0 --title "v1.0.0" --notes "Release notes here"
+```
+
+Or from GitHub UI: **Releases** → **Draft a new release** → choose a tag, write notes, click **Publish release**.
+
+### Monitoring the deploy
+
+```bash
+# Watch the workflow run live
+gh run watch
+
+# List recent deploy runs
+gh run list --workflow=deploy.yml
+
+# View logs of a specific run
+gh run view <run-id> --log
+```
+
+The workflow shows green/red in GitHub Actions. If the health check fails, the workflow fails — you'll see it immediately.
+
+### Verifying after deploy
+
+Automated (runs in the workflow):
+- Backend: `GET /health/ready` — returns `{"status": "ok", "neo4j": "connected"}`
+- Frontend: `GET https://open-orbis.web.app` — returns HTTP 200
+
+Manual verification:
+```bash
+# Backend health
+curl https://<cloud-run-url>/health/ready
+
+# Latest Cloud Run revision
+gcloud run revisions list --service=orbis-api --region=europe-west1 --limit=3
+
+# Frontend
+curl -s -o /dev/null -w "%{http_code}" https://open-orbis.web.app
+```
+
+Functional smoke test: log in, open an orb, upload a CV.
+
+### GCP service accounts
+
+| Service Account | Purpose | Created by |
+|---|---|---|
+| `orbis-api` | Runtime — used by Cloud Run when the app is running | `infra/gcp/setup.sh` |
+| `github-deploy` | CI/CD — used by GitHub Actions to build and deploy | `infra/gcp/setup-ci-sa.sh` |
+
+The `github-deploy` SA key is stored as the GitHub Secret `GCP_SA_KEY`.
+
+### Manual deploy (fallback)
+
+The manual deploy scripts remain available if you need to bypass CI:
+
+```bash
+./infra/gcp/deploy-backend.sh          # Deploy backend
+./infra/gcp/deploy-backend.sh v1.0.0   # Deploy with specific tag
+./infra/gcp/deploy-frontend.sh         # Deploy frontend
+```
+
 ## Environment Variables
 
 All configuration is via environment variables. See `.env.example` for the full list.
