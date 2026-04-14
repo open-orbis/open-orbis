@@ -471,6 +471,14 @@ async def revoke_api_key_endpoint(
     return {"status": "revoked"}
 
 
+# ── Dev-login (test environments only) ─────────────────────────────────
+
+if settings.env == "development":
+    from app.auth.dev_login import dev_router
+
+    router.include_router(dev_router)
+
+
 GRACE_PERIOD_DAYS = 30
 
 

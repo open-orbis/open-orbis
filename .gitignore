@@ -51,3 +51,11 @@ agents.md
 # Superpowers
 .superpowers/
 **/superpowers/
+
+# Playwright MCP logs
+.playwright-mcp/
+backend/.playwright-mcp/
+
+# Agent UX evaluation generated output
+backend/tests/agents/reports/
+backend/data/
