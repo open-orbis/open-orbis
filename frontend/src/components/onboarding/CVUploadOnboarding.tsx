@@ -451,9 +451,21 @@ const STEPS = [
   { key: 'parsing_response', label: 'Building your orbis' },
 ];
 
+const PROCESSING_IDEAS = [
+  'Use your Orbis ID in ChatGPT or Claude to answer questions about your background and skills.',
+  'Paste your Orbis link into Lovable, Bolt, or v0 to auto-generate a personal portfolio draft.',
+  'Share your Orbis with a cover-letter generator to tailor applications to each role.',
+  'Add your Orbis link on LinkedIn or your CV so people can explore your profile beyond a static PDF.',
+  'Drop your Orbis into recruiter AI tools so they can match your skills to open roles faster.',
+  'Put your Orbis link in your email signature for instant context when reaching out to new contacts.',
+  'Include your Orbis link in job applications to show projects, skills, and relationships at a glance.',
+  'Share your Orbis QR code at events and meetups so people can immediately discover your profile.',
+];
+
 function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
   const currentStep = progress?.step || 'reading_pdf';
   const detail = progress?.detail || progress?.message || '';
+  const [activeIdeaIdx, setActiveIdeaIdx] = useState(0);
 
   const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
   const completedSteps = currentStep === 'done'
@@ -497,12 +509,20 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
     return () => clearInterval(timer);
   }, [classifyStart, currentStep]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveIdeaIdx((prev) => (prev + 1) % PROCESSING_IDEAS.length);
+    }, 2500);
+    return () => clearInterval(timer);
+  }, []);
+
   const basePercent = currentStep === 'done'
     ? 100
     : Math.round((completedSteps / STEPS.length) * 100);
   const displayPercent = currentStep === 'done'
     ? 100
     : Math.min(basePercent + (currentStep === 'classifying' || currentStep === 'parsing_response' ? smoothExtra : 0), 99);
+  const activeIdea = PROCESSING_IDEAS[activeIdeaIdx];
 
   return (
     <div className="w-full max-w-md mx-auto rounded-xl border border-white/10 bg-black/20 px-4 py-4 sm:px-5 sm:py-5">
@@ -566,6 +586,13 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
         </div>
         <p className="mt-2 text-[11px] text-purple-200 font-medium text-right">
           {statusText}
+        </p>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-fuchsia-400/20 bg-fuchsia-500/[0.04] px-3 py-2.5 text-left">
+        <p className="text-[10px] font-semibold tracking-[0.14em] text-fuchsia-300/90 uppercase">Ideas While You Wait</p>
+        <p key={activeIdeaIdx} className="mt-1 text-xs text-white/80 leading-relaxed transition-opacity duration-300">
+          {activeIdea}
         </p>
       </div>
     </div>
