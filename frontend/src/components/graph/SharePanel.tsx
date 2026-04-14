@@ -466,19 +466,37 @@ export default function SharePanel({
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
-          <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
-          <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Link to your orbis.</p>
-          <div className="flex items-center gap-2">
-            <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-            <button
-              type="button"
-              onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
-              className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
-            >
-              Copy
-            </button>
+        <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4 space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
+            <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Link to your orbis.</p>
+            <div className="flex items-center gap-2">
+              <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
+                className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+              >
+                Copy
+              </button>
+            </div>
           </div>
+          {isPublic && (
+            <div>
+              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP URI</label>
+              <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this URI to connect AI agents to your orbis.</p>
+              <div className="flex items-center gap-2">
+                <input readOnly value={`orb://${orbId}`} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(`orb://${orbId}`); addToast('MCP URI copied', 'success'); }}
+                  className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
           <div className="space-y-4 mt-4">
@@ -702,6 +720,13 @@ export default function SharePanel({
                                 value={token.token_id}
                                 className="flex-1 min-w-0 bg-gray-950 border border-gray-800 rounded px-2 py-1 text-white text-[10px] font-mono"
                               />
+                              <button
+                                type="button"
+                                onClick={() => { navigator.clipboard.writeText(`${bareUrl}?token=${token.token_id}`); addToast('URL copied', 'success'); }}
+                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
+                              >
+                                Copy URL
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
