@@ -39,21 +39,29 @@ class Settings(BaseSettings):
     encryption_key: str = ""
     encryption_keys_historic: str = ""
 
-    # Claude API
+    # Claude API (used only when llm_provider=cli for local dev)
     anthropic_api_key: str = ""
 
-    # LLM provider: "ollama" (local) or "claude" (Claude Code CLI subscription)
-    llm_provider: str = "claude"
+    # LLM provider: "vertex" (Vertex AI, default for production),
+    # "cli" (Claude Code CLI subprocess, for local dev),
+    # "ollama" (local Ollama, for local dev).
+    llm_provider: str = "vertex"
     claude_model: str = "claude-opus-4-6"
+    gemini_model: str = "gemini-2.5-pro"
+
+    # Vertex AI configuration (used when llm_provider=vertex)
+    gcp_project_id: str = ""
+    vertex_region: str = "europe-west1"
 
     # LLM fallback chain — comma-separated list of providers to try in order.
-    # Valid entries: "claude-opus", "claude-sonnet", "ollama", "rule-based".
+    # Valid entries: "claude-opus", "claude-sonnet", "gemini-pro", "ollama",
+    # "rule-based".
     # When empty, a single-provider chain is derived from llm_provider.
-    llm_fallback_chain: str = "claude-opus,claude-sonnet,ollama,rule-based"
+    llm_fallback_chain: str = "gemini-pro"
     # Per-provider timeout in seconds before falling back to the next provider.
     llm_timeout_seconds: int = 300
 
-    # Ollama (local LLM)
+    # Ollama (local LLM, used only when llm_provider=ollama)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
 
