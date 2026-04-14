@@ -75,8 +75,8 @@ async def upload_cv(
     document_id = str(uuid.uuid4())
 
     # Store the original PDF (encrypted) before processing
-    evict_oldest_if_at_limit(user_id)
-    save_document(
+    await evict_oldest_if_at_limit(user_id)
+    await save_document(
         user_id=user_id,
         document_id=document_id,
         pdf_bytes=pdf_bytes,
@@ -205,7 +205,7 @@ async def download_document(
 ):
     """Download a specific stored document (decrypted)."""
     user_id = current_user["user_id"]
-    docs = cv_db.list_documents(user_id)
+    docs = await cv_db.list_documents(user_id)
     doc = next((d for d in docs if d["document_id"] == document_id), None)
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -228,7 +228,7 @@ async def download_cv(
 ):
     """Download the latest uploaded CV (backward compat)."""
     user_id = current_user["user_id"]
-    docs = cv_db.list_documents(user_id)
+    docs = await cv_db.list_documents(user_id)
     if not docs:
         raise HTTPException(status_code=404, detail="No CV stored")
     return await download_document(docs[0]["document_id"], current_user)
@@ -239,7 +239,7 @@ async def list_documents(
     current_user: dict = Depends(get_current_user),
 ):
     """List all document metadata for the current user (up to 3)."""
-    return cv_db.list_documents(current_user["user_id"])
+    return await cv_db.list_documents(current_user["user_id"])
 
 
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
@@ -272,8 +272,8 @@ async def import_document(
     document_id = str(uuid.uuid4())
 
     # Store the original document (encrypted) before processing
-    evict_oldest_if_at_limit(user_id)
-    save_document(
+    await evict_oldest_if_at_limit(user_id)
+    await save_document(
         user_id=user_id,
         document_id=document_id,
         pdf_bytes=file_bytes,
@@ -357,7 +357,7 @@ async def import_confirm(
     user_id = current_user["user_id"]
 
     if data.document_id:
-        evict_oldest_if_at_limit(user_id)
+        await evict_oldest_if_at_limit(user_id)
 
     result, valid_ids = await _persist_nodes(
         data, current_user, db, wipe_existing=False
@@ -410,7 +410,7 @@ async def import_confirm(
             from datetime import datetime, timezone
 
             now = datetime.now(timezone.utc).isoformat()
-            cv_db.insert_document(
+            await cv_db.insert_document(
                 document_id=data.document_id,
                 user_id=user_id,
                 filename=data.original_filename or "document-import",
@@ -613,7 +613,7 @@ async def confirm_cv(
         logger.warning("Failed to create pre-import snapshot: %s", e)
 
     if data.document_id:
-        evict_oldest_if_at_limit(user_id)
+        await evict_oldest_if_at_limit(user_id)
 
     result, valid_ids = await _persist_nodes(data, current_user, db, wipe_existing=True)
 
@@ -664,7 +664,7 @@ async def confirm_cv(
             from datetime import datetime, timezone
 
             now = datetime.now(timezone.utc).isoformat()
-            cv_db.insert_document(
+            await cv_db.insert_document(
                 document_id=data.document_id,
                 user_id=user_id,
                 filename=data.original_filename or "cv-upload",

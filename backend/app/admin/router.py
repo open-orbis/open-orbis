@@ -433,23 +433,23 @@ async def remove_user(
     if not found:
         raise HTTPException(status_code=404, detail="User not found")
     # Clean up secondary storage
-    _cleanup_secondary_storage(user_id)
+    await _cleanup_secondary_storage(user_id)
     return None
 
 
-def _cleanup_secondary_storage(user_id: str) -> None:
+async def _cleanup_secondary_storage(user_id: str) -> None:
     """Best-effort cleanup of CV, drafts and snapshot storage."""
     import contextlib
 
     with contextlib.suppress(Exception):
         from app.cv_storage.storage import delete_all_for_user as delete_cvs
 
-        delete_cvs(user_id)
+        await delete_cvs(user_id)
     with contextlib.suppress(Exception):
         from app.drafts.db import delete_all_for_user as delete_drafts
 
-        delete_drafts(user_id)
+        await delete_drafts(user_id)
     with contextlib.suppress(Exception):
         from app.snapshots.db import delete_all_for_user as delete_snapshots
 
-        delete_snapshots(user_id)
+        await delete_snapshots(user_id)

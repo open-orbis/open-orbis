@@ -2,10 +2,14 @@ from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+@patch("app.cv.router.save_document", new_callable=AsyncMock)
+@patch("app.cv.router.evict_oldest_if_at_limit", new_callable=AsyncMock)
 @patch("app.cv.router.pdf_extract")
 @patch("app.cv.router.classify_entries")
 @patch("app.cv.router.counter")
-def test_upload_cv_success(mock_counter, mock_classify, mock_pdf_extract, client):
+def test_upload_cv_success(
+    mock_counter, mock_classify, mock_pdf_extract, mock_evict, mock_save, client
+):
     mock_pdf_extract.return_value = "Extracted text"
     mock_classify.return_value = MagicMock(
         nodes=[{"node_type": "skill", "properties": {"name": "Python"}}],
@@ -198,8 +202,10 @@ def test_upload_cv_large_file(client):
     assert "too large" in response.json()["detail"]
 
 
+@patch("app.cv.router.save_document", new_callable=AsyncMock)
+@patch("app.cv.router.evict_oldest_if_at_limit", new_callable=AsyncMock)
 @patch("app.cv.router.pdf_extract")
-def test_upload_cv_extraction_failed(mock_pdf_extract, client):
+def test_upload_cv_extraction_failed(mock_pdf_extract, _evict, _save, client):
     mock_pdf_extract.return_value = "  "  # Empty extraction
     file = BytesIO(b"%PDF-1.4 test")
     response = client.post(
@@ -209,8 +215,10 @@ def test_upload_cv_extraction_failed(mock_pdf_extract, client):
     assert "Could not extract text" in response.json()["detail"]
 
 
+@patch("app.cv.router.save_document", new_callable=AsyncMock)
+@patch("app.cv.router.evict_oldest_if_at_limit", new_callable=AsyncMock)
 @patch("app.cv.router.pdf_extract")
-def test_upload_cv_timeout(mock_pdf_extract, client):
+def test_upload_cv_timeout(mock_pdf_extract, _evict, _save, client):
     mock_pdf_extract.side_effect = TimeoutError("Timeout")
     file = BytesIO(b"%PDF-1.4 test")
     response = client.post(

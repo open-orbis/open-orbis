@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid as _uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,7 +20,7 @@ def _legacy_path(user_id: str) -> Path:
     return _CV_DIR / f"{user_id}.pdf.enc"
 
 
-def save_document(
+async def save_document(
     user_id: str,
     document_id: str,
     pdf_bytes: bytes,
@@ -28,12 +29,12 @@ def save_document(
     entities_count: int | None = None,
     edges_count: int | None = None,
 ) -> dict:
-    """Encrypt and persist a document, then record metadata in SQLite."""
+    """Encrypt and persist a document, then record metadata."""
     _CV_DIR.mkdir(parents=True, exist_ok=True)
     encrypted = encrypt_bytes(pdf_bytes)
     _doc_path(user_id, document_id).write_bytes(encrypted)
     now = datetime.now(timezone.utc).isoformat()
-    return db.insert_document(
+    return await db.insert_document(
         document_id=document_id,
         user_id=user_id,
         filename=filename,
@@ -53,19 +54,19 @@ def load_document(user_id: str, document_id: str) -> bytes | None:
     return decrypt_bytes(path.read_bytes())
 
 
-def delete_document(user_id: str, document_id: str) -> bool:
+async def delete_document(user_id: str, document_id: str) -> bool:
     """Delete a document's encrypted file and metadata row."""
     path = _doc_path(user_id, document_id)
     removed = path.exists()
     if removed:
         path.unlink()
-    db.delete_document(user_id, document_id)
+    await db.delete_document(user_id, document_id)
     return removed
 
 
-def delete_all_for_user(user_id: str) -> int:
+async def delete_all_for_user(user_id: str) -> int:
     """Delete all documents for a user (files + metadata). Returns count deleted."""
-    docs = db.list_documents(user_id)
+    docs = await db.list_documents(user_id)
     for doc in docs:
         path = _doc_path(user_id, doc["document_id"])
         if path.exists():
@@ -74,17 +75,17 @@ def delete_all_for_user(user_id: str) -> int:
     legacy = _legacy_path(user_id)
     if legacy.exists():
         legacy.unlink()
-    return db.delete_all_for_user(user_id)
+    return await db.delete_all_for_user(user_id)
 
 
-def evict_oldest_if_at_limit(user_id: str) -> dict | None:
+async def evict_oldest_if_at_limit(user_id: str) -> dict | None:
     """If user has >= MAX docs, delete the oldest. Returns evicted doc or None."""
-    if db.count_documents(user_id) < db.MAX_DOCUMENTS_PER_USER:
+    if await db.count_documents(user_id) < db.MAX_DOCUMENTS_PER_USER:
         return None
-    oldest = db.get_oldest_document(user_id)
+    oldest = await db.get_oldest_document(user_id)
     if oldest is None:
         return None
-    delete_document(user_id, oldest["document_id"])
+    await delete_document(user_id, oldest["document_id"])
     return oldest
 
 
@@ -99,11 +100,8 @@ def migrate_legacy_file(user_id: str, document_id: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatibility shims — to be removed once the router is updated
-# (Task 3: Update backend models and router)
+# Backward-compatibility shims
 # ---------------------------------------------------------------------------
-
-import uuid as _uuid  # noqa: E402
 
 
 def _cv_path(user_id: str) -> Path:
@@ -111,16 +109,15 @@ def _cv_path(user_id: str) -> Path:
     return _legacy_path(user_id)
 
 
-def save_cv(
+async def save_cv(
     user_id: str,
     pdf_bytes: bytes,
     filename: str,
     page_count: int,
 ) -> dict:
     """Deprecated: use save_document() instead."""
-    # Evict oldest if at limit, then save as new document
     doc_id = str(_uuid.uuid4())
-    return save_document(
+    return await save_document(
         user_id=user_id,
         document_id=doc_id,
         pdf_bytes=pdf_bytes,
@@ -129,15 +126,15 @@ def save_cv(
     )
 
 
-def load_cv(user_id: str) -> bytes | None:
+async def load_cv(user_id: str) -> bytes | None:
     """Deprecated: use load_document() instead. Returns most recent document."""
-    docs = db.list_documents(user_id)
+    docs = await db.list_documents(user_id)
     if not docs:
         return None
     return load_document(user_id, docs[0]["document_id"])
 
 
-def delete_cv(user_id: str) -> bool:
+async def delete_cv(user_id: str) -> bool:
     """Deprecated: use delete_all_for_user() instead."""
-    count = delete_all_for_user(user_id)
+    count = await delete_all_for_user(user_id)
     return count > 0

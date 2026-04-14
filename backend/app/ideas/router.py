@@ -31,7 +31,7 @@ async def submit_idea(
     text = body.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Idea text cannot be empty")
-    return db.insert_idea(user_id=current_user["user_id"], text=text)
+    return await db.insert_idea(user_id=current_user["user_id"], text=text)
 
 
 @router.get("/admin/ideas", response_model=list[IdeaResponse])
@@ -39,7 +39,7 @@ async def list_ideas(
     _admin: dict = Depends(require_admin),
 ):
     """List all submitted ideas (admin only)."""
-    return db.list_ideas()
+    return await db.list_ideas()
 
 
 @router.delete("/admin/ideas/{idea_id}", status_code=204)
@@ -48,5 +48,5 @@ async def delete_idea(
     _admin: dict = Depends(require_admin),
 ):
     """Delete an idea (admin only)."""
-    if not db.delete_idea(idea_id):
+    if not await db.delete_idea(idea_id):
         raise HTTPException(status_code=404, detail="Idea not found")

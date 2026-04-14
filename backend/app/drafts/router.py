@@ -21,7 +21,7 @@ def _now_iso() -> str:
 @router.get("", response_model=list[DraftOut])
 async def list_drafts(current_user: dict = Depends(get_current_user)):
     """List all drafts for the authenticated user, newest first."""
-    return db.list_drafts(current_user["user_id"])
+    return await db.list_drafts(current_user["user_id"])
 
 
 @router.post("", response_model=DraftOut, status_code=status.HTTP_201_CREATED)
@@ -32,7 +32,7 @@ async def create_draft(
     """Create a new draft note."""
     uid = str(uuid.uuid4())
     now = _now_iso()
-    return db.create_draft(uid, current_user["user_id"], body.text, now)
+    return await db.create_draft(uid, current_user["user_id"], body.text, now)
 
 
 @router.put("/{uid}", response_model=DraftOut)
@@ -43,7 +43,7 @@ async def update_draft(
 ):
     """Update a draft's text."""
     now = _now_iso()
-    result = db.update_draft(uid, current_user["user_id"], body.text, now)
+    result = await db.update_draft(uid, current_user["user_id"], body.text, now)
     if result is None:
         raise HTTPException(status_code=404, detail="Draft not found")
     return result
@@ -55,5 +55,5 @@ async def delete_draft(
     current_user: dict = Depends(get_current_user),
 ):
     """Delete a draft note."""
-    if not db.delete_draft(uid, current_user["user_id"]):
+    if not await db.delete_draft(uid, current_user["user_id"]):
         raise HTTPException(status_code=404, detail="Draft not found")

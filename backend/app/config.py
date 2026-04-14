@@ -65,6 +65,11 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
 
+    # PostgreSQL (tabular data: drafts, ideas, snapshots, CV metadata)
+    # In production, Cloud Run connects via unix socket:
+    #   postgresql://orbis:PASS@/orbis?host=/cloudsql/PROJECT:REGION:INSTANCE
+    database_url: str = ""
+
     # Google OAuth
     google_client_id: str = ""
     google_client_secret: str = ""

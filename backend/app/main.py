@@ -62,19 +62,19 @@ async def _cleanup_expired_accounts(driver):
             )
             # Clean up secondary databases
             try:
-                delete_stored_cvs(user_id)
+                await delete_stored_cvs(user_id)
             except Exception as e:
                 logging.getLogger(__name__).warning(
                     "Failed to delete CV for %s: %s", user_id, e
                 )
             try:
-                delete_user_drafts(user_id)
+                await delete_user_drafts(user_id)
             except Exception as e:
                 logging.getLogger(__name__).warning(
                     "Failed to delete drafts for %s: %s", user_id, e
                 )
             try:
-                delete_user_snapshots(user_id)
+                await delete_user_snapshots(user_id)
             except Exception as e:
                 logging.getLogger(__name__).warning(
                     "Failed to delete snapshots for %s: %s", user_id, e
@@ -104,6 +104,11 @@ async def lifespan(app: FastAPI):
     driver = await get_driver()
     async with driver.session() as session:
         await session.run("RETURN 1")
+    # Initialize PostgreSQL pool (if configured)
+    if settings.database_url:
+        from app.db.postgres import get_pool
+
+        await get_pool()
     # Clean up expired accounts on startup
     await _cleanup_expired_accounts(driver)
     # Start recurring cleanup if configured
@@ -118,6 +123,10 @@ async def lifespan(app: FastAPI):
         cleanup_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await cleanup_task
+    if settings.database_url:
+        from app.db.postgres import close_pool
+
+        await close_pool()
     await close_driver()
 
 

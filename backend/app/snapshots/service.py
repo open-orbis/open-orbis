@@ -148,9 +148,9 @@ async def create_snapshot(
     snapshot_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
-    snap_db.delete_oldest_if_at_limit(user_id)
+    await snap_db.delete_oldest_if_at_limit(user_id)
 
-    return snap_db.insert_snapshot(
+    return await snap_db.insert_snapshot(
         snapshot_id=snapshot_id,
         user_id=user_id,
         trigger=trigger,
@@ -168,7 +168,7 @@ async def restore_snapshot(
     db: AsyncDriver,
 ) -> dict:
     """Restore a previously saved snapshot: wipe graph, recreate nodes."""
-    snap = snap_db.get_snapshot(user_id, snapshot_id)
+    snap = await snap_db.get_snapshot(user_id, snapshot_id)
     if snap is None:
         raise ValueError(f"Snapshot {snapshot_id} not found")
 
