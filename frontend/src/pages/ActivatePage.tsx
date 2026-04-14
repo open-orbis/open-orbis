@@ -152,7 +152,7 @@ export default function ActivatePage() {
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 mb-3">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
-              <span className="text-[10px] font-semibold tracking-[0.14em] text-white/65">WAITLIST</span>
+              <span className="text-[10px] font-semibold tracking-[0.14em] text-white/65">Waiting List</span>
             </div>
 
             <p className="text-white/70 text-sm leading-relaxed mb-4">
