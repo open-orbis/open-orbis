@@ -131,6 +131,10 @@ class TestQueryTemplates:
         assert "$name" in CREATE_PERSON
         assert "$orb_id" in CREATE_PERSON
 
+    def test_create_person_auto_joins_waitlist(self):
+        assert "waitlist_joined: true" in CREATE_PERSON
+        assert "waitlist_joined_at: datetime()" in CREATE_PERSON
+
     def test_get_person_by_user_id(self):
         assert "$user_id" in GET_PERSON_BY_USER_ID
 
