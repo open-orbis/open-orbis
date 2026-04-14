@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
 
+    # GCS bucket for CV file storage (empty = local filesystem with Fernet)
+    cv_storage_bucket: str = ""
+
     # PostgreSQL (tabular data: drafts, ideas, snapshots, CV metadata)
     # In production, Cloud Run connects via unix socket:
     #   postgresql://orbis:PASS@/orbis?host=/cloudsql/PROJECT:REGION:INSTANCE

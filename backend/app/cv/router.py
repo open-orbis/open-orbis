@@ -19,7 +19,7 @@ from app.cv.text_extractor import extract_text as multi_extract
 from app.cv_storage import db as cv_db
 from app.cv_storage.storage import (
     evict_oldest_if_at_limit,
-    load_document,
+    load_document_async,
     save_document,
 )
 from app.dependencies import get_current_user, get_db, require_gdpr_consent
@@ -210,7 +210,7 @@ async def download_document(
     if doc is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    pdf_bytes = load_document(user_id, document_id)
+    pdf_bytes = await load_document_async(user_id, document_id)
     if pdf_bytes is None:
         raise HTTPException(status_code=404, detail="Document file not found")
 
