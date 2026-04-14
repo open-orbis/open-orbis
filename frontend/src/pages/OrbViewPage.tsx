@@ -733,7 +733,9 @@ export default function OrbViewPage() {
                       onSetVisible={handleSetVisibleNodeTypes}
                     />
                   </div>
-                  <KeywordFilterDropdown />
+                  <div data-tour="keyword-filter">
+                    <KeywordFilterDropdown />
+                  </div>
                   <button
                     data-tour="export"
                     onClick={() => window.open('/cv-export', '_blank')}
@@ -790,6 +792,7 @@ export default function OrbViewPage() {
               </div>
               <div className="w-px h-5 bg-white/10 mx-1 hidden sm:block" />
               <form
+                data-tour="search-orbis-id"
                 onSubmit={(e) => { e.preventDefault(); const v = orbSearchValue.trim(); if (v) { navigate(`/${v}`); setOrbSearchValue(''); } }}
                 className="hidden sm:flex items-center"
               >

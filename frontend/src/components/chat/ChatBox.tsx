@@ -487,6 +487,7 @@ export default function ChatBox({
             )}
             {onAdd && (
               <button
+                data-tour="add-entry"
                 onClick={onAdd}
                 className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40 ${highlightAdd ? 'animate-pulse ring-2 ring-purple-400 ring-offset-2 ring-offset-black' : ''}`}
                 title="Add Entry"
