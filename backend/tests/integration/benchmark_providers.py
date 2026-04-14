@@ -15,6 +15,7 @@ Resolves: #314
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
 import shutil
@@ -49,14 +50,13 @@ def _kill_claude_cli_processes() -> int:
     try:
         result = subprocess.run(
             ["pgrep", "-f", "claude -p"],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         pids = [int(p) for p in result.stdout.strip().split() if p.isdigit()]
         for pid in pids:
-            try:
+            with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
         return len(pids)
     except Exception:
         return 0
@@ -97,7 +97,7 @@ def _ensure_ollama_running() -> bool:
             return False
 
         # Wait for Ollama to be ready (up to 30s)
-        for i in range(15):
+        for _i in range(15):
             time.sleep(2)
             try:
                 resp = httpx.get(f"{base_url}/api/tags", timeout=5)
@@ -231,8 +231,7 @@ async def _run_single(
         }
 
     nodes = [
-        {"node_type": n.node_type, "properties": n.properties}
-        for n in result.nodes
+        {"node_type": n.node_type, "properties": n.properties} for n in result.nodes
     ]
     rels = [
         {"from_index": r.from_index, "to_index": r.to_index, "type": r.type}
@@ -259,9 +258,7 @@ async def _run_single(
     }
 
 
-def _compare_against_golden(
-    result: dict, golden_path: Path
-) -> dict | None:
+def _compare_against_golden(result: dict, golden_path: Path) -> dict | None:
     """Compare result against golden baseline if available."""
     if not golden_path.exists():
         return None
@@ -313,57 +310,240 @@ def _compare_against_golden(
     }
 
 
+def _detect_findings(all_results: dict[str, dict[str, dict]]) -> list[str]:
+    """Auto-detect notable differences across providers."""
+    findings: list[str] = []
+    for cv_name in sorted(all_results):
+        cv_data = all_results[cv_name]
+        ok_provs = {p: d for p, d in cv_data.items() if d["status"] == "ok"}
+        if len(ok_provs) < 2:
+            continue
+
+        skill_counts = {
+            p: d["node_counts"].get("skill", 0) for p, d in ok_provs.items()
+        }
+        max_s = max(skill_counts.values())
+        min_s = min(skill_counts.values())
+        if max_s > 0 and min_s / max_s < 0.5:
+            best_p = max(skill_counts, key=skill_counts.get)
+            worst_p = min(skill_counts, key=skill_counts.get)
+            findings.append(
+                f"**{cv_name}** — Skill extraction varies widely: "
+                f"`{best_p}` found {skill_counts[best_p]} skills vs "
+                f"`{worst_p}` with only {skill_counts[worst_p]}."
+            )
+
+        rel_counts = {p: d["total_relationships"] for p, d in ok_provs.items()}
+        max_r = max(rel_counts.values())
+        min_r = min(rel_counts.values())
+        if max_r > 0 and (min_r == 0 or max_r / max(min_r, 1) > 3):
+            best_p = max(rel_counts, key=rel_counts.get)
+            worst_p = min(rel_counts, key=rel_counts.get)
+            findings.append(
+                f"**{cv_name}** — Relationship richness gap: "
+                f"`{best_p}` produced {rel_counts[best_p]} USED_SKILL edges vs "
+                f"`{worst_p}` with {rel_counts[worst_p]}."
+            )
+    return findings
+
+
 # ── report generation ───────────────────────────────────────────────
 
 
-def _generate_report(all_results: dict[str, dict[str, dict]]) -> str:
+def _compute_aggregates(
+    all_results: dict[str, dict[str, dict]],
+) -> dict[str, dict[str, list]]:
+    """Compute per-provider aggregate metrics across all CVs."""
+    agg: dict[str, dict[str, list]] = {
+        "scores": defaultdict(list),
+        "nodes": defaultdict(list),
+        "rels": defaultdict(list),
+        "linkage": defaultdict(list),
+        "cost": defaultdict(list),
+        "latency": defaultdict(list),
+    }
+    for cv_data in all_results.values():
+        for prov, data in cv_data.items():
+            if data["status"] != "ok":
+                continue
+            agg["nodes"][prov].append(data["total_nodes"])
+            agg["rels"][prov].append(data["total_relationships"])
+            agg["linkage"][prov].append(data["linkage_ratio"])
+            if data.get("elapsed_ms"):
+                agg["latency"][prov].append(data["elapsed_ms"])
+            if data.get("cost_usd"):
+                agg["cost"][prov].append(data["cost_usd"])
+            comp = data.get("comparison") or {}
+            if comp.get("composite_score"):
+                agg["scores"][prov].append(comp["composite_score"])
+    return agg
+
+
+def _report_cv_section(
+    cv_name: str,
+    cv_data: dict[str, dict],
+    providers_tested: list[str],
+) -> list[str]:
+    """Generate the per-CV markdown section."""
+    lines: list[str] = []
+    lines.append(f"### {cv_name.replace('_', ' ').title()}")
+    lines.append("")
+
+    all_node_types: set[str] = set()
+    for _prov, data in cv_data.items():
+        if data["status"] == "ok":
+            all_node_types.update(data["node_counts"].keys())
+
+    provs = [p for p in providers_tested if p in cv_data]
+    hdr = "| Node type | " + " | ".join(f"`{p}`" for p in provs) + " |"
+    sep = "|-----------|" + "|".join("--------" for _ in provs) + "|"
+
+    lines.append("**Node counts:**")
+    lines.append("")
+    lines.append(hdr)
+    lines.append(sep)
+
+    for nt in sorted(all_node_types):
+        cells = [
+            str(cv_data[p]["node_counts"].get(nt, 0))
+            if cv_data[p]["status"] == "ok"
+            else "—"
+            for p in provs
+        ]
+        lines.append(f"| {nt} | " + " | ".join(cells) + " |")
+
+    total_cells = [
+        str(cv_data[p]["total_nodes"]) if cv_data[p]["status"] == "ok" else "—"
+        for p in provs
+    ]
+    lines.append("| **TOTAL** | " + " | ".join(f"**{c}**" for c in total_cells) + " |")
+    lines.append("")
+
+    # Relationships & linkage
+    lines.append("**Relationships & linkage:**")
+    lines.append("")
+    lines.append("| Metric | " + " | ".join(f"`{p}`" for p in provs) + " |")
+    lines.append("|--------|" + "|".join("--------" for _ in provs) + "|")
+
+    rel_cells, link_cells = [], []
+    for p in provs:
+        d = cv_data[p]
+        if d["status"] == "ok":
+            rel_cells.append(str(d["total_relationships"]))
+            link_cells.append(f"{d['linkage_ratio']:.2f}")
+        else:
+            rel_cells.append("—")
+            link_cells.append("—")
+    lines.append("| USED_SKILL edges | " + " | ".join(rel_cells) + " |")
+    lines.append("| Linkage ratio | " + " | ".join(link_cells) + " |")
+    lines.append("")
+
+    # Quality vs golden
+    has_comparison = any(
+        cv_data[p].get("comparison") for p in provs if cv_data[p]["status"] == "ok"
+    )
+    if has_comparison:
+        _append_quality_table(lines, cv_data, provs)
+
+    # Latency & cost
+    _append_latency_table(lines, cv_data, provs)
+
+    # Errors
+    for p in provs:
+        d = cv_data[p]
+        if d["status"] != "ok":
+            lines.append(f"> **`{p}` failed:** {d.get('error', 'unknown error')}")
+            lines.append("")
+
+    return lines
+
+
+def _append_quality_table(
+    lines: list[str],
+    cv_data: dict[str, dict],
+    provs: list[str],
+) -> None:
+    """Append quality-vs-golden comparison table."""
+    lines.append("**Quality vs golden baseline:**")
+    lines.append("")
+    lines.append("| Metric | " + " | ".join(f"`{p}`" for p in provs) + " |")
+    lines.append("|--------|" + "|".join("--------" for _ in provs) + "|")
+
+    metrics = [
+        "overall_f1",
+        "overall_precision",
+        "overall_recall",
+        "property_similarity",
+        "composite_score",
+    ]
+    for metric in metrics:
+        cells = []
+        for p in provs:
+            comp = cv_data[p].get("comparison")
+            if comp and metric in comp:
+                cells.append(f"{comp[metric]:.3f}")
+            else:
+                cells.append("—")
+        label = metric.replace("_", " ").title()
+        lines.append(f"| {label} | " + " | ".join(cells) + " |")
+    lines.append("")
+
+
+def _append_latency_table(
+    lines: list[str],
+    cv_data: dict[str, dict],
+    provs: list[str],
+) -> None:
+    """Append latency and cost table."""
+    lines.append("**Latency & cost:**")
+    lines.append("")
+    lines.append("| Metric | " + " | ".join(f"`{p}`" for p in provs) + " |")
+    lines.append("|--------|" + "|".join("--------" for _ in provs) + "|")
+
+    lat, tok_in, tok_out, cost = [], [], [], []
+    for p in provs:
+        d = cv_data[p]
+        if d["status"] != "ok":
+            lat.append("—")
+            tok_in.append("—")
+            tok_out.append("—")
+            cost.append("—")
+        else:
+            lat.append(f"{d['elapsed_ms']:,}" if d.get("elapsed_ms") else "—")
+            tok_in.append(f"{d['input_tokens']:,}" if d.get("input_tokens") else "—")
+            tok_out.append(f"{d['output_tokens']:,}" if d.get("output_tokens") else "—")
+            cost.append(f"${d['cost_usd']:.4f}" if d.get("cost_usd") else "—")
+
+    lines.append("| Latency (ms) | " + " | ".join(lat) + " |")
+    lines.append("| Input tokens | " + " | ".join(tok_in) + " |")
+    lines.append("| Output tokens | " + " | ".join(tok_out) + " |")
+    lines.append("| Cost (USD) | " + " | ".join(cost) + " |")
+    lines.append("")
+
+
+def _generate_report(all_results: dict[str, dict[str, dict]]) -> str:  # noqa: C901
     """Generate the final markdown report."""
     lines: list[str] = []
 
     cv_names = sorted(all_results.keys())
-    providers_tested = set()
-    for cv_data in all_results.values():
-        providers_tested.update(cv_data.keys())
-    providers_tested = sorted(providers_tested)
+    providers_tested: list[str] = sorted(
+        {p for cv_data in all_results.values() for p in cv_data}
+    )
 
-    # ── Executive summary ──
     lines.append("# LLM Provider Benchmark Report")
     lines.append("")
     lines.append(f"> Generated on {time.strftime('%Y-%m-%d %H:%M UTC')}")
-    lines.append(f"> CVs tested: {len(cv_names)} | Providers: {', '.join(providers_tested)}")
+    lines.append(
+        f"> CVs tested: {len(cv_names)} | Providers: {', '.join(providers_tested)}"
+    )
     lines.append("")
 
-    # Compute aggregates for summary
-    provider_scores: dict[str, list[float]] = defaultdict(list)
-    provider_nodes: dict[str, list[int]] = defaultdict(list)
-    provider_rels: dict[str, list[int]] = defaultdict(list)
-    provider_linkage: dict[str, list[float]] = defaultdict(list)
-    provider_cost: dict[str, list[float]] = defaultdict(list)
-    provider_latency: dict[str, list[int]] = defaultdict(list)
+    agg = _compute_aggregates(all_results)
+    avg_scores = {p: sum(s) / len(s) for p, s in agg["scores"].items() if s}
 
-    for cv_name in cv_names:
-        for prov, data in all_results[cv_name].items():
-            if data["status"] != "ok":
-                continue
-            provider_nodes[prov].append(data["total_nodes"])
-            provider_rels[prov].append(data["total_relationships"])
-            provider_linkage[prov].append(data["linkage_ratio"])
-            if data.get("elapsed_ms"):
-                provider_latency[prov].append(data["elapsed_ms"])
-            if data.get("cost_usd"):
-                provider_cost[prov].append(data["cost_usd"])
-            if data.get("comparison") and data["comparison"].get("composite_score"):
-                provider_scores[prov].append(data["comparison"]["composite_score"])
-
+    # ── Executive summary ──
     lines.append("## Executive Summary")
     lines.append("")
-
-    # Find best provider by composite score
-    avg_scores = {
-        p: sum(s) / len(s)
-        for p, s in provider_scores.items()
-        if s
-    }
     if avg_scores:
         best = max(avg_scores, key=avg_scores.get)
         lines.append(
@@ -375,7 +555,7 @@ def _generate_report(all_results: dict[str, dict[str, dict]]) -> str:
             if p in avg_scores:
                 lines.append(f"- `{p}`: composite **{avg_scores[p]:.3f}**")
             else:
-                ok_count = len(provider_nodes.get(p, []))
+                ok_count = len(agg["nodes"].get(p, []))
                 lines.append(
                     f"- `{p}`: {'no golden comparison available' if ok_count > 0 else 'failed or skipped'}"
                 )
@@ -385,37 +565,34 @@ def _generate_report(all_results: dict[str, dict[str, dict]]) -> str:
         lines.append("")
 
     # ── Methodology ──
-    lines.append("## Methodology")
-    lines.append("")
-    lines.append("Each CV fixture was processed through the full extraction pipeline "
-                 "(`classify_entries()`) with the fallback chain pinned to a single provider at a time. "
-                 "This isolates each provider's output quality.")
-    lines.append("")
-    lines.append("**Providers tested:**")
-    lines.append("")
-    lines.append("| Provider | Model | Description |")
-    lines.append("|----------|-------|-------------|")
-    lines.append("| `claude-opus` | claude-opus-4-6 | Claude Opus via CLI (subscription) |")
-    lines.append("| `claude-sonnet` | claude-sonnet-4-6 | Claude Sonnet via CLI (subscription) |")
-    lines.append("| `ollama` | llama3.2:3b | Local Ollama (3B parameter model) |")
-    lines.append("| `rule-based` | regex/heuristics | No LLM, pure pattern matching |")
-    lines.append("")
-    lines.append("**Metrics captured:**")
-    lines.append("")
-    lines.append("- **Node counts** by type (work_experience, education, skill, etc.)")
-    lines.append("- **Relationship count** (USED_SKILL edges)")
-    lines.append("- **Linkage ratio** (relationships per non-skill node)")
-    lines.append("- **Field completeness** (% of properties populated per node type)")
-    lines.append("- **Quality scores** vs golden baselines: F1, precision, recall, property similarity, composite")
-    lines.append("- **Latency** (ms) and **token usage** / **cost** where available")
-    lines.append("")
+    lines += [
+        "## Methodology",
+        "",
+        "Each CV fixture was processed through the full extraction pipeline "
+        "(`classify_entries()`) with the fallback chain pinned to a single provider at a time. "
+        "This isolates each provider's output quality.",
+        "",
+        "**Providers tested:**",
+        "",
+        "| Provider | Model | Description |",
+        "|----------|-------|-------------|",
+        "| `claude-opus` | claude-opus-4-6 | Claude Opus via CLI (subscription) |",
+        "| `claude-sonnet` | claude-sonnet-4-6 | Claude Sonnet via CLI (subscription) |",
+        "| `ollama` | llama3.2:3b | Local Ollama (3B parameter model) |",
+        "| `rule-based` | regex/heuristics | No LLM, pure pattern matching |",
+        "",
+        "**Metrics captured:**",
+        "",
+        "- **Node counts** by type (work_experience, education, skill, etc.)",
+        "- **Relationship count** (USED_SKILL edges)",
+        "- **Linkage ratio** (relationships per non-skill node)",
+        "- **Field completeness** (% of properties populated per node type)",
+        "- **Quality scores** vs golden baselines: F1, precision, recall, property similarity, composite",
+        "- **Latency** (ms) and **token usage** / **cost** where available",
+        "",
+    ]
 
     # ── Aggregate summary table ──
-    lines.append("## Aggregate Summary")
-    lines.append("")
-    lines.append("| Metric | " + " | ".join(f"`{p}`" for p in providers_tested) + " |")
-    lines.append("|--------|" + "|".join("--------" for _ in providers_tested) + "|")
-
     def _avg(lst: list) -> str:
         return f"{sum(lst) / len(lst):.1f}" if lst else "—"
 
@@ -425,183 +602,38 @@ def _generate_report(all_results: dict[str, dict[str, dict]]) -> str:
     def _sum2(lst: list) -> str:
         return f"${sum(lst):.4f}" if lst else "—"
 
-    row = "| Avg nodes | " + " | ".join(_avg(provider_nodes.get(p, [])) for p in providers_tested) + " |"
-    lines.append(row)
-    row = "| Avg relationships | " + " | ".join(_avg(provider_rels.get(p, [])) for p in providers_tested) + " |"
-    lines.append(row)
-    row = "| Avg linkage ratio | " + " | ".join(_avg3(provider_linkage.get(p, [])) for p in providers_tested) + " |"
-    lines.append(row)
-    row = "| Avg composite score | " + " | ".join(_avg3(provider_scores.get(p, [])) for p in providers_tested) + " |"
-    lines.append(row)
-    row = "| Avg latency (ms) | " + " | ".join(_avg(provider_latency.get(p, [])) for p in providers_tested) + " |"
-    lines.append(row)
-    row = "| Total cost (USD) | " + " | ".join(_sum2(provider_cost.get(p, [])) for p in providers_tested) + " |"
-    lines.append(row)
+    lines.append("## Aggregate Summary")
+    lines.append("")
+    lines.append("| Metric | " + " | ".join(f"`{p}`" for p in providers_tested) + " |")
+    lines.append("|--------|" + "|".join("--------" for _ in providers_tested) + "|")
+
+    metrics_map = [
+        ("Avg nodes", _avg, "nodes"),
+        ("Avg relationships", _avg, "rels"),
+        ("Avg linkage ratio", _avg3, "linkage"),
+        ("Avg composite score", _avg3, "scores"),
+        ("Avg latency (ms)", _avg, "latency"),
+        ("Total cost (USD)", _sum2, "cost"),
+    ]
+    for label, fmt_fn, key in metrics_map:
+        row = (
+            f"| {label} | "
+            + " | ".join(fmt_fn(agg[key].get(p, [])) for p in providers_tested)
+            + " |"
+        )
+        lines.append(row)
     lines.append("")
 
     # ── Per-CV detailed results ──
     lines.append("## Per-CV Results")
     lines.append("")
-
     for cv_name in cv_names:
-        lines.append(f"### {cv_name.replace('_', ' ').title()}")
-        lines.append("")
-
-        cv_data = all_results[cv_name]
-
-        # Node counts table
-        all_node_types: set[str] = set()
-        for prov, data in cv_data.items():
-            if data["status"] == "ok":
-                all_node_types.update(data["node_counts"].keys())
-        all_node_types_sorted = sorted(all_node_types)
-
-        provs_for_cv = [p for p in providers_tested if p in cv_data]
-
-        lines.append("**Node counts:**")
-        lines.append("")
-        lines.append("| Node type | " + " | ".join(f"`{p}`" for p in provs_for_cv) + " |")
-        lines.append("|-----------|" + "|".join("--------" for _ in provs_for_cv) + "|")
-
-        for nt in all_node_types_sorted:
-            cells = []
-            for p in provs_for_cv:
-                d = cv_data[p]
-                if d["status"] == "ok":
-                    cells.append(str(d["node_counts"].get(nt, 0)))
-                else:
-                    cells.append("—")
-            lines.append(f"| {nt} | " + " | ".join(cells) + " |")
-
-        # Totals row
-        total_cells = []
-        for p in provs_for_cv:
-            d = cv_data[p]
-            total_cells.append(str(d["total_nodes"]) if d["status"] == "ok" else "—")
-        lines.append(f"| **TOTAL** | " + " | ".join(f"**{c}**" for c in total_cells) + " |")
-        lines.append("")
-
-        # Relationships & linkage
-        lines.append("**Relationships & linkage:**")
-        lines.append("")
-        lines.append("| Metric | " + " | ".join(f"`{p}`" for p in provs_for_cv) + " |")
-        lines.append("|--------|" + "|".join("--------" for _ in provs_for_cv) + "|")
-
-        rel_cells = []
-        link_cells = []
-        for p in provs_for_cv:
-            d = cv_data[p]
-            if d["status"] == "ok":
-                rel_cells.append(str(d["total_relationships"]))
-                link_cells.append(f"{d['linkage_ratio']:.2f}")
-            else:
-                rel_cells.append("—")
-                link_cells.append("—")
-        lines.append("| USED_SKILL edges | " + " | ".join(rel_cells) + " |")
-        lines.append("| Linkage ratio | " + " | ".join(link_cells) + " |")
-        lines.append("")
-
-        # Quality vs golden
-        has_comparison = any(
-            cv_data[p].get("comparison") for p in provs_for_cv if cv_data[p]["status"] == "ok"
-        )
-        if has_comparison:
-            lines.append("**Quality vs golden baseline:**")
-            lines.append("")
-            lines.append("| Metric | " + " | ".join(f"`{p}`" for p in provs_for_cv) + " |")
-            lines.append("|--------|" + "|".join("--------" for _ in provs_for_cv) + "|")
-
-            for metric in ["overall_f1", "overall_precision", "overall_recall", "property_similarity", "composite_score"]:
-                cells = []
-                for p in provs_for_cv:
-                    d = cv_data[p]
-                    comp = d.get("comparison")
-                    if comp and metric in comp:
-                        cells.append(f"{comp[metric]:.3f}")
-                    else:
-                        cells.append("—")
-                label = metric.replace("_", " ").title()
-                lines.append(f"| {label} | " + " | ".join(cells) + " |")
-            lines.append("")
-
-        # Latency & cost
-        lines.append("**Latency & cost:**")
-        lines.append("")
-        lines.append("| Metric | " + " | ".join(f"`{p}`" for p in provs_for_cv) + " |")
-        lines.append("|--------|" + "|".join("--------" for _ in provs_for_cv) + "|")
-
-        lat_cells = []
-        tok_in_cells = []
-        tok_out_cells = []
-        cost_cells = []
-        for p in provs_for_cv:
-            d = cv_data[p]
-            if d["status"] != "ok":
-                lat_cells.append("—")
-                tok_in_cells.append("—")
-                tok_out_cells.append("—")
-                cost_cells.append("—")
-            else:
-                lat_cells.append(f"{d['elapsed_ms']:,}" if d.get("elapsed_ms") else "—")
-                tok_in_cells.append(f"{d['input_tokens']:,}" if d.get("input_tokens") else "—")
-                tok_out_cells.append(f"{d['output_tokens']:,}" if d.get("output_tokens") else "—")
-                cost_cells.append(f"${d['cost_usd']:.4f}" if d.get("cost_usd") else "—")
-
-        lines.append("| Latency (ms) | " + " | ".join(lat_cells) + " |")
-        lines.append("| Input tokens | " + " | ".join(tok_in_cells) + " |")
-        lines.append("| Output tokens | " + " | ".join(tok_out_cells) + " |")
-        lines.append("| Cost (USD) | " + " | ".join(cost_cells) + " |")
-        lines.append("")
-
-        # Errors
-        for p in provs_for_cv:
-            d = cv_data[p]
-            if d["status"] != "ok":
-                lines.append(f"> **`{p}` failed:** {d.get('error', 'unknown error')}")
-                lines.append("")
+        lines += _report_cv_section(cv_name, all_results[cv_name], providers_tested)
 
     # ── Notable findings ──
     lines.append("## Notable Findings")
     lines.append("")
-
-    # Auto-detect notable differences
-    findings: list[str] = []
-
-    for cv_name in cv_names:
-        cv_data = all_results[cv_name]
-        ok_provs = {p: d for p, d in cv_data.items() if d["status"] == "ok"}
-
-        if len(ok_provs) < 2:
-            continue
-
-        # Skill count variance
-        skill_counts = {p: d["node_counts"].get("skill", 0) for p, d in ok_provs.items()}
-        if skill_counts:
-            max_s = max(skill_counts.values())
-            min_s = min(skill_counts.values())
-            if max_s > 0 and min_s / max_s < 0.5:
-                best_p = max(skill_counts, key=skill_counts.get)
-                worst_p = min(skill_counts, key=skill_counts.get)
-                findings.append(
-                    f"**{cv_name}** — Skill extraction varies widely: "
-                    f"`{best_p}` found {skill_counts[best_p]} skills vs "
-                    f"`{worst_p}` with only {skill_counts[worst_p]}."
-                )
-
-        # Relationship gap
-        rel_counts = {p: d["total_relationships"] for p, d in ok_provs.items()}
-        if rel_counts:
-            max_r = max(rel_counts.values())
-            min_r = min(rel_counts.values())
-            if max_r > 0 and (min_r == 0 or max_r / max(min_r, 1) > 3):
-                best_p = max(rel_counts, key=rel_counts.get)
-                worst_p = min(rel_counts, key=rel_counts.get)
-                findings.append(
-                    f"**{cv_name}** — Relationship richness gap: "
-                    f"`{best_p}` produced {rel_counts[best_p]} USED_SKILL edges vs "
-                    f"`{worst_p}` with {rel_counts[worst_p]}."
-                )
-
+    findings = _detect_findings(all_results)
     if findings:
         for f in findings:
             lines.append(f"- {f}")
@@ -612,28 +644,33 @@ def _generate_report(all_results: dict[str, dict[str, dict]]) -> str:
     # ── Recommendations ──
     lines.append("## Recommendations")
     lines.append("")
-
     if avg_scores:
         ranked = sorted(avg_scores.items(), key=lambda x: x[1], reverse=True)
         chain = ",".join(p for p, _ in ranked)
         chain += ",rule-based" if "rule-based" not in chain else ""
-        lines.append(f"Based on composite quality scores, the recommended fallback chain is:")
+        lines.append(
+            "Based on composite quality scores, the recommended fallback chain is:"
+        )
         lines.append("")
-        lines.append(f"```")
+        lines.append("```")
         lines.append(f"LLM_FALLBACK_CHAIN={chain}")
-        lines.append(f"```")
+        lines.append("```")
         lines.append("")
         for i, (p, score) in enumerate(ranked, 1):
             lines.append(f"{i}. **`{p}`** (composite: {score:.3f})")
         lines.append("")
     else:
-        lines.append("Insufficient golden baseline data for ranking. "
-                     "Generate golden baselines first, then re-run the benchmark.")
+        lines.append(
+            "Insufficient golden baseline data for ranking. "
+            "Generate golden baselines first, then re-run the benchmark."
+        )
         lines.append("")
 
     lines.append("---")
     lines.append("")
-    lines.append("*Report generated by `tests/integration/benchmark_providers.py` (issue #314)*")
+    lines.append(
+        "*Report generated by `tests/integration/benchmark_providers.py` (issue #314)*"
+    )
     lines.append("")
 
     return "\n".join(lines)
@@ -691,9 +728,9 @@ async def main() -> None:
             if killed:
                 print(f"  (killed {killed} lingering claude process(es))")
             await asyncio.sleep(5)
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"  PROVIDER: {provider}")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
         for cv_name, cv_text in cv_texts.items():
             print(f"  [{cv_name}] running...", end="", flush=True)
@@ -722,39 +759,57 @@ async def main() -> None:
             else:
                 print(f" FAILED: {result.get('error', '?')}")
 
-    # Generate report
+    # Generate report & update baselines
+    _save_report(all_results)
+    _update_golden_baselines(all_results, available)
+    print("\nDone.")
+
+
+def _save_report(all_results: dict[str, dict[str, dict]]) -> None:
+    """Generate and save the markdown report."""
     print("\nGenerating report...")
     report = _generate_report(all_results)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     REPORT_PATH.write_text(report, encoding="utf-8")
     print(f"Report saved to {REPORT_PATH}")
 
-    # Update golden baselines from claude-opus results (best available)
-    best_provider = "claude-opus" if "claude-opus" in available else None
+
+def _update_golden_baselines(
+    all_results: dict[str, dict[str, dict]],
+    available: list[str],
+) -> None:
+    """Update golden baselines from best available provider."""
+    best_provider = None
+    for candidate in ("claude-opus", "claude-sonnet"):
+        if candidate in available:
+            best_provider = candidate
+            break
+
     if not best_provider:
-        best_provider = "claude-sonnet" if "claude-sonnet" in available else None
+        return
 
-    if best_provider:
-        print(f"\nUpdating golden baselines from {best_provider} results...")
-        for cv_name, cv_data in all_results.items():
-            if best_provider not in cv_data:
-                continue
-            data = cv_data[best_provider]
-            if data["status"] != "ok":
-                continue
-            golden_path = FIXTURES_DIR / f"{cv_name}_golden.json"
-            golden_data = {
-                "nodes": data["nodes"],
-                "relationships": data["relationships"],
-                "unmatched": data.get("unmatched", []),
-            }
-            golden_path.write_text(
-                json.dumps(golden_data, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            print(f"  {golden_path.name}: {len(data['nodes'])} nodes, {len(data['relationships'])} rels")
-
-    print("\nDone.")
+    print(f"\nUpdating golden baselines from {best_provider} results...")
+    for cv_name, cv_data in all_results.items():
+        if best_provider not in cv_data:
+            continue
+        data = cv_data[best_provider]
+        if data["status"] != "ok":
+            continue
+        golden_path = FIXTURES_DIR / f"{cv_name}_golden.json"
+        golden_data = {
+            "nodes": data["nodes"],
+            "relationships": data["relationships"],
+            "unmatched": data.get("unmatched", []),
+        }
+        golden_path.write_text(
+            json.dumps(golden_data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        print(
+            f"  {golden_path.name}: "
+            f"{len(data['nodes'])} nodes, "
+            f"{len(data['relationships'])} rels"
+        )
 
 
 if __name__ == "__main__":
