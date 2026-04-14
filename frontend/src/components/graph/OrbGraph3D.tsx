@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, useMemo, useEffect } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import * as THREE from 'three';
 import type { OrbData } from '../../api/orbs';
-import { getNodeColor, NODE_TYPE_LABELS, NODE_SHAPE_MARKERS } from './NodeColors';
+import { getNodeColor } from './NodeColors';
 import NodeTooltip from './NodeTooltip';
 
 interface OrbGraph3DProps {
@@ -24,63 +24,6 @@ interface OrbGraph3DProps {
   onCameraDistanceChange?: (distance: number) => void;
 }
 
-function getNodeName(node: any): string {
-  const label = node._labels?.[0];
-  if (label === 'Person') return node.cv_display_name || node.name || 'You';
-  return node.name || node.title || node.company || node.institution || '';
-}
-
-function getTypeLabel(node: any): string {
-  const label = node._labels?.[0];
-  if (label === 'Person') return '';
-  const snakeCase = label?.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') || '';
-  return NODE_TYPE_LABELS[snakeCase] || label || '';
-}
-
-// ── Shared canvas for label rendering (#228.9) ──
-// Instead of creating a new <canvas> + CanvasTexture per node (200+ DOM
-// allocations), we reuse ONE canvas and snapshot pixels into a DataTexture.
-// This eliminates canvas allocation overhead while keeping the simple
-// sprite-per-label approach.
-const LABEL_CANVAS = document.createElement('canvas');
-LABEL_CANVAS.width = 512;
-LABEL_CANVAS.height = 64;
-const LABEL_CTX = LABEL_CANVAS.getContext('2d')!;
-
-function createLabelTexture(
-  name: string,
-  color: string,
-  isPerson: boolean,
-  isFiltered: boolean,
-  isDimmed: boolean,
-  typeLabel: string,
-  marker: string,
-): THREE.DataTexture {
-  LABEL_CTX.clearRect(0, 0, 512, 64);
-
-  LABEL_CTX.font = `600 ${isPerson ? 18 : 13}px Inter, -apple-system, sans-serif`;
-  LABEL_CTX.textAlign = 'center';
-  const textAlpha = isFiltered ? 0.06 : isDimmed ? 0.12 : 0.9;
-  LABEL_CTX.fillStyle = `rgba(255,255,255,${textAlpha})`;
-  const displayName = name.length > 28 ? name.slice(0, 26) + '\u2026' : name;
-  LABEL_CTX.fillText(displayName, 256, isPerson ? 24 : 20);
-
-  if (!isPerson && typeLabel) {
-    LABEL_CTX.font = '500 10px Inter, -apple-system, sans-serif';
-    LABEL_CTX.fillStyle = isFiltered ? 'rgba(255,255,255,0.03)' : isDimmed ? 'rgba(255,255,255,0.06)' : color;
-    LABEL_CTX.fillText(`${marker} ${typeLabel}`, 256, 38);
-  }
-
-  const imageData = LABEL_CTX.getImageData(0, 0, 512, 64);
-  const texture = new THREE.DataTexture(
-    new Uint8Array(imageData.data.buffer),
-    512,
-    64,
-    THREE.RGBAFormat,
-  );
-  texture.needsUpdate = true;
-  return texture;
-}
 
 // ── Shared geometry pool (created once, reused for all nodes) ──
 const SHARED_GEO = {
@@ -578,25 +521,6 @@ export default function OrbGraph3D({
         group.add(ring);
       }
 
-    }
-
-    // Text label sprite — uses the shared canvas + DataTexture helper
-    const name = getNodeName(node);
-    if (name) {
-      const typeLabel = isPerson ? '' : getTypeLabel(node);
-      const marker = isPerson ? '' : (NODE_SHAPE_MARKERS[node._labels?.[0] || ''] || '');
-      const texture = createLabelTexture(
-        name, color, isPerson, isFiltered, isDimmed, typeLabel, marker,
-      );
-      const spriteMat = new THREE.SpriteMaterial({
-        map: texture,
-        transparent: true,
-        depthWrite: false,
-      });
-      const sprite = new THREE.Sprite(spriteMat);
-      sprite.scale.set(22, 2.8, 1);
-      sprite.position.y = -(isPerson ? 10 : radius + 5);
-      group.add(sprite);
     }
 
     nodeObjectCacheRef.current.set(nodeId, group);

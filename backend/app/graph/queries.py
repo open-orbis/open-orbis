@@ -21,7 +21,7 @@ CREATE (p:Person {
     website_url: '',
     orcid_url: '',
     open_to_work: false,
-    visibility: 'public',
+    visibility: 'restricted',
     created_at: datetime(),
     updated_at: datetime()
 })
