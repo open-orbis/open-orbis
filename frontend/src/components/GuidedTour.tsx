@@ -51,8 +51,14 @@ const STEPS: TourStep[] = [
   },
   {
     target: '[data-tour="node-types"]',
-    title: 'Filter Node Types',
-    content: 'Filter which types of nodes are visible in the graph — education, skills, work experience, and more.',
+    title: 'View Node Types',
+    content: 'Open this to view your node categories (education, skills, work experience, and more).',
+    placement: 'bottom',
+  },
+  {
+    target: '[data-tour="keyword-filter"]',
+    title: 'Filter',
+    content: 'Use this button to filter the graph by keywords and focus on relevant parts of your orbis. These filters can also be configured for shared Orbis views to control what other users can see.',
     placement: 'bottom',
   },
   {
@@ -74,16 +80,40 @@ const STEPS: TourStep[] = [
     placement: 'bottom',
   },
   {
-    target: '[data-tour="chatbox"]',
-    title: 'Search With Chat',
-    content: 'Search your orbis by typing queries here. Matching nodes will be highlighted in the graph. You can also share your orbis from here.',
-    placement: 'top',
+    target: '[data-tour="search-orbis-id"]',
+    title: 'Search Orbis ID',
+    content: 'Use this field to open any Orbis directly by ID. Type an ID and press Enter to navigate.',
+    placement: 'bottom',
   },
   {
     target: '[data-tour="user-menu"]',
     title: 'Account Settings',
     content: 'Access your account settings, uploaded CVs, and sign out from here. In Settings you can claim a custom Orbis ID, manage saved versions, or delete your account.',
     placement: 'bottom-end',
+  },
+  {
+    target: '[data-tour="orbis-pulse"]',
+    title: 'Orbis Pulse',
+    content: 'Orbis Pulse gives you live graph metrics (active nodes/edges, density, skill coverage, top hub, and share readiness) based on the current view and filters.',
+    placement: 'left',
+  },
+  {
+    target: '[data-tour="add-entry"]',
+    title: 'Add To Graph',
+    content: 'Use the + button to quickly add a new node to your orbis.',
+    placement: 'top',
+  },
+  {
+    target: '[data-tour="visibility"]',
+    title: 'Set Visibility',
+    content: 'Use this Share button to open sharing controls and set visibility to public or restricted. Default is restricted. You can then configure who can access your orbis.',
+    placement: 'top',
+  },
+  {
+    target: '[data-tour="chatbox"]',
+    title: 'Search With Chat',
+    content: 'Search your orbis by typing queries here. Matching nodes will be highlighted in the graph. You can also share your orbis from here.',
+    placement: 'top',
   },
 ];
 

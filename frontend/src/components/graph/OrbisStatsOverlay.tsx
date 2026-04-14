@@ -177,7 +177,11 @@ export default function OrbisStatsOverlay({
   }, [compactOpen, isCompact]);
 
   return (
-    <div ref={containerRef} className="pointer-events-none fixed right-4 bottom-24 z-20 sm:right-6 sm:bottom-8">
+    <div
+      ref={containerRef}
+      data-tour="orbis-pulse"
+      className="pointer-events-none fixed right-4 bottom-24 z-20 sm:right-6 sm:bottom-8"
+    >
       {isCompact ? (
         <div className="flex flex-col items-end gap-2">
           {compactOpen && (
