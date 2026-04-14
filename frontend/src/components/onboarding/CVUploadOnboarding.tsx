@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { uploadCV, getCVProgress, getDocuments, discardCVProgress } from '../../api/cv';
 import type { ExtractedData, ExtractedProfile, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
@@ -451,9 +452,21 @@ const STEPS = [
   { key: 'parsing_response', label: 'Building your orbis' },
 ];
 
+const PROCESSING_IDEAS = [
+  'Use your Orbis ID in ChatGPT or Claude to answer questions about your background and skills.',
+  'Paste your Orbis link into Lovable, Bolt, or v0 to auto-generate a personal portfolio draft.',
+  'Share your Orbis with a cover-letter generator to tailor applications to each role.',
+  'Add your Orbis link on LinkedIn or your CV so people can explore your profile beyond a static PDF.',
+  'Drop your Orbis into recruiter AI tools so they can match your skills to open roles faster.',
+  'Put your Orbis link in your email signature for instant context when reaching out to new contacts.',
+  'Include your Orbis link in job applications to show projects, skills, and relationships at a glance.',
+  'Share your Orbis QR code at events and meetups so people can immediately discover your profile.',
+];
+
 function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
   const currentStep = progress?.step || 'reading_pdf';
   const detail = progress?.detail || progress?.message || '';
+  const [activeIdeaIdx, setActiveIdeaIdx] = useState(0);
 
   const currentIdx = STEPS.findIndex((s) => s.key === currentStep);
   const completedSteps = currentStep === 'done'
@@ -497,12 +510,20 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
     return () => clearInterval(timer);
   }, [classifyStart, currentStep]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveIdeaIdx((prev) => (prev + 1) % PROCESSING_IDEAS.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
+
   const basePercent = currentStep === 'done'
     ? 100
     : Math.round((completedSteps / STEPS.length) * 100);
   const displayPercent = currentStep === 'done'
     ? 100
     : Math.min(basePercent + (currentStep === 'classifying' || currentStep === 'parsing_response' ? smoothExtra : 0), 99);
+  const activeIdea = PROCESSING_IDEAS[activeIdeaIdx];
 
   return (
     <div className="w-full max-w-md mx-auto rounded-xl border border-white/10 bg-black/20 px-4 py-4 sm:px-5 sm:py-5">
@@ -567,6 +588,31 @@ function ProgressSteps({ progress }: { progress: CVProgressData | null }) {
         <p className="mt-2 text-[11px] text-purple-200 font-medium text-right">
           {statusText}
         </p>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-amber-400/25 bg-gradient-to-r from-yellow-500/[0.06] via-amber-500/[0.05] to-orange-500/[0.05] px-3 py-3">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-amber-300/30 bg-amber-500/10">
+            <svg className="h-4.5 w-4.5 text-amber-300/95" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1 text-left">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-amber-200/95 uppercase">Ideas While You Wait</p>
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={activeIdeaIdx}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+                className="mt-1 text-xs text-white/80 leading-relaxed"
+              >
+                {activeIdea}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
     </div>
   );
