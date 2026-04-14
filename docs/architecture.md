@@ -40,15 +40,18 @@ Middleware stack (outermost first):
 
 | Module | Responsibility |
 |--------|---------------|
-| `auth/` | JWT creation/validation, dev-login flow, GDPR consent, account deletion |
+| `auth/` | JWT creation/validation, OAuth (Google/LinkedIn), GDPR consent, account deletion, MCP API keys, refresh tokens |
 | `cv/` | PDF text extraction, LLM classification with fallback chain, graph persistence |
 | `graph/` | Neo4j driver singleton, all Cypher queries, Fernet encryption, embedding generation |
-| `orbs/` | Graph CRUD (nodes, relationships, profile), filter token generation |
+| `orbs/` | Graph CRUD (nodes, relationships, profile), share tokens, access grants, connection requests, visibility management |
 | `messages/` | Inbox (send, list, reply, read, delete), welcome message on registration |
 | `notes/` | Free-text note enhancement via LLM (classify to node type + properties) |
 | `search/` | Vector similarity search (5 indexes) + fuzzy text search (Cypher + Python fallback) |
 | `export/` | Public orb export as JSON, JSON-LD (Schema.org), or PDF (fpdf2) |
-| `mcp_server/` | MCP server exposing 6 tools for AI agent access to orb data |
+| `drafts/` | Draft notes CRUD (create, list, update, delete) |
+| `ideas/` | Feature idea / feedback submission and admin listing |
+| `snapshots/` | Orb version snapshots (save, restore, delete, auto-create on CV import) |
+| `mcp_server/` | MCP server exposing 5 tools for AI agent access to orb data (API key auth) |
 
 ### Dependency Injection
 
@@ -90,7 +93,7 @@ POST /auth/dev-login
     └─ Return JWT (HS256, 24h expiry) with {sub: user_id, email}
 ```
 
-JWT validation on protected endpoints via `HTTPBearer` scheme. Filter tokens are a separate JWT type with no expiry, encoding `{orb_id, filters[], type: "filter"}`.
+JWT validation on protected endpoints via `HTTPBearer` scheme. Refresh tokens support token rotation — each refresh revokes the old token and issues a new pair.
 
 ### Encryption
 
@@ -100,11 +103,12 @@ Fernet symmetric encryption for PII fields (`email`, `phone`, `address`). Key fr
 
 ### State Management
 
-Four Zustand stores:
+Five Zustand stores:
 - **authStore** — user session, token (localStorage-backed), login/logout
 - **orbStore** — graph data (person + nodes + links), CRUD actions with automatic re-fetch
 - **filterStore** — keyword-based node filtering (persisted to localStorage)
 - **dateFilterStore** — date range slider state for temporal filtering
+- **undoStore** — undo/redo stack for graph mutations
 
 ### API Layer
 
@@ -124,11 +128,33 @@ Performance optimizations: shared geometry (never recreated), node object cache 
 |------|------|------|
 | `/` | LandingPage | Public |
 | `/auth/callback` | AuthCallbackPage | Public |
+| `/auth/linkedin/callback` | LinkedInCallbackPage | Public |
 | `/create` | CreateOrbPage | Required |
 | `/myorbis` | OrbViewPage | Required |
 | `/cv-export` | CvExportPage | Required |
+| `/privacy` | PrivacyPolicyPage | Public |
+| `/activate` | ActivatePage | Required (not activated) |
+| `/admin` | AdminPage | Required + is_admin |
 | `/:orbId` | SharedOrbPage | Public |
 
 ## MCP Server
 
-Separate process (`python -m mcp_server.server`) exposing 6 tools via streamable-http transport. Connects to Neo4j independently (own driver instance). Tools: `orbis_get_summary`, `orbis_get_full_orb`, `orbis_get_nodes_by_type`, `orbis_get_connections`, `orbis_get_skills_for_experience`, `orbis_send_message`.
+Separate process (`python -m mcp_server.server`) exposing 5 tools via streamable-http transport. Connects to Neo4j independently (own driver instance).
+
+### Authentication
+
+All MCP requests require an `X-MCP-Key` header containing a user-scoped API key (prefix `orbk_`). The `APIKeyMiddleware` validates the key by looking up its SHA-256 hash in Neo4j and resolves it to a `user_id`. Missing or invalid key returns 401 before reaching any tool.
+
+### Access Control
+
+MCP tools support a two-tiered access model:
+- **Owner bypass:** If the API key owner is the orb owner, full unfiltered access (no share token needed)
+- **Share-token grant:** Non-owners must provide a valid `token` parameter; privacy filters from the token are applied to the response
+
+### Tools
+
+- `orbis_get_summary` — high-level orb overview (node counts by type)
+- `orbis_get_full_orb` — full graph data (person + nodes + links)
+- `orbis_get_nodes_by_type` — nodes filtered by label
+- `orbis_get_connections` — relationships for a specific node
+- `orbis_get_skills_for_experience` — skills linked to a work experience/project via `USED_SKILL`

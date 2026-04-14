@@ -2,7 +2,7 @@
 
 > Navigable user-flow map for agent-based UX evaluation. Covers all pages, modals, interactions, guards, and error states.
 >
-> **Last updated:** 2026-04-09 | **Issue:** #193
+> **Last updated:** 2026-04-14 | **Issue:** #193, #274
 
 ## How to Update This Map
 
@@ -32,7 +32,6 @@ stateDiagram-v2
     state "Orb View (/myorbis)" as ORB_VIEW
     state "Shared Orb (/:orbId)" as SHARED_ORB
     state "CV Export (/cv-export)" as CV_EXPORT
-    state "About (/about)" as ABOUT
     state "Privacy (/privacy)" as PRIVACY
     state "Activate (/activate)" as ACTIVATION
     state "Admin Dashboard (/admin)" as ADMIN
@@ -76,7 +75,6 @@ stateDiagram-v2
     ORB_VIEW --> LANDING: Sign out
 
     %% ── Public pages ──
-    LANDING --> ABOUT: About link
     LANDING --> PRIVACY: Privacy link
     LANDING --> SHARED_ORB: Public orb link
     SHARED_ORB --> LANDING: "Create your own Orbis" CTA
@@ -199,7 +197,6 @@ flowchart TD
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
 | `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Blocks platform access until valid code entered. Admins bypass. |
 | `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users, beta config toggle |
-| `ABOUT` | `/about` | No | About page |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
 | `FLOATING_INPUT` | (modal on ORB_VIEW) | Yes | Add/edit node form |
