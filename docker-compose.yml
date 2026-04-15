@@ -14,6 +14,18 @@ services:
       - neo4j_data:/data
       - ./infra/neo4j:/import
 
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: orbis
+      POSTGRES_PASSWORD: orbis_dev_password
+      POSTGRES_DB: orbis
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
   ollama:
     image: ollama/ollama:latest
     container_name: orbis-ollama
@@ -24,4 +36,5 @@ services:
 
 volumes:
   neo4j_data:
+  postgres_data:
   ollama_data:

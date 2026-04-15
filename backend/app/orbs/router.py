@@ -461,7 +461,7 @@ async def list_versions(
     current_user: dict = Depends(get_current_user),
 ):
     """List orb snapshots (metadata only, no data)."""
-    return snap_db.list_snapshots(current_user["user_id"])
+    return await snap_db.list_snapshots(current_user["user_id"])
 
 
 @router.post("/me/versions")
@@ -501,7 +501,7 @@ async def delete_version(
     current_user: dict = Depends(get_current_user),
 ):
     """Delete a specific snapshot."""
-    deleted = snap_db.delete_snapshot(current_user["user_id"], snapshot_id)
+    deleted = await snap_db.delete_snapshot(current_user["user_id"], snapshot_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return {"status": "deleted"}

@@ -352,7 +352,8 @@ async def get_user_detail(db: AsyncDriver, user_id: str) -> dict | None:
     from app.cv_storage import db as cv_db
 
     user_docs = {
-        d["document_id"]: d["original_filename"] for d in cv_db.list_documents(user_id)
+        d["document_id"]: d["original_filename"]
+        for d in await cv_db.list_documents(user_id)
     }
 
     processing_records = []

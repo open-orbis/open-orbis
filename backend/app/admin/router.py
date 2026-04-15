@@ -17,6 +17,8 @@ from app.admin.models import (
     BatchActivateRequest,
     BetaConfigResponse,
     BetaConfigUpdate,
+    CVJobResponse,
+    CVJobsPage,
     FunnelResponse,
     InsightsResponse,
     InviteCodeCounts,
@@ -433,23 +435,160 @@ async def remove_user(
     if not found:
         raise HTTPException(status_code=404, detail="User not found")
     # Clean up secondary storage
-    _cleanup_secondary_storage(user_id)
+    await _cleanup_secondary_storage(user_id)
     return None
 
 
-def _cleanup_secondary_storage(user_id: str) -> None:
+async def _cleanup_secondary_storage(user_id: str) -> None:
     """Best-effort cleanup of CV, drafts and snapshot storage."""
     import contextlib
 
     with contextlib.suppress(Exception):
         from app.cv_storage.storage import delete_all_for_user as delete_cvs
 
-        delete_cvs(user_id)
+        await delete_cvs(user_id)
     with contextlib.suppress(Exception):
         from app.drafts.db import delete_all_for_user as delete_drafts
 
-        delete_drafts(user_id)
+        await delete_drafts(user_id)
     with contextlib.suppress(Exception):
         from app.snapshots.db import delete_all_for_user as delete_snapshots
 
-        delete_snapshots(user_id)
+        await delete_snapshots(user_id)
+
+
+@router.post("/cleanup")
+async def run_cleanup(
+    _admin: dict = Depends(require_admin),
+):
+    """Run expired-account cleanup. Intended for Cloud Scheduler."""
+    from app.main import cleanup_expired_accounts
+
+    count = await cleanup_expired_accounts()
+    return {"status": "ok", "deleted": count}
+
+
+# ── CV Jobs ──
+
+
+@router.get("/cv-jobs", response_model=CVJobsPage)
+async def list_cv_jobs(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    status: str | None = Query(None),
+    _admin: dict = Depends(require_admin),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List all CV processing jobs with optional status filter."""
+    from app.cv import jobs_db
+    from app.graph.encryption import decrypt_properties
+
+    jobs, total = await jobs_db.list_jobs_admin(
+        offset=offset, limit=limit, status=status
+    )
+
+    # Batch-fetch user name/email from Neo4j for all jobs
+    user_ids = list({j["user_id"] for j in jobs})
+    user_map: dict[str, dict] = {}
+    if user_ids:
+        async with db.session() as session:
+            result = await session.run(
+                """
+                UNWIND $user_ids AS uid
+                MATCH (p:Person {user_id: uid})
+                RETURN p.user_id AS user_id, p.name AS name, p.email AS email
+                """,
+                user_ids=user_ids,
+            )
+            records = await result.data()
+        for rec in records:
+            props = decrypt_properties({"email": rec.get("email")})
+            user_map[rec["user_id"]] = {
+                "name": rec.get("name"),
+                "email": props.get("email"),
+            }
+
+    items = []
+    for j in jobs:
+        user_info = user_map.get(j["user_id"], {})
+        items.append(
+            CVJobResponse(
+                job_id=j["job_id"],
+                user_id=j["user_id"],
+                user_name=user_info.get("name"),
+                user_email=user_info.get("email"),
+                document_id=j.get("document_id"),
+                filename=j.get("filename"),
+                status=j["status"],
+                step=j.get("step"),
+                progress_pct=j.get("progress_pct") or 0,
+                progress_detail=j.get("progress_detail"),
+                llm_provider=j.get("llm_provider"),
+                llm_model=j.get("llm_model"),
+                text_chars=j.get("text_chars"),
+                node_count=j.get("node_count"),
+                edge_count=j.get("edge_count"),
+                error_message=j.get("error_message"),
+                created_at=str(j["created_at"]) if j.get("created_at") else None,
+                started_at=str(j["started_at"]) if j.get("started_at") else None,
+                completed_at=(
+                    str(j["completed_at"]) if j.get("completed_at") else None
+                ),
+            )
+        )
+
+    return CVJobsPage(items=items, total=total, offset=offset, limit=limit)
+
+
+@router.post("/cv-jobs/{job_id}/cancel")
+async def cancel_cv_job_endpoint(
+    job_id: str,
+    current_user: dict = Depends(require_admin),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Cancel a queued or running CV job."""
+    from app.cv import jobs_db
+    from app.cv.cloud_tasks import cancel_cv_job
+    from app.email.service import send_cv_cancelled_email
+    from app.graph.encryption import decrypt_properties
+
+    job = await jobs_db.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if job["status"] not in ("queued", "running"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel job in '{job['status']}' status",
+        )
+
+    # Cancel Cloud Task if one exists
+    if job.get("cloud_task_name"):
+        cancel_cv_job(job["cloud_task_name"])
+
+    await jobs_db.update_job_status(
+        job_id,
+        "cancelled",
+        cancelled_by=current_user["user_id"],
+    )
+
+    # Send cancellation email (best-effort)
+    user_id = job["user_id"]
+    try:
+        async with db.session() as session:
+            result = await session.run(
+                "MATCH (p:Person {user_id: $user_id}) RETURN p.email AS email",
+                user_id=user_id,
+            )
+            record = await result.single()
+        if record:
+            props = decrypt_properties({"email": record["email"]})
+            email = props.get("email")
+            if email:
+                await send_cv_cancelled_email(
+                    to=email, frontend_url=settings.frontend_url
+                )
+    except Exception:
+        logger.warning("Failed to send cancellation email for job %s", job_id)
+
+    return {"status": "cancelled", "job_id": job_id}

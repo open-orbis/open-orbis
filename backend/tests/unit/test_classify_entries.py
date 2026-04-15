@@ -66,7 +66,7 @@ def _make_settings(**overrides):
         "llm_fallback_chain", "claude-opus,claude-sonnet,ollama,rule-based"
     )
     s.llm_timeout_seconds = overrides.get("llm_timeout_seconds", 120)
-    s.llm_provider = overrides.get("llm_provider", "claude")
+    s.llm_provider = overrides.get("llm_provider", "vertex")
     s.ollama_base_url = overrides.get("ollama_base_url", "http://localhost:11434")
     s.ollama_model = overrides.get("ollama_model", "llama3.2:3b")
     s.claude_model = overrides.get("claude_model", "claude-opus-4-6")
@@ -95,13 +95,13 @@ class TestParseFallbackChain:
         chain = parse_fallback_chain("claude-opus,unknown,ollama")
         assert chain == ["claude-opus", "ollama"]
 
-    def test_empty_string_falls_back_to_llm_provider_claude(self):
+    def test_empty_string_falls_back_to_llm_provider_vertex(self):
         chain = parse_fallback_chain("")
-        assert chain == ["claude-opus", "rule-based"]
+        assert chain == ["gemini-pro"]
 
     def test_all_invalid_falls_back_to_llm_provider(self):
         chain = parse_fallback_chain("foo,bar")
-        assert chain == ["claude-opus", "rule-based"]
+        assert chain == ["gemini-pro"]
 
 
 # ── Empty input ──

@@ -18,6 +18,11 @@ async def get_driver() -> AsyncDriver:
         _driver = AsyncGraphDatabase.driver(
             settings.neo4j_uri,
             auth=(settings.neo4j_user, settings.neo4j_password),
+            max_connection_pool_size=50,
+            connection_acquisition_timeout=10,
+            max_connection_lifetime=5
+            * 60,  # recycle before VPC connector drops idle TCP
+            keep_alive=True,
         )
     return _driver
 

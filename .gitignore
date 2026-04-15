@@ -43,6 +43,10 @@ htmlcov/
 .pytest_cache/
 create_issues.sh
 
+# GCP service account keys (never commit)
+*-sa-key.json
+*.key.json
+
 # Claude Code agent/skill configs
 agents.md
 .claude/

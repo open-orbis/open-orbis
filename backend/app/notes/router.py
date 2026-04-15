@@ -216,7 +216,7 @@ async def enhance_note(
     provider = settings.llm_provider
 
     try:
-        if provider == "claude":
+        if provider in ("claude", "cli"):
             from app.cv.claude_classifier import call_claude
 
             claude_resp = await call_claude(
@@ -231,18 +231,34 @@ async def enhance_note(
                 "input_tokens": claude_resp.get("input_tokens"),
                 "output_tokens": claude_resp.get("output_tokens"),
             }
+            used_model = settings.claude_model
+        elif provider == "vertex":
+            from app.cv.gemini_classifier import call_gemini
+
+            gemini_resp = await call_gemini(
+                system_prompt=system_prompt,
+                user_message=user_message,
+                model=settings.gemini_model or None,
+            )
+            result = gemini_resp["content"]
+            llm_usage = {
+                "cost_usd": gemini_resp.get("cost_usd"),
+                "duration_ms": gemini_resp.get("duration_ms"),
+                "input_tokens": gemini_resp.get("input_tokens"),
+                "output_tokens": gemini_resp.get("output_tokens"),
+            }
+            used_model = settings.gemini_model
         else:
             result = await _call_ollama(system_prompt, user_message)
             llm_usage = {}
+            used_model = settings.ollama_model
 
         await record_llm_usage(
             db=db,
             user_id=current_user["user_id"],
             endpoint="note_enhance",
             llm_provider=provider,
-            llm_model=settings.claude_model
-            if provider == "claude"
-            else settings.ollama_model,
+            llm_model=used_model,
             cost_usd=llm_usage.get("cost_usd"),
             duration_ms=llm_usage.get("duration_ms"),
             input_tokens=llm_usage.get("input_tokens"),

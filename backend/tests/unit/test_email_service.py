@@ -13,8 +13,8 @@ def test_render_activation_email():
     html = render_activation_email(activate_url="https://app.example.com")
     assert "https://app.example.com" in html
     assert "OpenOrbis" in html
-    assert "activated" in html
-    assert "Open OpenOrbis" in html
+    assert "account is ready" in html
+    assert "OpenOrbis" in html
 
 
 def test_render_invite_code_email():
@@ -115,7 +115,7 @@ async def test_send_activation_email():
     mock_send.assert_awaited_once()
     call_kwargs = mock_send.call_args[1]
     assert call_kwargs["to"] == "user@example.com"
-    assert "active" in call_kwargs["subject"].lower()
+    assert "ready" in call_kwargs["subject"].lower()
     assert "OpenOrbis" in call_kwargs["html_body"]
 
 

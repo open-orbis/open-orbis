@@ -111,7 +111,7 @@
   action: Drop or select PDF file
   selector_or_control: "drag-and-drop zone or file input"
   preconditions: [authenticated, gdpr_consent]
-  expected_effect: Uploads file, shows progress steps, polls getCVProgress()
+  expected_effect: Uploads file, receives job_id, shows info banner, polls GET /cv/job/{job_id} until complete, then shows review with extracted nodes
   next_state: CV_REVIEW
   fallback_on_failure: Error message "Failed to parse CV"
 
@@ -251,9 +251,36 @@
   action: Click Import data and select file
   selector_or_control: "Import data label + file input"
   preconditions: [authenticated, gdpr_consent]
-  expected_effect: Extracts document, shows review overlay
+  expected_effect: Uploads file to backend, receives job_id, shows info banner, polls GET /cv/job/{job_id} until complete, then shows review overlay
   next_state: IMPORT_REVIEW | IMPORT_LIMIT
   fallback_on_failure: Toast "Failed to import document"
+
+- id: ORB_SEND_FEEDBACK
+  from_state: ORB_VIEW
+  action: Click "Send Feedback" button above ChatBox
+  selector_or_control: "Send Feedback button above ChatBox input"
+  preconditions: [authenticated]
+  expected_effect: Opens Send Feedback modal with styled text input
+  next_state: FEEDBACK_MODAL
+  fallback_on_failure: null
+
+- id: FEEDBACK_SUBMIT
+  from_state: FEEDBACK_MODAL
+  action: Enter feedback text and click Submit
+  selector_or_control: "textarea + submit button in feedback modal"
+  preconditions: [text_not_empty]
+  expected_effect: Calls POST /ideas with source=feedback, closes modal, shows success toast
+  next_state: ORB_VIEW
+  fallback_on_failure: Toast "Failed to send feedback"
+
+- id: FEEDBACK_CLOSE
+  from_state: FEEDBACK_MODAL
+  action: Click Close / X
+  selector_or_control: "close button or overlay click"
+  preconditions: []
+  expected_effect: Dismisses modal without submitting
+  next_state: ORB_VIEW
+  fallback_on_failure: null
 
 - id: ORB_SEARCH
   from_state: ORB_VIEW
@@ -645,3 +672,48 @@
   expected_effect: Shows table of registered users without signup_code (name, email, provider, registration date)
   next_state: ADMIN (pending users tab)
   fallback_on_failure: "Nessun utente in attesa di attivazione"
+
+- id: ADMIN_APPROVE_USER
+  from_state: ADMIN
+  action: Click "Approve" button next to a pending user
+  selector_or_control: "Approve button in pending users table row"
+  preconditions: [authenticated, is_admin, user_not_activated]
+  expected_effect: Calls POST /admin/users/{user_id}/activate, sends activation email (best-effort), refreshes pending users list
+  next_state: ADMIN (pending users tab, user removed)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_APPROVE_ALL_PENDING
+  from_state: ADMIN
+  action: Click "Approve all" button on Pending tab
+  selector_or_control: "Approve all button above pending users table"
+  preconditions: [authenticated, is_admin, pending_users_exist]
+  expected_effect: Calls POST /admin/users/activate-batch for all pending users, sends activation emails, refreshes list
+  next_state: ADMIN (pending users tab, list cleared)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_VIEW_CV_JOBS
+  from_state: ADMIN
+  action: Click "CV Jobs" tab
+  selector_or_control: "CV Jobs tab in admin dashboard"
+  preconditions: [authenticated, is_admin]
+  expected_effect: Shows paginated table of all CV processing jobs with status, user, filename, node/edge counts, timestamps
+  next_state: ADMIN (CV Jobs tab)
+  fallback_on_failure: Error message
+
+- id: ADMIN_CANCEL_CV_JOB
+  from_state: ADMIN
+  action: Click Cancel on a queued or running CV job
+  selector_or_control: "Cancel button in CV Jobs table row"
+  preconditions: [authenticated, is_admin, job_status in (queued, running)]
+  expected_effect: Calls POST /admin/cv-jobs/{job_id}/cancel, job status updated to cancelled, refreshes list
+  next_state: ADMIN (CV Jobs tab, job status updated)
+  fallback_on_failure: Error toast
+
+- id: ADMIN_VIEW_FEEDBACK
+  from_state: ADMIN
+  action: Click "Feedback" tab
+  selector_or_control: "Feedback tab in admin dashboard"
+  preconditions: [authenticated, is_admin]
+  expected_effect: Shows submitted feedback entries (source=feedback) separately from ideas (source=idea)
+  next_state: ADMIN (Feedback tab)
+  fallback_on_failure: Error message

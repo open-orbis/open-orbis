@@ -2,145 +2,189 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 import app.cv_storage.db as cv_db
 import app.cv_storage.storage as cv_storage
+
+_PDF = b"%PDF-1.4 fake pdf content for testing"
+_USER = "user-test-001"
+_NOW = "2026-01-01T00:00:00"
 
 
 @pytest.fixture(autouse=True)
 def isolated_storage(monkeypatch, tmp_path):
     cv_dir = tmp_path / "cv_files"
     monkeypatch.setattr(cv_storage, "_CV_DIR", cv_dir)
-    db_file = tmp_path / "cv_documents_test.db"
-    monkeypatch.setattr(cv_db, "_DB_PATH", db_file)
-    monkeypatch.setattr(cv_db, "_conn", None)
-    yield
-    if cv_db._conn is not None:
-        cv_db._conn.close()
-    monkeypatch.setattr(cv_db, "_conn", None)
+    yield cv_dir
 
 
-_PDF = b"%PDF-1.4 fake pdf content for testing"
-_USER = "user-test-001"
+# ── save_document + load_document ──
 
 
-def test_save_and_load():
-    doc = cv_storage.save_document(
-        user_id=_USER,
-        document_id="doc-1",
-        pdf_bytes=_PDF,
-        filename="resume.pdf",
-        page_count=2,
-        entities_count=10,
-        edges_count=5,
-    )
-    assert doc["document_id"] == "doc-1"
+async def test_save_and_load(isolated_storage):
+    with patch.object(cv_db, "insert_document", new_callable=AsyncMock) as mock_insert:
+        mock_insert.return_value = {
+            "document_id": "doc-1",
+            "user_id": _USER,
+            "original_filename": "resume.pdf",
+            "file_size_bytes": len(_PDF),
+            "uploaded_at": _NOW,
+            "page_count": 2,
+            "entities_count": 10,
+            "edges_count": 5,
+        }
+        doc = await cv_storage.save_document(
+            user_id=_USER,
+            document_id="doc-1",
+            pdf_bytes=_PDF,
+            filename="resume.pdf",
+            page_count=2,
+            entities_count=10,
+            edges_count=5,
+        )
+        assert doc["document_id"] == "doc-1"
+        mock_insert.assert_awaited_once()
+
     result = cv_storage.load_document(_USER, "doc-1")
     assert result == _PDF
 
 
-def test_load_nonexistent():
+async def test_load_nonexistent():
     assert cv_storage.load_document(_USER, "no-such-doc") is None
 
 
-def test_multiple_documents():
-    cv_storage.save_document(_USER, "doc-1", _PDF, "a.pdf", 1, 5, 2)
-    cv_storage.save_document(_USER, "doc-2", b"other pdf", "b.pdf", 2, 10, 4)
+async def test_multiple_documents(isolated_storage):
+    with patch.object(cv_db, "insert_document", new_callable=AsyncMock) as mock_insert:
+        mock_insert.return_value = {"document_id": "doc-1"}
+        await cv_storage.save_document(_USER, "doc-1", _PDF, "a.pdf", 1, 5, 2)
+        mock_insert.return_value = {"document_id": "doc-2"}
+        await cv_storage.save_document(_USER, "doc-2", b"other pdf", "b.pdf", 2, 10, 4)
+
     assert cv_storage.load_document(_USER, "doc-1") == _PDF
     assert cv_storage.load_document(_USER, "doc-2") == b"other pdf"
 
 
-def test_delete_document():
-    cv_storage.save_document(_USER, "doc-1", _PDF, "resume.pdf", 2, 10, 5)
-    removed = cv_storage.delete_document(_USER, "doc-1")
-    assert removed is True
-    assert cv_storage.load_document(_USER, "doc-1") is None
-    assert cv_db.count_documents(_USER) == 0
+# ── delete_document ──
 
 
-def test_delete_document_nonexistent():
-    assert cv_storage.delete_document(_USER, "no-such-doc") is False
+async def test_delete_document(isolated_storage):
+    with patch.object(cv_db, "insert_document", new_callable=AsyncMock) as mock_insert:
+        mock_insert.return_value = {"document_id": "doc-1"}
+        await cv_storage.save_document(_USER, "doc-1", _PDF, "resume.pdf", 2, 10, 5)
+
+    with patch.object(cv_db, "delete_document", new_callable=AsyncMock) as mock_del:
+        mock_del.return_value = True
+        removed = await cv_storage.delete_document(_USER, "doc-1")
+        assert removed is True
+        assert cv_storage.load_document(_USER, "doc-1") is None
+        mock_del.assert_awaited_once()
 
 
-def test_delete_all_for_user():
-    cv_storage.save_document(_USER, "doc-1", _PDF, "a.pdf", 1, 5, 2)
-    cv_storage.save_document(_USER, "doc-2", b"other", "b.pdf", 2, 10, 4)
-    cv_storage.save_document("other-user", "doc-3", _PDF, "c.pdf", 1, 5, 2)
-    count = cv_storage.delete_all_for_user(_USER)
-    assert count == 2
-    assert cv_storage.load_document(_USER, "doc-1") is None
-    assert cv_storage.load_document(_USER, "doc-2") is None
-    assert cv_storage.load_document("other-user", "doc-3") is not None
+async def test_delete_document_nonexistent():
+    with patch.object(cv_db, "delete_document", new_callable=AsyncMock) as mock_del:
+        mock_del.return_value = False
+        result = await cv_storage.delete_document(_USER, "no-such-doc")
+        assert result is False
 
 
-def test_evict_oldest():
-    cv_storage.save_document(_USER, "doc-old", _PDF, "old.pdf", 1, 5, 2)
-    # Insert with explicit timestamps via db layer for ordering
-    cv_db.delete_document(_USER, "doc-old")
-    cv_db.insert_document(
-        "doc-old", _USER, "old.pdf", len(_PDF), 1, 5, 2, "2026-01-01T00:00:00"
-    )
-    cv_storage.save_document(_USER, "doc-mid", b"mid", "mid.pdf", 1, 7, 3)
-    cv_db.delete_document(_USER, "doc-mid")
-    cv_db.insert_document(
-        "doc-mid", _USER, "mid.pdf", 3, 1, 7, 3, "2026-03-01T00:00:00"
-    )
-    cv_storage.save_document(_USER, "doc-new", b"new", "new.pdf", 2, 10, 4)
-    cv_db.delete_document(_USER, "doc-new")
-    cv_db.insert_document(
-        "doc-new", _USER, "new.pdf", 3, 2, 10, 4, "2026-06-01T00:00:00"
-    )
-
-    evicted = cv_storage.evict_oldest_if_at_limit(_USER)
-    assert evicted is not None
-    assert evicted["document_id"] == "doc-old"
-    assert cv_db.count_documents(_USER) == 2
-    assert cv_storage.load_document(_USER, "doc-old") is None
+# ── delete_all_for_user ──
 
 
-def test_evict_oldest_under_limit():
-    cv_storage.save_document(_USER, "doc-1", _PDF, "a.pdf", 1, 5, 2)
-    evicted = cv_storage.evict_oldest_if_at_limit(_USER)
-    assert evicted is None
-    assert cv_db.count_documents(_USER) == 1
+async def test_delete_all_for_user(isolated_storage):
+    with patch.object(cv_db, "insert_document", new_callable=AsyncMock) as mock_insert:
+        mock_insert.return_value = {"document_id": "doc-1"}
+        await cv_storage.save_document(_USER, "doc-1", _PDF, "a.pdf", 1, 5, 2)
+        mock_insert.return_value = {"document_id": "doc-2"}
+        await cv_storage.save_document(_USER, "doc-2", b"other", "b.pdf", 2, 10, 4)
+
+    with (
+        patch.object(cv_db, "list_documents", new_callable=AsyncMock) as mock_list,
+        patch.object(cv_db, "delete_all_for_user", new_callable=AsyncMock) as mock_del,
+    ):
+        mock_list.return_value = [
+            {"document_id": "doc-1"},
+            {"document_id": "doc-2"},
+        ]
+        mock_del.return_value = 2
+        count = await cv_storage.delete_all_for_user(_USER)
+        assert count == 2
+        assert cv_storage.load_document(_USER, "doc-1") is None
+        assert cv_storage.load_document(_USER, "doc-2") is None
 
 
-def test_file_is_encrypted_on_disk():
-    cv_storage.save_document(_USER, "doc-1", _PDF, "resume.pdf", 1, 5, 2)
+# ── evict_oldest_if_at_limit ──
+
+
+async def test_evict_oldest(isolated_storage):
+    # Pre-create some files
+    with patch.object(cv_db, "insert_document", new_callable=AsyncMock) as mock_insert:
+        for doc_id in ("doc-old", "doc-mid", "doc-new"):
+            mock_insert.return_value = {"document_id": doc_id}
+            await cv_storage.save_document(
+                _USER, doc_id, _PDF, f"{doc_id}.pdf", 1, 5, 2
+            )
+
+    with (
+        patch.object(cv_db, "count_documents", new_callable=AsyncMock) as mock_count,
+        patch.object(
+            cv_db, "get_oldest_document", new_callable=AsyncMock
+        ) as mock_oldest,
+        patch.object(cv_db, "delete_document", new_callable=AsyncMock) as mock_del,
+    ):
+        mock_count.return_value = cv_db.MAX_DOCUMENTS_PER_USER
+        mock_oldest.return_value = {
+            "document_id": "doc-old",
+            "user_id": _USER,
+            "original_filename": "doc-old.pdf",
+            "file_size_bytes": len(_PDF),
+            "uploaded_at": "2026-01-01T00:00:00",
+            "page_count": 1,
+            "entities_count": 5,
+            "edges_count": 2,
+        }
+        mock_del.return_value = True
+        evicted = await cv_storage.evict_oldest_if_at_limit(_USER)
+        assert evicted is not None
+        assert evicted["document_id"] == "doc-old"
+        assert cv_storage.load_document(_USER, "doc-old") is None
+
+
+async def test_evict_oldest_under_limit():
+    with patch.object(cv_db, "count_documents", new_callable=AsyncMock) as mock_count:
+        mock_count.return_value = 1
+        evicted = await cv_storage.evict_oldest_if_at_limit(_USER)
+        assert evicted is None
+
+
+# ── file encryption ──
+
+
+async def test_file_is_encrypted_on_disk(isolated_storage):
+    with patch.object(cv_db, "insert_document", new_callable=AsyncMock) as mock_insert:
+        mock_insert.return_value = {"document_id": "doc-1"}
+        await cv_storage.save_document(_USER, "doc-1", _PDF, "resume.pdf", 1, 5, 2)
+
     raw = cv_storage._doc_path(_USER, "doc-1").read_bytes()
     assert _PDF not in raw
     assert b"%PDF" not in raw
 
 
-def test_metadata_saved():
-    cv_storage.save_document(_USER, "doc-1", _PDF, "resume.pdf", 4, 12, 7)
-    docs = cv_db.list_documents(_USER)
-    assert len(docs) == 1
-    assert docs[0]["original_filename"] == "resume.pdf"
-    assert docs[0]["file_size_bytes"] == len(_PDF)
-    assert docs[0]["page_count"] == 4
-    assert docs[0]["entities_count"] == 12
-    assert docs[0]["edges_count"] == 7
+# ── migrate_legacy_file ──
 
 
-def test_file_migration_on_save(monkeypatch, tmp_path):
-    """Old-style file {user_id}.pdf.enc should be migrated when saving a new doc."""
-    cv_dir = tmp_path / "cv_files_mig"
-    monkeypatch.setattr(cv_storage, "_CV_DIR", cv_dir)
-    cv_dir.mkdir()
-    # Simulate old file
+def test_file_migration_on_save(isolated_storage):
+    """Old-style file {user_id}.pdf.enc should be migrated."""
     from app.graph.encryption import encrypt_bytes
+
+    cv_dir = isolated_storage
+    cv_dir.mkdir(parents=True, exist_ok=True)
 
     old_path = cv_dir / f"{_USER}.pdf.enc"
     old_path.write_bytes(encrypt_bytes(_PDF))
 
-    # Insert a legacy document record (simulating migration from db layer)
-    cv_db.insert_document(
-        "doc-legacy", _USER, "old.pdf", len(_PDF), 2, None, None, "2025-12-01T00:00:00"
-    )
-
-    # migrate_legacy_file should rename the old file
     cv_storage.migrate_legacy_file(_USER, "doc-legacy")
     assert not old_path.exists()
     assert cv_storage._doc_path(_USER, "doc-legacy").exists()

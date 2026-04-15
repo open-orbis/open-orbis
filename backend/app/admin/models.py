@@ -283,3 +283,35 @@ class FunnelResponse(BaseModel):
     total_signups: int
     total_activations: int
     conversion_rate: float
+
+
+# ── CV Jobs ──
+
+
+class CVJobResponse(BaseModel):
+    job_id: str
+    user_id: str
+    user_name: str | None = None
+    user_email: str | None = None
+    document_id: str | None = None
+    filename: str | None = None
+    status: str
+    step: str | None = None
+    progress_pct: int = 0
+    progress_detail: str | None = None
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    text_chars: int | None = None
+    node_count: int | None = None
+    edge_count: int | None = None
+    error_message: str | None = None
+    created_at: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+
+
+class CVJobsPage(BaseModel):
+    items: list[CVJobResponse]
+    total: int
+    offset: int
+    limit: int

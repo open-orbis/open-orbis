@@ -67,12 +67,7 @@ def test_get_me_defaults_consent_to_false(client, mock_db):
     assert response.json()["gdpr_consent"] is False
 
 
-@patch("app.cv.router.pdf_extract")
-@patch("app.cv.router.classify_entries")
-@patch("app.cv.router.counter")
-def test_upload_cv_rejected_without_consent(
-    mock_counter, mock_classify, mock_docling, consent_gated_client, mock_db
-):
+def test_upload_cv_rejected_without_consent(consent_gated_client, mock_db):
     session_mock = mock_db.session.return_value.__aenter__.return_value
     session_mock.run.return_value.single = AsyncMock(return_value={"consent": False})
 

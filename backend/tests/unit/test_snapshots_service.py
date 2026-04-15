@@ -3,25 +3,13 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 import app.snapshots.db as snap_db
 import app.snapshots.service as snap_service
 from tests.unit.conftest import MockNode
-
-
-@pytest.fixture(autouse=True)
-def isolated_db(monkeypatch, tmp_path):
-    db_file = tmp_path / "snapshots_test.db"
-    monkeypatch.setattr(snap_db, "_DB_PATH", db_file)
-    monkeypatch.setattr(snap_db, "_conn", None)
-    yield
-    if snap_db._conn is not None:
-        snap_db._conn.close()
-    monkeypatch.setattr(snap_db, "_conn", None)
-
 
 # ── Helpers ──
 
@@ -67,7 +55,6 @@ def test_serialize_orb_raw_preserves_encrypted_pii():
     record = _make_orb_record()
     data = snap_service.serialize_orb_raw(record)
     parsed = json.loads(data)
-    # The encrypted email must be preserved verbatim — not decrypted
     assert parsed["person"]["email"] == "enc:test@example.com"
     assert parsed["person"]["name"] == "Test User"
 
@@ -77,7 +64,7 @@ def test_serialize_orb_raw_nodes_and_links():
     data = snap_service.serialize_orb_raw(record)
     parsed = json.loads(data)
     assert len(parsed["nodes"]) == 2
-    # 2 direct links (person→skill, person→work) + 1 cross-link (work→skill)
+    # 2 direct links (person->skill, person->work) + 1 cross-link (work->skill)
     assert len(parsed["links"]) == 3
 
 
@@ -165,24 +152,38 @@ def test_count_from_serialized():
 # ── create_snapshot ──
 
 
-@pytest.mark.asyncio
 async def test_create_snapshot():
     record = _make_orb_record()
     mock_db, _ = _mock_db_with_record(record)
 
-    result = await snap_service.create_snapshot(
-        user_id="user-1",
-        db=mock_db,
-        trigger="manual",
-        label="Test save",
-    )
-    assert result["trigger"] == "manual"
-    assert result["label"] == "Test save"
-    assert result["node_count"] == 2
-    assert snap_db.count_snapshots("user-1") == 1
+    with (
+        patch.object(
+            snap_db, "delete_oldest_if_at_limit", new_callable=AsyncMock
+        ) as mock_evict,
+        patch.object(snap_db, "insert_snapshot", new_callable=AsyncMock) as mock_insert,
+    ):
+        mock_evict.return_value = None
+        mock_insert.return_value = {
+            "snapshot_id": "snap-1",
+            "user_id": "user-1",
+            "trigger": "manual",
+            "label": "Test save",
+            "node_count": 2,
+            "edge_count": 3,
+        }
+        result = await snap_service.create_snapshot(
+            user_id="user-1",
+            db=mock_db,
+            trigger="manual",
+            label="Test save",
+        )
+        assert result["trigger"] == "manual"
+        assert result["label"] == "Test save"
+        assert result["node_count"] == 2
+        mock_evict.assert_awaited_once()
+        mock_insert.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_create_snapshot_empty_orb():
     person = MockNode({"user_id": "user-1", "name": "Empty User"}, ["Person"])
     record = {
@@ -200,9 +201,9 @@ async def test_create_snapshot_empty_orb():
     )
     assert result["node_count"] == 0
     assert result["edge_count"] == 0
+    assert result.get("skipped") is True
 
 
-@pytest.mark.asyncio
 async def test_create_snapshot_no_orb_raises():
     mock_db, _ = _mock_db_with_record(None)  # no record
     with pytest.raises(ValueError, match="No orb found"):
@@ -211,79 +212,124 @@ async def test_create_snapshot_no_orb_raises():
         )
 
 
-@pytest.mark.asyncio
 async def test_create_snapshot_evicts_oldest():
-    """When at the limit, the oldest snapshot should be evicted."""
+    """When at the limit, delete_oldest_if_at_limit should be called."""
     record = _make_orb_record()
     mock_db, _ = _mock_db_with_record(record)
 
-    for i in range(snap_db.MAX_SNAPSHOTS_PER_USER):
-        await snap_service.create_snapshot(
-            user_id="user-1", db=mock_db, trigger="manual", label=f"v{i}"
+    with (
+        patch.object(
+            snap_db, "delete_oldest_if_at_limit", new_callable=AsyncMock
+        ) as mock_evict,
+        patch.object(snap_db, "insert_snapshot", new_callable=AsyncMock) as mock_insert,
+    ):
+        mock_evict.return_value = {
+            "snapshot_id": "snap-old",
+            "user_id": "user-1",
+        }
+        mock_insert.return_value = {
+            "snapshot_id": "snap-new",
+            "user_id": "user-1",
+            "trigger": "manual",
+            "label": "new",
+            "node_count": 2,
+            "edge_count": 3,
+        }
+        result = await snap_service.create_snapshot(
+            user_id="user-1", db=mock_db, trigger="manual", label="new"
         )
-    assert snap_db.count_snapshots("user-1") == snap_db.MAX_SNAPSHOTS_PER_USER
-
-    # One more should evict the oldest
-    await snap_service.create_snapshot(
-        user_id="user-1", db=mock_db, trigger="manual", label="new"
-    )
-    assert snap_db.count_snapshots("user-1") == snap_db.MAX_SNAPSHOTS_PER_USER
+        assert result["snapshot_id"] == "snap-new"
+        mock_evict.assert_awaited_once_with("user-1")
 
 
 # ── restore_snapshot ──
 
 
-@pytest.mark.asyncio
 async def test_restore_snapshot():
     record = _make_orb_record()
     mock_db, mock_session = _mock_db_with_record(record)
+    data = snap_service.serialize_orb_raw(record)
 
-    snap = await snap_service.create_snapshot(
-        user_id="user-1", db=mock_db, trigger="manual", label="Before"
-    )
-    snapshot_id = snap["snapshot_id"]
+    with (
+        patch.object(snap_db, "get_snapshot", new_callable=AsyncMock) as mock_get,
+        patch.object(
+            snap_db, "delete_oldest_if_at_limit", new_callable=AsyncMock
+        ) as mock_evict,
+        patch.object(snap_db, "insert_snapshot", new_callable=AsyncMock) as mock_insert,
+    ):
+        mock_get.return_value = {
+            "snapshot_id": "snap-1",
+            "user_id": "user-1",
+            "data": data,
+        }
+        mock_evict.return_value = None
+        mock_insert.return_value = {
+            "snapshot_id": "snap-pre",
+            "user_id": "user-1",
+            "trigger": "pre_restore",
+            "label": "Before restoring version",
+            "node_count": 2,
+            "edge_count": 3,
+        }
 
-    result = await snap_service.restore_snapshot(
-        user_id="user-1", snapshot_id=snapshot_id, db=mock_db
-    )
-    assert result["status"] == "restored"
-    assert result["snapshot_id"] == snapshot_id
+        result = await snap_service.restore_snapshot(
+            user_id="user-1", snapshot_id="snap-1", db=mock_db
+        )
+        assert result["status"] == "restored"
+        assert result["snapshot_id"] == "snap-1"
 
-    # The session should have run DELETE_USER_GRAPH and then ADD_NODE queries
-    calls = mock_session.run.call_args_list
-    assert len(calls) > 1  # at least read + delete + node creation
+        # Session should have been used for DELETE + node creation
+        calls = mock_session.run.call_args_list
+        assert len(calls) > 1
 
 
-@pytest.mark.asyncio
 async def test_restore_snapshot_not_found():
     record = _make_orb_record()
     mock_db, _ = _mock_db_with_record(record)
 
-    with pytest.raises(ValueError, match="not found"):
-        await snap_service.restore_snapshot(
-            user_id="user-1", snapshot_id="no-such", db=mock_db
-        )
+    with patch.object(snap_db, "get_snapshot", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = None
+        with pytest.raises(ValueError, match="not found"):
+            await snap_service.restore_snapshot(
+                user_id="user-1", snapshot_id="no-such", db=mock_db
+            )
 
 
-@pytest.mark.asyncio
 async def test_restore_creates_pre_restore_snapshot():
     """Restoring should first create a pre_restore snapshot."""
     record = _make_orb_record()
     mock_db, _ = _mock_db_with_record(record)
+    data = snap_service.serialize_orb_raw(record)
 
-    snap = await snap_service.create_snapshot(
-        user_id="user-1", db=mock_db, trigger="manual"
-    )
-    assert snap_db.count_snapshots("user-1") == 1
+    with (
+        patch.object(snap_db, "get_snapshot", new_callable=AsyncMock) as mock_get,
+        patch.object(
+            snap_db, "delete_oldest_if_at_limit", new_callable=AsyncMock
+        ) as mock_evict,
+        patch.object(snap_db, "insert_snapshot", new_callable=AsyncMock) as mock_insert,
+    ):
+        mock_get.return_value = {
+            "snapshot_id": "snap-1",
+            "user_id": "user-1",
+            "data": data,
+        }
+        mock_evict.return_value = None
+        mock_insert.return_value = {
+            "snapshot_id": "snap-pre",
+            "user_id": "user-1",
+            "trigger": "pre_restore",
+            "label": "Before restoring version",
+            "node_count": 2,
+            "edge_count": 3,
+        }
 
-    await snap_service.restore_snapshot(
-        user_id="user-1", snapshot_id=snap["snapshot_id"], db=mock_db
-    )
-    # Should now have the original + a pre_restore snapshot
-    assert snap_db.count_snapshots("user-1") == 2
-    snaps = snap_db.list_snapshots("user-1")
-    triggers = {s["trigger"] for s in snaps}
-    assert "pre_restore" in triggers
+        await snap_service.restore_snapshot(
+            user_id="user-1", snapshot_id="snap-1", db=mock_db
+        )
+
+        # insert_snapshot should have been called for pre_restore
+        # The create_snapshot called during restore uses trigger="pre_restore"
+        assert mock_evict.await_count >= 1
 
 
 # ── _sanitize (neo4j temporal types) ──

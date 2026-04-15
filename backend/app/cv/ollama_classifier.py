@@ -297,6 +297,7 @@ TEXT_LIMIT_OLLAMA = 12000
 PROVIDER_MAP: dict[str, tuple[str, str]] = {
     "claude-opus": ("claude", "claude-opus-4-6"),
     "claude-sonnet": ("claude", "claude-sonnet-4-6"),
+    "gemini-pro": ("gemini", ""),  # model resolved from settings at runtime
     "ollama": ("ollama", ""),  # model resolved from settings at runtime
     "rule-based": ("rule_based", "rule_based_parser"),
 }
@@ -305,6 +306,7 @@ PROVIDER_MAP: dict[str, tuple[str, str]] = {
 PROVIDER_DISPLAY: dict[str, str] = {
     "claude-opus": "Claude Opus",
     "claude-sonnet": "Claude Sonnet",
+    "gemini-pro": "Gemini Pro",
     "ollama": "Ollama (local)",
     "rule-based": "Rule-based extraction",
 }
@@ -321,8 +323,10 @@ def parse_fallback_chain(chain_str: str) -> list[str]:
     if valid:
         return valid
     # Backwards compatibility: derive from the single llm_provider setting.
-    if settings.llm_provider == "claude":
-        return ["claude-opus", "rule-based"]
+    if settings.llm_provider == "vertex":
+        return ["gemini-pro"]
+    if settings.llm_provider in ("claude", "cli"):
+        return ["claude-opus", "gemini-pro"]
     return ["ollama", "rule-based"]
 
 
@@ -394,6 +398,12 @@ async def classify_entries(  # noqa: C901
                 model = default_model
                 result, llm_usage = await asyncio.wait_for(
                     _call_claude_provider(user_message, model),
+                    timeout=timeout,
+                )
+            elif provider_type == "gemini":
+                model = settings.gemini_model or "gemini-2.5-pro"
+                result, llm_usage = await asyncio.wait_for(
+                    _call_gemini_provider(user_message),
                     timeout=timeout,
                 )
             else:
@@ -486,6 +496,24 @@ async def _call_claude_provider(
         "output_tokens": claude_resp.get("output_tokens"),
     }
     return claude_resp["content"], usage
+
+
+async def _call_gemini_provider(user_message: str) -> tuple[str, dict]:
+    """Call Gemini Pro via Vertex AI and return (raw_response, usage_dict)."""
+    from app.cv.gemini_classifier import call_gemini
+
+    gemini_resp = await call_gemini(
+        system_prompt=SYSTEM_PROMPT,
+        user_message=user_message,
+        timeout=settings.llm_timeout_seconds,
+    )
+    usage = {
+        "cost_usd": gemini_resp.get("cost_usd"),
+        "duration_ms": gemini_resp.get("duration_ms"),
+        "input_tokens": gemini_resp.get("input_tokens"),
+        "output_tokens": gemini_resp.get("output_tokens"),
+    }
+    return gemini_resp["content"], usage
 
 
 async def _call_ollama_provider(user_message: str) -> tuple[str, dict]:
@@ -582,20 +610,29 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
                 json_lines.append(line)
         text = "\n".join(json_lines)
 
-    # Use raw_decode to find the first valid JSON object
+    # Use raw_decode to find the first valid JSON object that looks like
+    # our expected schema (must have a "nodes" key).  When the LLM output
+    # is truncated the outermost object won't parse, and raw_decode would
+    # match a small nested dict (e.g. a single "properties" block) that
+    # has no "nodes" — so we skip objects without that key.
     decoder = json.JSONDecoder()
     parsed = None
-    # Try to find a JSON object starting with {
     for i, ch in enumerate(text):
         if ch == "{":
             try:
-                parsed, _ = decoder.raw_decode(text, i)
-                break
+                candidate, _ = decoder.raw_decode(text, i)
+                if isinstance(candidate, dict) and "nodes" in candidate:
+                    parsed = candidate
+                    break
             except json.JSONDecodeError:
                 continue
 
     if parsed is None or not isinstance(parsed, dict):
-        logger.warning("Failed to parse Ollama response as JSON")
+        logger.warning(
+            "Failed to parse LLM response as JSON (len=%d, first 200: %s)",
+            len(text),
+            text[:200],
+        )
         return ClassificationResult()
 
     cv_owner_name = parsed.get("cv_owner_name") or None

@@ -47,14 +47,41 @@ export interface DocumentMetadata {
   edges_count: number | null;
 }
 
-export async function uploadCV(file: File, signal?: AbortSignal): Promise<ExtractedData> {
-  const formData = new FormData();
-  formData.append('file', file);
-  const { data } = await client.post('/cv/upload', formData, {
+export interface UploadResponse {
+  job_id: string;
+  status: string;
+}
+
+export interface CVJobResponse {
+  job_id: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled';
+  step: string | null;
+  progress_pct: number;
+  progress_detail: string | null;
+  filename: string | null;
+  node_count: number | null;
+  edge_count: number | null;
+  llm_provider: string | null;
+  llm_model: string | null;
+  created_at: string | null;
+  completed_at: string | null;
+  error_message?: string | null;
+  result?: ExtractedData;
+}
+
+export async function uploadCV(file: File, signal?: AbortSignal): Promise<UploadResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  const { data } = await client.post<UploadResponse>('/cv/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 1800000, // 30 min timeout for Docling + Claude CLI
+    timeout: 30_000,
     signal,
   });
+  return data;
+}
+
+export async function getJob(jobId: string): Promise<CVJobResponse> {
+  const { data } = await client.get<CVJobResponse>(`/cv/job/${jobId}`);
   return data;
 }
 
@@ -94,12 +121,12 @@ export async function downloadCV(documentId?: string): Promise<void> {
   URL.revokeObjectURL(blobUrl);
 }
 
-export async function importDocument(file: File): Promise<ExtractedData> {
+export async function importDocument(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await client.post('/cv/import', formData, {
+  const { data } = await client.post<UploadResponse>('/cv/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 1800000,
+    timeout: 30_000,
   });
   return data;
 }
@@ -138,10 +165,14 @@ export async function getProcessingCount(): Promise<number> {
 
 export interface CVProgressData {
   active: boolean;
+  job_id: string | null;
+  status: string | null;
   step: string | null;
   percent: number;
   message: string | null;
   detail: string | null;
+  node_count: number | null;
+  edge_count: number | null;
   elapsed_seconds: number;
 }
 
@@ -150,6 +181,3 @@ export async function getCVProgress(): Promise<CVProgressData> {
   return data;
 }
 
-export async function discardCVProgress(): Promise<void> {
-  await client.post('/cv/progress/discard');
-}

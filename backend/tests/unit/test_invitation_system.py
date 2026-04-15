@@ -64,9 +64,76 @@ def test_registration_always_creates_person(client, mock_db, google_oauth_mock):
 def test_existing_user_login_works(client, mock_db, google_oauth_mock):
     _stub_existing_person(mock_db, exists=True)
 
-    response = client.post("/auth/google", json={"code": "fake"})
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=False),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
     assert response.status_code == 200
-    assert response.json()["user"]["user_id"] == "google-1234567890"
+    data = response.json()["user"]
+    assert data["user_id"] == "google-1234567890"
+    assert data["activated"] is True
+
+
+def test_returning_user_activated_when_invite_required(
+    client, mock_db, google_oauth_mock
+):
+    """A returning user who already has a signup_code is activated even when
+    invite codes are required (regression test for #326)."""
+    record = MockNode({"user_id": "google-1234567890", "signup_code": "used-code"})
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": record})
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=True),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    assert response.json()["user"]["activated"] is True
+
+
+def test_returning_user_gets_gdpr_consent_from_db(client, mock_db, google_oauth_mock):
+    """OAuth login returns the stored gdpr_consent so the frontend doesn't
+    re-prompt users who already accepted."""
+    record = MockNode(
+        {
+            "user_id": "google-1234567890",
+            "signup_code": "abc",
+            "gdpr_consent": True,
+        }
+    )
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": record})
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=False),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    data = response.json()["user"]
+    assert data["gdpr_consent"] is True
+    assert data["activated"] is True
+
+
+def test_returning_user_not_activated_without_code(client, mock_db, google_oauth_mock):
+    """A returning user without a signup_code is NOT activated when invite
+    codes are required (regression test for #326)."""
+    record = MockNode({"user_id": "google-1234567890"})
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": record})
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=True),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    assert response.json()["user"]["activated"] is False
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -445,7 +512,7 @@ async def test_cleanup_creates_deletion_records():
     """Verify _cleanup_expired_accounts creates DeletionRecord nodes."""
     from unittest.mock import MagicMock
 
-    from app.main import _cleanup_expired_accounts
+    from app.main import cleanup_expired_accounts
 
     mock_session = AsyncMock()
     # First call: find expired accounts — return one user
@@ -479,11 +546,9 @@ async def test_cleanup_creates_deletion_records():
     mock_driver.session.return_value = mock_session_context
 
     with (
-        patch("app.main.delete_stored_cvs"),
-        patch("app.main.delete_user_drafts"),
-        patch("app.main.delete_user_snapshots"),
+        patch("app.main.get_driver", AsyncMock(return_value=mock_driver)),
     ):
-        await _cleanup_expired_accounts(mock_driver)
+        await cleanup_expired_accounts()
 
     # Check that a CREATE (d:DeletionRecord ...) query was issued
     assert any("DeletionRecord" in q for q in queries_seen), (

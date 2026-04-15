@@ -39,23 +39,39 @@ class Settings(BaseSettings):
     encryption_key: str = ""
     encryption_keys_historic: str = ""
 
-    # Claude API
+    # Claude API (used only when llm_provider=cli for local dev)
     anthropic_api_key: str = ""
 
-    # LLM provider: "ollama" (local) or "claude" (Claude Code CLI subscription)
-    llm_provider: str = "claude"
+    # LLM provider: "vertex" (Vertex AI, default for production),
+    # "cli" (Claude Code CLI subprocess, for local dev),
+    # "ollama" (local Ollama, for local dev).
+    llm_provider: str = "vertex"
     claude_model: str = "claude-opus-4-6"
+    gemini_model: str = "gemini-2.5-pro"
+
+    # Vertex AI configuration (used when llm_provider=vertex)
+    gcp_project_id: str = ""
+    vertex_region: str = "europe-west1"
 
     # LLM fallback chain — comma-separated list of providers to try in order.
-    # Valid entries: "claude-opus", "claude-sonnet", "ollama", "rule-based".
+    # Valid entries: "claude-opus", "claude-sonnet", "gemini-pro", "ollama",
+    # "rule-based".
     # When empty, a single-provider chain is derived from llm_provider.
-    llm_fallback_chain: str = "claude-opus,claude-sonnet,ollama,rule-based"
+    llm_fallback_chain: str = ""
     # Per-provider timeout in seconds before falling back to the next provider.
     llm_timeout_seconds: int = 300
 
-    # Ollama (local LLM)
+    # Ollama (local LLM, used only when llm_provider=ollama)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
+
+    # GCS bucket for CV file storage (empty = local filesystem with Fernet)
+    cv_storage_bucket: str = ""
+
+    # PostgreSQL (tabular data: drafts, ideas, snapshots, CV metadata)
+    # In production, Cloud Run connects via unix socket:
+    #   postgresql://orbis:PASS@/orbis?host=/cloudsql/PROJECT:REGION:INSTANCE
+    database_url: str = ""
 
     # Google OAuth
     google_client_id: str = ""
@@ -68,6 +84,7 @@ class Settings(BaseSettings):
 
     # URLs
     frontend_url: str = "http://localhost:5173"
+    cors_extra_origins: str = ""  # comma-separated extra CORS origins
 
     # Resend (email notifications)
     resend_api_key: str = ""
@@ -83,6 +100,16 @@ class Settings(BaseSettings):
 
     # Share token default TTL in days. Set to 0 for no expiry.
     share_token_default_ttl_days: int = 90
+
+    # Cloud Tasks (background CV processing)
+    cloud_tasks_queue: str = ""  # e.g. "orbis-cv-queue"
+    cloud_tasks_location: str = "europe-west1"
+    cloud_run_url: str = (
+        ""  # e.g. "https://orbis-api-390775751253.europe-west1.run.app"
+    )
+    cloud_run_service_account: str = (
+        ""  # e.g. "390775751253-compute@developer.gserviceaccount.com"
+    )
 
     # Account cleanup interval in hours (0 = startup-only, no recurring task)
     cleanup_interval_hours: int = 24

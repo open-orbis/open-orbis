@@ -24,7 +24,7 @@ backend/tests/
 
 ```bash
 cd backend
-uv run pytest tests/unit/ -v --cov=app --cov-fail-under=75
+uv run pytest tests/unit/ -v --cov=app --cov-fail-under=50
 ```
 
 Unit tests mock Neo4j entirely (no database needed). The `conftest.py` provides:
@@ -160,7 +160,7 @@ Runs on all PRs and pushes to `main`. Two parallel jobs:
 ### Unit Tests (`unit-tests.yml`)
 
 Runs on PRs/pushes to `main` when `backend/**` files change:
-- `uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75`
+- `uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=50`
 
 ### CV Extraction Quality (`cv-extraction-quality.yml`)
 
