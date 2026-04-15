@@ -124,8 +124,10 @@ async def lifespan(app: FastAPI):
         logger.info("PostgreSQL pool initialized")
 
         from app.cv.jobs_db import cleanup_expired_jobs, ensure_table
+        from app.ideas.db import ensure_source_column
 
         await ensure_table()
+        await ensure_source_column()
         expired = await cleanup_expired_jobs()
         if expired:
             logger.info("Cleaned up %d expired CV jobs", expired)

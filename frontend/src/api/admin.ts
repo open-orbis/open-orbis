@@ -204,10 +204,11 @@ export interface Idea {
   user_id: string;
   text: string;
   created_at: string;
+  source: string;
 }
 
-export async function listIdeas(): Promise<Idea[]> {
-  const { data } = await client.get<Idea[]>('/admin/ideas');
+export async function listIdeas(source?: string): Promise<Idea[]> {
+  const { data } = await client.get<Idea[]>('/admin/ideas', { params: source ? { source } : {} });
   return data;
 }
 

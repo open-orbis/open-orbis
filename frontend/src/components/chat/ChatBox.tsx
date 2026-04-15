@@ -561,7 +561,7 @@ export default function ChatBox({
                   setFeedbackSending(true);
                   try {
                     const { submitIdea } = await import('../../api/orbs');
-                    await submitIdea(feedbackText.trim());
+                    await submitIdea(feedbackText.trim(), 'feedback');
                     setFeedbackText('');
                     setShowFeedback(false);
                     setFeedbackSent(true);

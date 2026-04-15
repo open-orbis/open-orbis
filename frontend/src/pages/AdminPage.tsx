@@ -188,8 +188,9 @@ export default function AdminPage() {
   const [funnel, setFunnel] = useState<FunnelMetrics | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'funnel' | 'cv-jobs'>('codes');
+  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'feedback' | 'funnel' | 'cv-jobs'>('codes');
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Create code form
@@ -246,12 +247,13 @@ export default function AdminPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, c, p, u, id, f, ins] = await Promise.all([
+      const [s, c, p, u, id, fb, f, ins] = await Promise.all([
         getStats(),
         listAccessCodes(),
         listPendingUsers(),
         listUsers(),
-        listIdeas(),
+        listIdeas('idea'),
+        listIdeas('feedback'),
         getFunnelMetrics(30),
         getInsights(),
       ]);
@@ -260,6 +262,7 @@ export default function AdminPage() {
       setPendingUsers(p);
       setUsers(u);
       setIdeas(id);
+      setFeedbacks(fb);
       setFunnel(f);
       setInsights(ins);
       setError(null);
@@ -700,6 +703,14 @@ export default function AdminPage() {
             Ideas ({ideas.length})
           </button>
           <button
+            onClick={() => setTab('feedback')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === 'feedback' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Feedback ({feedbacks.length})
+          </button>
+          <button
             onClick={() => setTab('funnel')}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               tab === 'funnel' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
@@ -1067,6 +1078,40 @@ export default function AdminPage() {
                       }}
                       className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
                       title="Delete idea"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Feedback Tab ── */}
+        {tab === 'feedback' && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            {feedbacks.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-8">No feedback received yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {feedbacks.map((fb) => (
+                  <div key={fb.idea_id} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm whitespace-pre-wrap">{fb.text}</p>
+                      <p className="text-white/30 text-xs mt-1.5">
+                        {fb.user_id} &middot; {formatDate(fb.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await deleteIdea(fb.idea_id);
+                        setFeedbacks((prev) => prev.filter((i) => i.idea_id !== fb.idea_id));
+                      }}
+                      className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+                      title="Delete feedback"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
