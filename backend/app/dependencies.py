@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from neo4j import AsyncDriver
 
-from app.auth.service import ACCESS_COOKIE
+from app.auth.service import SESSION_COOKIE, parse_session_cookie
 from app.config import settings
 from app.graph.neo4j_client import get_driver
 from app.graph.queries import IS_ADMIN
@@ -31,14 +31,13 @@ def _decode_jwt(token: str) -> dict | None:
 
 
 def _extract_token(request: Request) -> str | None:
-    """Pick an access token from the httpOnly cookie.
+    """Extract the access JWT from the ``__session`` cookie.
 
-    Cookie-only. The Bearer header fallback was removed in Stage 5 of
-    the cookie migration — browser clients use cookies, MCP agents use
-    the X-MCP-Key header handled by the MCP server's own middleware.
-    Regular /api endpoints never see bearer tokens.
+    The cookie holds ``<access_jwt>|<refresh_token>``; we only need the
+    first part here.  Cookie-only — no Bearer header fallback.
     """
-    return request.cookies.get(ACCESS_COOKIE)
+    access, _refresh = parse_session_cookie(request.cookies.get(SESSION_COOKIE))
+    return access
 
 
 async def get_current_user(request: Request) -> dict:

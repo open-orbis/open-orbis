@@ -28,12 +28,13 @@ from app.auth.refresh_tokens import (
     rotate_refresh_token,
 )
 from app.auth.service import (
-    REFRESH_COOKIE,
+    SESSION_COOKIE,
     clear_auth_cookies,
     create_jwt,
     exchange_google_code,
     exchange_linkedin_code,
     generate_orb_id,
+    parse_session_cookie,
     set_auth_cookies,
 )
 from app.config import settings
@@ -353,7 +354,7 @@ async def refresh(
     expired, or already rotated (reuse attack), both cookies are cleared
     and the client is forced back to /login.
     """
-    raw = request.cookies.get(REFRESH_COOKIE)
+    _access, raw = parse_session_cookie(request.cookies.get(SESSION_COOKIE))
     if not raw:
         return _refresh_failed("no refresh token")
 
@@ -400,7 +401,7 @@ async def logout(
     db: AsyncDriver = Depends(get_db),
 ):
     """Revoke the current refresh token and clear both auth cookies."""
-    raw = request.cookies.get(REFRESH_COOKIE)
+    _access, raw = parse_session_cookie(request.cookies.get(SESSION_COOKIE))
     if raw:
         try:
             await revoke_refresh_token(db, raw_token=raw)
