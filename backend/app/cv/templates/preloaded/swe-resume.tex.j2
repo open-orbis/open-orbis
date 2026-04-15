@@ -1,0 +1,145 @@
+%% SWE Resume template — pdfLaTeX
+%% Based on Overleaf SWE Resume (MIT)
+%% Jinja2 delimiters: << var >>, <% block %>, <# comment #>
+
+\documentclass[letterpaper, 11pt]{article}
+
+\input{custom-commands}
+
+\begin{document}
+
+\resumeHeading{<< person.name | default("") >>}{%
+<% if person.email | default("") %><< person.email >><% endif %>%
+<% if person.phone | default("") %> $|$ << person.phone >><% endif %>%
+<% if person.location | default("") %> $|$ << person.location >><% endif %>%
+}
+
+<% if person.summary | default("") %>
+\resumeSection{Summary}
+<< person.summary >>
+<% endif %>
+
+<# ── Work Experience ── #>
+<% set work = nodes | selectattr("_type", "equalto", "WorkExperience") | list %>
+<% if work %>
+\resumeSection{Experience}
+<% for item in work %>
+  \resumeSubheading
+    {<< item.title | default("") >>}
+    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<< item.company | default("") >>}
+    {<< item.location | default("") >>}
+  <% if item.description | default("") %>
+  \resumeItemListStart
+    \resumeItem{<< item.description >>}
+  \resumeItemListEnd
+  <% endif %>
+<% endfor %>
+<% endif %>
+
+<# ── Education ── #>
+<% set edu = nodes | selectattr("_type", "equalto", "Education") | list %>
+<% if edu %>
+\resumeSection{Education}
+<% for item in edu %>
+  \resumeSubheading
+    {<< item.degree | default("") >>}
+    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<< item.institution | default("") >>}
+    {<< item.location | default("") >>}
+  <% if item.description | default("") %>
+  \resumeItemListStart
+    \resumeItem{<< item.description >>}
+  \resumeItemListEnd
+  <% endif %>
+<% endfor %>
+<% endif %>
+
+<# ── Projects ── #>
+<% set projects = nodes | selectattr("_type", "equalto", "Project") | list %>
+<% if projects %>
+\resumeSection{Projects}
+<% for item in projects %>
+  \resumeSubheading
+    {<< item.name | default("") >>}
+    {}
+    {<< item.role | default("") >>}
+    {}
+  <% if item.description | default("") %>
+  \resumeItemListStart
+    \resumeItem{<< item.description >>}
+  \resumeItemListEnd
+  <% endif %>
+<% endfor %>
+<% endif %>
+
+<# ── Skills ── #>
+<% set skills = nodes | selectattr("_type", "equalto", "Skill") | list %>
+<% if skills %>
+\resumeSection{Skills}
+\resumeItemListStart
+<% for item in skills %>
+  \resumeItem{\textbf{<< item.name | default("") >>}<% if item.proficiency | default("") %> --- << item.proficiency >><% endif %>}
+<% endfor %>
+\resumeItemListEnd
+<% endif %>
+
+<# ── Languages ── #>
+<% set langs = nodes | selectattr("_type", "equalto", "Language") | list %>
+<% if langs %>
+\resumeSection{Languages}
+\resumeItemListStart
+<% for item in langs %>
+  \resumeItem{<< item.name | default("") >><% if item.proficiency | default("") %> --- << item.proficiency >><% endif %>}
+<% endfor %>
+\resumeItemListEnd
+<% endif %>
+
+<# ── Publications ── #>
+<% set pubs = nodes | selectattr("_type", "equalto", "Publication") | list %>
+<% if pubs %>
+\resumeSection{Publications}
+<% for item in pubs %>
+  \resumeSubheading
+    {<< item.title | default("") >>}
+    {<< item.date | default("") >>}
+    {<< item.venue | default("") >>}
+    {}
+  <% if item.abstract | default("") %>
+  \resumeItemListStart
+    \resumeItem{<< item.abstract >>}
+  \resumeItemListEnd
+  <% endif %>
+<% endfor %>
+<% endif %>
+
+<# ── Certifications ── #>
+<% set certs = nodes | selectattr("_type", "equalto", "Certification") | list %>
+<% if certs %>
+\resumeSection{Certifications}
+\resumeItemListStart
+<% for item in certs %>
+  \resumeItem{\textbf{<< item.name | default("") >>} --- << item.issuing_organization | default("") >><% if item.date | default("") %> (<< item.date >>)<% endif %>}
+<% endfor %>
+\resumeItemListEnd
+<% endif %>
+
+<# ── Awards ── #>
+<% set awards = nodes | selectattr("_type", "equalto", "Award") | list %>
+<% if awards %>
+\resumeSection{Awards}
+<% for item in awards %>
+  \resumeSubheading
+    {<< item.name | default("") >>}
+    {<< item.date | default("") >>}
+    {<< item.issuing_organization | default("") >>}
+    {}
+  <% if item.description | default("") %>
+  \resumeItemListStart
+    \resumeItem{<< item.description >>}
+  \resumeItemListEnd
+  <% endif %>
+<% endfor %>
+<% endif %>
+
+\end{document}

@@ -1,0 +1,170 @@
+%% Awesome CV template — XeLaTeX
+%% Based on posquit0/Awesome-CV (LPPL-1.3c)
+%% Jinja2 delimiters: << var >>, <% block %>, <# comment #>
+
+\documentclass[11pt, a4paper]{awesome-cv}
+
+% Color for highlights
+\colorlet{awesome}{awesome-red}
+
+% Personal info
+\name{<< person.name | default("") >>}{}
+\position{<< person.headline | default("") >>}
+\address{<< person.location | default("") >>}
+<% if person.email | default("") %>
+\email{<< person.email >>}
+<% endif %>
+<% if person.phone | default("") %>
+\mobile{<< person.phone >>}
+<% endif %>
+
+\begin{document}
+
+\makecvheader
+
+<% if person.summary | default("") %>
+\cvsection{Summary}
+\begin{cvparagraph}
+<< person.summary >>
+\end{cvparagraph}
+<% endif %>
+
+<# ── Work Experience ── #>
+<% set work = nodes | selectattr("_type", "equalto", "WorkExperience") | list %>
+<% if work %>
+\cvsection{Experience}
+\begin{cventries}
+<% for item in work %>
+  \cventry
+    {<< item.title | default("") >>}
+    {<< item.company | default("") >>}
+    {<< item.location | default("") >>}
+    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<% if item.description | default("") %>
+      \begin{cvitems}
+        \item {<< item.description >>}
+      \end{cvitems}
+    <% endif %>}
+<% endfor %>
+\end{cventries}
+<% endif %>
+
+<# ── Education ── #>
+<% set edu = nodes | selectattr("_type", "equalto", "Education") | list %>
+<% if edu %>
+\cvsection{Education}
+\begin{cventries}
+<% for item in edu %>
+  \cventry
+    {<< item.degree | default("") >>}
+    {<< item.institution | default("") >>}
+    {<< item.location | default("") >>}
+    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<% if item.description | default("") %>
+      \begin{cvitems}
+        \item {<< item.description >>}
+      \end{cvitems}
+    <% endif %>}
+<% endfor %>
+\end{cventries}
+<% endif %>
+
+<# ── Skills ── #>
+<% set skills = nodes | selectattr("_type", "equalto", "Skill") | list %>
+<% if skills %>
+\cvsection{Skills}
+\begin{cvskills}
+<% for item in skills %>
+  \cvskill{<< item.category | default("") >>}{<< item.name | default("") >><% if item.proficiency | default("") %> (<< item.proficiency >>)<% endif %>}
+<% endfor %>
+\end{cvskills}
+<% endif %>
+
+<# ── Languages ── #>
+<% set langs = nodes | selectattr("_type", "equalto", "Language") | list %>
+<% if langs %>
+\cvsection{Languages}
+\begin{cvskills}
+<% for item in langs %>
+  \cvskill{<< item.name | default("") >>}{<< item.proficiency | default("") >>}
+<% endfor %>
+\end{cvskills}
+<% endif %>
+
+<# ── Projects ── #>
+<% set projects = nodes | selectattr("_type", "equalto", "Project") | list %>
+<% if projects %>
+\cvsection{Projects}
+\begin{cventries}
+<% for item in projects %>
+  \cventry
+    {<< item.name | default("") >>}
+    {<< item.role | default("") >>}
+    {}
+    {}
+    {<% if item.description | default("") %>
+      \begin{cvitems}
+        \item {<< item.description >>}
+      \end{cvitems}
+    <% endif %>}
+<% endfor %>
+\end{cventries}
+<% endif %>
+
+<# ── Publications ── #>
+<% set pubs = nodes | selectattr("_type", "equalto", "Publication") | list %>
+<% if pubs %>
+\cvsection{Publications}
+\begin{cventries}
+<% for item in pubs %>
+  \cventry
+    {<< item.title | default("") >>}
+    {<< item.venue | default("") >>}
+    {}
+    {<< item.date | default("") >>}
+    {<% if item.abstract | default("") %>
+      \begin{cvitems}
+        \item {<< item.abstract >>}
+      \end{cvitems}
+    <% endif %>}
+<% endfor %>
+\end{cventries}
+<% endif %>
+
+<# ── Certifications ── #>
+<% set certs = nodes | selectattr("_type", "equalto", "Certification") | list %>
+<% if certs %>
+\cvsection{Certifications}
+\begin{cventries}
+<% for item in certs %>
+  \cventry
+    {<< item.name | default("") >>}
+    {<< item.issuing_organization | default("") >>}
+    {}
+    {<< item.date | default("") >>}
+    {}
+<% endfor %>
+\end{cventries}
+<% endif %>
+
+<# ── Awards ── #>
+<% set awards = nodes | selectattr("_type", "equalto", "Award") | list %>
+<% if awards %>
+\cvsection{Awards}
+\begin{cventries}
+<% for item in awards %>
+  \cventry
+    {<< item.name | default("") >>}
+    {<< item.issuing_organization | default("") >>}
+    {}
+    {<< item.date | default("") >>}
+    {<% if item.description | default("") %>
+      \begin{cvitems}
+        \item {<< item.description >>}
+      \end{cvitems}
+    <% endif %>}
+<% endfor %>
+\end{cventries}
+<% endif %>
+
+\end{document}
