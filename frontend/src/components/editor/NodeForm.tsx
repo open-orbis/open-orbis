@@ -662,7 +662,7 @@ export default function NodeForm({ initialType, initialValues, onSubmit, onCance
               )}
 
               {Boolean(initialValues?.uid) && (nodeType === 'work_experience' || nodeType === 'project') && (
-                <SkillLinker nodeUid={initialValues.uid as string} />
+                <SkillLinker nodeUid={initialValues!.uid as string} />
               )}
             </motion.div>
           </AnimatePresence>

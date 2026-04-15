@@ -369,7 +369,7 @@ export default function CvExportPage() {
     ) : null;
 
   /* ── Section renderer ── */
-  const renderSection = (key: SectionKey): JSX.Element | null => {
+  const renderSection = (key: SectionKey): React.ReactElement | null => {
     switch (key) {
       case 'experience':
         return (
@@ -389,7 +389,7 @@ export default function CvExportPage() {
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>
                   {str(n.company)}{n.location ? ` — ${str(n.location)}` : ''}
                 </p>
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>
@@ -417,7 +417,7 @@ export default function CvExportPage() {
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>
                   {str(n.institution)}{n.location ? ` — ${str(n.location)}` : ''}
                 </p>
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>
@@ -439,10 +439,10 @@ export default function CvExportPage() {
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.name)}</h4>
                   <EntryLink id={n.uid} />
                 </div>
-                {n.role && (
+                {!!n.role && (
                   <p className="item-subtitle" contentEditable suppressContentEditableWarning>{str(n.role)}</p>
                 )}
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>
@@ -465,7 +465,7 @@ export default function CvExportPage() {
                   <EntryLink id={n.uid} />
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>{str(n.venue)}</p>
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>
@@ -487,12 +487,12 @@ export default function CvExportPage() {
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.name)}</h4>
                   <EntryLink id={n.uid} />
                 </div>
-                {n.patent_number && (
+                {!!n.patent_number && (
                   <p className="item-subtitle" contentEditable suppressContentEditableWarning>
                     Patent Number: {str(n.patent_number)}
                   </p>
                 )}
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>
@@ -514,12 +514,12 @@ export default function CvExportPage() {
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.name)}</h4>
                   <EntryLink id={n.uid} />
                 </div>
-                {n.issuing_organization && (
+                {!!n.issuing_organization && (
                   <p className="item-subtitle" contentEditable suppressContentEditableWarning>
                     {str(n.issuing_organization)}{n.date ? ` — ${str(n.date)}` : ''}
                   </p>
                 )}
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>
@@ -544,7 +544,7 @@ export default function CvExportPage() {
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>
                   {n.role ? `${str(n.role)} — ` : ''}{str(n.venue)}{n.date ? ` — ${str(n.date)}` : ''}
                 </p>
-                {n.description && (
+                {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
                     <ul><li>{str(n.description)}</li></ul>
                   </div>

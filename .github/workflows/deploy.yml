@@ -73,17 +73,16 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
-
       - name: Build and push image
         id: build
         run: |
           TAG="${GITHUB_REF_NAME}"
           MCP_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/mcp:$TAG"
           echo "image=$MCP_IMAGE" >> "$GITHUB_OUTPUT"
-          docker build -f backend/Dockerfile.mcp -t "$MCP_IMAGE" backend/
-          docker push "$MCP_IMAGE"
+          gcloud builds submit backend/ \
+            --config=backend/cloudbuild.mcp.yaml \
+            --substitutions="_IMAGE=$MCP_IMAGE" \
+            --project="$PROJECT_ID"
 
   build-frontend:
     name: Build Frontend
