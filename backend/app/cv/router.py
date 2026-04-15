@@ -11,11 +11,9 @@ from neo4j import AsyncDriver
 
 from app.config import settings
 from app.cv import counter, jobs_db
-from app.cv.models import ConfirmRequest, ExtractedData
+from app.cv.models import ConfirmRequest
 from app.cv.ollama_classifier import SYSTEM_PROMPT as EXTRACTION_PROMPT
-from app.cv.ollama_classifier import classify_entries
 from app.cv.progress import get_progress_for_user
-from app.cv.text_extractor import extract_text as multi_extract
 from app.cv_storage import db as cv_db
 from app.cv_storage.storage import (
     evict_oldest_if_at_limit,
@@ -240,8 +238,8 @@ async def import_document(
     )
 
     # Dispatch Cloud Task
-    from app.cv.cloud_tasks import dispatch_cv_job
     from app.config import settings
+    from app.cv.cloud_tasks import dispatch_cv_job
 
     if settings.cloud_tasks_queue:
         task_name = dispatch_cv_job(job_id=job_id)
