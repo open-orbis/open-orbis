@@ -20,7 +20,7 @@ async def insert_idea(user_id: str, text: str, source: str = "idea") -> dict:
     """Insert a new idea or feedback and return it as a dict."""
     pool = await get_pool()
     idea_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
     await pool.execute(
         "INSERT INTO ideas (idea_id, user_id, text, created_at, source) "
         "VALUES ($1, $2, $3, $4, $5)",
@@ -30,7 +30,7 @@ async def insert_idea(user_id: str, text: str, source: str = "idea") -> dict:
         now,
         source,
     )
-    return {"idea_id": idea_id, "user_id": user_id, "text": text, "created_at": now, "source": source}
+    return {"idea_id": idea_id, "user_id": user_id, "text": text, "created_at": now.isoformat(), "source": source}
 
 
 async def list_ideas(source: str | None = None) -> list[dict]:

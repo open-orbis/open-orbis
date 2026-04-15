@@ -420,11 +420,11 @@ export default function ChatBox({
           onClick={() => { if (!feedbackSent) setShowFeedback(true); }}
           className={`text-[10px] transition-colors ${
             feedbackSent
-              ? 'text-red-400 font-bold'
+              ? 'text-yellow-400 font-bold'
               : 'text-emerald-400/30 hover:text-emerald-400/60'
           }`}
         >
-          {feedbackSent ? 'Thanks!' : 'Send Feedback'}
+          {feedbackSent ? 'Thanks for inspiring us!' : 'Send Feedback'}
         </button>
       </div>
 
