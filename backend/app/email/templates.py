@@ -268,13 +268,9 @@ _CV_CANCELLED_CONTENT = """\
 
 # ── Compile templates ──
 
-_cv_ready_tpl = _env.from_string(
-    _LAYOUT.replace("{{ content }}", _CV_READY_CONTENT)
-)
+_cv_ready_tpl = _env.from_string(_LAYOUT.replace("{{ content }}", _CV_READY_CONTENT))
 
-_cv_failed_tpl = _env.from_string(
-    _LAYOUT.replace("{{ content }}", _CV_FAILED_CONTENT)
-)
+_cv_failed_tpl = _env.from_string(_LAYOUT.replace("{{ content }}", _CV_FAILED_CONTENT))
 
 _cv_cancelled_tpl = _env.from_string(
     _LAYOUT.replace("{{ content }}", _CV_CANCELLED_CONTENT)

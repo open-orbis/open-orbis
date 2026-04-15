@@ -30,7 +30,13 @@ async def insert_idea(user_id: str, text: str, source: str = "idea") -> dict:
         now,
         source,
     )
-    return {"idea_id": idea_id, "user_id": user_id, "text": text, "created_at": now.isoformat(), "source": source}
+    return {
+        "idea_id": idea_id,
+        "user_id": user_id,
+        "text": text,
+        "created_at": now.isoformat(),
+        "source": source,
+    }
 
 
 async def list_ideas(source: str | None = None) -> list[dict]:

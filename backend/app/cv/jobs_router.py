@@ -40,8 +40,12 @@ async def get_job_status(
         "edge_count": job.get("edge_count"),
         "llm_provider": job.get("llm_provider"),
         "llm_model": job.get("llm_model"),
-        "created_at": job.get("created_at").isoformat() if job.get("created_at") else None,
-        "completed_at": job.get("completed_at").isoformat() if job.get("completed_at") else None,
+        "created_at": job.get("created_at").isoformat()
+        if job.get("created_at")
+        else None,
+        "completed_at": job.get("completed_at").isoformat()
+        if job.get("completed_at")
+        else None,
     }
 
     if job["status"] == "succeeded" and job.get("result_json"):
@@ -140,9 +144,14 @@ async def process_job(
         )
 
         result_payload = {
-            "nodes": [n.model_dump() if hasattr(n, "model_dump") else n for n in result.nodes],
+            "nodes": [
+                n.model_dump() if hasattr(n, "model_dump") else n for n in result.nodes
+            ],
             "unmatched": result.unmatched,
-            "skipped": [s.model_dump() if hasattr(s, "model_dump") else s for s in (result.skipped or [])],
+            "skipped": [
+                s.model_dump() if hasattr(s, "model_dump") else s
+                for s in (result.skipped or [])
+            ],
             "relationships": [
                 r.model_dump() if hasattr(r, "model_dump") else r
                 for r in (result.relationships or [])
@@ -181,9 +190,7 @@ async def process_job(
         return {"status": "ok", "job_id": job_id}
 
     except Exception as exc:
-        logger.error(
-            "Job %s failed (%s): %s", job_id, type(exc).__name__, exc
-        )
+        logger.error("Job %s failed (%s): %s", job_id, type(exc).__name__, exc)
         logger.debug("Job processing traceback", exc_info=True)
         error_msg = str(exc)
         await jobs_db.update_job_result(
@@ -211,7 +218,9 @@ async def _send_success_email(
             )
             record = await result.single()
         if record is None or not record["email"]:
-            logger.warning("No email found for user %s — skipping success email", user_id)
+            logger.warning(
+                "No email found for user %s — skipping success email", user_id
+            )
             return
         props = decrypt_properties({"email": record["email"]})
         email = props.get("email")
@@ -240,7 +249,9 @@ async def _send_failure_email(user_id: str, db: AsyncDriver) -> None:
             )
             record = await result.single()
         if record is None or not record["email"]:
-            logger.warning("No email found for user %s — skipping failure email", user_id)
+            logger.warning(
+                "No email found for user %s — skipping failure email", user_id
+            )
             return
         props = decrypt_properties({"email": record["email"]})
         email = props.get("email")

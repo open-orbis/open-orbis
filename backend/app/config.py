@@ -104,8 +104,12 @@ class Settings(BaseSettings):
     # Cloud Tasks (background CV processing)
     cloud_tasks_queue: str = ""  # e.g. "orbis-cv-queue"
     cloud_tasks_location: str = "europe-west1"
-    cloud_run_url: str = ""  # e.g. "https://orbis-api-390775751253.europe-west1.run.app"
-    cloud_run_service_account: str = ""  # e.g. "390775751253-compute@developer.gserviceaccount.com"
+    cloud_run_url: str = (
+        ""  # e.g. "https://orbis-api-390775751253.europe-west1.run.app"
+    )
+    cloud_run_service_account: str = (
+        ""  # e.g. "390775751253-compute@developer.gserviceaccount.com"
+    )
 
     # Account cleanup interval in hours (0 = startup-only, no recurring task)
     cleanup_interval_hours: int = 24

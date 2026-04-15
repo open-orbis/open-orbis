@@ -38,9 +38,7 @@ def dispatch_cv_job(*, job_id: str) -> str:
             ),
         ),
     )
-    response = client.create_task(
-        tasks_v2.CreateTaskRequest(parent=parent, task=task)
-    )
+    response = client.create_task(tasks_v2.CreateTaskRequest(parent=parent, task=task))
     logger.info("Dispatched Cloud Task for job %s: %s", job_id, response.name)
     return response.name
 

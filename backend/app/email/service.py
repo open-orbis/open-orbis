@@ -95,7 +95,9 @@ async def send_cv_failed_email(*, to: str, frontend_url: str) -> bool:
     from app.email.templates import render_cv_failed_email
 
     html = render_cv_failed_email(retry_url=f"{frontend_url}/create")
-    return await send_email(to=to, subject="CV processing needs attention", html_body=html)
+    return await send_email(
+        to=to, subject="CV processing needs attention", html_body=html
+    )
 
 
 async def send_cv_cancelled_email(*, to: str, frontend_url: str) -> bool:

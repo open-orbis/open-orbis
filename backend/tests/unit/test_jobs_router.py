@@ -155,9 +155,7 @@ def test_process_job_invalid_oidc_returns_401(mock_get_job):
     """Request without a valid OIDC token must return 401."""
     client, _ = _make_client(USER_ID)
     try:
-        with patch(
-            "app.cv.jobs_router.verify_oidc_token", return_value=None
-        ):
+        with patch("app.cv.jobs_router.verify_oidc_token", return_value=None):
             response = client.post(
                 "/cv/process-job",
                 json={"job_id": "job-123"},

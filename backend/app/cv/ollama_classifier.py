@@ -630,7 +630,8 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
     if parsed is None or not isinstance(parsed, dict):
         logger.warning(
             "Failed to parse LLM response as JSON (len=%d, first 200: %s)",
-            len(text), text[:200],
+            len(text),
+            text[:200],
         )
         return ClassificationResult()
 

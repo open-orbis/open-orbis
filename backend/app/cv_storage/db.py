@@ -21,9 +21,7 @@ async def insert_document(
     now: str | datetime,
 ) -> dict:
     pool = await get_pool()
-    uploaded_at = (
-        datetime.fromisoformat(now) if isinstance(now, str) else now
-    )
+    uploaded_at = datetime.fromisoformat(now) if isinstance(now, str) else now
     await pool.execute(
         "INSERT INTO cv_documents "
         "(document_id, user_id, original_filename, file_size_bytes, "

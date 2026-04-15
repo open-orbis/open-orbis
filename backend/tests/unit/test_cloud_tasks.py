@@ -1,4 +1,5 @@
 """Tests for Cloud Tasks client."""
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -21,7 +22,9 @@ def test_dispatch_cv_job(mock_settings, mock_get_client):
         "projects/my-project/locations/europe-west1/queues/orbis-cv-queue"
     )
     mock_task = MagicMock()
-    mock_task.name = "projects/my-project/locations/europe-west1/queues/orbis-cv-queue/tasks/abc123"
+    mock_task.name = (
+        "projects/my-project/locations/europe-west1/queues/orbis-cv-queue/tasks/abc123"
+    )
     mock_client.create_task.return_value = mock_task
 
     task_name = dispatch_cv_job(job_id="j1")
