@@ -51,10 +51,26 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/api:$TAG"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
-          gcloud builds submit backend/ \
+
+          # Submit async, then poll build status (avoids log-streaming permission issues)
+          BUILD_ID=$(gcloud builds submit backend/ \
             --tag "$IMAGE" \
             --project="$PROJECT_ID" \
-            --suppress-logs
+            --async --format='value(id)')
+          echo "Cloud Build started: $BUILD_ID"
+
+          while true; do
+            STATUS=$(gcloud builds describe "$BUILD_ID" \
+              --project="$PROJECT_ID" --format='value(status)' 2>/dev/null || echo "POLLING")
+            echo "Build status: $STATUS"
+            case "$STATUS" in
+              SUCCESS) echo "Build succeeded"; break ;;
+              FAILURE|TIMEOUT|CANCELLED|EXPIRED|INTERNAL_ERROR)
+                echo "::error::Cloud Build failed with status: $STATUS"
+                exit 1 ;;
+              *) sleep 15 ;;
+            esac
+          done
 
   build-mcp:
     name: Build MCP Image
@@ -81,11 +97,26 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           MCP_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/mcp:$TAG"
           echo "image=$MCP_IMAGE" >> "$GITHUB_OUTPUT"
-          gcloud builds submit backend/ \
+
+          BUILD_ID=$(gcloud builds submit backend/ \
             --config=backend/cloudbuild.mcp.yaml \
             --substitutions="_IMAGE=$MCP_IMAGE" \
             --project="$PROJECT_ID" \
-            --suppress-logs
+            --async --format='value(id)')
+          echo "Cloud Build started: $BUILD_ID"
+
+          while true; do
+            STATUS=$(gcloud builds describe "$BUILD_ID" \
+              --project="$PROJECT_ID" --format='value(status)' 2>/dev/null || echo "POLLING")
+            echo "Build status: $STATUS"
+            case "$STATUS" in
+              SUCCESS) echo "Build succeeded"; break ;;
+              FAILURE|TIMEOUT|CANCELLED|EXPIRED|INTERNAL_ERROR)
+                echo "::error::Cloud Build failed with status: $STATUS"
+                exit 1 ;;
+              *) sleep 15 ;;
+            esac
+          done
 
   build-frontend:
     name: Build Frontend
