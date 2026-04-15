@@ -412,6 +412,21 @@ export default function ChatBox({
         </div>
       )}
 
+      {/* Feedback button above chatbox */}
+      <div className="flex justify-center mb-1.5">
+        <button
+          type="button"
+          onClick={() => { if (!feedbackSent) setShowFeedback(true); }}
+          className={`text-[10px] transition-colors ${
+            feedbackSent
+              ? 'text-red-400 font-bold'
+              : 'text-emerald-400/30 hover:text-emerald-400/60'
+          }`}
+        >
+          {feedbackSent ? 'Thanks!' : 'Send Feedback'}
+        </button>
+      </div>
+
       {/* Bottom bar — discover + recenter + chat input + action buttons */}
       <div className="flex items-center gap-2">
         {onDiscover && (
@@ -507,15 +522,6 @@ export default function ChatBox({
       <p className="mt-2 text-center text-[11px] text-white/35">
         {interactionHint}
       </p>
-      <div className="mt-1.5 text-center">
-        <button
-          type="button"
-          onClick={() => setShowFeedback(true)}
-          className="text-[10px] text-emerald-400/30 hover:text-emerald-400/60 transition-colors"
-        >
-          Send Feedback
-        </button>
-      </div>
 
       {/* Feedback modal */}
       {showFeedback && (
@@ -559,7 +565,7 @@ export default function ChatBox({
                     setFeedbackText('');
                     setShowFeedback(false);
                     setFeedbackSent(true);
-                    setTimeout(() => setFeedbackSent(false), 3000);
+                    setTimeout(() => setFeedbackSent(false), 5000);
                   } catch { /* best effort */ }
                   finally { setFeedbackSending(false); }
                 }}
@@ -569,11 +575,6 @@ export default function ChatBox({
               </button>
             </div>
           </div>
-        </div>
-      )}
-      {feedbackSent && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-emerald-600/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg">
-          <p className="text-white text-sm">Thank you for your feedback!</p>
         </div>
       )}
     </div>
