@@ -56,44 +56,40 @@ function FeatureRow({ side, color, colorName, icon, title, description }: {
   description: string;
 }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const isInView = useInView(ref, { once: true, margin: '-40px' });
 
-  const iconSide = (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, x: side === 'left' ? -60 : 60 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8, ease: 'easeOut' }}
-      className="flex items-center justify-center"
-    >
+  const iconEl = (
+    <div className="flex items-center justify-center">
       <div
-        className="w-28 h-28 sm:w-36 sm:h-36 rounded-3xl flex items-center justify-center relative"
+        className="w-20 h-20 sm:w-36 sm:h-36 rounded-2xl sm:rounded-3xl flex items-center justify-center relative"
         style={{ background: `linear-gradient(135deg, ${color}20, ${color}08)`, border: `1px solid ${color}25` }}
       >
         <div className="absolute inset-0 rounded-3xl blur-[40px] opacity-30" style={{ backgroundColor: color }} />
-        <svg className={`w-12 h-12 sm:w-16 sm:h-16 text-${colorName}-400 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className={`w-8 h-8 sm:w-16 sm:h-16 text-${colorName}-400 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {icon}
         </svg>
       </div>
-    </motion.div>
-  );
-
-  const textSide = (
-    <motion.div
-      initial={{ opacity: 0, x: side === 'left' ? 60 : -60 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
-      className={`flex flex-col justify-center ${side === 'left' ? 'sm:pl-8' : 'sm:pr-8 sm:text-right'}`}
-    >
-      <h3 className="text-white text-xl sm:text-2xl font-bold mb-3">{title}</h3>
-      <p className="text-white/40 text-sm sm:text-base leading-relaxed max-w-md">{description}</p>
-    </motion.div>
-  );
-
-  return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-16 items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
-      {side === 'left' ? <>{iconSide}{textSide}</> : <>{textSide}{iconSide}</>}
     </div>
+  );
+
+  const textEl = (
+    <div className={`flex flex-col justify-center text-center sm:text-left ${side === 'left' ? 'sm:pl-8' : 'sm:pr-8 sm:text-right'}`}>
+      <h3 className="text-white text-xl sm:text-2xl font-bold mb-3">{title}</h3>
+      <p className="text-white/40 text-sm sm:text-base leading-relaxed max-w-md mx-auto sm:mx-0">{description}</p>
+    </div>
+  );
+
+  // Single container: column on mobile, 2-col grid on desktop
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.7, ease: 'easeOut' }}
+      className={`flex flex-col items-center gap-4 sm:grid sm:grid-cols-2 sm:gap-16 sm:items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}
+    >
+      {side === 'left' ? <>{iconEl}{textEl}</> : <>{textEl}{iconEl}</>}
+    </motion.div>
   );
 }
 
@@ -280,7 +276,7 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.8 }}
-          className="text-5xl sm:text-7xl font-bold mb-8 z-10 tracking-tight text-center"
+          className="text-4xl sm:text-7xl font-bold mb-4 sm:mb-8 z-10 tracking-tight text-center"
         >
           Beyond the{' '}
           <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
@@ -292,7 +288,7 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
-          className="text-white/40 text-lg sm:text-xl mb-16 z-10 max-w-lg text-center leading-relaxed"
+          className="text-white/40 text-base sm:text-xl mb-8 sm:mb-16 z-10 max-w-lg text-center leading-relaxed"
         >
           <span className="text-white/60 font-semibold">Your career reimagined for the AI era.</span><br />
           Queryable, shareable, portable.
@@ -303,7 +299,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7, duration: 0.8 }}
-          className="text-sm mb-24 z-10 font-medium tracking-wide"
+          className="text-sm mb-10 sm:mb-12 z-10 font-medium tracking-wide text-center"
         >
           <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
             No more templates. No more formatting. Just your Orbis.
@@ -340,7 +336,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-8 z-10"
+          className="absolute bottom-8 z-10 hidden sm:block"
         >
           <motion.div
             animate={{ y: [0, 8, 0] }}
@@ -368,7 +364,7 @@ export default function LandingPage() {
             </p>
           </div>
           {/* Canvas with clipped overflow */}
-          <div className="rounded-2xl overflow-hidden border border-white/5" style={{ height: '650px' }}>
+          <div className="rounded-2xl overflow-hidden border border-white/5 h-[400px] sm:h-[650px]">
             <DemoOrb />
           </div>
         </FadeIn>
@@ -385,7 +381,7 @@ export default function LandingPage() {
             </h2>
           </FadeIn>
 
-          <div className="space-y-24 sm:space-y-32">
+          <div className="space-y-16 sm:space-y-32">
             {/* 1 — Left */}
             <FeatureRow side="left" color="#f59e0b" colorName="amber"
               icon={<><circle cx="12" cy="12" r="2.5" strokeWidth={1.5} /><circle cx="4" cy="6" r="1.5" strokeWidth={1.5} /><circle cx="20" cy="6" r="1.5" strokeWidth={1.5} /><circle cx="4" cy="18" r="1.5" strokeWidth={1.5} /><circle cx="20" cy="18" r="1.5" strokeWidth={1.5} /><circle cx="12" cy="2.5" r="1.5" strokeWidth={1.5} /><line x1="10" y1="10.5" x2="5.2" y2="7" strokeWidth={1.5} strokeLinecap="round" /><line x1="14" y1="10.5" x2="18.8" y2="7" strokeWidth={1.5} strokeLinecap="round" /><line x1="10" y1="13.5" x2="5.2" y2="17" strokeWidth={1.5} strokeLinecap="round" /><line x1="14" y1="13.5" x2="18.8" y2="17" strokeWidth={1.5} strokeLinecap="round" /><line x1="12" y1="9.5" x2="12" y2="4" strokeWidth={1.5} strokeLinecap="round" /></>}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode, OrbVisibility } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
@@ -98,6 +99,10 @@ export default function ChatBox({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const setMessages = (updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
@@ -408,6 +413,21 @@ export default function ChatBox({
         </div>
       )}
 
+      {/* Feedback button above chatbox */}
+      <div className="flex justify-center mb-1.5">
+        <button
+          type="button"
+          onClick={() => { if (!feedbackSent) setShowFeedback(true); }}
+          className={`text-[10px] transition-colors ${
+            feedbackSent
+              ? 'text-yellow-400 font-bold'
+              : 'text-emerald-400/30 hover:text-emerald-400/60'
+          }`}
+        >
+          {feedbackSent ? 'Thanks for inspiring us!' : 'Send Feedback'}
+        </button>
+      </div>
+
       {/* Bottom bar — discover + recenter + chat input + action buttons */}
       <div className="flex items-center gap-2">
         {onDiscover && (
@@ -503,6 +523,64 @@ export default function ChatBox({
       <p className="mt-2 text-center text-[11px] text-white/35">
         {interactionHint}
       </p>
+
+      {/* Feedback modal — portaled to body to escape chatbox z-index/pointer traps */}
+      {showFeedback && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFeedback(false)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowFeedback(false)}
+              className="absolute right-3 top-3 h-8 w-8 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-white text-base font-semibold mb-1">Send Feedback</h3>
+            <p className="text-gray-400 text-sm mb-4">What would you like to share with us?</p>
+            <textarea
+              autoFocus
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="Your feedback, ideas, or suggestions..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-500 resize-none h-28 focus:outline-none focus:border-purple-500/50"
+            />
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowFeedback(false)}
+                className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!feedbackText.trim() || feedbackSending}
+                onClick={async () => {
+                  setFeedbackSending(true);
+                  try {
+                    const { submitIdea } = await import('../../api/orbs');
+                    await submitIdea(feedbackText.trim(), 'feedback');
+                    setFeedbackSent(true);
+                    setTimeout(() => setFeedbackSent(false), 5000);
+                  } catch { /* best effort */ }
+                  finally {
+                    setFeedbackSending(false);
+                    setFeedbackText('');
+                    setShowFeedback(false);
+                  }
+                }}
+                className="h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+              >
+                {feedbackSending ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

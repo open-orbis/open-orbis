@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { uploadCV, getCVProgress, getDocuments, discardCVProgress } from '../../api/cv';
+import { uploadCV, getCVProgress, getDocuments, getJob } from '../../api/cv';
 import type { ExtractedData, ExtractedProfile, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
 import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
@@ -15,12 +15,15 @@ export default function CVUploadOnboarding() {
   const [errorDetails, setErrorDetails] = useState('');
   const [showTechDetails, setShowTechDetails] = useState(false);
   const [lastFile, setLastFile] = useState<File | null>(null);
+  // jobId is stored in state for external consumers and synced to jobIdRef for polling closure access
+  const [jobId, setJobId] = useState<string | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const jobIdRef = useRef<string | null>(null);
   const [progressData, setProgressData] = useState<CVProgressData | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadAbortControllerRef = useRef<AbortController | null>(null);
   const activeUploadRunRef = useRef(0);
-  const isProcessing = uploading && processingUiActive;
+  const isProcessing = processingUiActive;
 
   useEffect(() => {
     return () => {
@@ -28,21 +31,82 @@ export default function CVUploadOnboarding() {
     };
   }, []);
 
-  // Poll progress while uploading
+  // Poll progress while processing
   useEffect(() => {
     if (!isProcessing) {
       if (pollRef.current) clearInterval(pollRef.current);
       return;
     }
+    const runId = activeUploadRunRef.current;
     const poll = async () => {
       try {
         const data = await getCVProgress();
+        if (runId !== activeUploadRunRef.current) return;
         setProgressData(data);
-      } catch { /* ignore */ }
+
+        const resolvedJobId = data.job_id ?? jobIdRef.current;
+        if (data.status === 'succeeded' && resolvedJobId) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          try {
+            const job = await getJob(resolvedJobId);
+            if (runId !== activeUploadRunRef.current) return;
+            if (job.result) {
+              const result = job.result;
+              let unmatchedCount = 0;
+              if (result.unmatched && result.unmatched.length > 0 && user?.user_id) {
+                const existing = loadDraftNotes(user.user_id);
+                const newNotes = result.unmatched.map((text: string) => ({
+                  id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                  text: `[From CV] ${text}`,
+                  createdAt: Date.now(),
+                  fromVoice: false,
+                }));
+                saveDraftNotes(user.user_id, [...newNotes, ...existing]);
+                unmatchedCount = result.unmatched.length;
+              }
+              if (result.nodes.length === 0 && (!result.unmatched || result.unmatched.length === 0)) {
+                setError('No entries could be extracted from this file. Try a different CV or use manual entry.');
+              } else {
+                setExtractedData({
+                  nodes: result.nodes,
+                  relationships: result.relationships || [],
+                  cvOwnerName: result.cv_owner_name || null,
+                  profile: result.profile || null,
+                  unmatchedCount,
+                  unmatchedEntries: result.unmatched || [],
+                  skippedCount: result.skipped_nodes?.length || 0,
+                  truncated: result.truncated || false,
+                  documentId: result.document_id || null,
+                  originalFilename: lastFile?.name || null,
+                  fileSizeBytes: lastFile?.size || null,
+                  pageCount: null,
+                });
+              }
+            } else {
+              setError('CV processing completed but no data was returned. Please try again.');
+            }
+          } catch (e) {
+            if (runId !== activeUploadRunRef.current) return;
+            setError('Failed to retrieve extraction results. Please try again.');
+            setErrorDetails(e instanceof Error ? e.message : 'Unknown error');
+          } finally {
+            if (runId === activeUploadRunRef.current) {
+              setProcessingUiActive(false);
+              setUploading(false);
+            }
+          }
+        } else if (data.status === 'failed') {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setError('CV processing failed. Please try again or use manual entry.');
+          setProcessingUiActive(false);
+          setUploading(false);
+        }
+      } catch { /* ignore network errors during polling */ }
     };
     poll();
     pollRef.current = setInterval(poll, 2000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProcessing]);
 
   const [extractedData, setExtractedData] = useState<{
@@ -69,11 +133,10 @@ export default function CVUploadOnboarding() {
     activeUploadRunRef.current += 1;
     uploadAbortControllerRef.current?.abort();
     uploadAbortControllerRef.current = null;
-    void discardCVProgress().catch(() => {
-      // Keep UI reset even if backend discard call fails.
-    });
     setProcessingUiActive(false);
     setUploading(false);
+    setJobId(null);
+    jobIdRef.current = null;
     setProgressData(null);
     setError('');
     setErrorDetails('');
@@ -103,57 +166,23 @@ export default function CVUploadOnboarding() {
     uploadAbortControllerRef.current?.abort();
     const controller = new AbortController();
     uploadAbortControllerRef.current = controller;
-    setProcessingUiActive(true);
     setUploading(true);
     setError('');
     setErrorDetails('');
     setShowTechDetails(false);
     try {
-      const data = await uploadCV(file, controller.signal);
+      const response = await uploadCV(file, controller.signal);
       if (runId !== activeUploadRunRef.current) return;
-
-      let unmatchedCount = 0;
-      if (data.unmatched && data.unmatched.length > 0 && user?.user_id) {
-        const existing = loadDraftNotes(user.user_id);
-        const newNotes = data.unmatched.map((text: string) => ({
-          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-          text: `[From CV] ${text}`,
-          createdAt: Date.now(),
-          fromVoice: false,
-        }));
-        saveDraftNotes(user.user_id, [...newNotes, ...existing]);
-        unmatchedCount = data.unmatched.length;
-      }
-
-      if (data.nodes.length === 0 && (!data.unmatched || data.unmatched.length === 0)) {
-        setError('No entries could be extracted from this file. Try a different CV or use manual entry.');
-      } else {
-        setExtractedData({
-          nodes: data.nodes,
-          relationships: data.relationships || [],
-          cvOwnerName: data.cv_owner_name || null,
-          profile: data.profile || null,
-          unmatchedCount,
-          unmatchedEntries: data.unmatched || [],
-          skippedCount: data.skipped_nodes?.length || 0,
-          truncated: data.truncated || false,
-          documentId: data.document_id || null,
-          originalFilename: file.name,
-          fileSizeBytes: file.size,
-          pageCount: null,
-        });
-      }
+      setJobId(response.job_id);
+      jobIdRef.current = response.job_id;
+      setProcessingUiActive(true);
     } catch (e) {
       if (runId !== activeUploadRunRef.current) return;
-      setError('Failed to parse CV. Please try again or use manual entry.');
+      setError('Failed to upload CV. Please try again or use manual entry.');
       setErrorDetails(e instanceof Error ? e.message : 'Unknown upload error');
-    } finally {
-      if (runId === activeUploadRunRef.current) {
-        setProcessingUiActive(false);
-        setUploading(false);
-      }
+      setUploading(false);
     }
-  }, [user]);
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     setLastFile(file);
@@ -301,6 +330,15 @@ export default function CVUploadOnboarding() {
             disabled={isProcessing}
           />
         </label>
+
+        {processingUiActive && (
+          <div className="rounded-xl border border-purple-500/20 bg-purple-500/5 p-4 mt-4">
+            <p className="text-sm text-purple-200/80">
+              Processing your CV — this may take 5–10 minutes depending on length.
+              Feel free to close this page; we'll email you when your Orbis is ready.
+            </p>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-3">

@@ -248,7 +248,6 @@ export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUses
                           setIdeaSent(true);
                           setIdeaText('');
                           _ideaDraft = '';
-                          setIdeaOpen(false);
                         } catch { /* ignore */ }
                         setIdeaSending(false);
                       }}

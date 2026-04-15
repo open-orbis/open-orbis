@@ -4,8 +4,10 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 // to /api for the access cookie and /auth for the refresh cookie. They
 // are httpOnly so JS can't read them — the only signal we have for "am
 // I logged in" is whether /auth/me returns 200 or 401.
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   withCredentials: true,
 });
 
@@ -18,7 +20,7 @@ interface RetryableConfig extends InternalAxiosRequestConfig {
 }
 
 async function refreshSession(): Promise<void> {
-  await axios.post('/api/auth/refresh', undefined, { withCredentials: true });
+  await axios.post(`${API_BASE}/auth/refresh`, undefined, { withCredentials: true });
 }
 
 client.interceptors.response.use(

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import { useAuthStore } from '../stores/authStore';
+import { useToastStore } from '../stores/toastStore';
 import {
   getStats,
   listAccessCodes,
@@ -22,6 +23,8 @@ import {
   getInsights,
   listIdeas,
   deleteIdea,
+  listCVJobs,
+  cancelCVJob,
   type AdminStats,
   type AccessCode,
   type PendingUser,
@@ -30,6 +33,7 @@ import {
   type Idea,
   type FunnelMetrics,
   type Insights,
+  type CVJobAdmin,
 } from '../api/admin';
 
 // ── Helpers ──
@@ -55,6 +59,17 @@ function formatHours(hours: number | null): string {
   if (hours < 24) return `${hours.toFixed(1)}h`;
   const days = hours / 24;
   return `${days.toFixed(1)}d`;
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 // ── Stat Card ──
@@ -165,6 +180,7 @@ function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: {
 
 export default function AdminPage() {
   const user = useAuthStore((s) => s.user);
+  const addToast = useToastStore((s) => s.addToast);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [codes, setCodes] = useState<AccessCode[]>([]);
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -172,8 +188,9 @@ export default function AdminPage() {
   const [funnel, setFunnel] = useState<FunnelMetrics | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'funnel'>('codes');
+  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'feedback' | 'funnel' | 'cv-jobs'>('codes');
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Create code form
@@ -216,18 +233,27 @@ export default function AdminPage() {
     failed: { name: string; reason: string }[];
   } | null>(null);
 
+  // CV Jobs tab state
+  const [cvJobs, setCvJobs] = useState<CVJobAdmin[]>([]);
+  const [cvJobsTotal, setCvJobsTotal] = useState(0);
+  const [cvJobsLoading, setCvJobsLoading] = useState(false);
+  const [cvJobsStatusFilter, setCvJobsStatusFilter] = useState<string | undefined>();
+  const [cancelTarget, setCancelTarget] = useState<CVJobAdmin | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
   const isPendingWaitlistUser = (
     u: Pick<AdminUser, 'signup_code' | 'is_admin' | 'waitlist_joined'>,
   ) => !u.signup_code && !u.is_admin && u.waitlist_joined;
 
   const refresh = useCallback(async () => {
     try {
-      const [s, c, p, u, id, f, ins] = await Promise.all([
+      const [s, c, p, u, id, fb, f, ins] = await Promise.all([
         getStats(),
         listAccessCodes(),
         listPendingUsers(),
         listUsers(),
-        listIdeas(),
+        listIdeas('idea'),
+        listIdeas('feedback'),
         getFunnelMetrics(30),
         getInsights(),
       ]);
@@ -236,6 +262,7 @@ export default function AdminPage() {
       setPendingUsers(p);
       setUsers(u);
       setIdeas(id);
+      setFeedbacks(fb);
       setFunnel(f);
       setInsights(ins);
       setError(null);
@@ -249,6 +276,27 @@ export default function AdminPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (tab !== 'cv-jobs') return;
+    setCvJobsLoading(true);
+    listCVJobs({ status: cvJobsStatusFilter, limit: 50 })
+      .then((res) => { setCvJobs(res.items); setCvJobsTotal(res.total); })
+      .catch(() => {})
+      .finally(() => setCvJobsLoading(false));
+  }, [tab, cvJobsStatusFilter]);
+
+  useEffect(() => {
+    if (tab !== 'cv-jobs') return;
+    const hasActive = cvJobs.some(j => j.status === 'queued' || j.status === 'running');
+    if (!hasActive) return;
+    const interval = setInterval(() => {
+      listCVJobs({ status: cvJobsStatusFilter, limit: 50 })
+        .then((res) => { setCvJobs(res.items); setCvJobsTotal(res.total); })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [tab, cvJobs, cvJobsStatusFilter]);
 
   // ── Toggle invite code requirement (with confirmation) ──
   const handleToggleInviteCode = () => {
@@ -390,13 +438,14 @@ export default function AdminPage() {
 
   const handleActivateUser = (userId: string, userName: string) => {
     setConfirmAction({
-      title: 'Activate user?',
-      message: `An invite code will be generated and automatically assigned to ${userName || userId}.`,
-      confirmLabel: 'Activate',
+      title: 'Approve user?',
+      message: `${userName || userId} will be activated and receive an email notification that their account is ready.`,
+      confirmLabel: 'Approve',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await activateUser(userId);
+          addToast(`${userName || userId} approved — notification email sent`, 'success');
           await refresh();
         } catch {
           setError('Error activating user.');
@@ -411,13 +460,14 @@ export default function AdminPage() {
     );
     if (pending.length === 0) return;
     setConfirmAction({
-      title: `Activate ${pending.length} users?`,
-      message: 'An invite code will be generated for each selected user.',
-      confirmLabel: `Activate ${pending.length}`,
+      title: `Approve ${pending.length} users?`,
+      message: `Each user will be activated and receive an email notification.`,
+      confirmLabel: `Approve ${pending.length}`,
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await activateUsersBatch(pending);
+          addToast(`${pending.length} user(s) approved — notification emails sent`, 'success');
           setSelectedUsers(new Set());
           await refresh();
         } catch {
@@ -653,12 +703,28 @@ export default function AdminPage() {
             Ideas ({ideas.length})
           </button>
           <button
+            onClick={() => setTab('feedback')}
+            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              tab === 'feedback' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Feedback ({feedbacks.length})
+          </button>
+          <button
             onClick={() => setTab('funnel')}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
               tab === 'funnel' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
             }`}
           >
             Funnel
+          </button>
+          <button
+            onClick={() => setTab('cv-jobs')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'cv-jobs' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            CV Jobs
           </button>
         </div>
 
@@ -786,6 +852,33 @@ export default function AdminPage() {
         {/* ── Pending Users Tab ── */}
         {tab === 'pending' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {pendingUsers.length > 0 && (
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={() => {
+                    const allIds = pendingUsers.map((u) => u.user_id);
+                    setConfirmAction({
+                      title: `Approve all ${allIds.length} users?`,
+                      message: 'Each user will be activated and receive an email notification.',
+                      confirmLabel: `Approve all ${allIds.length}`,
+                      onConfirm: async () => {
+                        setConfirmAction(null);
+                        try {
+                          await activateUsersBatch(allIds);
+                          addToast(`${allIds.length} user(s) approved — notification emails sent`, 'success');
+                          await refresh();
+                        } catch {
+                          setError('Error in batch activation.');
+                        }
+                      },
+                    });
+                  }}
+                  className="h-9 px-4 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
+                >
+                  Approve all ({pendingUsers.length})
+                </button>
+              </div>
+            )}
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -810,7 +903,7 @@ export default function AdminPage() {
                         <td className="px-4 py-2.5 text-white/30 text-xs">{formatDate(u.created_at)}</td>
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Activate</button>
+                            <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Approve</button>
                             <button onClick={() => handleDeleteUser(u.user_id, u.name)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Delete</button>
                           </div>
                         </td>
@@ -985,6 +1078,40 @@ export default function AdminPage() {
                       }}
                       className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
                       title="Delete idea"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Feedback Tab ── */}
+        {tab === 'feedback' && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            {feedbacks.length === 0 ? (
+              <p className="text-white/30 text-sm text-center py-8">No feedback received yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {feedbacks.map((fb) => (
+                  <div key={fb.idea_id} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.03] border border-white/5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm whitespace-pre-wrap">{fb.text}</p>
+                      <p className="text-white/30 text-xs mt-1.5">
+                        {fb.user_id} &middot; {formatDate(fb.created_at)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await deleteIdea(fb.idea_id);
+                        setFeedbacks((prev) => prev.filter((i) => i.idea_id !== fb.idea_id));
+                      }}
+                      className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+                      title="Delete feedback"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1322,6 +1449,147 @@ export default function AdminPage() {
 
           </motion.div>
         )}
+        {/* ── CV Jobs Tab ── */}
+        {tab === 'cv-jobs' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-white/50 text-sm">{cvJobsLoading ? 'Loading...' : `${cvJobsTotal} jobs`}</span>
+            </div>
+
+            {/* Status filter */}
+            <div className="flex gap-2 mb-4">
+              {[undefined, 'queued', 'running', 'succeeded', 'failed', 'cancelled'].map((s) => (
+                <button
+                  key={s ?? 'all'}
+                  onClick={() => setCvJobsStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    cvJobsStatusFilter === s ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60 bg-white/5'
+                  }`}
+                >
+                  {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
+                </button>
+              ))}
+            </div>
+
+            {/* Table */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.06]">
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">User</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">File</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Status</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Step</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Progress</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">LLM</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Text Size</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Started</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Duration</th>
+                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cvJobs.length === 0 && (
+                      <tr><td colSpan={10} className="text-center text-white/20 py-8">{cvJobsLoading ? 'Loading...' : 'No jobs found.'}</td></tr>
+                    )}
+                    {cvJobs.map((job) => {
+                      const statusColors: Record<string, string> = {
+                        queued: 'bg-white/[0.06] text-white/40',
+                        running: 'bg-blue-500/15 text-blue-400',
+                        succeeded: 'bg-green-500/10 text-green-400',
+                        failed: 'bg-red-500/10 text-red-400',
+                        cancelled: 'bg-orange-500/10 text-orange-400',
+                      };
+                      const duration = job.started_at && job.completed_at
+                        ? `${Math.round((new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()) / 1000)}s`
+                        : job.started_at && (job.status === 'running')
+                          ? `${Math.round((Date.now() - new Date(job.started_at).getTime()) / 1000)}s`
+                          : '—';
+                      return (
+                        <tr key={job.job_id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="px-4 py-2.5">
+                            <div className="text-white/70 text-xs">{job.user_name || '—'}</div>
+                            <div className="text-white/30 text-xs font-mono">{job.user_email || '—'}</div>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/50 text-xs max-w-[120px] truncate">{job.filename || '—'}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-md ${statusColors[job.status] ?? 'text-white/40'}`}>
+                              {job.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{job.step || '—'}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2 min-w-[80px]">
+                              <div className="flex-1 bg-white/[0.06] rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${job.status === 'succeeded' ? 'bg-green-500/60' : job.status === 'failed' ? 'bg-red-500/60' : 'bg-purple-500/60'}`}
+                                  style={{ width: `${job.progress_pct}%` }}
+                                />
+                              </div>
+                              <span className="text-white/30 text-xs tabular-nums">{job.progress_pct}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{job.llm_provider ? `${job.llm_provider}/${job.llm_model ?? ''}` : '—'}</td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{job.text_chars != null ? `${(job.text_chars / 1000).toFixed(1)}k` : '—'}</td>
+                          <td className="px-4 py-2.5 text-white/30 text-xs">{timeAgo(job.started_at)}</td>
+                          <td className="px-4 py-2.5 text-white/30 text-xs">{duration}</td>
+                          <td className="px-4 py-2.5 text-right">
+                            {(job.status === 'queued' || job.status === 'running') && (
+                              <button
+                                onClick={() => setCancelTarget(job)}
+                                className="text-xs text-red-400/60 hover:text-red-400 px-2 py-1 rounded transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Cancel confirmation modal */}
+            {cancelTarget && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm">
+                  <h3 className="text-white font-semibold mb-2">Cancel CV Processing</h3>
+                  <p className="text-gray-400 text-sm mb-4">
+                    Cancel processing for {cancelTarget.user_name || cancelTarget.user_email}?
+                    The user will be notified by email.
+                  </p>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setCancelTarget(null)} className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 text-sm">
+                      Keep running
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setCancelling(true);
+                        try {
+                          await cancelCVJob(cancelTarget.job_id);
+                          setCvJobs(prev => prev.map(j => j.job_id === cancelTarget.job_id ? {...j, status: 'cancelled'} : j));
+                        } catch {
+                          // ignore cancellation errors
+                        } finally {
+                          setCancelling(false);
+                          setCancelTarget(null);
+                        }
+                      }}
+                      disabled={cancelling}
+                      className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm disabled:opacity-50"
+                    >
+                      {cancelling ? 'Cancelling...' : 'Cancel job'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
       </div>
 
       {/* ── User Detail Dialog ── */}

@@ -209,6 +209,40 @@ Fernet symmetric encryption applied to PII fields: `email`, `phone`, `address`. 
 - `decrypt_properties(dict)` — decrypts PII fields; logs warning and leaves value as-is on failure
 - Key sourced from `ENCRYPTION_KEY` env var; auto-generated in dev mode (data won't survive restarts)
 
+## PostgreSQL — CV Background Jobs
+
+CV processing jobs (background extraction via Cloud Tasks) are tracked in the `cv_jobs` table in PostgreSQL.
+
+### `cv_jobs` Table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `job_id` | TEXT | UUID, primary key |
+| `user_id` | TEXT | Links to Person node |
+| `document_id` | TEXT | Nullable — set when document is stored |
+| `cloud_task_name` | TEXT | Cloud Tasks task name for the dispatched job |
+| `status` | TEXT | `queued` / `running` / `succeeded` / `failed` / `cancelled` |
+| `step` | TEXT | Current processing step (e.g. `extracting_text`, `classifying`) |
+| `progress_pct` | INT | 0–100 percentage |
+| `progress_detail` | TEXT | Human-readable status detail |
+| `llm_provider` | TEXT | LLM provider used for extraction |
+| `llm_model` | TEXT | LLM model used |
+| `text_chars` | INT | Characters extracted from PDF |
+| `filename` | TEXT | Original filename |
+| `node_count` | INT | Nodes extracted on success |
+| `edge_count` | INT | Edges extracted on success |
+| `result_json` | TEXT | Full extraction result JSON (stored on success) |
+| `error_message` | TEXT | Error detail on failure |
+| `created_at` | TIMESTAMPTZ | Job creation time |
+| `started_at` | TIMESTAMPTZ | When processing began |
+| `completed_at` | TIMESTAMPTZ | When processing finished |
+| `expires_at` | TIMESTAMPTZ | Retention cutoff (7 days after creation) |
+| `cancelled_by` | TEXT | User ID or "admin" if cancelled externally |
+
+Indexes on `user_id`, `status`, and `expires_at`. Expired `succeeded`/`failed` jobs are cleaned up automatically.
+
+**Flow:** `POST /cv/upload` and `POST /cv/import` create a `cv_jobs` row with `status=queued`, then dispatch a Cloud Task that calls `POST /cv/process-job`. In local dev (no Cloud Tasks configured) the task runs inline via `asyncio.create_task`. On completion the user receives an email with a deep link to resume review.
+
 ## SQLite — CV Document Metadata
 
 Separate from the Neo4j graph, CV/document upload metadata is tracked in SQLite (`backend/data/cv_uploads.db`).

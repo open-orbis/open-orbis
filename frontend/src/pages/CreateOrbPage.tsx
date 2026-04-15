@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useOrbStore } from '../stores/orbStore';
 import { useAuthStore } from '../stores/authStore';
 import OrbGraph3D from '../components/graph/OrbGraph3D';
@@ -22,9 +22,19 @@ const SUGGESTED_ORDER = [
 
 export default function CreateOrbPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, loading, fetchOrb, addNode } = useOrbStore();
   const { user } = useAuthStore();
   const [selectedPath, setSelectedPath] = useState<'upload' | 'manual' | null>(null);
+
+  // If user lands on /create?review=<job_id>, redirect to /myorbis?review=<job_id>
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const reviewJobId = params.get('review');
+    if (reviewJobId) {
+      navigate(`/myorbis?review=${reviewJobId}`, { replace: true });
+    }
+  }, [location.search, navigate]);
   const [showInput, setShowInput] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });

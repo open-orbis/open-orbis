@@ -250,8 +250,8 @@ export async function deleteVersion(snapshotId: string): Promise<void> {
   await client.delete(`/orbs/me/versions/${snapshotId}`);
 }
 
-export async function submitIdea(text: string): Promise<void> {
-  await client.post('/ideas', { text });
+export async function submitIdea(text: string, source: 'idea' | 'feedback' = 'idea'): Promise<void> {
+  await client.post('/ideas', { text, source });
 }
 
 // ── Connection Requests ──

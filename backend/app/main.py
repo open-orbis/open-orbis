@@ -12,6 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.admin.router import router as admin_router
 from app.auth.router import router as auth_router
 from app.config import settings
+from app.cv.jobs_router import router as cv_jobs_router
 from app.cv.router import router as cv_router
 from app.drafts.router import router as drafts_router
 from app.export.router import router as export_router
@@ -121,6 +122,15 @@ async def lifespan(app: FastAPI):
 
         await get_pool()
         logger.info("PostgreSQL pool initialized")
+
+        from app.cv.jobs_db import cleanup_expired_jobs, ensure_table
+        from app.ideas.db import ensure_source_column
+
+        await ensure_table()
+        await ensure_source_column()
+        expired = await cleanup_expired_jobs()
+        if expired:
+            logger.info("Cleaned up %d expired CV jobs", expired)
     yield
     # Shutdown
     if settings.database_url:
@@ -136,10 +146,15 @@ app = FastAPI(title="Orbis API", version="0.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+_cors_origins = [settings.frontend_url]
+if settings.cors_extra_origins:
+    _cors_origins.extend(
+        o.strip() for o in settings.cors_extra_origins.split(",") if o.strip()
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url]
-    + [o.strip() for o in settings.cors_extra_origins.split(",") if o.strip()],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],
@@ -196,6 +211,7 @@ _API_PREFIX = "/api"
 app.include_router(auth_router, prefix=_API_PREFIX)
 app.include_router(orbs_router, prefix=_API_PREFIX)
 app.include_router(cv_router, prefix=_API_PREFIX)
+app.include_router(cv_jobs_router, prefix=_API_PREFIX)
 app.include_router(export_router, prefix=_API_PREFIX)
 app.include_router(notes_router, prefix=_API_PREFIX)
 app.include_router(drafts_router, prefix=_API_PREFIX)
@@ -207,6 +223,7 @@ app.include_router(ideas_router, prefix=_API_PREFIX)
 app.include_router(auth_router)
 app.include_router(orbs_router)
 app.include_router(cv_router)
+app.include_router(cv_jobs_router)
 app.include_router(export_router)
 app.include_router(notes_router)
 app.include_router(drafts_router)
