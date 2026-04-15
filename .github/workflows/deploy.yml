@@ -12,6 +12,7 @@ env:
   PROJECT_ID: open-orbis
   REGION: europe-west1
   BACKEND_SERVICE: orbis-api
+  MCP_SERVICE: orbis-mcp
   AR_REPO: orbis
   VPC_CONNECTOR: orbis-connector
   SQL_INSTANCE: orbis-db
@@ -21,11 +22,18 @@ env:
   FALLBACK_CHAIN: gemini-pro
 
 jobs:
-  deploy-backend:
-    name: Deploy Backend (Cloud Run)
+  # ──────────────────────────────────────────────────────────
+  # Phase 1: Build ALL artifacts. If any build fails, nothing
+  # gets deployed and the current production stays untouched.
+  # ──────────────────────────────────────────────────────────
+
+  build-backend:
+    name: Build Backend Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      image: ${{ steps.build.outputs.image }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,52 +45,48 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build container image
+      - name: Build and push image
+        id: build
         run: |
-          TAG="${GITHUB_REF_NAME}"  # release tag, e.g. v1.0.0
+          TAG="${GITHUB_REF_NAME}"
           IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/api:$TAG"
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           gcloud builds submit backend/ \
             --tag "$IMAGE" \
             --project="$PROJECT_ID"
 
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy "$BACKEND_SERVICE" \
-            --image="$IMAGE" \
-            --region="$REGION" \
-            --project="$PROJECT_ID" \
-            --service-account="$SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com" \
-            --vpc-connector="$VPC_CONNECTOR" \
-            --vpc-egress=private-ranges-only \
-            --add-cloudsql-instances="$PROJECT_ID:$REGION:$SQL_INSTANCE" \
-            --memory=1Gi \
-            --cpu=1 \
-            --concurrency=80 \
-            --min-instances=0 \
-            --max-instances=10 \
-            --timeout=300s \
-            --allow-unauthenticated \
-            --set-secrets="JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,NEO4J_PASSWORD=neo4j-password:latest,DATABASE_URL=database-url:latest,RESEND_API_KEY=resend-api-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,LINKEDIN_CLIENT_ID=linkedin-client-id:latest,LINKEDIN_CLIENT_SECRET=linkedin-client-secret:latest" \
-            --set-env-vars="ENV=production,NEO4J_URI=bolt://$NEO4J_INTERNAL_IP:7687,NEO4J_USER=neo4j,LLM_PROVIDER=vertex,LLM_FALLBACK_CHAIN=$FALLBACK_CHAIN,CLAUDE_MODEL=claude-opus-4-6,GEMINI_MODEL=gemini-2.5-pro,GCP_PROJECT_ID=$PROJECT_ID,VERTEX_REGION=$REGION,CV_STORAGE_BUCKET=$GCS_BUCKET,FRONTEND_URL=https://open-orbis.web.app,COOKIE_DOMAIN=.open-orbis.web.app"
+  build-mcp:
+    name: Build MCP Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      image: ${{ steps.build.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Health check
-        run: |
-          URL=$(gcloud run services describe "$BACKEND_SERVICE" \
-            --region="$REGION" --format="value(status.url)")
-          echo "Backend URL: $URL"
-          # Wait for the new revision to become ready (cold start)
-          sleep 10
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health/ready" --max-time 30)
-          if [ "$STATUS" != "200" ]; then
-            echo "Health check failed with status $STATUS"
-            curl -s "$URL/health/ready" || true
-            exit 1
-          fi
-          echo "Health check passed (HTTP $STATUS)"
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-  deploy-frontend:
-    name: Deploy Frontend (Firebase Hosting)
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+
+      - name: Build and push image
+        id: build
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          MCP_IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$AR_REPO/mcp:$TAG"
+          echo "image=$MCP_IMAGE" >> "$GITHUB_OUTPUT"
+          docker build -f backend/Dockerfile.mcp -t "$MCP_IMAGE" backend/
+          docker push "$MCP_IMAGE"
+
+  build-frontend:
+    name: Build Frontend
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -97,14 +101,136 @@ jobs:
 
       - name: Install and build
         working-directory: frontend
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          VITE_LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          VITE_API_URL: /api
         run: |
           npm ci
           npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────
+  # Phase 2: Deploy ALL services. Runs only if every build
+  # succeeded. Saves current revision IDs first so we can
+  # rollback if anything fails. Each deploy step tracks
+  # progress so partial failures can be rolled back.
+  # ──────────────────────────────────────────────────────────
+
+  deploy:
+    name: Deploy All Services
+    needs: [build-backend, build-mcp, build-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      backend-prev-revision: ${{ steps.snapshot.outputs.backend_rev }}
+      mcp-prev-revision: ${{ steps.snapshot.outputs.mcp_rev }}
+      backend-deployed: ${{ steps.backend-done.outputs.done }}
+      mcp-deployed: ${{ steps.mcp-done.outputs.done }}
+      frontend-deployed: ${{ steps.frontend-done.outputs.done }}
+      backend-url: ${{ steps.resolve-url.outputs.backend_url }}
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Save current revision IDs for rollback
+      - name: Snapshot current revisions
+        id: snapshot
+        run: |
+          BACKEND_REV=$(gcloud run services describe "$BACKEND_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(status.traffic[0].revisionName)" 2>/dev/null || echo "")
+          MCP_REV=$(gcloud run services describe "$MCP_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(status.traffic[0].revisionName)" 2>/dev/null || echo "")
+          echo "backend_rev=$BACKEND_REV" >> "$GITHUB_OUTPUT"
+          echo "mcp_rev=$MCP_REV" >> "$GITHUB_OUTPUT"
+          echo "Current backend revision: ${BACKEND_REV:-<first deploy>}"
+          echo "Current MCP revision: ${MCP_REV:-<first deploy>}"
+
+      # Resolve backend URL dynamically (for CLOUD_RUN_URL)
+      - name: Resolve backend Cloud Run URL
+        id: resolve-url
+        run: |
+          # On first deploy the service may not exist yet; fall back to empty
+          BACKEND_URL=$(gcloud run services describe "$BACKEND_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(status.url)" 2>/dev/null || echo "")
+          echo "backend_url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
+          echo "Backend URL: ${BACKEND_URL:-<will be set after first deploy>}"
+
+      # Deploy backend
+      - name: Deploy backend to Cloud Run
+        run: |
+          CLOUD_RUN_URL="${{ steps.resolve-url.outputs.backend_url }}"
+          gcloud run deploy "$BACKEND_SERVICE" \
+            --image="${{ needs.build-backend.outputs.image }}" \
+            --region="$REGION" \
+            --project="$PROJECT_ID" \
+            --service-account="$SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com" \
+            --vpc-connector="$VPC_CONNECTOR" \
+            --vpc-egress=private-ranges-only \
+            --add-cloudsql-instances="$PROJECT_ID:$REGION:$SQL_INSTANCE" \
+            --memory=1Gi \
+            --cpu=1 \
+            --concurrency=80 \
+            --min-instances=0 \
+            --max-instances=10 \
+            --timeout=300s \
+            --allow-unauthenticated \
+            --startup-cpu-boost \
+            --set-secrets="JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,NEO4J_PASSWORD=neo4j-password:latest,DATABASE_URL=database-url:latest,RESEND_API_KEY=resend-api-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,LINKEDIN_CLIENT_ID=linkedin-client-id:latest,LINKEDIN_CLIENT_SECRET=linkedin-client-secret:latest" \
+            --set-env-vars="ENV=production,NEO4J_URI=bolt://$NEO4J_INTERNAL_IP:7687,NEO4J_USER=neo4j,LLM_PROVIDER=vertex,LLM_FALLBACK_CHAIN=$FALLBACK_CHAIN,GEMINI_MODEL=gemini-2.5-pro,GCP_PROJECT_ID=$PROJECT_ID,VERTEX_REGION=$REGION,CV_STORAGE_BUCKET=$GCS_BUCKET,FRONTEND_URL=https://open-orbis.com,COOKIE_DOMAIN=.open-orbis.com,LINKEDIN_REDIRECT_URI=https://open-orbis.com/auth/linkedin/callback,CLOUD_TASKS_QUEUE=orbis-cv-queue,CLOUD_TASKS_LOCATION=$REGION,CLOUD_RUN_URL=$CLOUD_RUN_URL,CLOUD_RUN_SERVICE_ACCOUNT=$SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com"
+
+      - name: Mark backend deployed
+        id: backend-done
+        run: echo "done=true" >> "$GITHUB_OUTPUT"
+
+      # Deploy MCP
+      - name: Deploy MCP to Cloud Run
+        run: |
+          gcloud run deploy "$MCP_SERVICE" \
+            --image="${{ needs.build-mcp.outputs.image }}" \
+            --region="$REGION" \
+            --project="$PROJECT_ID" \
+            --service-account="$SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com" \
+            --vpc-connector="$VPC_CONNECTOR" \
+            --vpc-egress=private-ranges-only \
+            --add-cloudsql-instances="$PROJECT_ID:$REGION:$SQL_INSTANCE" \
+            --memory=256Mi \
+            --cpu=1 \
+            --concurrency=80 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --timeout=300s \
+            --no-allow-unauthenticated \
+            --set-secrets="JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,NEO4J_PASSWORD=neo4j-password:latest,DATABASE_URL=database-url:latest" \
+            --set-env-vars="ENV=production,NEO4J_URI=bolt://$NEO4J_INTERNAL_IP:7687,NEO4J_USER=neo4j,GCP_PROJECT_ID=$PROJECT_ID"
+
+      - name: Mark MCP deployed
+        id: mcp-done
+        run: echo "done=true" >> "$GITHUB_OUTPUT"
+
+      # Deploy frontend
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -114,12 +240,145 @@ jobs:
           channelId: live
           projectId: open-orbis
 
-      - name: Health check
+      - name: Mark frontend deployed
+        id: frontend-done
+        run: echo "done=true" >> "$GITHUB_OUTPUT"
+
+  # ──────────────────────────────────────────────────────────
+  # Phase 3: Smoke test. If it fails, trigger rollback.
+  # ──────────────────────────────────────────────────────────
+
+  smoke-test:
+    name: Smoke Test
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Backend health check (with retry)
         run: |
-          sleep 10
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://open-orbis.web.app" --max-time 30)
-          if [ "$STATUS" != "200" ]; then
-            echo "Frontend health check failed with status $STATUS"
-            exit 1
-          fi
-          echo "Frontend health check passed (HTTP $STATUS)"
+          URL=$(gcloud run services describe "${{ env.BACKEND_SERVICE }}" \
+            --region="${{ env.REGION }}" --project="${{ env.PROJECT_ID }}" \
+            --format="value(status.url)")
+          echo "Backend URL: $URL"
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health/ready" --max-time 30)
+            if [ "$STATUS" = "200" ]; then
+              echo "Backend health check passed (HTTP $STATUS) on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::Backend health check failed after 3 attempts (last status: $STATUS)"
+          curl -s "$URL/health/ready" || true
+          exit 1
+
+      - name: MCP health check (with retry)
+        run: |
+          URL=$(gcloud run services describe "${{ env.MCP_SERVICE }}" \
+            --region="${{ env.REGION }}" --project="${{ env.PROJECT_ID }}" \
+            --format="value(status.url)")
+          echo "MCP URL: $URL"
+          TOKEN=$(gcloud auth print-identity-token --audiences="$URL")
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/mcp" \
+              -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" \
+              -X POST -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"smoke-test","version":"0.1.0"}},"id":1}' \
+              --max-time 30)
+            if [ "$STATUS" -lt "500" ]; then
+              echo "MCP health check passed (HTTP $STATUS) on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::MCP health check failed after 3 attempts (last status: $STATUS)"
+          exit 1
+
+      - name: Frontend health check (with retry)
+        run: |
+          for i in 1 2 3; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://open-orbis.com" --max-time 30)
+            if [ "$STATUS" = "200" ]; then
+              echo "Frontend health check passed (HTTP $STATUS) on attempt $i"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS — retrying in 10s..."
+            sleep 10
+          done
+          echo "::error::Frontend health check failed after 3 attempts (last status: $STATUS)"
+          exit 1
+
+  # ──────────────────────────────────────────────────────────
+  # Phase 4: Rollback. Runs if deploy succeeded (fully or
+  # partially) but smoke test failed, OR if the deploy job
+  # itself failed after deploying at least one service.
+  # Restores Cloud Run to previous revisions and rolls back
+  # Firebase Hosting.
+  # ──────────────────────────────────────────────────────────
+
+  rollback:
+    name: Rollback
+    needs: [deploy, smoke-test]
+    if: |
+      always() &&
+      (needs.deploy.outputs.backend-deployed == 'true' || needs.deploy.outputs.mcp-deployed == 'true' || needs.deploy.outputs.frontend-deployed == 'true') &&
+      (needs.smoke-test.result == 'failure' || needs.deploy.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Rollback backend
+        if: needs.deploy.outputs.backend-deployed == 'true' && needs.deploy.outputs.backend-prev-revision != ''
+        run: |
+          echo "::warning::Rolling back backend to ${{ needs.deploy.outputs.backend-prev-revision }}"
+          gcloud run services update-traffic "$BACKEND_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --to-revisions="${{ needs.deploy.outputs.backend-prev-revision }}=100"
+
+      - name: Rollback MCP
+        if: needs.deploy.outputs.mcp-deployed == 'true' && needs.deploy.outputs.mcp-prev-revision != ''
+        run: |
+          echo "::warning::Rolling back MCP to ${{ needs.deploy.outputs.mcp-prev-revision }}"
+          gcloud run services update-traffic "$MCP_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --to-revisions="${{ needs.deploy.outputs.mcp-prev-revision }}=100"
+
+      - name: Rollback Firebase Hosting
+        if: needs.deploy.outputs.frontend-deployed == 'true'
+        run: |
+          echo "::warning::Rolling back Firebase Hosting"
+          npm install -g firebase-tools
+          firebase hosting:rollback --project="$PROJECT_ID" --confirm
+
+      - name: Rollback summary
+        if: always()
+        run: |
+          echo "::error::Deploy was rolled back due to failed smoke tests or partial deploy failure."
+          echo "::error::Check the smoke-test and deploy job logs for details."
+          echo ""
+          echo "Services rolled back:"
+          [ "${{ needs.deploy.outputs.backend-deployed }}" = "true" ] && echo "  - Backend: reverted to ${{ needs.deploy.outputs.backend-prev-revision }}"
+          [ "${{ needs.deploy.outputs.mcp-deployed }}" = "true" ] && echo "  - MCP: reverted to ${{ needs.deploy.outputs.mcp-prev-revision }}"
+          [ "${{ needs.deploy.outputs.frontend-deployed }}" = "true" ] && echo "  - Frontend: Firebase rollback"
+          exit 1
