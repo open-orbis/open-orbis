@@ -610,20 +610,28 @@ def _parse_result(raw_response: str) -> ClassificationResult:  # noqa: C901
                 json_lines.append(line)
         text = "\n".join(json_lines)
 
-    # Use raw_decode to find the first valid JSON object
+    # Use raw_decode to find the first valid JSON object that looks like
+    # our expected schema (must have a "nodes" key).  When the LLM output
+    # is truncated the outermost object won't parse, and raw_decode would
+    # match a small nested dict (e.g. a single "properties" block) that
+    # has no "nodes" — so we skip objects without that key.
     decoder = json.JSONDecoder()
     parsed = None
-    # Try to find a JSON object starting with {
     for i, ch in enumerate(text):
         if ch == "{":
             try:
-                parsed, _ = decoder.raw_decode(text, i)
-                break
+                candidate, _ = decoder.raw_decode(text, i)
+                if isinstance(candidate, dict) and "nodes" in candidate:
+                    parsed = candidate
+                    break
             except json.JSONDecodeError:
                 continue
 
     if parsed is None or not isinstance(parsed, dict):
-        logger.warning("Failed to parse Ollama response as JSON")
+        logger.warning(
+            "Failed to parse LLM response as JSON (len=%d, first 200: %s)",
+            len(text), text[:200],
+        )
         return ClassificationResult()
 
     cv_owner_name = parsed.get("cv_owner_name") or None

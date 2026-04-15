@@ -45,7 +45,7 @@ async def call_gemini(
 
     config = GenerateContentConfig(
         system_instruction=system_prompt,
-        max_output_tokens=8192,
+        max_output_tokens=65536,
     )
 
     logger.info(
