@@ -510,17 +510,16 @@ export default function OrbViewPage() {
     setImportStatus('Uploading document...');
 
     try {
-      const { importDocument, getCVProgress, getJob } = await import('../api/cv');
-      await importDocument(file);
+      const { importDocument, getJob } = await import('../api/cv');
+      const { job_id: importJobId } = await importDocument(file);
 
-      // Poll for progress
+      // Poll the specific job by ID (not getCVProgress which may return an old job)
       setImportStatus('Processing — we\'ll email you when ready. Feel free to close this page.');
       const pollId = setInterval(async () => {
         try {
-          const p = await getCVProgress();
-          if (p.status === 'succeeded' && p.job_id) {
+          const job = await getJob(importJobId);
+          if (job.status === 'succeeded') {
             clearInterval(pollId);
-            const job = await getJob(p.job_id);
             if (job.result && job.result.nodes.length > 0) {
               setExtractedImport({
                 nodes: job.result.nodes,
@@ -537,13 +536,14 @@ export default function OrbViewPage() {
             }
             setImporting(false);
             setImportStatus('');
-          } else if (p.status === 'failed') {
+          } else if (job.status === 'failed') {
             clearInterval(pollId);
             addToast('Document processing failed. Please try again.', 'error');
             setImporting(false);
             setImportStatus('');
-          } else if (p.active && p.message) {
-            setImportStatus(`${p.message} We'll email you when ready.`);
+          } else if (job.status === 'running' || job.status === 'queued') {
+            const msg = job.progress_detail || 'Processing your document...';
+            setImportStatus(`${msg} We'll email you when ready.`);
           }
         } catch { /* ignore */ }
       }, 3000);
