@@ -27,7 +27,7 @@ import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
-import { getDocuments, confirmImport, getJob, getCVProgress } from '../api/cv';
+import { getDocuments, confirmImport, getJob } from '../api/cv';
 import GuidedTour from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
 
@@ -177,7 +177,6 @@ export default function OrbViewPage() {
   } | null>(null);
 
   const [pendingReviewJobId, setPendingReviewJobId] = useState<string | null>(null);
-  const [pendingReviewCounts, setPendingReviewCounts] = useState<{ nodes: number | null; edges: number | null } | null>(null);
 
   // ESC key closes any open panel/modal
   useEffect(() => {
@@ -609,7 +608,7 @@ export default function OrbViewPage() {
       {pendingReviewJobId && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-purple-600/90 backdrop-blur-sm border border-purple-400/30 rounded-xl px-5 py-3 shadow-xl flex items-center gap-3">
           <p className="text-white text-sm">
-            Your CV processing is complete! {pendingReviewCounts?.nodes} nodes extracted.
+            Your CV processing is complete! Review your extracted entries.
           </p>
           <button
             onClick={() => {

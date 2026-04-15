@@ -224,6 +224,10 @@ export default function ExtractedDataReview({
     return acc;
   }, {});
 
+  const typeKeys = Object.keys(grouped);
+  const [activeTypeTab, setActiveTypeTab] = useState<string | null>(null);
+  const currentTab = activeTypeTab && typeKeys.includes(activeTypeTab) ? activeTypeTab : typeKeys[0] || null;
+
   return (
     <div className="min-h-screen bg-black flex flex-col items-center px-3 sm:px-4 py-10 sm:py-16">
       <div className="w-full max-w-[95vw] sm:max-w-2xl">
@@ -307,24 +311,46 @@ export default function ExtractedDataReview({
           )}
         </div>
 
-        <div className="space-y-6 mb-8">
-          {Object.keys(grouped).length === 0 && (
+        <div className="mb-8">
+          {typeKeys.length === 0 && (
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-center">
               <p className="text-white/55 text-sm">No entries match the selected filter.</p>
             </div>
           )}
-          {Object.entries(grouped).map(([type, items]) => {
-            const color = NODE_TYPE_COLORS[type] || '#8b5cf6';
-            const label = NODE_TYPE_LABELS[type] || type;
-            return (
-              <div key={type}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-white/50 text-xs font-bold uppercase tracking-widest">{label}</span>
-                  <span className="text-white/20 text-xs">({items.length})</span>
-                </div>
+          {typeKeys.length > 0 && (
+            <>
+              {/* Type tabs */}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {typeKeys.map((type) => {
+                  const color = NODE_TYPE_COLORS[type] || '#8b5cf6';
+                  const label = NODE_TYPE_LABELS[type] || type;
+                  const count = grouped[type].length;
+                  const isActive = currentTab === type;
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setActiveTypeTab(type)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        isActive
+                          ? 'bg-white/10 text-white border border-white/20'
+                          : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:text-white/60 hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      {label}
+                      <span className={`text-[10px] ${isActive ? 'text-white/60' : 'text-white/25'}`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active tab content */}
+              {currentTab && grouped[currentTab] && (
                 <div className="space-y-2">
-                  {items.map(({ index, props, missingFields, confidence, lowConfidence, ready }) => {
+                  {grouped[currentTab].map(({ index, props, missingFields, confidence, lowConfidence, ready }) => {
+                    const type = currentTab;
                     if (editingIndex === index) {
                       return (
                         <motion.div
@@ -362,7 +388,7 @@ export default function ExtractedDataReview({
                       <motion.div
                         key={index}
                         layout
-                        className="flex items-center gap-2 sm:gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 group"
+                        className="flex items-center gap-2 sm:gap-3 bg-white/[0.04] border border-white/[0.06] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -399,7 +425,7 @@ export default function ExtractedDataReview({
                         </div>
                         <button
                           onClick={() => setEditingIndex(index)}
-                          className="text-white/15 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          className="text-blue-400/50 hover:text-blue-400 transition-colors flex-shrink-0 p-1.5 rounded-lg hover:bg-blue-400/10"
                           title="Edit"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -408,7 +434,7 @@ export default function ExtractedDataReview({
                         </button>
                         <button
                           onClick={() => removeNode(index)}
-                          className="text-white/15 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          className="text-red-400/50 hover:text-red-400 transition-colors flex-shrink-0 p-1.5 rounded-lg hover:bg-red-400/10"
                           title="Remove"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -419,9 +445,9 @@ export default function ExtractedDataReview({
                     );
                   })}
                 </div>
-              </div>
-            );
-          })}
+              )}
+            </>
+          )}
         </div>
 
         {error && <p className="text-red-400 text-sm text-center mb-4">{error}</p>}
