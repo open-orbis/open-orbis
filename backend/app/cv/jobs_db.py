@@ -52,7 +52,7 @@ async def create_job(
     """Insert a new job with status=queued and return the full row."""
     pool = await get_pool()
     row = await pool.fetchrow(
-        """
+        f"""
         INSERT INTO cv_jobs (
             job_id, user_id, document_id, filename,
             status, created_at, expires_at
@@ -61,7 +61,7 @@ async def create_job(
             $1, $2, $3, $4,
             'queued',
             NOW(),
-            NOW() + INTERVAL '$5 days'
+            NOW() + INTERVAL '{JOB_RETENTION_DAYS} days'
         )
         RETURNING *
         """,
@@ -69,7 +69,6 @@ async def create_job(
         user_id,
         document_id,
         filename,
-        JOB_RETENTION_DAYS,
     )
     return dict(row)
 
