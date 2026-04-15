@@ -147,9 +147,8 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
           <span className="absolute -bottom-6 text-[10px] text-white/0 group-hover:text-white/50 transition-all duration-200">LinkedIn</span>
         </div>
 
+        {/* Apple sign-in — hidden until we have a paid Apple Developer account
         <span className="text-white/10 text-lg select-none">&middot;</span>
-
-        {/* Apple */}
         <div className="group relative flex flex-col items-center">
           <button
             disabled={true}
@@ -161,6 +160,7 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
           </button>
           <span className="absolute -bottom-6 text-[10px] text-white/0 group-hover:text-white/50 transition-all duration-200">Apple</span>
         </div>
+        */}
       </div>
     </div>
   );
