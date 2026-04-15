@@ -56,16 +56,10 @@ function FeatureRow({ side, color, colorName, icon, title, description }: {
   description: string;
 }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const isInView = useInView(ref, { once: true, margin: '-40px' });
 
-  const iconSide = (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, x: side === 'left' ? -60 : 60 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8, ease: 'easeOut' }}
-      className="flex items-center justify-center"
-    >
+  const iconEl = (
+    <div className="flex items-center justify-center">
       <div
         className="w-20 h-20 sm:w-36 sm:h-36 rounded-2xl sm:rounded-3xl flex items-center justify-center relative"
         style={{ background: `linear-gradient(135deg, ${color}20, ${color}08)`, border: `1px solid ${color}25` }}
@@ -75,34 +69,27 @@ function FeatureRow({ side, color, colorName, icon, title, description }: {
           {icon}
         </svg>
       </div>
-    </motion.div>
+    </div>
   );
 
-  const textSide = (
-    <motion.div
-      initial={{ opacity: 0, x: side === 'left' ? 60 : -60 }}
-      animate={isInView ? { opacity: 1, x: 0 } : {}}
-      transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
-      className={`flex flex-col justify-center ${side === 'left' ? 'sm:pl-8' : 'sm:pr-8 sm:text-right'}`}
-    >
+  const textEl = (
+    <div className={`flex flex-col justify-center text-center sm:text-left ${side === 'left' ? 'sm:pl-8' : 'sm:pr-8 sm:text-right'}`}>
       <h3 className="text-white text-xl sm:text-2xl font-bold mb-3">{title}</h3>
-      <p className="text-white/40 text-sm sm:text-base leading-relaxed max-w-md">{description}</p>
-    </motion.div>
+      <p className="text-white/40 text-sm sm:text-base leading-relaxed max-w-md mx-auto sm:mx-0">{description}</p>
+    </div>
   );
 
-  // On mobile: always icon above text (vertical). On desktop: side-by-side grid.
+  // Single container: column on mobile, 2-col grid on desktop
   return (
-    <>
-      {/* Mobile: vertical stack */}
-      <div className="flex flex-col items-center gap-4 text-center sm:hidden">
-        {iconSide}
-        {textSide}
-      </div>
-      {/* Desktop: grid with side prop */}
-      <div className={`hidden sm:grid sm:grid-cols-2 gap-16 items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
-        {side === 'left' ? <>{iconSide}{textSide}</> : <>{textSide}{iconSide}</>}
-      </div>
-    </>
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.7, ease: 'easeOut' }}
+      className={`flex flex-col items-center gap-4 sm:grid sm:grid-cols-2 sm:gap-16 sm:items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}
+    >
+      {side === 'left' ? <>{iconEl}{textEl}</> : <>{textEl}{iconEl}</>}
+    </motion.div>
   );
 }
 
