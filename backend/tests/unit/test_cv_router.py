@@ -2,24 +2,11 @@ from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
+@patch("app.cv.router.jobs_db.create_job", new_callable=AsyncMock)
 @patch("app.cv.router.save_document", new_callable=AsyncMock)
 @patch("app.cv.router.evict_oldest_if_at_limit", new_callable=AsyncMock)
-@patch("app.cv.router.pdf_extract")
-@patch("app.cv.router.classify_entries")
-@patch("app.cv.router.counter")
-def test_upload_cv_success(
-    mock_counter, mock_classify, mock_pdf_extract, mock_evict, mock_save, client
-):
-    mock_pdf_extract.return_value = "Extracted text"
-    mock_classify.return_value = MagicMock(
-        nodes=[{"node_type": "skill", "properties": {"name": "Python"}}],
-        unmatched=[],
-        skipped_nodes=[],  # Match models.py field name
-        relationships=[],
-        truncated=False,
-        cv_owner_name="Test User",
-        metadata=None,
-    )
+def test_upload_cv_success(mock_evict, mock_save, mock_create_job, client):
+    mock_create_job.return_value = {"job_id": "test-job-id", "status": "queued"}
 
     file_content = b"%PDF-1.4 test content"
     file = BytesIO(file_content)
@@ -29,9 +16,10 @@ def test_upload_cv_success(
     )
 
     assert response.status_code == 200
-    assert "nodes" in response.json()
-    mock_counter.increment.assert_called_once()
-    mock_counter.decrement.assert_called_once()
+    data = response.json()
+    assert "job_id" in data
+    assert data["status"] == "queued"
+    mock_create_job.assert_called_once()
 
 
 def test_upload_cv_no_file(client):
@@ -202,29 +190,21 @@ def test_upload_cv_large_file(client):
     assert "too large" in response.json()["detail"]
 
 
+@patch("app.cv.router.jobs_db.create_job", new_callable=AsyncMock)
 @patch("app.cv.router.save_document", new_callable=AsyncMock)
 @patch("app.cv.router.evict_oldest_if_at_limit", new_callable=AsyncMock)
-@patch("app.cv.router.pdf_extract")
-def test_upload_cv_extraction_failed(mock_pdf_extract, _evict, _save, client):
-    mock_pdf_extract.return_value = "  "  # Empty extraction
+def test_upload_cv_dispatches_job(_evict, _save, mock_create_job, client):
+    """Upload now returns a job_id immediately instead of running the pipeline."""
+    mock_create_job.return_value = {"job_id": "job-123", "status": "queued"}
+
     file = BytesIO(b"%PDF-1.4 test")
     response = client.post(
         "/cv/upload", files={"file": ("test.pdf", file, "application/pdf")}
     )
-    assert response.status_code == 400
-    assert "Could not extract text" in response.json()["detail"]
-
-
-@patch("app.cv.router.save_document", new_callable=AsyncMock)
-@patch("app.cv.router.evict_oldest_if_at_limit", new_callable=AsyncMock)
-@patch("app.cv.router.pdf_extract")
-def test_upload_cv_timeout(mock_pdf_extract, _evict, _save, client):
-    mock_pdf_extract.side_effect = TimeoutError("Timeout")
-    file = BytesIO(b"%PDF-1.4 test")
-    response = client.post(
-        "/cv/upload", files={"file": ("test.pdf", file, "application/pdf")}
-    )
-    assert response.status_code == 504
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "queued"
+    assert "job_id" in data
 
 
 def test_confirm_cv_invalid_node_type(client, mock_db):

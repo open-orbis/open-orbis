@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from pathlib import Path
@@ -9,12 +10,11 @@ from fastapi.responses import Response
 from neo4j import AsyncDriver
 
 from app.config import settings
-from app.cv import counter, progress
+from app.cv import counter, jobs_db
 from app.cv.models import ConfirmRequest, ExtractedData
 from app.cv.ollama_classifier import SYSTEM_PROMPT as EXTRACTION_PROMPT
 from app.cv.ollama_classifier import classify_entries
-from app.cv.pdf_extractor import extract_text as pdf_extract
-from app.cv.progress import CVStep
+from app.cv.progress import get_progress_for_user
 from app.cv.text_extractor import extract_text as multi_extract
 from app.cv_storage import db as cv_db
 from app.cv_storage.storage import (
@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cv", tags=["cv"])
 
 
-@router.post("/upload", response_model=ExtractedData)
+@router.post("/upload")
 @limiter.limit("3/minute")
 async def upload_cv(
     request: Request,
@@ -53,7 +53,12 @@ async def upload_cv(
     current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Upload a PDF CV: extract text via Docling, classify via LLM."""
+    """Upload a PDF CV and dispatch a background processing job.
+
+    Returns immediately with ``{"job_id": ..., "status": "queued"}``.
+    The actual extraction pipeline runs asynchronously via Cloud Tasks
+    (or inline via ``asyncio.create_task`` in local dev).
+    """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -73,6 +78,7 @@ async def upload_cv(
 
     user_id = current_user.get("user_id", "")
     document_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
 
     # Store the original PDF (encrypted) before processing
     await evict_oldest_if_at_limit(user_id)
@@ -84,118 +90,59 @@ async def upload_cv(
         page_count=0,
     )
 
-    counter.increment()
+    # Create a job record in PostgreSQL
+    await jobs_db.create_job(
+        job_id=job_id,
+        user_id=user_id,
+        document_id=document_id,
+        filename=file.filename or "cv-upload.pdf",
+    )
+
+    # Dispatch the job
+    if settings.cloud_tasks_queue:
+        # Production: dispatch via Cloud Tasks
+        from app.cv.cloud_tasks import dispatch_cv_job
+
+        task_name = dispatch_cv_job(job_id=job_id)
+        await jobs_db.set_cloud_task_name(job_id, task_name)
+        logger.info("Dispatched Cloud Task for user %s, job %s", user_id, job_id)
+    else:
+        # Local dev: run the pipeline inline without blocking the response
+        asyncio.create_task(_process_job_inline(job_id, db))
+        logger.info("Started inline processing for user %s, job %s", user_id, job_id)
+
+    return {"job_id": job_id, "status": "queued"}
+
+
+async def _process_job_inline(job_id: str, db: AsyncDriver) -> None:
+    """Run the CV processing pipeline in-process (local dev fallback).
+
+    This calls the same ``process_job`` endpoint logic from
+    ``jobs_router``, temporarily patching ``verify_oidc_token`` to
+    allow the local call without a real OIDC token.
+    """
+    from unittest.mock import patch
+
+    from app.cv.jobs_router import process_job
+
+    class _FakeRequest:
+        """Minimal request-like object for the process_job endpoint."""
+
+        def __init__(self, job_id: str):
+            self._job_id = job_id
+            self.headers = {}
+
+        async def json(self):
+            return {"job_id": self._job_id}
+
     try:
-        # Step 1: Read PDF
-        progress.set_progress(user_id, CVStep.READING_PDF)
-        logger.info("Starting PDF extraction for user %s", user_id)
-
-        # Step 2: Extract text
-        progress.set_progress(
-            user_id,
-            CVStep.EXTRACTING_TEXT,
-            f"{len(pdf_bytes) // 1024}KB document",
-        )
-        raw_text = await pdf_extract(pdf_bytes)
-
-        if not raw_text.strip():
-            progress.set_progress(user_id, CVStep.FAILED, "No text found")
-            raise HTTPException(
-                status_code=400, detail="Could not extract text from PDF"
-            )
-
-        # Step 3: Classify entries via LLM
-        progress.set_progress(
-            user_id,
-            CVStep.CLASSIFYING,
-            f"Analyzing {len(raw_text):,} characters",
-            text_chars=len(raw_text),
-        )
-        logger.info(
-            "Classifying entries (%d chars), chain=%s",
-            len(raw_text),
-            settings.llm_fallback_chain,
-        )
-        result = await classify_entries(
-            raw_text,
-            progress_callback=lambda detail: progress.set_progress(
-                user_id, CVStep.CLASSIFYING, detail, text_chars=len(raw_text)
-            ),
-        )
-
-        # Step 4: Parse response
-        progress.set_progress(
-            user_id,
-            CVStep.PARSING_RESPONSE,
-            f"Found {len(result.nodes)} entries",
-        )
-
-        if not result.nodes and not result.unmatched:
-            progress.set_progress(user_id, CVStep.FAILED, "No entries extracted")
-            raise HTTPException(
-                status_code=400,
-                detail="No entries could be extracted. Try a different CV.",
-            )
-
-        progress.set_progress(user_id, CVStep.DONE)
-
-        from app.cv.models import ExtractedProfile
-
-        extracted_profile = None
-        if result.profile:
-            extracted_profile = ExtractedProfile(**result.profile)
-
-        return ExtractedData(
-            nodes=result.nodes,
-            unmatched=result.unmatched,
-            skipped_nodes=result.skipped,
-            relationships=result.relationships,
-            truncated=result.truncated,
-            cv_owner_name=result.cv_owner_name,
-            profile=extracted_profile,
-            document_id=document_id,
-            llm_provider=result.metadata.llm_provider if result.metadata else None,
-            llm_model=result.metadata.llm_model if result.metadata else None,
-            extraction_method=result.metadata.extraction_method
-            if result.metadata
-            else None,
-            prompt_hash=result.metadata.prompt_hash if result.metadata else None,
-        )
-
-    except HTTPException:
-        raise
-    except TimeoutError:
-        logger.warning("PDF extraction timeout for user %s", user_id)
-        progress.set_progress(user_id, CVStep.FAILED, "Timed out")
-        raise HTTPException(
-            status_code=504, detail="PDF processing timed out. Please try again."
-        ) from None
-    except Exception as e:
-        # Log the exception type + id at ERROR, stash the full traceback at
-        # DEBUG. The raw str(e) is NOT surfaced to the client because LLM
-        # and extractor exceptions routinely contain slice of the PDF text,
-        # prompt content, or HTTPX response bodies.
-        logger.error(
-            "CV upload pipeline error for user %s (%s)",
-            user_id,
-            type(e).__name__,
-        )
-        logger.debug("CV upload traceback", exc_info=True)
-        progress.set_progress(user_id, CVStep.FAILED, "Processing failed")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to process CV. Please try again.",
-        ) from None
-    finally:
-        counter.decrement()
-        # Clean up progress after a delay so the frontend can show "Done"
-        import asyncio
-
-        async def _cleanup():
-            await asyncio.sleep(5)
-            progress.clear_progress(user_id)
-
-        asyncio.create_task(_cleanup())
+        with patch(
+            "app.cv.jobs_router.verify_oidc_token",
+            return_value="local-dev@inline",
+        ):
+            await process_job(request=_FakeRequest(job_id), db=db)
+    except Exception:
+        logger.error("Inline job %s failed", job_id, exc_info=True)
 
 
 @router.get("/documents/{document_id}/download")
@@ -282,7 +229,6 @@ async def import_document(
     )
 
     try:
-        progress.set_progress(user_id, CVStep.EXTRACTING_TEXT, file.filename)
         raw_text = await multi_extract(file_bytes, file.filename)
 
         if not raw_text.strip():
@@ -290,26 +236,13 @@ async def import_document(
                 status_code=400, detail="Could not extract text from file"
             )
 
-        progress.set_progress(
-            user_id,
-            CVStep.CLASSIFYING,
-            f"Analyzing {len(raw_text):,} characters",
-            text_chars=len(raw_text),
-        )
-        result = await classify_entries(
-            raw_text,
-            progress_callback=lambda detail: progress.set_progress(
-                user_id, CVStep.CLASSIFYING, detail, text_chars=len(raw_text)
-            ),
-        )
+        result = await classify_entries(raw_text)
 
         if not result.nodes and not result.unmatched:
             raise HTTPException(
                 status_code=400,
                 detail="No entries could be extracted from the document.",
             )
-
-        progress.set_progress(user_id, CVStep.DONE)
 
         from app.cv.models import ExtractedProfile
 
@@ -440,35 +373,21 @@ async def get_cv_progress(
 ):
     """Return granular progress for the current user's CV processing."""
     user_id = current_user["user_id"]
-    p = progress.get_progress(user_id)
+    p = await get_progress_for_user(user_id)
     if p is None:
         return {
             "active": False,
+            "job_id": None,
+            "status": None,
             "step": None,
             "percent": 0,
             "message": None,
             "detail": None,
+            "node_count": None,
+            "edge_count": None,
             "elapsed_seconds": 0,
         }
-    import time
-
-    return {
-        "active": p.step not in ("done", "failed"),
-        "step": p.step,
-        "percent": p.percent,
-        "message": p.message,
-        "detail": p.detail,
-        "elapsed_seconds": round(time.time() - p.started_at),
-    }
-
-
-@router.post("/progress/discard")
-async def discard_cv_progress(
-    current_user: dict = Depends(get_current_user),
-):
-    """Discard any tracked CV progress for the current user."""
-    progress.clear_progress(current_user["user_id"])
-    return {"status": "discarded"}
+    return p
 
 
 async def _persist_nodes(data, current_user, db, *, wipe_existing: bool):  # noqa: C901
