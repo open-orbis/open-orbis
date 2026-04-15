@@ -27,7 +27,7 @@ import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
-import { getDocuments, confirmImport } from '../api/cv';
+import { getDocuments, confirmImport, getJob, getCVProgress } from '../api/cv';
 import GuidedTour from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
 
@@ -126,6 +126,8 @@ export default function OrbViewPage() {
   const undo = useUndoStore((s) => s.undo);
   const redo = useUndoStore((s) => s.redo);
   const isPendingDeletion = user?.deletion_days_remaining != null;
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [orbSearchValue, setOrbSearchValue] = useState('');
@@ -174,6 +176,9 @@ export default function OrbViewPage() {
     documentId: string | null;
   } | null>(null);
 
+  const [pendingReviewJobId, setPendingReviewJobId] = useState<string | null>(null);
+  const [pendingReviewCounts, setPendingReviewCounts] = useState<{ nodes: number | null; edges: number | null } | null>(null);
+
   // ESC key closes any open panel/modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -218,6 +223,42 @@ export default function OrbViewPage() {
     fetchDocuments();
   }, [fetchDocuments]);
 
+  // Handle ?review=<job_id> deep link from email
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const reviewJobId = params.get('review');
+    if (reviewJobId) {
+      getJob(reviewJobId).then((job) => {
+        if (job.status === 'succeeded' && job.result) {
+          setExtractedImport({
+            nodes: job.result.nodes,
+            relationships: job.result.relationships || [],
+            cvOwnerName: job.result.cv_owner_name || null,
+            profile: job.result.profile || null,
+            unmatchedCount: job.result.unmatched?.length || 0,
+            skippedCount: job.result.skipped_nodes?.length || 0,
+            file: new File([], job.filename || 'document'),
+            documentId: job.result.document_id || null,
+          });
+          window.history.replaceState({}, '', '/myorbis');
+        }
+      }).catch(() => {
+        // Job expired or not found — ignore silently
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Detect pending completed jobs on mount
+  useEffect(() => {
+    getCVProgress().then((p) => {
+      if (p.status === 'succeeded' && p.job_id) {
+        setPendingReviewJobId(p.job_id);
+        setPendingReviewCounts({ nodes: p.node_count, edges: p.edge_count });
+      }
+    }).catch(() => {});
+  }, []);
+
   // Load drafts when userId becomes available — API is the source of truth
   useEffect(() => {
     if (!userId) return;
@@ -245,8 +286,6 @@ export default function OrbViewPage() {
   // If the orb is empty (only Person node, no career entries), redirect to the
   // create flow — UNLESS the user explicitly chose "Build from scratch" (in which
   // case they passed `state.allowEmpty` and we let them stay on the empty view).
-  const navigate = useNavigate();
-  const location = useLocation();
   const locationState = (location.state as { allowEmpty?: boolean; startTour?: boolean } | null) ?? null;
   const searchParams = new URLSearchParams(location.search);
   const allowEmpty = locationState?.allowEmpty === true || searchParams.has('discarded');
@@ -567,6 +606,47 @@ export default function OrbViewPage() {
           Your account is scheduled for deletion in{' '}
           <span className="font-bold">{user.deletion_days_remaining} day{user.deletion_days_remaining !== 1 ? 's' : ''}</span>.
           Go to Account Settings to recover it.
+        </div>
+      )}
+
+      {/* ── Pending CV review banner ── */}
+      {pendingReviewJobId && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-purple-600/90 backdrop-blur-sm border border-purple-400/30 rounded-xl px-5 py-3 shadow-xl flex items-center gap-3">
+          <p className="text-white text-sm">
+            Your CV processing is complete! {pendingReviewCounts?.nodes} nodes extracted.
+          </p>
+          <button
+            onClick={() => {
+              getJob(pendingReviewJobId).then((job) => {
+                if (job.result) {
+                  setExtractedImport({
+                    nodes: job.result.nodes,
+                    relationships: job.result.relationships || [],
+                    cvOwnerName: job.result.cv_owner_name || null,
+                    profile: job.result.profile || null,
+                    unmatchedCount: job.result.unmatched?.length || 0,
+                    skippedCount: job.result.skipped_nodes?.length || 0,
+                    file: new File([], job.filename || 'document'),
+                    documentId: job.result.document_id || null,
+                  });
+                }
+                setPendingReviewJobId(null);
+              }).catch(() => {
+                setPendingReviewJobId(null);
+              });
+            }}
+            className="h-8 px-4 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-medium transition-colors whitespace-nowrap"
+          >
+            Review now
+          </button>
+          <button
+            onClick={() => setPendingReviewJobId(null)}
+            className="text-white/50 hover:text-white"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
 
