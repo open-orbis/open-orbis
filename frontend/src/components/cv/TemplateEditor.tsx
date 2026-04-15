@@ -52,6 +52,11 @@ export default function TemplateEditor({ template, onBack }: TemplateEditorProps
     setError(null);
     try {
       const blob = await compileTemplate(template.id, getTexContent());
+      console.log('Compile response:', blob, 'type:', blob?.type, 'size:', blob?.size);
+      if (blob instanceof Blob) {
+        const first4 = await blob.slice(0, 4).text();
+        console.log('First 4 bytes:', first4);
+      }
       setPdfBlob(blob);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Compilation failed';
