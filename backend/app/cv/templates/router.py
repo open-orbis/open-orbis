@@ -33,10 +33,10 @@ router = APIRouter(prefix="/cv", tags=["cv-templates"])
 
 def _thumbnail_url(thumbnail_path: str | None) -> str | None:
     """Generate a public GCS URL for the thumbnail, or None."""
-    if not thumbnail_path or not settings.cv_storage_bucket:
+    if not thumbnail_path or not settings.templates_bucket:
         return None
     return (
-        f"https://storage.googleapis.com/{settings.cv_storage_bucket}/{thumbnail_path}"
+        f"https://storage.googleapis.com/{settings.templates_bucket}/{thumbnail_path}"
     )
 
 
@@ -195,10 +195,10 @@ async def compile_template(
         with tempfile.TemporaryDirectory() as tmp:
             work_dir = Path(tmp)
 
-            if settings.cv_storage_bucket:
+            if settings.templates_bucket:
                 await __import__("asyncio").to_thread(
                     service.download_bundle_to_dir,
-                    settings.cv_storage_bucket,
+                    settings.templates_bucket,
                     row["gcs_bundle_path"],
                     work_dir,
                 )

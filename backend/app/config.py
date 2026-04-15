@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     # Account cleanup interval in hours (0 = startup-only, no recurring task)
     cleanup_interval_hours: int = 24
 
+    # GCS bucket for LaTeX template bundles (cls, fonts, thumbnails)
+    templates_bucket: str = ""
+
     # LaTeX compilation timeout in seconds
     tectonic_timeout_seconds: int = 30
 
