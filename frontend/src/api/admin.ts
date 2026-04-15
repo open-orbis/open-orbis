@@ -325,3 +325,39 @@ export async function getInsights(): Promise<Insights> {
   const { data } = await client.get('/admin/insights');
   return data;
 }
+
+// ── CV Jobs ──
+
+export interface CVJobAdmin {
+  job_id: string;
+  user_id: string;
+  user_name: string | null;
+  user_email: string | null;
+  filename: string | null;
+  status: string;
+  step: string | null;
+  progress_pct: number;
+  progress_detail: string | null;
+  llm_provider: string | null;
+  llm_model: string | null;
+  text_chars: number | null;
+  node_count: number | null;
+  edge_count: number | null;
+  error_message: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export async function listCVJobs(params?: {
+  offset?: number;
+  limit?: number;
+  status?: string;
+}): Promise<{ items: CVJobAdmin[]; total: number }> {
+  const { data } = await client.get('/admin/cv-jobs', { params });
+  return data;
+}
+
+export async function cancelCVJob(jobId: string): Promise<void> {
+  await client.post(`/admin/cv-jobs/${jobId}/cancel`);
+}

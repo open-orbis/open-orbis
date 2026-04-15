@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { uploadCV, getCVProgress, getDocuments, discardCVProgress } from '../../api/cv';
+import { uploadCV, getCVProgress, getDocuments } from '../../api/cv';
 import type { ExtractedData, ExtractedProfile, ExtractedRelationship, CVProgressData } from '../../api/cv';
 import { useAuthStore } from '../../stores/authStore';
 import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
@@ -69,9 +69,6 @@ export default function CVUploadOnboarding() {
     activeUploadRunRef.current += 1;
     uploadAbortControllerRef.current?.abort();
     uploadAbortControllerRef.current = null;
-    void discardCVProgress().catch(() => {
-      // Keep UI reset even if backend discard call fails.
-    });
     setProcessingUiActive(false);
     setUploading(false);
     setProgressData(null);
