@@ -514,7 +514,7 @@ export default function ChatBox({
               });
             }
           }}
-          className="text-[10px] text-white/20 hover:text-purple-400/60 transition-colors"
+          className="text-[10px] text-emerald-400/30 hover:text-emerald-400/60 transition-colors"
         >
           Send Feedback
         </button>
