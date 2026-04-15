@@ -16,7 +16,7 @@ export default function CVUploadOnboarding() {
   const [showTechDetails, setShowTechDetails] = useState(false);
   const [lastFile, setLastFile] = useState<File | null>(null);
   // jobId is stored in state for external consumers and synced to jobIdRef for polling closure access
-  const [jobId, setJobId] = useState<string | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [, setJobId] = useState<string | null>(null);
   const jobIdRef = useRef<string | null>(null);
   const [progressData, setProgressData] = useState<CVProgressData | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);

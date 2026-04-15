@@ -1391,7 +1391,7 @@ export default function AdminPage() {
             )}
 
             {/* ── LLM Usage ── */}
-            {insights.llm_usage && insights.llm_usage.total_calls > 0 && (
+            {insights?.llm_usage && insights.llm_usage.total_calls > 0 && (
               <div className="bg-neutral-900/60 rounded-xl p-4 border border-white/5">
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-3">LLM Usage</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
@@ -1425,7 +1425,7 @@ export default function AdminPage() {
                 {insights.llm_usage.by_model.length > 0 && (
                   <div className="mb-3">
                     <p className="text-[10px] text-white/30 mb-1">By Model</p>
-                    {insights.llm_usage.by_model.map((m) => (
+                    {insights.llm_usage.by_model.map((m: { model: string; count: number; total_cost: number }) => (
                       <div key={m.model} className="flex justify-between text-xs text-white/60 py-0.5">
                         <span>{m.model}</span>
                         <span>{m.count} calls · ${m.total_cost.toFixed(2)}</span>
@@ -1436,7 +1436,7 @@ export default function AdminPage() {
                 {insights.llm_usage.by_endpoint.length > 0 && (
                   <div>
                     <p className="text-[10px] text-white/30 mb-1">By Endpoint</p>
-                    {insights.llm_usage.by_endpoint.map((e) => (
+                    {insights.llm_usage.by_endpoint.map((e: { endpoint: string; count: number; total_cost: number }) => (
                       <div key={e.endpoint} className="flex justify-between text-xs text-white/60 py-0.5">
                         <span>{e.endpoint.replace('_', ' ')}</span>
                         <span>{e.count} calls · ${e.total_cost.toFixed(2)}</span>

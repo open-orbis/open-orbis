@@ -154,7 +154,7 @@ export default function OrbViewPage() {
     nodes: Array<{ node_type: string; properties: Record<string, unknown> }>;
     relationships: Array<{ from_index: number; to_index: number; type: string }>;
     cvOwnerName: string | null;
-    profile: import('../../api/cv').ExtractedProfile | null;
+    profile: import('../api/cv').ExtractedProfile | null;
     unmatchedCount: number;
     skippedCount: number;
     file: File;

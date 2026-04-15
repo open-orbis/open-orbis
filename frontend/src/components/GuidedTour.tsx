@@ -233,45 +233,43 @@ export default function GuidedTour({ run: runOverride, onFinish }: GuidedTourPro
 
   return (
     <Suspense fallback={null}>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <LazyJoyride
         steps={STEPS}
         run={run}
         continuous
-        showSkipButton
-        showProgress={false}
         tooltipComponent={TourTooltip}
-        disableOverlayClose={false}
-        spotlightPadding={8}
         callback={handleCallback}
-        locale={{
-          back: 'Back',
-          close: 'Got it',
-          last: 'Finish',
-          next: 'Next',
-          skip: 'Skip tour',
-        }}
-        styles={{
-          options: {
-            arrowColor: '#090d16',
-            backgroundColor: '#090d16',
-            overlayColor: 'rgba(0, 0, 0, 0.8)',
-            primaryColor: '#a855f6',
-            textColor: '#e5e7eb',
-            zIndex: 10000,
+        {...{
+          spotlightPadding: 8,
+          locale: {
+            back: 'Back',
+            close: 'Got it',
+            last: 'Finish',
+            next: 'Next',
+            skip: 'Skip tour',
           },
-          tooltip: {
-            borderRadius: 18,
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            boxShadow: '0 24px 80px rgba(0, 0, 0, 0.7)',
+          styles: {
+            options: {
+              arrowColor: '#090d16',
+              backgroundColor: '#090d16',
+              overlayColor: 'rgba(0, 0, 0, 0.8)',
+              primaryColor: '#a855f6',
+              textColor: '#e5e7eb',
+              zIndex: 10000,
+            },
+            tooltip: {
+              borderRadius: 18,
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              boxShadow: '0 24px 80px rgba(0, 0, 0, 0.7)',
+            },
+            tooltipContent: { padding: 0 },
+            spotlight: {
+              borderRadius: 14,
+              boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.25)',
+            },
           },
-          tooltipContent: {
-            padding: 0,
-          },
-          spotlight: {
-            borderRadius: 14,
-            boxShadow: '0 0 0 1px rgba(168, 85, 247, 0.25)',
-          },
-        }}
+        } as any}
       />
     </Suspense>
   );
