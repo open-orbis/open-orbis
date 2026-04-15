@@ -92,10 +92,12 @@ if __name__ == "__main__":
     # Serve the middleware-wrapped app directly via uvicorn so the auth
     # layer runs on every request. mcp.run(transport="streamable-http")
     # would bypass our add_middleware() call.
+    import os
+
     import uvicorn
 
     uvicorn.run(
         _build_starlette_app(),
-        host=mcp.settings.host,
-        port=mcp.settings.port,
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", "8080")),
     )

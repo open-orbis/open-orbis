@@ -11,9 +11,8 @@ COPY app/ app/
 COPY mcp_server/ mcp_server/
 ENV PATH="/app/.venv/bin:$PATH"
 # Cloud Run sends traffic to PORT (default 8080).
-# FastMCP reads host/port from FASTMCP_HOST / FASTMCP_PORT.
+# server.py reads HOST/PORT env vars directly for uvicorn.
+ENV HOST=0.0.0.0
 ENV PORT=8080
-ENV FASTMCP_HOST=0.0.0.0
-ENV FASTMCP_PORT=8080
 EXPOSE 8080
 CMD ["python", "-m", "mcp_server.server"]
