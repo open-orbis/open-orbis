@@ -114,6 +114,9 @@ class Settings(BaseSettings):
     # Account cleanup interval in hours (0 = startup-only, no recurring task)
     cleanup_interval_hours: int = 24
 
+    # LaTeX compilation timeout in seconds
+    tectonic_timeout_seconds: int = 30
+
     model_config = {
         "env_file": ["../.env", ".env"],
         "env_file_encoding": "utf-8",
