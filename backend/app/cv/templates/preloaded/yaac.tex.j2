@@ -1,6 +1,6 @@
 %% YAAC — Yet Another Awesome CV template — LuaLaTeX
 %% Based on darwiin/yaac-another-awesome-cv (LPPL-1.3c)
-%% Jinja2 delimiters: << var >>, <% block %>, <# comment #>
+<# Jinja2 delimiters: vars, blocks, comments #>
 
 \documentclass[localFont]{yaac-another-awesome-cv}
 
@@ -8,16 +8,16 @@
 \tagline{<< person.headline | default("") >>}
 
 \socialinfo{%
-  <% if person.email | default("") %>\email{<< person.email >>}<% endif %>
-  <% if person.phone | default("") %>\smartphone{<< person.phone >>}<% endif %>
-  <% if person.location | default("") %>\address{<< person.location >>}<% endif %>
+  <% if person.email %>\email{<< person.email >>}<% endif %>
+  <% if person.phone %>\smartphone{<< person.phone >>}<% endif %>
+  <% if person.location %>\address{<< person.location >>}<% endif %>
 }
 
 \begin{document}
 
 \makecvheader
 
-<% if person.summary | default("") %>
+<% if person.summary %>
 \sectionTitle{Summary}{\faStar}
 \begin{flushleft}
 << person.summary >>
@@ -31,7 +31,7 @@
 \begin{experiences}
 <% for item in work %>
   \experience
-    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}
     {<< item.title | default("") >>}
     {<< item.company | default("") >>}
     {<< item.location | default("") >>}
@@ -47,7 +47,7 @@
 \begin{experiences}
 <% for item in edu %>
   \experience
-    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}
     {<< item.degree | default("") >>}
     {<< item.institution | default("") >>}
     {<< item.location | default("") >>}

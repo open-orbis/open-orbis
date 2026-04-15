@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     templates_bucket: str = ""
 
     # LaTeX compilation timeout in seconds
-    tectonic_timeout_seconds: int = 30
+    tectonic_timeout_seconds: int = 120
 
     model_config = {
         "env_file": ["../.env", ".env"],

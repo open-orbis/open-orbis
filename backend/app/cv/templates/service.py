@@ -153,8 +153,6 @@ async def compile_tex(
     tex_path = work_dir / tex_filename
     proc = await asyncio.create_subprocess_exec(
         "tectonic",
-        "--engine",
-        engine,
         str(tex_path),
         cwd=str(work_dir),
         stdout=asyncio.subprocess.PIPE,

@@ -1,6 +1,6 @@
 %% Awesome CV template — XeLaTeX
 %% Based on posquit0/Awesome-CV (LPPL-1.3c)
-%% Jinja2 delimiters: << var >>, <% block %>, <# comment #>
+<# Jinja2 delimiters: vars, blocks, comments #>
 
 \documentclass[11pt, a4paper]{awesome-cv}
 
@@ -11,10 +11,10 @@
 \name{<< person.name | default("") >>}{}
 \position{<< person.headline | default("") >>}
 \address{<< person.location | default("") >>}
-<% if person.email | default("") %>
+<% if person.email %>
 \email{<< person.email >>}
 <% endif %>
-<% if person.phone | default("") %>
+<% if person.phone %>
 \mobile{<< person.phone >>}
 <% endif %>
 
@@ -22,7 +22,7 @@
 
 \makecvheader
 
-<% if person.summary | default("") %>
+<% if person.summary %>
 \cvsection{Summary}
 \begin{cvparagraph}
 << person.summary >>
@@ -39,8 +39,8 @@
     {<< item.title | default("") >>}
     {<< item.company | default("") >>}
     {<< item.location | default("") >>}
-    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
-    {<% if item.description | default("") %>
+    {<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}
+    {<% if item.description %>
       \begin{cvitems}
         \item {<< item.description >>}
       \end{cvitems}
@@ -59,8 +59,8 @@
     {<< item.degree | default("") >>}
     {<< item.institution | default("") >>}
     {<< item.location | default("") >>}
-    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
-    {<% if item.description | default("") %>
+    {<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}
+    {<% if item.description %>
       \begin{cvitems}
         \item {<< item.description >>}
       \end{cvitems}
@@ -75,7 +75,7 @@
 \cvsection{Skills}
 \begin{cvskills}
 <% for item in skills %>
-  \cvskill{<< item.category | default("") >>}{<< item.name | default("") >><% if item.proficiency | default("") %> (<< item.proficiency >>)<% endif %>}
+  \cvskill{<< item.category | default("") >>}{<< item.name | default("") >><% if item.proficiency %> (<< item.proficiency >>)<% endif %>}
 <% endfor %>
 \end{cvskills}
 <% endif %>
@@ -102,7 +102,7 @@
     {<< item.role | default("") >>}
     {}
     {}
-    {<% if item.description | default("") %>
+    {<% if item.description %>
       \begin{cvitems}
         \item {<< item.description >>}
       \end{cvitems}
@@ -122,7 +122,7 @@
     {<< item.venue | default("") >>}
     {}
     {<< item.date | default("") >>}
-    {<% if item.abstract | default("") %>
+    {<% if item.abstract %>
       \begin{cvitems}
         \item {<< item.abstract >>}
       \end{cvitems}
@@ -158,7 +158,7 @@
     {<< item.issuing_organization | default("") >>}
     {}
     {<< item.date | default("") >>}
-    {<% if item.description | default("") %>
+    {<% if item.description %>
       \begin{cvitems}
         \item {<< item.description >>}
       \end{cvitems}

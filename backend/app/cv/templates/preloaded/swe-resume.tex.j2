@@ -1,6 +1,6 @@
 %% SWE Resume template — pdfLaTeX
 %% Based on Overleaf SWE Resume (MIT)
-%% Jinja2 delimiters: << var >>, <% block %>, <# comment #>
+<# Jinja2 delimiters: vars, blocks, comments #>
 
 \documentclass[letterpaper, 11pt]{article}
 
@@ -9,12 +9,12 @@
 \begin{document}
 
 \resumeHeading{<< person.name | default("") >>}{%
-<% if person.email | default("") %><< person.email >><% endif %>%
-<% if person.phone | default("") %> $|$ << person.phone >><% endif %>%
-<% if person.location | default("") %> $|$ << person.location >><% endif %>%
+<% if person.email %><< person.email >><% endif %>%
+<% if person.phone %> $|$ << person.phone >><% endif %>%
+<% if person.location %> $|$ << person.location >><% endif %>%
 }
 
-<% if person.summary | default("") %>
+<% if person.summary %>
 \resumeSection{Summary}
 << person.summary >>
 <% endif %>
@@ -23,54 +23,60 @@
 <% set work = nodes | selectattr("_type", "equalto", "WorkExperience") | list %>
 <% if work %>
 \resumeSection{Experience}
+\resumeSubHeadingListStart
 <% for item in work %>
   \resumeSubheading
     {<< item.title | default("") >>}
-    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}
     {<< item.company | default("") >>}
     {<< item.location | default("") >>}
-  <% if item.description | default("") %>
+  <% if item.description %>
   \resumeItemListStart
     \resumeItem{<< item.description >>}
   \resumeItemListEnd
   <% endif %>
 <% endfor %>
+\resumeSubHeadingListEnd
 <% endif %>
 
 <# ── Education ── #>
 <% set edu = nodes | selectattr("_type", "equalto", "Education") | list %>
 <% if edu %>
 \resumeSection{Education}
+\resumeSubHeadingListStart
 <% for item in edu %>
   \resumeSubheading
     {<< item.degree | default("") >>}
-    {<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}
+    {<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}
     {<< item.institution | default("") >>}
     {<< item.location | default("") >>}
-  <% if item.description | default("") %>
+  <% if item.description %>
   \resumeItemListStart
     \resumeItem{<< item.description >>}
   \resumeItemListEnd
   <% endif %>
 <% endfor %>
+\resumeSubHeadingListEnd
 <% endif %>
 
 <# ── Projects ── #>
 <% set projects = nodes | selectattr("_type", "equalto", "Project") | list %>
 <% if projects %>
 \resumeSection{Projects}
+\resumeSubHeadingListStart
 <% for item in projects %>
   \resumeSubheading
     {<< item.name | default("") >>}
     {}
     {<< item.role | default("") >>}
     {}
-  <% if item.description | default("") %>
+  <% if item.description %>
   \resumeItemListStart
     \resumeItem{<< item.description >>}
   \resumeItemListEnd
   <% endif %>
 <% endfor %>
+\resumeSubHeadingListEnd
 <% endif %>
 
 <# ── Skills ── #>
@@ -79,7 +85,7 @@
 \resumeSection{Skills}
 \resumeItemListStart
 <% for item in skills %>
-  \resumeItem{\textbf{<< item.name | default("") >>}<% if item.proficiency | default("") %> --- << item.proficiency >><% endif %>}
+  \resumeItem{\textbf{<< item.name | default("") >>}<% if item.proficiency %> --- << item.proficiency >><% endif %>}
 <% endfor %>
 \resumeItemListEnd
 <% endif %>
@@ -90,7 +96,7 @@
 \resumeSection{Languages}
 \resumeItemListStart
 <% for item in langs %>
-  \resumeItem{<< item.name | default("") >><% if item.proficiency | default("") %> --- << item.proficiency >><% endif %>}
+  \resumeItem{<< item.name | default("") >><% if item.proficiency %> --- << item.proficiency >><% endif %>}
 <% endfor %>
 \resumeItemListEnd
 <% endif %>
@@ -99,18 +105,20 @@
 <% set pubs = nodes | selectattr("_type", "equalto", "Publication") | list %>
 <% if pubs %>
 \resumeSection{Publications}
+\resumeSubHeadingListStart
 <% for item in pubs %>
   \resumeSubheading
     {<< item.title | default("") >>}
     {<< item.date | default("") >>}
     {<< item.venue | default("") >>}
     {}
-  <% if item.abstract | default("") %>
+  <% if item.abstract %>
   \resumeItemListStart
     \resumeItem{<< item.abstract >>}
   \resumeItemListEnd
   <% endif %>
 <% endfor %>
+\resumeSubHeadingListEnd
 <% endif %>
 
 <# ── Certifications ── #>
@@ -119,7 +127,7 @@
 \resumeSection{Certifications}
 \resumeItemListStart
 <% for item in certs %>
-  \resumeItem{\textbf{<< item.name | default("") >>} --- << item.issuing_organization | default("") >><% if item.date | default("") %> (<< item.date >>)<% endif %>}
+  \resumeItem{\textbf{<< item.name | default("") >>} --- << item.issuing_organization | default("") >><% if item.date %> (<< item.date >>)<% endif %>}
 <% endfor %>
 \resumeItemListEnd
 <% endif %>
@@ -128,18 +136,20 @@
 <% set awards = nodes | selectattr("_type", "equalto", "Award") | list %>
 <% if awards %>
 \resumeSection{Awards}
+\resumeSubHeadingListStart
 <% for item in awards %>
   \resumeSubheading
     {<< item.name | default("") >>}
     {<< item.date | default("") >>}
     {<< item.issuing_organization | default("") >>}
     {}
-  <% if item.description | default("") %>
+  <% if item.description %>
   \resumeItemListStart
     \resumeItem{<< item.description >>}
   \resumeItemListEnd
   <% endif %>
 <% endfor %>
+\resumeSubHeadingListEnd
 <% endif %>
 
 \end{document}

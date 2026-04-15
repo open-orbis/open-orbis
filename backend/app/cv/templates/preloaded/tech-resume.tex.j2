@@ -1,6 +1,6 @@
 %% techResume template — pdfLaTeX
 %% Based on alexcalabrese/techResume (MIT)
-%% Jinja2 delimiters: << var >>, <% block %>, <# comment #>
+<# Jinja2 delimiters: vars, blocks, comments #>
 
 \documentclass[10pt, a4paper]{cv}
 
@@ -8,15 +8,15 @@
 
 \personalinfo{%
   \name{<< person.name | default("") >>}
-  <% if person.headline | default("") %>\tagline{<< person.headline >>}<% endif %>
-  <% if person.email | default("") %>\email{<< person.email >>}<% endif %>
-  <% if person.phone | default("") %>\phone{<< person.phone >>}<% endif %>
-  <% if person.location | default("") %>\location{<< person.location >>}<% endif %>
+  <% if person.headline %>\tagline{<< person.headline >>}<% endif %>
+  <% if person.email %>\email{<< person.email >>}<% endif %>
+  <% if person.phone %>\phone{<< person.phone >>}<% endif %>
+  <% if person.location %>\location{<< person.location >>}<% endif %>
 }
 
 \makecvheader
 
-<% if person.summary | default("") %>
+<% if person.summary %>
 \cvsection{Summary}
 << person.summary >>
 \medskip
@@ -27,8 +27,8 @@
 <% if work %>
 \cvsection{Experience}
 <% for item in work %>
-\cvevent{<< item.title | default("") >>}{<< item.company | default("") >>}{<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}{<< item.location | default("") >>}
-<% if item.description | default("") %>
+\cvevent{<< item.title | default("") >>}{<< item.company | default("") >>}{<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}{<< item.location | default("") >>}
+<% if item.description %>
 \begin{itemize}
   \item << item.description >>
 \end{itemize}
@@ -42,8 +42,8 @@
 <% if edu %>
 \cvsection{Education}
 <% for item in edu %>
-\cvevent{<< item.degree | default("") >>}{<< item.institution | default("") >>}{<< item.start_date | default("") >><% if item.end_date | default("") %> -- << item.end_date >><% endif %>}{<< item.location | default("") >>}
-<% if item.description | default("") %>
+\cvevent{<< item.degree | default("") >>}{<< item.institution | default("") >>}{<< item.start_date | default("") >><% if item.end_date %> -- << item.end_date >><% endif %>}{<< item.location | default("") >>}
+<% if item.description %>
 \begin{itemize}
   \item << item.description >>
 \end{itemize}
@@ -67,7 +67,7 @@
 <% if langs %>
 \cvsection{Languages}
 <% for item in langs %>
-\cvtag{<< item.name | default("") >><% if item.proficiency | default("") %> (<< item.proficiency >>)<% endif %>}
+\cvtag{<< item.name | default("") >><% if item.proficiency %> (<< item.proficiency >>)<% endif %>}
 <% endfor %>
 \medskip
 <% endif %>
@@ -78,7 +78,7 @@
 \cvsection{Projects}
 <% for item in projects %>
 \cvevent{<< item.name | default("") >>}{<< item.role | default("") >>}{}{}
-<% if item.description | default("") %>
+<% if item.description %>
 \begin{itemize}
   \item << item.description >>
 \end{itemize}
@@ -93,7 +93,7 @@
 \cvsection{Publications}
 <% for item in pubs %>
 \cvevent{<< item.title | default("") >>}{<< item.venue | default("") >>}{<< item.date | default("") >>}{}
-<% if item.abstract | default("") %>
+<% if item.abstract %>
 \begin{itemize}
   \item << item.abstract >>
 \end{itemize}
@@ -118,7 +118,7 @@
 \cvsection{Awards}
 <% for item in awards %>
 \cvevent{<< item.name | default("") >>}{<< item.issuing_organization | default("") >>}{<< item.date | default("") >>}{}
-<% if item.description | default("") %>
+<% if item.description %>
 \begin{itemize}
   \item << item.description >>
 \end{itemize}

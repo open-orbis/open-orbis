@@ -18,7 +18,7 @@ from app.cv.templates.models import CompileRequest, TemplateDetail, TemplateList
 from app.cv.templates.security import validate_tex_content
 from app.dependencies import get_current_user, get_db
 from app.export.router import _gather_orb
-from app.graph.queries import GET_FULL_ORB_PUBLIC
+from app.graph.queries import GET_FULL_ORB
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def _template_to_detail(row: dict) -> TemplateDetail:
 
 async def _fetch_orb_data(user_id: str, db: AsyncDriver) -> tuple[dict, list[dict]]:
     async with db.session() as session:
-        result = await session.run(GET_FULL_ORB_PUBLIC, user_id=user_id)
+        result = await session.run(GET_FULL_ORB, user_id=user_id)
         record = await result.single()
     if record is None:
         raise HTTPException(status_code=404, detail="No orb found for this user")

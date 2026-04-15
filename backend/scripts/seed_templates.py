@@ -21,7 +21,7 @@ PRELOADED = [
         "engine": "xelatex",
         "license": "LPPL-1.3c",
         "gcs_bundle_path": "templates/awesome-cv/",
-        "thumbnail_path": "templates/awesome-cv/thumbnail.png",
+        "thumbnail_path": None,
         "tex_file": "awesome-cv.tex.j2",
     },
     {
@@ -31,7 +31,7 @@ PRELOADED = [
         "engine": "pdflatex",
         "license": "MIT",
         "gcs_bundle_path": "templates/swe-resume/",
-        "thumbnail_path": "templates/swe-resume/thumbnail.png",
+        "thumbnail_path": None,
         "tex_file": "swe-resume.tex.j2",
     },
     {
@@ -41,7 +41,7 @@ PRELOADED = [
         "engine": "pdflatex",
         "license": "MIT",
         "gcs_bundle_path": "templates/tech-resume/",
-        "thumbnail_path": "templates/tech-resume/thumbnail.png",
+        "thumbnail_path": None,
         "tex_file": "tech-resume.tex.j2",
     },
     {
@@ -51,7 +51,7 @@ PRELOADED = [
         "engine": "lualatex",
         "license": "LPPL-1.3c",
         "gcs_bundle_path": "templates/yaac/",
-        "thumbnail_path": "templates/yaac/thumbnail.png",
+        "thumbnail_path": None,
         "tex_file": "yaac.tex.j2",
     },
 ]
