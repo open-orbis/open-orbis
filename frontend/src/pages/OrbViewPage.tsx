@@ -224,10 +224,12 @@ export default function OrbViewPage() {
   }, [fetchDocuments]);
 
   // Handle ?review=<job_id> deep link from email
+  const reviewHandledRef = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const reviewJobId = params.get('review');
     if (reviewJobId) {
+      reviewHandledRef.current = true;
       getJob(reviewJobId).then((job) => {
         if (job.status === 'succeeded' && job.result) {
           setExtractedImport({
@@ -249,8 +251,9 @@ export default function OrbViewPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Detect pending completed jobs on mount
+  // Detect pending completed jobs on mount — skip if ?review= already handled
   useEffect(() => {
+    if (reviewHandledRef.current) return;
     getCVProgress().then((p) => {
       if (p.status === 'succeeded' && p.job_id) {
         setPendingReviewJobId(p.job_id);
