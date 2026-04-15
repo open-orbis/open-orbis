@@ -49,7 +49,13 @@ async def list_ideas(source: str | None = None) -> list[dict]:
             "COALESCE(source, 'idea') AS source "
             "FROM ideas ORDER BY created_at DESC"
         )
-    return [dict(r) for r in rows]
+    results = []
+    for r in rows:
+        d = dict(r)
+        if hasattr(d.get("created_at"), "isoformat"):
+            d["created_at"] = d["created_at"].isoformat()
+        results.append(d)
+    return results
 
 
 async def delete_idea(idea_id: str) -> bool:
