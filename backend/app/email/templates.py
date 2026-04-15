@@ -207,3 +207,105 @@ def render_access_grant_email(*, owner_name: str, orb_url: str) -> str:
         url=orb_url,
         year=datetime.now(timezone.utc).year,
     )
+
+
+# ── CV ready email (processing succeeded) ──
+
+_CV_READY_CONTENT = """\
+<h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
+  Your Orbis is ready!
+</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#7c3aed;font-weight:500;">
+  Processing complete
+</p>
+<p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
+  We've finished analyzing your CV and extracted:
+</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+  <tr><td style="background:linear-gradient(135deg,#f5f0ff 0%,#ede5ff 100%);border:1px solid #e4ddf7;border-radius:12px;padding:20px;text-align:center;">
+    <div style="font-size:22px;font-weight:700;color:#7c3aed;font-family:'Courier New',Courier,monospace;">
+      {{ node_count }} nodes &middot; {{ edge_count }} relationships
+    </div>
+  </td></tr>
+</table>
+<p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
+  Thank you for your patience &mdash; we take care to produce a high-quality Orbis for each user.
+</p>
+<p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
+  Review your extracted entries and make any adjustments before publishing.
+</p>
+""" + _BUTTON.replace("{{ label }}", "Review your Orbis")
+
+# ── CV failed email (processing error) ──
+
+_CV_FAILED_CONTENT = """\
+<h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
+  CV processing needs attention
+</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#e65100;font-weight:500;">
+  We hit a problem
+</p>
+<p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
+  We couldn't fully process your CV. Please try uploading again or use manual entry to build your Orbis.
+</p>
+""" + _BUTTON.replace("{{ label }}", "Try again")
+
+# ── CV cancelled email (admin stopped processing) ──
+
+_CV_CANCELLED_CONTENT = """\
+<h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
+  CV processing was stopped
+</h1>
+<p style="margin:0 0 24px;font-size:14px;color:#e65100;font-weight:500;">
+  Action needed
+</p>
+<p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
+  Your CV processing was stopped by our team. This usually happens when we detect an issue. Please try uploading again.
+</p>
+""" + _BUTTON.replace("{{ label }}", "Upload again")
+
+# ── Compile templates ──
+
+_cv_ready_tpl = _env.from_string(
+    _LAYOUT.replace("{{ content }}", _CV_READY_CONTENT)
+)
+
+_cv_failed_tpl = _env.from_string(
+    _LAYOUT.replace("{{ content }}", _CV_FAILED_CONTENT)
+)
+
+_cv_cancelled_tpl = _env.from_string(
+    _LAYOUT.replace("{{ content }}", _CV_CANCELLED_CONTENT)
+)
+
+
+def render_cv_ready_email(*, review_url: str, node_count: int, edge_count: int) -> str:
+    """Render the email sent when CV processing succeeds."""
+    from datetime import datetime, timezone
+
+    return _cv_ready_tpl.render(
+        url=review_url,
+        node_count=node_count,
+        edge_count=edge_count,
+        year=datetime.now(timezone.utc).year,
+    )
+
+
+def render_cv_failed_email(*, retry_url: str) -> str:
+    """Render the email sent when CV processing fails."""
+    from datetime import datetime, timezone
+
+    return _cv_failed_tpl.render(
+        url=retry_url,
+        year=datetime.now(timezone.utc).year,
+    )
+
+
+def render_cv_cancelled_email(*, retry_url: str) -> str:
+    """Render the email sent when an admin cancels CV processing."""
+    from datetime import datetime, timezone
+
+    return _cv_cancelled_tpl.render(
+        url=retry_url,
+        year=datetime.now(timezone.utc).year,
+    )
