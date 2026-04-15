@@ -251,18 +251,9 @@ export default function OrbViewPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Detect pending completed jobs on mount — skip if ?review= already handled
-  // or if the user already has nodes (meaning they already confirmed a review)
-  useEffect(() => {
-    if (reviewHandledRef.current) return;
-    if (data && data.nodes.length > 0) return;
-    getCVProgress().then((p) => {
-      if (p.status === 'succeeded' && p.job_id) {
-        setPendingReviewJobId(p.job_id);
-        setPendingReviewCounts({ nodes: p.node_count, edges: p.edge_count });
-      }
-    }).catch(() => {});
-  }, [data]);
+  // Note: pending job detection removed — the email deep link (?review=)
+  // handles the notification case. The banner is only shown when triggered
+  // by an explicit import action within this session.
 
   // Load drafts when userId becomes available — API is the source of truth
   useEffect(() => {
