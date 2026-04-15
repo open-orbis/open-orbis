@@ -51,8 +51,8 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | GET | `/admin/insights` | Admin | Provider breakdown, avg activation time, code attribution, engagement distribution, LLM usage insights |
 | GET | `/admin/users` | Admin | List all users (paginated) |
 | GET | `/admin/users/{user_id}` | Admin | User detail including `llm_usage` list and `llm_usage_summary` |
-| POST | `/admin/users/{user_id}/activate` | Admin | Manually activate a single user |
-| POST | `/admin/users/activate-batch` | Admin | Batch activate multiple users |
+| POST | `/admin/users/{user_id}/activate` | Admin | Manually activate a single user and send activation email (best-effort). |
+| POST | `/admin/users/activate-batch` | Admin | Batch activate multiple users and send activation emails. |
 | POST | `/admin/users/{user_id}/promote` | Admin | Promote user to admin |
 | POST | `/admin/users/{user_id}/demote` | Admin | Remove admin role from user |
 | DELETE | `/admin/users/{user_id}` | Admin | Permanently delete a user |
@@ -93,30 +93,28 @@ All endpoints require `is_admin = true` on the authenticated Person.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/cv/upload` | JWT | Upload PDF (max 10MB). Requires GDPR consent. Returns extracted nodes + `document_id`. |
+| POST | `/cv/upload` | JWT | Upload PDF (max 10MB). Requires GDPR consent. Stores document, dispatches Cloud Task, returns `{job_id, status: "queued"}` immediately. |
 | POST | `/cv/confirm` | JWT | Persist confirmed nodes to Neo4j. Wipes existing graph first. Accepts `document_id` to track metadata. |
-| POST | `/cv/import` | JWT | Import supplementary document (PDF, DOCX, TXT). Returns extracted nodes + `document_id`. |
+| POST | `/cv/import` | JWT | Import supplementary document (PDF, DOCX, TXT). Stores document, dispatches Cloud Task, returns `{job_id, status: "queued"}` immediately. |
 | POST | `/cv/import-confirm` | JWT | Merge imported nodes into existing orb (no wipe). Accepts `document_id` to track metadata. |
 | GET | `/cv/documents` | JWT | List document metadata for current user (up to 3, ordered by date desc). |
 | GET | `/cv/documents/{document_id}/download` | JWT | Download a specific stored document (decrypted). |
 | GET | `/cv/download` | JWT | Download the latest uploaded CV (backward compat, delegates to documents endpoint). |
 | GET | `/cv/processing-count` | No | Count of PDFs currently being processed. |
-| GET | `/cv/progress` | JWT | Real-time progress for current user's CV processing. |
-| POST | `/cv/progress/discard` | JWT | Discard in-progress CV processing. |
+| GET | `/cv/progress` | JWT | Background job progress for current user's CV processing (reads from `cv_jobs` PostgreSQL table). |
+| GET | `/cv/job/{job_id}` | JWT | Get status and result for a specific CV processing job (owner-only). Returns `result` field when `status = "succeeded"`. |
+| POST | `/cv/process-job` | Cloud Tasks OIDC | Internal endpoint called by Cloud Tasks to execute the CV extraction pipeline for a queued job. Not callable by end users. |
 
-### CV Upload/Import Response
+### CV Upload/Import Response (async)
 
 ```json
 {
-  "nodes": [{"node_type": "work_experience", "properties": {...}}, ...],
-  "relationships": [{"from_index": 0, "to_index": 5, "type": "USED_SKILL"}],
-  "unmatched": ["line that couldn't be classified", ...],
-  "skipped_nodes": [...],
-  "truncated": false,
-  "cv_owner_name": "John Doe",
-  "document_id": "uuid-string"
+  "job_id": "uuid-string",
+  "status": "queued"
 }
 ```
+
+The client should poll `GET /cv/job/{job_id}` until `status` is `succeeded` or `failed`. On success the response includes a `result` field with the extracted nodes.
 
 ### Confirm Request Body
 
@@ -212,6 +210,13 @@ Query params: `?format=json|jsonld|pdf`, `?filter_token=`, `?filter_keyword=`, `
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/ideas` | JWT | Submit a feature idea / feedback |
-| GET | `/admin/ideas` | Admin | List all submitted ideas |
-| DELETE | `/admin/ideas/{idea_id}` | Admin | Delete an idea |
+| POST | `/ideas` | JWT | Submit a feature idea or feedback. Body: `{text, source}` where `source` is `"idea"` (default) or `"feedback"`. |
+| GET | `/admin/ideas` | Admin | List all submitted ideas/feedback. Optional `?source=idea\|feedback` filter. |
+| DELETE | `/admin/ideas/{idea_id}` | Admin | Delete an idea or feedback entry. |
+
+## Admin CV Jobs
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/admin/cv-jobs` | Admin | Paginated list of all CV processing jobs. Optional `?status=queued\|running\|succeeded\|failed\|cancelled` filter. Returns `CVJobsPage` with user name/email resolved. |
+| POST | `/admin/cv-jobs/{job_id}/cancel` | Admin | Cancel a queued or running CV job. |

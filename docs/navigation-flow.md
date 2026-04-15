@@ -47,7 +47,7 @@ stateDiagram-v2
     LINKEDIN_CALLBACK --> CREATE: Activated + empty orb
 
     %% ── Activation gate (closed beta) ──
-    ACTIVATION --> ORB_VIEW: Valid code + has orb content
+    ACTIVATION --> ORB_VIEW: Valid code + has orb content / already activated on mount check
     ACTIVATION --> CREATE: Valid code + empty orb
     ACTIVATION --> LANDING: Sign out
 
@@ -73,6 +73,7 @@ stateDiagram-v2
     ORB_VIEW --> SHARED_ORB: Share link (public URL)
     ORB_VIEW --> CREATE: Orb is empty (auto-redirect)
     ORB_VIEW --> LANDING: Sign out
+    ORB_VIEW --> IMPORT_REVIEW: ?review={job_id} deep link (email notification)
 
     %% ── Public pages ──
     LANDING --> PRIVACY: Privacy link
@@ -102,6 +103,7 @@ stateDiagram-v2
     state "Import Review (overlay)" as IMPORT_REVIEW
     state "Import Limit Warning (modal)" as IMPORT_LIMIT
     state "Guided Tour (overlay)" as GUIDED_TOUR
+    state "Send Feedback (modal)" as FEEDBACK_MODAL
 
     %% ── Tabs inside AccountSettings ──
     state ACCOUNT_SETTINGS {
@@ -129,8 +131,10 @@ stateDiagram-v2
     MAIN --> IMPORT_LIMIT: Import file (at 3 docs)
     IMPORT_LIMIT --> MAIN: Cancel
     IMPORT_LIMIT --> IMPORT_REVIEW: Replace & import
-    MAIN --> IMPORT_REVIEW: Import file (under limit)
+    MAIN --> IMPORT_REVIEW: Import file (under limit) — async; polls job until complete
     IMPORT_REVIEW --> MAIN: Confirm / Cancel
+    MAIN --> FEEDBACK_MODAL: Click "Send Feedback" button (above ChatBox)
+    FEEDBACK_MODAL --> MAIN: Submit / Close
     MAIN --> GUIDED_TOUR: Auto-trigger (new user) / Settings sidebar "Guided tour"
     GUIDED_TOUR --> MAIN: Finish / Skip / Close
     ACCOUNT_SETTINGS --> GUIDED_TOUR: Sidebar "Guided tour" button
@@ -195,8 +199,9 @@ flowchart TD
 | `ORB_VIEW` | `/myorbis` | Yes | Main orb editor/dashboard |
 | `SHARED_ORB` | `/:orbId` | No | Public read-only orb view |
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
-| `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Blocks platform access until valid code entered. Admins bypass. |
-| `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users, beta config toggle |
+| `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Checks activation status on mount — if already activated, redirects immediately. Admins bypass. |
+| `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users (with Approve/Approve all), beta config toggle, CV Jobs tab, Feedback tab |
+| `FEEDBACK_MODAL` | (modal on ORB_VIEW) | Yes | Send Feedback modal opened from above-ChatBox button. Submits to `/ideas` with `source=feedback`. |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
 | `FLOATING_INPUT` | (modal on ORB_VIEW) | Yes | Add/edit node form |
@@ -223,4 +228,4 @@ flowchart TD
 | `ACCOUNT_PENDING_DELETION` | User deleted account | Banner + grayed features | Recover from Account tab |
 | `INVITE_CODE_INVALID` | User enters wrong/used code on /activate | Inline error message | Try different code |
 | `CV_NO_TEXT` | PDF has no extractable text | Error message | Try different file |
-| `CV_TIMEOUT` | Extraction takes >30min | 504 timeout error | Retry with smaller file |
+| `CV_PROCESSING_FAILED` | Background extraction job failed | Email notification + error in review page | Retry upload |

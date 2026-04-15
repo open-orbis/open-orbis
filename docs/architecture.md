@@ -16,10 +16,13 @@ Orbis is a personal knowledge graph platform that transforms CVs into interactiv
                                     ┌──────┴───────┐
                                     │  LLM Layer   │
                                     │              │
+                                    ├─ Vertex AI   │ Gemini (default)
                                     ├─ Ollama      │ localhost:11434
                                     └─ Claude CLI  │ subprocess
                                                    │
                                     ┌──────────────┘
+                                    │  Cloud Tasks │ background CV processing
+                                    │  PostgreSQL  │ cv_jobs, drafts, ideas, snapshots
                                     │  MCP Server  │ streamable-http
                                     └──────────────┘
 ```
@@ -29,29 +32,28 @@ Orbis is a personal knowledge graph platform that transforms CVs into interactiv
 ### App Factory (`app/main.py`)
 
 The FastAPI app uses a lifespan context manager:
-- **Startup:** connects to Neo4j, runs a probe query to validate connectivity
+- **Startup:** connects to Neo4j, runs a probe query to validate connectivity; initialises `cv_jobs` PostgreSQL table via `jobs_db.ensure_table()`
 - **Shutdown:** closes the Neo4j driver
 
 Middleware stack (outermost first):
 1. `SlowAPIMiddleware` — rate limiting on public endpoints
-2. `CORSMiddleware` — allows frontend origin only
+2. `CORSMiddleware` — allows frontend origin plus any additional origins from `CORS_EXTRA_ORIGINS`
 
 ### Module Responsibilities
 
 | Module | Responsibility |
 |--------|---------------|
 | `auth/` | JWT creation/validation, OAuth (Google/LinkedIn), GDPR consent, account deletion, MCP API keys, refresh tokens |
-| `cv/` | PDF text extraction, LLM classification with fallback chain, graph persistence |
+| `cv/` | PDF text extraction, LLM classification with fallback chain, graph persistence, Cloud Tasks dispatch (`cloud_tasks.py`), background job state (`jobs_db.py`), job router (`jobs_router.py`) |
 | `graph/` | Neo4j driver singleton, all Cypher queries, Fernet encryption, embedding generation |
 | `orbs/` | Graph CRUD (nodes, relationships, profile), share tokens, access grants, connection requests, visibility management |
-| `messages/` | Inbox (send, list, reply, read, delete), welcome message on registration |
 | `notes/` | Free-text note enhancement via LLM (classify to node type + properties) |
 | `search/` | Vector similarity search (5 indexes) + fuzzy text search (Cypher + Python fallback) |
 | `export/` | Public orb export as JSON, JSON-LD (Schema.org), or PDF (fpdf2) |
 | `drafts/` | Draft notes CRUD (create, list, update, delete) |
-| `ideas/` | Feature idea / feedback submission and admin listing |
+| `ideas/` | Feature idea / feedback submission (source: `idea` or `feedback`) and admin listing |
 | `snapshots/` | Orb version snapshots (save, restore, delete, auto-create on CV import) |
-| `mcp_server/` | MCP server exposing 5 tools for AI agent access to orb data (API key auth) |
+| `mcp_server/` | MCP server exposing 6 tools for AI agent access to orb data (API key auth) |
 
 ### Dependency Injection
 
@@ -60,40 +62,57 @@ Middleware stack (outermost first):
 
 ### CV Processing Pipeline
 
-Three-stage pipeline with fallback chain:
+Async pipeline with background processing via Cloud Tasks:
 
 ```
-PDF Upload
+POST /cv/upload or /cv/import
     │
     ▼
-Stage 1: PDF → Text (PyMuPDF/fitz, runs in thread pool)
+1. Store document (GCS or local encrypted file)
+2. Create cv_jobs row (status=queued) in PostgreSQL
+3. Dispatch Cloud Task → POST /cv/process-job
+4. Return {job_id, status: "queued"} immediately
+    │
+    ▼ (Cloud Task / asyncio.create_task in local dev)
+Stage 1: Load PDF from storage
     │
     ▼
-Stage 2: LLM Classification
-    ├─ Primary: Ollama or Claude CLI (configurable via LLM_PROVIDER)
+Stage 2: PDF → Text (PyMuPDF/fitz)
+    │
+    ▼
+Stage 3: LLM Classification
+    ├─ Primary: Vertex AI (Gemini, default for production)
+    ├─ Fallback chain: configurable via LLM_FALLBACK_CHAIN
     ├─ Retry: up to 2 retries on parse failure
     ├─ Fallback 1: Rule-based regex parser (6-language section detection)
     └─ Fallback 2: Raw text lines as unmatched[] (up to 50 lines)
     │
     ▼
-Stage 3: User Review + Confirm
-    ├─ Frontend shows extracted nodes for editing
+Stage 4: Store result in cv_jobs.result_json + send email notification
+    │
+    ▼
+Stage 5: User polls GET /cv/job/{job_id} → result
+    │
+    ▼
+Stage 6: User Review + Confirm
+    ├─ Frontend shows extracted nodes for editing (tabbed by node type)
     └─ POST /cv/confirm: wipes existing graph, MERGE nodes with dedup keys, creates USED_SKILL links
 ```
 
-Text input is capped at 12,000 characters. Claude is called via CLI subprocess (`claude -p --output-format json`), not the Anthropic SDK.
+Text input is capped at 12,000 characters. The LLM provider is controlled by `LLM_PROVIDER` and `LLM_FALLBACK_CHAIN` config settings.
 
 ### Authentication Flow
 
 ```
-POST /auth/dev-login
+POST /auth/google or /auth/linkedin
     │
-    ├─ Lookup user by ID in Neo4j
-    ├─ If not found: CREATE Person node + send welcome message
-    └─ Return JWT (HS256, 24h expiry) with {sub: user_id, email}
+    ├─ Exchange OAuth code for user info
+    ├─ Lookup user by provider ID in Neo4j
+    ├─ If not found: CREATE Person node
+    └─ Return JWT (HS256, short-lived) + set HttpOnly refresh token cookie
 ```
 
-JWT validation on protected endpoints via `HTTPBearer` scheme. Refresh tokens support token rotation — each refresh revokes the old token and issues a new pair.
+JWT validation on protected endpoints via `HTTPBearer` scheme. Refresh tokens support token rotation — each refresh revokes the old token and issues a new pair. In production, the refresh token cookie uses `SameSite=None; Secure` and is scoped to `path=/`.
 
 ### Encryption
 
@@ -112,7 +131,7 @@ Five Zustand stores:
 
 ### API Layer
 
-Axios instance at `/api` base URL. Vite dev server proxies `/api/*` to `localhost:8000` (stripping the prefix). Request interceptor injects JWT; response interceptor clears token on 401.
+Axios instance with base URL controlled by `VITE_API_URL` env var (defaults to `/api`). Vite dev server proxies `/api/*` to `localhost:8000` (stripping the prefix). In production, `VITE_API_URL` can be set to the full Cloud Run service URL. Request interceptor injects JWT; response interceptor clears token on 401.
 
 ### 3D Graph Rendering
 
