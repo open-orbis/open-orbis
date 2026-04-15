@@ -299,7 +299,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7, duration: 0.8 }}
-          className="text-sm mb-10 sm:mb-24 z-10 font-medium tracking-wide text-center"
+          className="text-sm mb-10 sm:mb-12 z-10 font-medium tracking-wide text-center"
         >
           <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
             No more templates. No more formatting. Just your Orbis.
