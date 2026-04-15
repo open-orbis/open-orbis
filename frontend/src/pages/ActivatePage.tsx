@@ -191,7 +191,7 @@ export default function ActivatePage() {
               disabled={deletingAccount}
               className="w-full mt-4 flex items-center justify-center rounded-xl border border-red-300/35 bg-gradient-to-r from-red-500/90 to-orange-500/90 hover:from-red-400 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed text-red-50 text-sm font-semibold px-5 py-2.5 shadow-[0_10px_28px_-14px_rgba(248,113,113,0.9)] transition-all"
             >
-              {deletingAccount ? 'Removing and deleting...' : 'Remove from waitlist and delete my account'}
+              {deletingAccount ? 'Removing and deleting...' : 'Remove from waiting list and delete my account'}
             </button>
 
             {accountRemovalError && (

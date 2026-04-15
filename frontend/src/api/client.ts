@@ -34,8 +34,10 @@ client.interceptors.response.use(
     }
 
     // Never try to refresh from within /auth/* — infinite loop risk.
+    // /auth/me is also excluded: a 401 on the initial session probe simply
+    // means the user is not logged in, not that a session expired.
     const url = original.url || '';
-    if (url.startsWith('/auth/refresh') || url.startsWith('/auth/logout')) {
+    if (url.startsWith('/auth/refresh') || url.startsWith('/auth/logout') || url.startsWith('/auth/me')) {
       return Promise.reject(error);
     }
 
