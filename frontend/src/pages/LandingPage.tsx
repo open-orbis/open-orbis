@@ -91,8 +91,15 @@ function FeatureRow({ side, color, colorName, icon, title, description }: {
   );
 
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-16 items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
-      {side === 'left' ? <>{iconSide}{textSide}</> : <>{textSide}{iconSide}</>}
+    <div className={`flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-16 items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
+      {/* On mobile: always icon then text. On desktop: respect side prop */}
+      <div className="sm:hidden flex flex-col items-center gap-4 text-center">
+        {iconSide}
+        {textSide}
+      </div>
+      <div className="hidden sm:contents">
+        {side === 'left' ? <>{iconSide}{textSide}</> : <>{textSide}{iconSide}</>}
+      </div>
     </div>
   );
 }
@@ -303,7 +310,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7, duration: 0.8 }}
-          className="text-sm mb-10 sm:mb-24 z-10 font-medium tracking-wide"
+          className="text-sm mb-10 sm:mb-24 z-10 font-medium tracking-wide text-center"
         >
           <span className="bg-gradient-to-r from-amber-400 to-orange-400 bg-clip-text text-transparent">
             No more templates. No more formatting. Just your Orbis.
@@ -340,7 +347,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5, duration: 1 }}
-          className="absolute bottom-8 z-10"
+          className="absolute bottom-8 z-10 hidden sm:block"
         >
           <motion.div
             animate={{ y: [0, 8, 0] }}
