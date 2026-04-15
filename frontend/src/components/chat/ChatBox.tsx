@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode, OrbVisibility } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
@@ -523,10 +524,10 @@ export default function ChatBox({
         {interactionHint}
       </p>
 
-      {/* Feedback modal */}
-      {showFeedback && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowFeedback(false)} />
+      {/* Feedback modal — portaled to body to escape chatbox z-index/pointer traps */}
+      {showFeedback && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFeedback(false)} />
           <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
             <button
               type="button"
@@ -575,7 +576,8 @@ export default function ChatBox({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
