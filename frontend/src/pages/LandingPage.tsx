@@ -90,17 +90,19 @@ function FeatureRow({ side, color, colorName, icon, title, description }: {
     </motion.div>
   );
 
+  // On mobile: always icon above text (vertical). On desktop: side-by-side grid.
   return (
-    <div className={`flex flex-col sm:grid sm:grid-cols-2 gap-4 sm:gap-16 items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
-      {/* On mobile: always icon then text. On desktop: respect side prop */}
-      <div className="sm:hidden flex flex-col items-center gap-4 text-center">
+    <>
+      {/* Mobile: vertical stack */}
+      <div className="flex flex-col items-center gap-4 text-center sm:hidden">
         {iconSide}
         {textSide}
       </div>
-      <div className="hidden sm:contents">
+      {/* Desktop: grid with side prop */}
+      <div className={`hidden sm:grid sm:grid-cols-2 gap-16 items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
         {side === 'left' ? <>{iconSide}{textSide}</> : <>{textSide}{iconSide}</>}
       </div>
-    </div>
+    </>
   );
 }
 
