@@ -10,6 +10,7 @@ Provides three public async helpers:
 from __future__ import annotations
 
 import asyncio
+import subprocess
 from pathlib import Path
 
 from jinja2 import Environment
@@ -151,31 +152,31 @@ async def compile_tex(
         RuntimeError: If Tectonic exits with a non-zero code or times out.
     """
     tex_path = work_dir / tex_filename
-    proc = await asyncio.create_subprocess_exec(
-        "tectonic",
-        str(tex_path),
-        cwd=str(work_dir),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
 
-    try:
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(),
+    def _run() -> bytes:
+        import subprocess
+
+        result = subprocess.run(
+            ["tectonic", str(tex_path)],
+            cwd=str(work_dir),
+            capture_output=True,
+            text=True,
             timeout=settings.tectonic_timeout_seconds,
         )
-    except asyncio.TimeoutError as exc:
-        proc.kill()
+        if result.returncode != 0:
+            output = (result.stdout + "\n" + result.stderr).strip()
+            # Keep only the last 2000 chars to avoid huge error messages
+            raise RuntimeError(
+                f"Tectonic failed (exit {result.returncode}) "
+                f"compiling {tex_filename}:\n{output[-2000:]}"
+            )
+        pdf_path = tex_path.with_suffix(".pdf")
+        return pdf_path.read_bytes()
+
+    try:
+        return await asyncio.to_thread(_run)
+    except subprocess.TimeoutExpired as exc:
         raise RuntimeError(
             f"Tectonic timed out after {settings.tectonic_timeout_seconds}s "
             f"compiling {tex_filename}"
         ) from exc
-
-    if proc.returncode != 0:
-        raise RuntimeError(
-            f"Tectonic failed (exit {proc.returncode}) compiling {tex_filename}:\n"
-            + stderr.decode(errors="replace")
-        )
-
-    pdf_path = tex_path.with_suffix(".pdf")
-    return pdf_path.read_bytes()

@@ -44,16 +44,6 @@ PRELOADED = [
         "thumbnail_path": None,
         "tex_file": "tech-resume.tex.j2",
     },
-    {
-        "id": "yaac",
-        "name": "YAAC",
-        "description": "Modern two-column header with Source Sans Pro, LuaLaTeX",
-        "engine": "lualatex",
-        "license": "LPPL-1.3c",
-        "gcs_bundle_path": "templates/yaac/",
-        "thumbnail_path": None,
-        "tex_file": "yaac.tex.j2",
-    },
 ]
 
 

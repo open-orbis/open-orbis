@@ -4,15 +4,15 @@
 
 \documentclass[10pt, a4paper]{cv}
 
-\begin{document}
-
+\name{<< person.name | default("") >>}
+<% if person.headline %>\tagline{<< person.headline >>}<% endif %>
 \personalinfo{%
-  \name{<< person.name | default("") >>}
-  <% if person.headline %>\tagline{<< person.headline >>}<% endif %>
   <% if person.email %>\email{<< person.email >>}<% endif %>
   <% if person.phone %>\phone{<< person.phone >>}<% endif %>
   <% if person.location %>\location{<< person.location >>}<% endif %>
 }
+
+\begin{document}
 
 \makecvheader
 
