@@ -22,6 +22,8 @@ import {
   getInsights,
   listIdeas,
   deleteIdea,
+  listCVJobs,
+  cancelCVJob,
   type AdminStats,
   type AccessCode,
   type PendingUser,
@@ -30,6 +32,7 @@ import {
   type Idea,
   type FunnelMetrics,
   type Insights,
+  type CVJobAdmin,
 } from '../api/admin';
 
 // ── Helpers ──
@@ -55,6 +58,17 @@ function formatHours(hours: number | null): string {
   if (hours < 24) return `${hours.toFixed(1)}h`;
   const days = hours / 24;
   return `${days.toFixed(1)}d`;
+}
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 // ── Stat Card ──
@@ -172,7 +186,7 @@ export default function AdminPage() {
   const [funnel, setFunnel] = useState<FunnelMetrics | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'funnel'>('codes');
+  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'funnel' | 'cv-jobs'>('codes');
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -216,6 +230,14 @@ export default function AdminPage() {
     failed: { name: string; reason: string }[];
   } | null>(null);
 
+  // CV Jobs tab state
+  const [cvJobs, setCvJobs] = useState<CVJobAdmin[]>([]);
+  const [cvJobsTotal, setCvJobsTotal] = useState(0);
+  const [cvJobsLoading, setCvJobsLoading] = useState(false);
+  const [cvJobsStatusFilter, setCvJobsStatusFilter] = useState<string | undefined>();
+  const [cancelTarget, setCancelTarget] = useState<CVJobAdmin | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+
   const isPendingWaitlistUser = (
     u: Pick<AdminUser, 'signup_code' | 'is_admin' | 'waitlist_joined'>,
   ) => !u.signup_code && !u.is_admin && u.waitlist_joined;
@@ -249,6 +271,27 @@ export default function AdminPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (tab !== 'cv-jobs') return;
+    setCvJobsLoading(true);
+    listCVJobs({ status: cvJobsStatusFilter, limit: 50 })
+      .then((res) => { setCvJobs(res.items); setCvJobsTotal(res.total); })
+      .catch(() => {})
+      .finally(() => setCvJobsLoading(false));
+  }, [tab, cvJobsStatusFilter]);
+
+  useEffect(() => {
+    if (tab !== 'cv-jobs') return;
+    const hasActive = cvJobs.some(j => j.status === 'queued' || j.status === 'running');
+    if (!hasActive) return;
+    const interval = setInterval(() => {
+      listCVJobs({ status: cvJobsStatusFilter, limit: 50 })
+        .then((res) => { setCvJobs(res.items); setCvJobsTotal(res.total); })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [tab, cvJobs, cvJobsStatusFilter]);
 
   // ── Toggle invite code requirement (with confirmation) ──
   const handleToggleInviteCode = () => {
@@ -659,6 +702,14 @@ export default function AdminPage() {
             }`}
           >
             Funnel
+          </button>
+          <button
+            onClick={() => setTab('cv-jobs')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'cv-jobs' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            CV Jobs
           </button>
         </div>
 
@@ -1322,6 +1373,147 @@ export default function AdminPage() {
 
           </motion.div>
         )}
+        {/* ── CV Jobs Tab ── */}
+        {tab === 'cv-jobs' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-white/50 text-sm">{cvJobsLoading ? 'Loading...' : `${cvJobsTotal} jobs`}</span>
+            </div>
+
+            {/* Status filter */}
+            <div className="flex gap-2 mb-4">
+              {[undefined, 'queued', 'running', 'succeeded', 'failed', 'cancelled'].map((s) => (
+                <button
+                  key={s ?? 'all'}
+                  onClick={() => setCvJobsStatusFilter(s)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    cvJobsStatusFilter === s ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60 bg-white/5'
+                  }`}
+                >
+                  {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
+                </button>
+              ))}
+            </div>
+
+            {/* Table */}
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.06]">
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">User</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">File</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Status</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Step</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Progress</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">LLM</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Text Size</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Started</th>
+                      <th className="text-left text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Duration</th>
+                      <th className="text-right text-white/40 font-medium px-4 py-2.5 text-xs uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cvJobs.length === 0 && (
+                      <tr><td colSpan={10} className="text-center text-white/20 py-8">{cvJobsLoading ? 'Loading...' : 'No jobs found.'}</td></tr>
+                    )}
+                    {cvJobs.map((job) => {
+                      const statusColors: Record<string, string> = {
+                        queued: 'bg-white/[0.06] text-white/40',
+                        running: 'bg-blue-500/15 text-blue-400',
+                        succeeded: 'bg-green-500/10 text-green-400',
+                        failed: 'bg-red-500/10 text-red-400',
+                        cancelled: 'bg-orange-500/10 text-orange-400',
+                      };
+                      const duration = job.started_at && job.completed_at
+                        ? `${Math.round((new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()) / 1000)}s`
+                        : job.started_at && (job.status === 'running')
+                          ? `${Math.round((Date.now() - new Date(job.started_at).getTime()) / 1000)}s`
+                          : '—';
+                      return (
+                        <tr key={job.job_id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="px-4 py-2.5">
+                            <div className="text-white/70 text-xs">{job.user_name || '—'}</div>
+                            <div className="text-white/30 text-xs font-mono">{job.user_email || '—'}</div>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/50 text-xs max-w-[120px] truncate">{job.filename || '—'}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-md ${statusColors[job.status] ?? 'text-white/40'}`}>
+                              {job.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{job.step || '—'}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2 min-w-[80px]">
+                              <div className="flex-1 bg-white/[0.06] rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full transition-all ${job.status === 'succeeded' ? 'bg-green-500/60' : job.status === 'failed' ? 'bg-red-500/60' : 'bg-purple-500/60'}`}
+                                  style={{ width: `${job.progress_pct}%` }}
+                                />
+                              </div>
+                              <span className="text-white/30 text-xs tabular-nums">{job.progress_pct}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{job.llm_provider ? `${job.llm_provider}/${job.llm_model ?? ''}` : '—'}</td>
+                          <td className="px-4 py-2.5 text-white/40 text-xs">{job.text_chars != null ? `${(job.text_chars / 1000).toFixed(1)}k` : '—'}</td>
+                          <td className="px-4 py-2.5 text-white/30 text-xs">{timeAgo(job.started_at)}</td>
+                          <td className="px-4 py-2.5 text-white/30 text-xs">{duration}</td>
+                          <td className="px-4 py-2.5 text-right">
+                            {(job.status === 'queued' || job.status === 'running') && (
+                              <button
+                                onClick={() => setCancelTarget(job)}
+                                className="text-xs text-red-400/60 hover:text-red-400 px-2 py-1 rounded transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Cancel confirmation modal */}
+            {cancelTarget && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-sm">
+                  <h3 className="text-white font-semibold mb-2">Cancel CV Processing</h3>
+                  <p className="text-gray-400 text-sm mb-4">
+                    Cancel processing for {cancelTarget.user_name || cancelTarget.user_email}?
+                    The user will be notified by email.
+                  </p>
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setCancelTarget(null)} className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 text-sm">
+                      Keep running
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setCancelling(true);
+                        try {
+                          await cancelCVJob(cancelTarget.job_id);
+                          setCvJobs(prev => prev.map(j => j.job_id === cancelTarget.job_id ? {...j, status: 'cancelled'} : j));
+                        } catch {
+                          // ignore cancellation errors
+                        } finally {
+                          setCancelling(false);
+                          setCancelTarget(null);
+                        }
+                      }}
+                      disabled={cancelling}
+                      className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm disabled:opacity-50"
+                    >
+                      {cancelling ? 'Cancelling...' : 'Cancel job'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
       </div>
 
       {/* ── User Detail Dialog ── */}
