@@ -25,7 +25,7 @@ export default function CvExportPage() {
   }, []);
 
   if (template) {
-    return <TemplateEditor template={template} onBack={handleBack} />;
+    return <TemplateEditor key={template.id} template={template} onBack={handleBack} />;
   }
 
   return (

@@ -9,18 +9,14 @@
 
 % Personal info
 \name{<< person.name | default("") >>}{}
-\position{<< person.headline | default("") >>}
-\address{<< person.location | default("") >>}
-<% if person.email %>
-\email{<< person.email >>}
-<% endif %>
-<% if person.phone %>
-\mobile{<< person.phone >>}
-<% endif %>
+<% if person.headline %>\position{<< person.headline >>}<% endif %>
+<% if person.location %>\address{<< person.location >>}<% endif %>
+<% if person.email %>\email{<< person.email >>}<% endif %>
+<% if person.phone %>\mobile{<< person.phone >>}<% endif %>
 
 \begin{document}
 
-\makecvheader
+\makecvheader[C]
 
 <% if person.summary %>
 \cvsection{Summary}

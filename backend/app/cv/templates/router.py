@@ -184,6 +184,10 @@ async def compile_template(
     # 4. Render Jinja2
     try:
         rendered = service.render_tex_with_jinja(tex_content, person, nodes)
+        # Temporary debug: log first 40 lines
+        for i, line in enumerate(rendered.split('\n')[:40], 1):
+            if line.strip():
+                logger.info("TEX %d: %s", i, line)
     except Exception as exc:
         logger.error("Jinja2 rendering failed: %s", exc)
         raise HTTPException(

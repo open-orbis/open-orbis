@@ -34,16 +34,6 @@ PRELOADED = [
         "thumbnail_path": None,
         "tex_file": "swe-resume.tex.j2",
     },
-    {
-        "id": "tech-resume",
-        "name": "techResume",
-        "description": "Single-page ATS-optimized resume, pdfLaTeX",
-        "engine": "pdflatex",
-        "license": "MIT",
-        "gcs_bundle_path": "templates/tech-resume/",
-        "thumbnail_path": None,
-        "tex_file": "tech-resume.tex.j2",
-    },
 ]
 
 
