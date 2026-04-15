@@ -503,6 +503,22 @@ export default function ChatBox({
       <p className="mt-2 text-center text-[11px] text-white/35">
         {interactionHint}
       </p>
+      <div className="mt-1.5 text-center">
+        <button
+          type="button"
+          onClick={() => {
+            const text = window.prompt('What would you like to share with us?');
+            if (text?.trim()) {
+              import('../../api/orbs').then(({ submitIdea }) => {
+                submitIdea(text.trim()).catch(() => {});
+              });
+            }
+          }}
+          className="text-[10px] text-white/20 hover:text-purple-400/60 transition-colors"
+        >
+          Send Feedback
+        </button>
+      </div>
     </div>
   );
 }
