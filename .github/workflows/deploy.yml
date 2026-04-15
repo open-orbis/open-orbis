@@ -8,7 +8,9 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+# Opt into Node.js 24 for all GitHub Actions (avoids deprecation warnings)
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   PROJECT_ID: open-orbis
   REGION: europe-west1
   BACKEND_SERVICE: orbis-api
