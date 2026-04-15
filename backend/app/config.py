@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     # Resend (email notifications)
     resend_api_key: str = ""
-    email_from: str = "OpenOrbis <noreply@openorbis.com>"
+    email_from: str = "OpenOrbis <noreply@open-orbis.com>"
 
     # Closed-beta invitation system. When True, signups (first-time logins)
     # require a valid AccessCode AND a free seat under the cap stored in the
