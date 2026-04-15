@@ -563,12 +563,14 @@ export default function ChatBox({
                   try {
                     const { submitIdea } = await import('../../api/orbs');
                     await submitIdea(feedbackText.trim(), 'feedback');
-                    setFeedbackText('');
-                    setShowFeedback(false);
                     setFeedbackSent(true);
                     setTimeout(() => setFeedbackSent(false), 5000);
                   } catch { /* best effort */ }
-                  finally { setFeedbackSending(false); }
+                  finally {
+                    setFeedbackSending(false);
+                    setFeedbackText('');
+                    setShowFeedback(false);
+                  }
                 }}
                 className="h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
               >
