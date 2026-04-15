@@ -64,9 +64,49 @@ def test_registration_always_creates_person(client, mock_db, google_oauth_mock):
 def test_existing_user_login_works(client, mock_db, google_oauth_mock):
     _stub_existing_person(mock_db, exists=True)
 
-    response = client.post("/auth/google", json={"code": "fake"})
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=False),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
     assert response.status_code == 200
-    assert response.json()["user"]["user_id"] == "google-1234567890"
+    data = response.json()["user"]
+    assert data["user_id"] == "google-1234567890"
+    assert data["activated"] is True
+
+
+def test_returning_user_activated_when_invite_required(client, mock_db, google_oauth_mock):
+    """A returning user who already has a signup_code is activated even when
+    invite codes are required (regression test for #326)."""
+    record = MockNode({"user_id": "google-1234567890", "signup_code": "used-code"})
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": record})
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=True),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    assert response.json()["user"]["activated"] is True
+
+
+def test_returning_user_not_activated_without_code(client, mock_db, google_oauth_mock):
+    """A returning user without a signup_code is NOT activated when invite
+    codes are required (regression test for #326)."""
+    record = MockNode({"user_id": "google-1234567890"})
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": record})
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=True),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    assert response.json()["user"]["activated"] is False
 
 
 # ─────────────────────────────────────────────────────────────────────────
