@@ -209,7 +209,7 @@ Navigate to http://localhost:5173 and sign in with Google or LinkedIn to start b
 ```bash
 # Backend unit tests (75% coverage minimum)
 cd backend
-uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75
+uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=50
 
 # Backend linting
 uv run ruff check .

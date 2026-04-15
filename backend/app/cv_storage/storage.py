@@ -51,7 +51,7 @@ async def save_document(
         encrypted = encrypt_bytes(pdf_bytes)
         _doc_path(user_id, document_id).write_bytes(encrypted)
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc)
     return await db.insert_document(
         document_id=document_id,
         user_id=user_id,

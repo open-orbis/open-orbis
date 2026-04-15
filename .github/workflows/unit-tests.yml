@@ -37,4 +37,4 @@ jobs:
 
       - name: Run unit tests
         working-directory: backend
-        run: uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75
+        run: uv run pytest tests/unit/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=50

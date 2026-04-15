@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # Valid entries: "claude-opus", "claude-sonnet", "gemini-pro", "ollama",
     # "rule-based".
     # When empty, a single-provider chain is derived from llm_provider.
-    llm_fallback_chain: str = "gemini-pro"
+    llm_fallback_chain: str = ""
     # Per-provider timeout in seconds before falling back to the next provider.
     llm_timeout_seconds: int = 300
 
@@ -84,6 +84,7 @@ class Settings(BaseSettings):
 
     # URLs
     frontend_url: str = "http://localhost:5173"
+    cors_extra_origins: str = ""  # comma-separated extra CORS origins
 
     # Resend (email notifications)
     resend_api_key: str = ""
