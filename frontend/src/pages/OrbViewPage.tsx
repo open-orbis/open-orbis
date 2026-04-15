@@ -288,7 +288,7 @@ export default function OrbViewPage() {
   // case they passed `state.allowEmpty` and we let them stay on the empty view).
   const locationState = (location.state as { allowEmpty?: boolean; startTour?: boolean } | null) ?? null;
   const searchParams = new URLSearchParams(location.search);
-  const allowEmpty = locationState?.allowEmpty === true || searchParams.has('discarded');
+  const allowEmpty = locationState?.allowEmpty === true || searchParams.has('discarded') || searchParams.has('review');
   const hasRedirectedRef = useRef(false);
   const consumedStartTourRef = useRef(false);
   useEffect(() => {
