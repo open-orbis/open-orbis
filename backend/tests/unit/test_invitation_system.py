@@ -75,7 +75,9 @@ def test_existing_user_login_works(client, mock_db, google_oauth_mock):
     assert data["activated"] is True
 
 
-def test_returning_user_activated_when_invite_required(client, mock_db, google_oauth_mock):
+def test_returning_user_activated_when_invite_required(
+    client, mock_db, google_oauth_mock
+):
     """A returning user who already has a signup_code is activated even when
     invite codes are required (regression test for #326)."""
     record = MockNode({"user_id": "google-1234567890", "signup_code": "used-code"})
@@ -90,6 +92,31 @@ def test_returning_user_activated_when_invite_required(client, mock_db, google_o
         response = client.post("/auth/google", json={"code": "fake"})
     assert response.status_code == 200
     assert response.json()["user"]["activated"] is True
+
+
+def test_returning_user_gets_gdpr_consent_from_db(client, mock_db, google_oauth_mock):
+    """OAuth login returns the stored gdpr_consent so the frontend doesn't
+    re-prompt users who already accepted."""
+    record = MockNode(
+        {
+            "user_id": "google-1234567890",
+            "signup_code": "abc",
+            "gdpr_consent": True,
+        }
+    )
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": record})
+    )
+
+    with patch(
+        "app.auth.router.is_invite_code_required",
+        AsyncMock(return_value=False),
+    ):
+        response = client.post("/auth/google", json={"code": "fake"})
+    assert response.status_code == 200
+    data = response.json()["user"]
+    assert data["gdpr_consent"] is True
+    assert data["activated"] is True
 
 
 def test_returning_user_not_activated_without_code(client, mock_db, google_oauth_mock):

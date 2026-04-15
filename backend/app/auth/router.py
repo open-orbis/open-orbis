@@ -56,8 +56,12 @@ async def _get_or_create_person(
     name: str,
     picture: str,
     provider: str,
-) -> bool:
-    """Create a Person node if it doesn't exist yet. Returns activation status.
+) -> dict:
+    """Create a Person node if it doesn't exist yet.
+
+    Returns a dict with user fields needed for UserInfo (activated,
+    gdpr_consent, is_admin, profile_image, etc.) so the OAuth response
+    matches what /auth/me would return.
 
     In the new flow, registration always succeeds — the invite code gate
     happens later on the /auth/activate endpoint, not at signup time.
@@ -74,7 +78,12 @@ async def _get_or_create_person(
             person = dict(record["p"])
             is_admin_user = bool(person.get("is_admin", False))
             has_code = person.get("signup_code") is not None
-            return not invite_required or is_admin_user or has_code
+            return {
+                "activated": not invite_required or is_admin_user or has_code,
+                "gdpr_consent": bool(person.get("gdpr_consent", False)),
+                "is_admin": is_admin_user,
+                "profile_image": person.get("profile_image", ""),
+            }
 
     signup_code = None if invite_required else "open-registration"
 
@@ -90,8 +99,13 @@ async def _get_or_create_person(
             provider=provider,
             signup_code=signup_code,
         )
-    # New user: activated only if platform is open
-    return not invite_required
+    # New user: no GDPR consent yet, not admin
+    return {
+        "activated": not invite_required,
+        "gdpr_consent": False,
+        "is_admin": False,
+        "profile_image": "",
+    }
 
 
 async def _issue_session(
@@ -147,7 +161,7 @@ async def google_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    activated = await _get_or_create_person(
+    person_info = await _get_or_create_person(
         db, user_id=user_id, email=email, name=name, picture=picture, provider="google"
     )
 
@@ -165,7 +179,7 @@ async def google_login(
             email=email,
             name=name,
             picture=picture,
-            activated=activated,
+            **person_info,
         ),
     )
 
@@ -194,7 +208,7 @@ async def linkedin_login(
     name = userinfo["name"]
     picture = userinfo["picture"]
 
-    activated = await _get_or_create_person(
+    person_info = await _get_or_create_person(
         db,
         user_id=user_id,
         email=email,
@@ -217,7 +231,7 @@ async def linkedin_login(
             email=email,
             name=name,
             picture=picture,
-            activated=activated,
+            **person_info,
         ),
     )
 
