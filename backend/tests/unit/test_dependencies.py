@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 from jose import jwt
 
-from app.auth.service import ACCESS_COOKIE
+from app.auth.service import SESSION_COOKIE
 from app.config import settings
 from app.dependencies import get_current_user, get_current_user_optional, get_db
 
@@ -32,7 +32,7 @@ async def test_get_db():
 
 async def test_get_current_user_from_cookie():
     token = _token({"sub": "user-123", "email": "test@example.com"})
-    request = _request(cookies={ACCESS_COOKIE: token})
+    request = _request(cookies={SESSION_COOKIE: f"{token}|dummy-refresh"})
     user = await get_current_user(request)
     assert user["user_id"] == "user-123"
     assert user["email"] == "test@example.com"
@@ -53,7 +53,7 @@ async def test_get_current_user_cookie_only():
     cookie_token = _token({"sub": "cookie-user", "email": "c@x"})
     header_token = _token({"sub": "header-user", "email": "h@x"})
     request = _request(
-        cookies={ACCESS_COOKIE: cookie_token},
+        cookies={SESSION_COOKIE: f"{cookie_token}|dummy-refresh"},
         headers={"authorization": f"Bearer {header_token}"},
     )
     user = await get_current_user(request)
@@ -70,7 +70,7 @@ async def test_get_current_user_no_credentials_raises_401():
 
 
 async def test_get_current_user_invalid_token_raises_401():
-    request = _request(cookies={ACCESS_COOKIE: "not-a-jwt"})
+    request = _request(cookies={SESSION_COOKIE: "not-a-jwt|dummy-refresh"})
     with pytest.raises(HTTPException) as exc:
         await get_current_user(request)
     assert exc.value.status_code == 401
@@ -78,7 +78,7 @@ async def test_get_current_user_invalid_token_raises_401():
 
 async def test_get_current_user_no_sub_raises_401():
     token = _token({"email": "test@example.com"})
-    request = _request(cookies={ACCESS_COOKIE: token})
+    request = _request(cookies={SESSION_COOKIE: f"{token}|dummy-refresh"})
     with pytest.raises(HTTPException) as exc:
         await get_current_user(request)
     assert exc.value.status_code == 401
@@ -92,7 +92,7 @@ async def test_get_current_user_expired_token_raises_401():
             "exp": datetime.now(timezone.utc) - timedelta(hours=1),
         }
     )
-    request = _request(cookies={ACCESS_COOKIE: token})
+    request = _request(cookies={SESSION_COOKIE: f"{token}|dummy-refresh"})
     with pytest.raises(HTTPException) as exc:
         await get_current_user(request)
     assert exc.value.status_code == 401
@@ -111,13 +111,13 @@ async def test_get_current_user_optional_non_bearer_returns_none():
 
 
 async def test_get_current_user_optional_invalid_token_returns_none():
-    request = _request(cookies={ACCESS_COOKIE: "not-a-jwt"})
+    request = _request(cookies={SESSION_COOKIE: "not-a-jwt|dummy-refresh"})
     assert await get_current_user_optional(request) is None
 
 
 async def test_get_current_user_optional_cookie_returns_user():
     token = _token({"sub": "user-123", "email": "test@example.com"})
-    request = _request(cookies={ACCESS_COOKIE: token})
+    request = _request(cookies={SESSION_COOKIE: f"{token}|dummy-refresh"})
     user = await get_current_user_optional(request)
     assert user is not None
     assert user["user_id"] == "user-123"
@@ -133,5 +133,5 @@ async def test_get_current_user_optional_ignores_bearer():
 
 async def test_get_current_user_optional_no_sub_returns_none():
     token = _token({"email": "test@example.com"})
-    request = _request(cookies={ACCESS_COOKIE: token})
+    request = _request(cookies={SESSION_COOKIE: f"{token}|dummy-refresh"})
     assert await get_current_user_optional(request) is None

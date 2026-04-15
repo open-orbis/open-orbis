@@ -13,11 +13,17 @@ from app.graph.queries import GET_PERSON_BY_ORB_ID
 
 logger = logging.getLogger(__name__)
 
-# Cookie names. The refresh cookie is scoped to /auth so it is never sent
-# with regular API traffic — minimizes exposure.
-ACCESS_COOKIE = "orbis_access"
-REFRESH_COOKIE = "orbis_refresh"
-REFRESH_COOKIE_PATH = "/"
+# Cookie name. Firebase Hosting CDN only forwards the ``__session`` cookie
+# to Cloud Run backends — any other cookie name is silently stripped from
+# incoming requests.  We therefore pack both the access JWT and the refresh
+# token into a single ``__session`` cookie, separated by ``|``.  JWTs and
+# url-safe base64 tokens never contain ``|``, so the split is unambiguous.
+SESSION_COOKIE = "__session"
+SESSION_COOKIE_PATH = "/"
+# Legacy names kept for backwards-compatible cookie deletion so browsers
+# that still hold old cookies get them cleaned up.
+_LEGACY_ACCESS_COOKIE = "orbis_access"
+_LEGACY_REFRESH_COOKIE = "orbis_refresh"
 
 
 def create_jwt(user_id: str, email: str) -> str:
@@ -47,37 +53,53 @@ def set_auth_cookies(
     refresh_raw: str,
     refresh_expires_at: datetime,
 ) -> None:
-    """Attach access + refresh cookies to a response.
+    """Attach the combined ``__session`` cookie to a response.
 
-    Access cookie: short-lived, path=/ so every /api request carries it.
-    Refresh cookie: long-lived, path=/auth so only /auth/refresh and
-    /auth/logout see it, reducing leak surface via XSS bugs elsewhere.
+    The cookie value is ``<access_jwt>|<refresh_token>``.  ``max_age`` is
+    set to the *longer* of the two lifetimes (the refresh TTL) so the
+    browser keeps the cookie alive for silent refresh.  The access JWT is
+    validated server-side on every request and rejected once expired, so
+    the outer cookie lifetime only governs the refresh window.
     """
     flags = _cookie_flags()
     now = datetime.now(timezone.utc)
-    access_max_age = settings.jwt_expire_minutes * 60
     refresh_max_age = max(int((refresh_expires_at - now).total_seconds()), 0)
 
+    combined = f"{access_token}|{refresh_raw}"
     response.set_cookie(
-        key=ACCESS_COOKIE,
-        value=access_token,
-        max_age=access_max_age,
-        path="/",
-        **flags,
-    )
-    response.set_cookie(
-        key=REFRESH_COOKIE,
-        value=refresh_raw,
+        key=SESSION_COOKIE,
+        value=combined,
         max_age=refresh_max_age,
-        path=REFRESH_COOKIE_PATH,
+        path=SESSION_COOKIE_PATH,
         **flags,
     )
+    # Clean up legacy cookies left over from the pre-Firebase migration.
+    _delete_legacy_cookies(response, flags)
 
 
 def clear_auth_cookies(response: Response) -> None:
     flags = _cookie_flags()
-    response.delete_cookie(key=ACCESS_COOKIE, path="/", **flags)
-    response.delete_cookie(key=REFRESH_COOKIE, path=REFRESH_COOKIE_PATH, **flags)
+    response.delete_cookie(key=SESSION_COOKIE, path=SESSION_COOKIE_PATH, **flags)
+    _delete_legacy_cookies(response, flags)
+
+
+def _delete_legacy_cookies(response: Response, flags: dict) -> None:
+    """Remove old ``orbis_access`` / ``orbis_refresh`` cookies if present."""
+    response.delete_cookie(key=_LEGACY_ACCESS_COOKIE, path="/", **flags)
+    response.delete_cookie(key=_LEGACY_REFRESH_COOKIE, path="/", **flags)
+
+
+def parse_session_cookie(raw: str | None) -> tuple[str | None, str | None]:
+    """Split a ``__session`` cookie value into ``(access_jwt, refresh_token)``.
+
+    Returns ``(None, None)`` when the cookie is missing or malformed.
+    """
+    if not raw:
+        return None, None
+    parts = raw.split("|", 1)
+    if len(parts) != 2:
+        return None, None
+    return parts[0], parts[1]
 
 
 async def exchange_google_code(code: str) -> dict:

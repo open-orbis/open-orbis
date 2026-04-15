@@ -3,7 +3,7 @@ from jose import JWTError, jwt
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.auth.service import ACCESS_COOKIE
+from app.auth.service import SESSION_COOKIE, parse_session_cookie
 from app.config import settings
 
 
@@ -12,14 +12,14 @@ def _user_or_ip(request: Request) -> str:
 
     Per-user keying matters for expensive LLM endpoints — IP-based limits
     can be trivially bypassed by rotating proxies while the same account
-    still drains the API budget. Reads the access token from the httpOnly
-    cookie (Stage 5 dropped Authorization header support on /api).
+    still drains the API budget. Reads the access JWT from the combined
+    ``__session`` cookie.
     """
-    token = request.cookies.get(ACCESS_COOKIE)
-    if token:
+    access, _refresh = parse_session_cookie(request.cookies.get(SESSION_COOKIE))
+    if access:
         try:
             payload = jwt.decode(
-                token,
+                access,
                 settings.jwt_secret,
                 algorithms=[settings.jwt_algorithm],
             )

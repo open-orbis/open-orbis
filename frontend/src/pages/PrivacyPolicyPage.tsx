@@ -225,14 +225,8 @@ export default function PrivacyPolicyPage() {
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     <tr>
-                      <td className="px-3 py-2 font-mono text-white/50">orbis_access</td>
-                      <td className="px-3 py-2">Authentication session token (JWT)</td>
-                      <td className="px-3 py-2">15 minutes</td>
-                      <td className="px-3 py-2">HTTP-only cookie</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 font-mono text-white/50">orbis_refresh</td>
-                      <td className="px-3 py-2">Refresh token for session renewal</td>
+                      <td className="px-3 py-2 font-mono text-white/50">__session</td>
+                      <td className="px-3 py-2">Authentication session (access JWT + refresh token)</td>
                       <td className="px-3 py-2">30 days</td>
                       <td className="px-3 py-2">HTTP-only cookie</td>
                     </tr>
