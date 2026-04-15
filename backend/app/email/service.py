@@ -47,7 +47,7 @@ async def send_activation_email(*, to: str, frontend_url: str) -> bool:
     html = render_activation_email(activate_url=frontend_url)
     return await send_email(
         to=to,
-        subject="Your OpenOrbis account is active",
+        subject="You're in! Your OpenOrbis account is ready",
         html_body=html,
     )
 

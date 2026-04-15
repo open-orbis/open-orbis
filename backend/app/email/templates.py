@@ -84,28 +84,28 @@ _BUTTON = """\
 
 _ACTIVATION_CONTENT = """\
 <h1 style="margin:0 0 6px;font-size:24px;font-weight:700;color:#1a1025;">
-  You're in.
+  You're in!
 </h1>
 <p style="margin:0 0 24px;font-size:14px;color:#7c3aed;font-weight:500;">
-  Welcome to the early access program
+  Your OpenOrbis account is ready
 </p>
 <p style="margin:0 0 16px;font-size:15px;color:#4a4458;line-height:1.7;">
-  Your OpenOrbis account has been activated. You now have full access
-  to build your career knowledge graph &mdash; queryable, shareable, and
-  portable.
+  Great news &mdash; your account has been approved for the beta program!
+  You now have full access to build your career knowledge graph &mdash;
+  queryable, shareable, and portable.
 </p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
   <tr>
     <td style="width:4px;background:linear-gradient(180deg,#a78bfa,#7c3aed);border-radius:4px;"></td>
     <td style="padding:12px 16px;">
       <p style="margin:0;font-size:14px;color:#6b5f7d;line-height:1.6;">
-        Upload your CV and watch it transform into an interactive graph
-        that both humans and AI agents can understand.
+        Sign in and upload your CV to watch it transform into an interactive
+        graph that both humans and AI agents can understand.
       </p>
     </td>
   </tr>
 </table>
-""" + _BUTTON.replace("{{ label }}", "Open OpenOrbis")
+""" + _BUTTON.replace("{{ label }}", "Sign in to OpenOrbis")
 
 # ── Invite code email ──
 

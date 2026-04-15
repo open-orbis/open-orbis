@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import { useAuthStore } from '../stores/authStore';
+import { useToastStore } from '../stores/toastStore';
 import {
   getStats,
   listAccessCodes,
@@ -179,6 +180,7 @@ function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: {
 
 export default function AdminPage() {
   const user = useAuthStore((s) => s.user);
+  const addToast = useToastStore((s) => s.addToast);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [codes, setCodes] = useState<AccessCode[]>([]);
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -433,13 +435,14 @@ export default function AdminPage() {
 
   const handleActivateUser = (userId: string, userName: string) => {
     setConfirmAction({
-      title: 'Activate user?',
-      message: `An invite code will be generated and automatically assigned to ${userName || userId}.`,
-      confirmLabel: 'Activate',
+      title: 'Approve user?',
+      message: `${userName || userId} will be activated and receive an email notification that their account is ready.`,
+      confirmLabel: 'Approve',
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await activateUser(userId);
+          addToast(`${userName || userId} approved — notification email sent`, 'success');
           await refresh();
         } catch {
           setError('Error activating user.');
@@ -454,13 +457,14 @@ export default function AdminPage() {
     );
     if (pending.length === 0) return;
     setConfirmAction({
-      title: `Activate ${pending.length} users?`,
-      message: 'An invite code will be generated for each selected user.',
-      confirmLabel: `Activate ${pending.length}`,
+      title: `Approve ${pending.length} users?`,
+      message: `Each user will be activated and receive an email notification.`,
+      confirmLabel: `Approve ${pending.length}`,
       onConfirm: async () => {
         setConfirmAction(null);
         try {
           await activateUsersBatch(pending);
+          addToast(`${pending.length} user(s) approved — notification emails sent`, 'success');
           setSelectedUsers(new Set());
           await refresh();
         } catch {
@@ -837,6 +841,33 @@ export default function AdminPage() {
         {/* ── Pending Users Tab ── */}
         {tab === 'pending' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            {pendingUsers.length > 0 && (
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={() => {
+                    const allIds = pendingUsers.map((u) => u.user_id);
+                    setConfirmAction({
+                      title: `Approve all ${allIds.length} users?`,
+                      message: 'Each user will be activated and receive an email notification.',
+                      confirmLabel: `Approve all ${allIds.length}`,
+                      onConfirm: async () => {
+                        setConfirmAction(null);
+                        try {
+                          await activateUsersBatch(allIds);
+                          addToast(`${allIds.length} user(s) approved — notification emails sent`, 'success');
+                          await refresh();
+                        } catch {
+                          setError('Error in batch activation.');
+                        }
+                      },
+                    });
+                  }}
+                  className="h-9 px-4 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
+                >
+                  Approve all ({pendingUsers.length})
+                </button>
+              </div>
+            )}
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -861,7 +892,7 @@ export default function AdminPage() {
                         <td className="px-4 py-2.5 text-white/30 text-xs">{formatDate(u.created_at)}</td>
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Activate</button>
+                            <button onClick={() => handleActivateUser(u.user_id, u.name)} className="text-xs text-green-400/70 hover:text-green-400 px-2 py-1 rounded transition-colors">Approve</button>
                             <button onClick={() => handleDeleteUser(u.user_id, u.name)} className="text-xs text-red-400/50 hover:text-red-400 px-2 py-1 rounded transition-colors">Delete</button>
                           </div>
                         </td>
