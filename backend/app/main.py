@@ -144,10 +144,15 @@ app = FastAPI(title="Orbis API", version="0.1.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+_cors_origins = [settings.frontend_url]
+if settings.cors_extra_origins:
+    _cors_origins.extend(
+        o.strip() for o in settings.cors_extra_origins.split(",") if o.strip()
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url]
-    + [o.strip() for o in settings.cors_extra_origins.split(",") if o.strip()],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin"],

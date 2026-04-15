@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # with regular API traffic — minimizes exposure.
 ACCESS_COOKIE = "orbis_access"
 REFRESH_COOKIE = "orbis_refresh"
-REFRESH_COOKIE_PATH = "/auth"
+REFRESH_COOKIE_PATH = "/"
 
 
 def create_jwt(user_id: str, email: str) -> str:
@@ -31,10 +31,11 @@ def create_jwt(user_id: str, email: str) -> str:
 
 
 def _cookie_flags() -> dict:
+    is_prod = settings.env != "development"
     return {
         "httponly": True,
-        "secure": settings.env != "development",
-        "samesite": "lax",
+        "secure": is_prod,
+        "samesite": "none" if is_prod else "lax",
         "domain": settings.cookie_domain or None,
     }
 
