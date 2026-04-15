@@ -1055,6 +1055,7 @@ export default function OrbViewPage() {
             resetLabel="Cancel import"
             onConfirm={async (nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile) => {
               await confirmImport(nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile);
+              setExtractedImport(null);
               fetchDocuments();
             }}
             documentId={extractedImport.documentId}
