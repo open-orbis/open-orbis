@@ -29,15 +29,14 @@ _LAYOUT = """\
 
         <!-- Header with orb -->
         <tr><td style="background:linear-gradient(135deg,#1a1025 0%,#2d1b4e 40%,#1a1025 100%);border-radius:16px 16px 0 0;padding:40px 32px 36px;text-align:center;">
-          <!-- Orb -->
+          <!-- Orb — simple table-based circle, no position:absolute or radial-gradient -->
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 20px;">
-            <tr><td>
-              <div style="width:72px;height:72px;margin:0 auto;position:relative;">
-                <!-- Outer glow -->
-                <div style="width:72px;height:72px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(167,139,250,0.35) 0%,rgba(124,58,237,0.15) 50%,transparent 70%);"></div>
-                <!-- Inner orb -->
-                <div style="width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 38% 35%,#c4b5fd 0%,#a78bfa 30%,#8b5cf6 60%,#7c3aed 100%);position:absolute;top:14px;left:14px;box-shadow:0 0 24px rgba(167,139,250,0.5),0 0 48px rgba(124,58,237,0.25);"></div>
-              </div>
+            <tr><td align="center">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr><td style="width:56px;height:56px;border-radius:50%;background-color:#8b5cf6;text-align:center;vertical-align:middle;font-size:24px;line-height:56px;box-shadow:0 0 20px rgba(139,92,246,0.5);">
+                  <span style="color:#e9e0ff;font-size:24px;">&#9679;</span>
+                </td></tr>
+              </table>
             </td></tr>
           </table>
           <!-- Brand name -->
