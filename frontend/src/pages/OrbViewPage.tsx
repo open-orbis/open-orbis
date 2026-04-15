@@ -31,21 +31,6 @@ import { getDocuments, confirmImport, getJob } from '../api/cv';
 import GuidedTour from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
 
-const IMPORT_PROGRESS_STEP_LABELS: Record<string, string> = {
-  reading_pdf: 'Reading PDF',
-  extracting_text: 'Extracting text',
-  classifying: 'Classifying entries',
-  parsing_response: 'Building graph',
-  done: 'Finalizing',
-};
-
-
-function resolveImportStepLabel(step: string | null | undefined, detail: string | null | undefined, message: string | null | undefined): string {
-  if (step && IMPORT_PROGRESS_STEP_LABELS[step]) return IMPORT_PROGRESS_STEP_LABELS[step];
-  if (detail?.trim()) return detail.trim();
-  if (message?.trim()) return message.trim();
-  return 'Reading PDF';
-}
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 
@@ -522,39 +507,48 @@ export default function OrbViewPage() {
 
   const doImport = useCallback(async (file: File) => {
     setImporting(true);
-    setImportStatus('Reading PDF');
-    const pollId = setInterval(async () => {
-      try {
-        const { getCVProgress } = await import('../api/cv');
-        const p = await getCVProgress();
-        if (p.active && p.message) {
-          setImportStatus(resolveImportStepLabel(p.step, p.detail, p.message));
-        }
-      } catch { /* ignore */ }
-    }, 2000);
+    setImportStatus('Uploading document...');
 
     try {
-      const { importDocument } = await import('../api/cv');
-      const result = await importDocument(file);
-      clearInterval(pollId);
-      if (result.nodes.length > 0) {
-        setExtractedImport({
-          nodes: result.nodes,
-          relationships: result.relationships || [],
-          cvOwnerName: result.cv_owner_name || null,
-          profile: result.profile || null,
-          unmatchedCount: result.unmatched?.length || 0,
-          skippedCount: result.skipped_nodes?.length || 0,
-          file,
-          documentId: result.document_id || null,
-        });
-      } else {
-        addToast('Error processing document. Please try again.', 'error');
-      }
+      const { importDocument, getCVProgress, getJob } = await import('../api/cv');
+      await importDocument(file);
+
+      // Poll for progress
+      setImportStatus('Processing — we\'ll email you when ready. Feel free to close this page.');
+      const pollId = setInterval(async () => {
+        try {
+          const p = await getCVProgress();
+          if (p.status === 'succeeded' && p.job_id) {
+            clearInterval(pollId);
+            const job = await getJob(p.job_id);
+            if (job.result && job.result.nodes.length > 0) {
+              setExtractedImport({
+                nodes: job.result.nodes,
+                relationships: job.result.relationships || [],
+                cvOwnerName: job.result.cv_owner_name || null,
+                profile: job.result.profile || null,
+                unmatchedCount: job.result.unmatched?.length || 0,
+                skippedCount: job.result.skipped_nodes?.length || 0,
+                file,
+                documentId: job.result.document_id || null,
+              });
+            } else {
+              addToast('No entries extracted from document.', 'error');
+            }
+            setImporting(false);
+            setImportStatus('');
+          } else if (p.status === 'failed') {
+            clearInterval(pollId);
+            addToast('Document processing failed. Please try again.', 'error');
+            setImporting(false);
+            setImportStatus('');
+          } else if (p.active && p.message) {
+            setImportStatus(`${p.message} We'll email you when ready.`);
+          }
+        } catch { /* ignore */ }
+      }, 3000);
     } catch {
-      clearInterval(pollId);
-      addToast('Failed to import document', 'error');
-    } finally {
+      addToast('Failed to upload document', 'error');
       setImporting(false);
       setImportStatus('');
     }

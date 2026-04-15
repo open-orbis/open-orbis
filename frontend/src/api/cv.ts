@@ -121,12 +121,12 @@ export async function downloadCV(documentId?: string): Promise<void> {
   URL.revokeObjectURL(blobUrl);
 }
 
-export async function importDocument(file: File): Promise<ExtractedData> {
+export async function importDocument(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  const { data } = await client.post('/cv/import', formData, {
+  const { data } = await client.post<UploadResponse>('/cv/import', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 1800000,
+    timeout: 30_000,
   });
   return data;
 }

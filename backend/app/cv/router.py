@@ -192,7 +192,7 @@ async def list_documents(
 ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".text"}
 
 
-@router.post("/import", response_model=ExtractedData)
+@router.post("/import")
 @limiter.limit("3/minute")
 async def import_document(
     request: Request,
@@ -200,7 +200,7 @@ async def import_document(
     current_user: dict = Depends(require_gdpr_consent),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Import a supplementary document (PDF, DOCX, TXT) to enrich the orb."""
+    """Import a supplementary document — stores file, dispatches background job."""
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
@@ -217,6 +217,7 @@ async def import_document(
 
     user_id = current_user.get("user_id", "")
     document_id = str(uuid.uuid4())
+    job_id = str(uuid.uuid4())
 
     # Store the original document (encrypted) before processing
     await evict_oldest_if_at_limit(user_id)
@@ -228,56 +229,30 @@ async def import_document(
         page_count=0,
     )
 
-    try:
-        raw_text = await multi_extract(file_bytes, file.filename)
+    # Create background job (same as upload)
+    from app.cv import jobs_db
 
-        if not raw_text.strip():
-            raise HTTPException(
-                status_code=400, detail="Could not extract text from file"
-            )
+    await jobs_db.create_job(
+        job_id=job_id,
+        user_id=user_id,
+        document_id=document_id,
+        filename=file.filename or "document",
+    )
 
-        result = await classify_entries(raw_text)
+    # Dispatch Cloud Task
+    from app.cv.cloud_tasks import dispatch_cv_job
+    from app.config import settings
 
-        if not result.nodes and not result.unmatched:
-            raise HTTPException(
-                status_code=400,
-                detail="No entries could be extracted from the document.",
-            )
+    if settings.cloud_tasks_queue:
+        task_name = dispatch_cv_job(job_id=job_id)
+        await jobs_db.set_cloud_task_name(job_id, task_name)
+    else:
+        logger.warning("No Cloud Tasks queue — running import inline")
+        import asyncio
 
-        from app.cv.models import ExtractedProfile
+        asyncio.create_task(_process_job_inline(job_id, db))
 
-        extracted_profile = None
-        if result.profile:
-            extracted_profile = ExtractedProfile(**result.profile)
-
-        return ExtractedData(
-            nodes=result.nodes,
-            unmatched=result.unmatched,
-            skipped_nodes=result.skipped,
-            relationships=result.relationships,
-            truncated=result.truncated,
-            cv_owner_name=result.cv_owner_name,
-            profile=extracted_profile,
-            document_id=document_id,
-            llm_provider=result.metadata.llm_provider if result.metadata else None,
-            llm_model=result.metadata.llm_model if result.metadata else None,
-            extraction_method=result.metadata.extraction_method
-            if result.metadata
-            else None,
-            prompt_hash=result.metadata.prompt_hash if result.metadata else None,
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(
-            "Document import error for user %s (%s)",
-            user_id,
-            type(e).__name__,
-        )
-        logger.debug("Document import traceback", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail="Failed to process document. Please try again."
-        ) from None
+    return {"job_id": job_id, "status": "queued"}
 
 
 @router.post("/import-confirm")
