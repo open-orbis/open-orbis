@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.cv.cloud_tasks import cancel_cv_job, dispatch_cv_job, verify_oidc_token
 
 
