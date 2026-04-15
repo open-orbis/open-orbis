@@ -20,6 +20,7 @@ export default function ActivatePage() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [accountRemovalError, setAccountRemovalError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
   const navigatingRef = useRef(false);
 
   const goToApp = useCallback(async () => {
@@ -30,8 +31,20 @@ export default function ActivatePage() {
     navigate(hasContent ? '/myorbis' : '/create', { replace: true });
   }, [navigate, fetchUser]);
 
-  // Silent poll: check activation status without touching store/UI
+  // Check activation status immediately on mount — redirect if already activated
   useEffect(() => {
+    getMe()
+      .then((me) => {
+        if (me.activated) goToApp();
+        else setChecking(false);
+      })
+      .catch(() => setChecking(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Silent poll: check activation status periodically (for admin-activated users)
+  useEffect(() => {
+    if (checking) return;
     const id = setInterval(async () => {
       try {
         const me = await getMe();
@@ -41,7 +54,7 @@ export default function ActivatePage() {
       }
     }, POLL_INTERVAL);
     return () => clearInterval(id);
-  }, [goToApp]);
+  }, [goToApp, checking]);
 
   const handleSubmit = async () => {
     if (!code.trim()) return;
@@ -80,6 +93,14 @@ export default function ActivatePage() {
       setDeletingAccount(false);
     }
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center px-6">
