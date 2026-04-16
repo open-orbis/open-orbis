@@ -27,7 +27,7 @@ function MetricInfo({ description, label }: { description: string; label: string
         >
           i
         </button>
-        <div className="pointer-events-none absolute right-0 top-6 z-10 w-56 rounded-lg border border-white/15 bg-black/90 px-2 py-1.5 text-[10px] leading-snug text-white/80 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="pointer-events-none absolute right-0 top-6 z-50 w-56 rounded-lg border border-white/15 bg-black/90 px-2 py-1.5 text-[10px] leading-snug text-white/80 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
           {description}
         </div>
       </div>
