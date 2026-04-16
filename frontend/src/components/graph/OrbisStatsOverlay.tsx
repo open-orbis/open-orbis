@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { OrbData } from '../../api/orbs';
-import { computeOrbisStatsSummary } from './orbisStats';
+import { computeOrbisStatsSummary, formatTypeLabel } from './orbisStats';
+import type { NodeDetail, ClusterDetail } from './orbisStats';
 
 interface OrbisStatsOverlayProps {
   data: OrbData;
@@ -37,21 +38,83 @@ function formatPercent(value: number, digits = 0): string {
   return `${(value * 100).toFixed(digits)}%`;
 }
 
-function formatTypeLabel(type: string | null): string {
-  if (!type) return 'Node';
-  return type.replace(/([a-z])([A-Z])/g, '$1 $2');
-}
-
 function metricHint(active: number, total: number): string {
   if (active === total) return 'All visible';
   return `${active} of ${total}`;
 }
 
-function shareReadinessLabel(score: number): string {
-  if (score >= 0.8) return 'Excellent';
-  if (score >= 0.65) return 'Strong';
-  if (score >= 0.5) return 'Improving';
-  return 'Needs work';
+function freshnessColor(score: number): string {
+  if (score >= 0.7) return 'text-emerald-400';
+  if (score >= 0.4) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+function NodeDetailList({ nodes, max = 8 }: { nodes: NodeDetail[]; max?: number }) {
+  const shown = nodes.slice(0, max);
+  const more = nodes.length - shown.length;
+  return (
+    <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
+      {shown.map((n) => (
+        <div key={n.uid} className="flex items-center gap-2 text-[11px]">
+          <span className="text-white/70 truncate flex-1">{n.name}</span>
+          <span className="text-white/30 flex-shrink-0">{n.type}</span>
+        </div>
+      ))}
+      {more > 0 && <p className="text-[10px] text-white/30">+{more} more</p>}
+    </div>
+  );
+}
+
+function ClusterDetailList({ clusters }: { clusters: ClusterDetail[] }) {
+  return (
+    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+      {clusters.map((cluster, i) => (
+        <div key={i}>
+          <p className="text-[10px] text-white/50 font-medium">Cluster {i + 1} — {cluster.nodes.length} nodes</p>
+          <div className="mt-0.5 space-y-0.5">
+            {cluster.nodes.slice(0, 5).map((n) => (
+              <div key={n.uid} className="flex items-center gap-2 text-[11px] pl-2">
+                <span className="text-white/70 truncate flex-1">{n.name}</span>
+                <span className="text-white/30 flex-shrink-0">{n.type}</span>
+              </div>
+            ))}
+            {cluster.nodes.length > 5 && <p className="text-[10px] text-white/30 pl-2">+{cluster.nodes.length - 5} more</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExpandableMetric({ label, description, value, hint, children, count }: {
+  label: string;
+  description: string;
+  value: React.ReactNode;
+  hint: string;
+  children: React.ReactNode;
+  count: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+      <MetricInfo label={label} description={description} />
+      <button
+        type="button"
+        onClick={() => count > 0 && setExpanded((v) => !v)}
+        className={`w-full text-left ${count > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+      >
+        <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">{label}</p>
+        <p className="mt-1 text-lg leading-none font-semibold text-white">{value}</p>
+        <p className="mt-1 text-[10px] text-white/45">
+          {hint}
+          {count > 0 && (
+            <span className="ml-1 text-purple-400/70">{expanded ? '▲' : '▼'}</span>
+          )}
+        </p>
+      </button>
+      {expanded && children}
+    </div>
+  );
 }
 
 function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
@@ -66,7 +129,16 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {/* Top Hub — prominent at the top */}
+      <div className="mt-3 rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
+        <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
+        <p className="mt-1 text-[10px] text-white/45">
+          {formatTypeLabel(stats.topHubType)} {stats.topHubDegree > 0 && `\u00b7 ${stats.topHubDegree} active links`}
+        </p>
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">
           <p className="text-[10px] uppercase tracking-wide text-white/40">Active Nodes</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.activeNodes}</p>
@@ -82,7 +154,7 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
           <MetricInfo
             label="Density"
-            description="Active links divided by the maximum possible links among active nodes in the current view."
+            description="Ratio of actual links to the maximum possible links among active nodes."
           />
           <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Density</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.density, 1)}</p>
@@ -92,7 +164,7 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
           <MetricInfo
             label="Skill Coverage"
-            description="Share of active non-skill nodes connected to at least one skill through a USED_SKILL link."
+            description="Percentage of non-skill nodes linked to at least one skill."
           />
           <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Skill Coverage</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.skillCoverageRate)}</p>
@@ -100,24 +172,49 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
             {stats.skillLinkedNodes}/{stats.skillEligibleNodes} linked
           </p>
         </div>
+
+        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+          <MetricInfo
+            label="Freshness"
+            description="Percentage of dated nodes with at least one date in the last 24 months. Higher means your orbis reflects recent activity."
+          />
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Freshness</p>
+          <p className={`mt-1 text-lg leading-none font-semibold ${freshnessColor(stats.freshnessScore)}`}>{formatPercent(stats.freshnessScore)}</p>
+          <p className="mt-1 text-[10px] text-white/45">recent entries</p>
+        </div>
       </div>
 
-      <div className="mt-2.5 rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
-        <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
-        <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
-        <p className="mt-1 text-[10px] text-white/45">
-          {formatTypeLabel(stats.topHubType)} • {stats.topHubDegree} active links
-        </p>
-      </div>
+      {/* Expandable metrics */}
+      <div className="mt-2 space-y-2">
+        <ExpandableMetric
+          label="Orphan Nodes"
+          description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
+          value={stats.orphanNodes}
+          hint={`${formatPercent(stats.orphanRate)} of active`}
+          count={stats.orphanNodes}
+        >
+          <NodeDetailList nodes={stats.orphanNodeDetails} />
+        </ExpandableMetric>
 
-      <div className="relative mt-2.5 rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
-        <MetricInfo
-          label="Share Readiness"
-          description="Weighted score: 40% completeness, 25% skill coverage, 20% connectivity, 15% domain balance."
-        />
-        <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Share Readiness</p>
-        <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.shareReadinessScore)}</p>
-        <p className="mt-1 text-[10px] text-white/45">{shareReadinessLabel(stats.shareReadinessScore)}</p>
+        <ExpandableMetric
+          label="Skill Clusters"
+          description="Groups of interconnected nodes. More clusters indicate diverse, distinct areas of expertise."
+          value={stats.skillClusters}
+          hint="connected groups"
+          count={stats.skillClusters}
+        >
+          <ClusterDetailList clusters={stats.clusterDetails} />
+        </ExpandableMetric>
+
+        <ExpandableMetric
+          label="Bridge Nodes"
+          description="Nodes that connect otherwise separate parts of your graph. They tie your career story together."
+          value={stats.bridgeNodes}
+          hint="key connectors"
+          count={stats.bridgeNodes}
+        >
+          <NodeDetailList nodes={stats.bridgeNodeDetails} />
+        </ExpandableMetric>
       </div>
 
     </div>
