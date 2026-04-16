@@ -162,12 +162,12 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
 
         <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
-            label="Density"
-            description="Ratio of actual edges to the maximum possible edges among active nodes."
+            label="Avg Edges/Node"
+            description="Average number of edges per node. Higher means your nodes are well connected to each other."
           />
-          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Density</p>
-          <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.density, 1)}</p>
-          <p className="mt-1 text-[10px] text-white/45">{stats.avgLinksPerNode.toFixed(1)} edges/node</p>
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Avg Edges/Node</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.avgLinksPerNode.toFixed(1)}</p>
+          <p className="mt-1 text-[10px] text-white/45">{stats.activeLinks} total edges</p>
         </div>
 
         <div className={`relative ${METRIC_CARD_LG}`}>
