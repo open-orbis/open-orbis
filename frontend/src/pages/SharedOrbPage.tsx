@@ -331,6 +331,7 @@ export default function SharedOrbPage() {
         data={data}
         filteredNodeIds={dateFilteredNodeIds}
         hiddenNodeTypes={hiddenNodeTypes}
+        onHighlight={setHighlightedNodeIds}
       />
 
       {/* ── Chat Box (no Add / Share buttons) ── */}

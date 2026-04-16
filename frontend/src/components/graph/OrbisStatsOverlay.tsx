@@ -6,10 +6,12 @@ interface OrbisStatsOverlayProps {
   data: OrbData;
   filteredNodeIds?: Set<string>;
   hiddenNodeTypes?: Set<string>;
+  onHighlight?: (nodeIds: Set<string>) => void;
 }
 
 interface OrbisPulsePanelProps {
   stats: ReturnType<typeof computeOrbisStatsSummary>;
+  onHighlight?: (nodeIds: Set<string>) => void;
 }
 
 const COMPACT_BREAKPOINT_PX = 1280;
@@ -68,7 +70,7 @@ const METRIC_CARD = 'rounded-lg border border-white/8 bg-white/[0.03] p-2 transi
 const METRIC_CARD_LG = 'rounded-lg border border-white/8 bg-white/[0.03] p-2.5 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
 
 
-function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
+function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
   const [orphansExpanded, setOrphansExpanded] = useState(false);
   const [hubExpanded, setHubExpanded] = useState(false);
   return (
@@ -82,8 +84,12 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         </div>
       </div>
 
-      {/* Top Hub — prominent at the top, clickable to show neighbors */}
-      <div className={`mt-3 ${METRIC_CARD_LG}`}>
+      {/* Top Hub — prominent at the top, clickable to show neighbors, hover highlights */}
+      <div
+        className={`mt-3 ${METRIC_CARD_LG}`}
+        onMouseEnter={() => stats.topHubNeighbors.length > 0 && onHighlight?.(new Set(stats.topHubNeighbors.map((n) => n.uid)))}
+        onMouseLeave={() => onHighlight?.(new Set())}
+      >
         <button
           type="button"
           onClick={() => stats.topHubDegree > 0 && setHubExpanded((v) => !v)}
@@ -147,8 +153,12 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         </div>
       </div>
 
-      {/* Orphan Nodes — full width below the grid */}
-      <div className={`relative mt-2 ${METRIC_CARD_LG}`}>
+      {/* Orphan Nodes — full width below the grid, highlights on hover */}
+      <div
+        className={`relative mt-2 ${METRIC_CARD_LG}`}
+        onMouseEnter={() => stats.orphanNodes > 0 && onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)))}
+        onMouseLeave={() => onHighlight?.(new Set())}
+      >
         <MetricInfo
           label="Orphan Nodes"
           description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
@@ -178,6 +188,7 @@ export default function OrbisStatsOverlay({
   data,
   filteredNodeIds = new Set(),
   hiddenNodeTypes = new Set(),
+  onHighlight,
 }: OrbisStatsOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isCompact, setIsCompact] = useState<boolean>(() => {
@@ -259,7 +270,7 @@ export default function OrbisStatsOverlay({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <OrbisPulsePanel stats={stats} />
+              <OrbisPulsePanel stats={stats} onHighlight={onHighlight} />
             </div>
           )}
           <button
@@ -292,7 +303,7 @@ export default function OrbisStatsOverlay({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <OrbisPulsePanel stats={stats} />
+          <OrbisPulsePanel stats={stats} onHighlight={onHighlight} />
         </div>
       )}
     </div>
