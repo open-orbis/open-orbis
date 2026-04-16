@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { OrbData } from '../../api/orbs';
+import { submitIdea } from '../../api/orbs';
 import { computeOrbisStatsSummary, formatTypeLabel } from './orbisStats';
 
 interface OrbisStatsOverlayProps {
@@ -70,6 +72,10 @@ const METRIC_CARD_LG = 'rounded-lg border border-white/8 bg-white/[0.03] p-2.5 t
 function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
   const [orphansExpanded, setOrphansExpanded] = useState(false);
   const [hubExpanded, setHubExpanded] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestText, setSuggestText] = useState('');
+  const [suggestSending, setSuggestSending] = useState(false);
+  const [suggestSent, setSuggestSent] = useState(false);
   return (
     <div className="w-[min(336px,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-[0_20px_60px_rgba(0,0,0,0.45)] p-3.5">
       <div className="flex items-start justify-between gap-2">
@@ -191,7 +197,76 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
           <p className={`mt-1 text-lg leading-none font-semibold ${freshnessColor(stats.freshnessScore)}`}>{formatPercent(stats.freshnessScore)}</p>
           <p className="mt-1 text-[10px] text-white/45">recent entries</p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowSuggest(true)}
+          className={`${METRIC_CARD_LG} flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center`}
+        >
+          <svg className="w-4 h-4 text-purple-400/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+          <p className="text-[10px] text-white/35 leading-tight">
+            {suggestSent ? 'Thanks!' : 'Suggest a metric'}
+          </p>
+        </button>
       </div>
+
+      {showSuggest && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuggest(false)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowSuggest(false)}
+              className="absolute right-3 top-3 h-8 w-8 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-white text-base font-semibold mb-1">Suggest a Metric</h3>
+            <p className="text-gray-400 text-sm mb-4">What metric would you find useful in Orbis Pulse?</p>
+            <textarea
+              autoFocus
+              value={suggestText}
+              onChange={(e) => setSuggestText(e.target.value)}
+              placeholder="Describe the metric you'd like to see..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-500 resize-none h-28 focus:outline-none focus:border-purple-500/50"
+            />
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowSuggest(false)}
+                className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!suggestText.trim() || suggestSending}
+                onClick={async () => {
+                  setSuggestSending(true);
+                  try {
+                    await submitIdea(`[Metric Suggestion] ${suggestText.trim()}`, 'idea');
+                    setSuggestSent(true);
+                    setTimeout(() => setSuggestSent(false), 5000);
+                  } catch { /* best effort */ }
+                  finally {
+                    setSuggestSending(false);
+                    setSuggestText('');
+                    setShowSuggest(false);
+                  }
+                }}
+                className="h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+              >
+                {suggestSending ? 'Sending...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
     </div>
   );
