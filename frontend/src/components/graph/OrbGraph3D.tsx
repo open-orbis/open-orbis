@@ -22,6 +22,8 @@ interface OrbGraph3DProps {
   focusNodeId?: string | null;
   focusNodeToken?: number;
   onCameraDistanceChange?: (distance: number) => void;
+  /** When false, node hover tooltips are suppressed (e.g. when a menu/modal is open) */
+  tooltipEnabled?: boolean;
 }
 
 
@@ -53,6 +55,7 @@ export default function OrbGraph3D({
   focusNodeId = null,
   focusNodeToken = 0,
   onCameraDistanceChange,
+  tooltipEnabled = true,
 }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
@@ -606,7 +609,7 @@ export default function OrbGraph3D({
         onNodeClick={handleNodeClick}
         onBackgroundClick={handleBackgroundClick}
       />
-      <NodeTooltip node={hoveredNode} position={tooltipPos} />
+      <NodeTooltip node={tooltipEnabled ? hoveredNode : null} position={tooltipPos} />
     </div>
   );
 }
