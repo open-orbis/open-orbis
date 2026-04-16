@@ -115,6 +115,41 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
         {hubExpanded && <NodeDetailList nodes={stats.topHubNeighbors} />}
       </div>
 
+      {/* Orphan Nodes — full width below top hub, highlights on hover */}
+      <div
+        className={`relative mt-2 ${METRIC_CARD_LG}`}
+        onMouseEnter={() => stats.orphanNodes > 0 && onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)))}
+        onMouseLeave={() => !orphansExpanded && onHighlight?.(new Set())}
+      >
+        <MetricInfo
+          label="Orphan Nodes"
+          description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (stats.orphanNodes === 0) return;
+            setOrphansExpanded((v) => {
+              const next = !v;
+              if (next) onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)));
+              else onHighlight?.(new Set());
+              return next;
+            });
+          }}
+          className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.orphanNodes}</p>
+          <p className="mt-1 text-[10px] text-white/45">
+            {formatPercent(stats.orphanRate)} of active
+            {stats.orphanNodes > 0 && (
+              <span className="ml-1 text-purple-400/70">{orphansExpanded ? '▲' : '▼'}</span>
+            )}
+          </p>
+        </button>
+        {orphansExpanded && <NodeDetailList nodes={stats.orphanNodeDetails} />}
+      </div>
+
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div className={METRIC_CARD}>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Active Nodes</p>
@@ -159,41 +194,6 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
           <p className={`mt-1 text-lg leading-none font-semibold ${freshnessColor(stats.freshnessScore)}`}>{formatPercent(stats.freshnessScore)}</p>
           <p className="mt-1 text-[10px] text-white/45">recent entries</p>
         </div>
-      </div>
-
-      {/* Orphan Nodes — full width below the grid, highlights on hover */}
-      <div
-        className={`relative mt-2 ${METRIC_CARD_LG}`}
-        onMouseEnter={() => stats.orphanNodes > 0 && onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)))}
-        onMouseLeave={() => !orphansExpanded && onHighlight?.(new Set())}
-      >
-        <MetricInfo
-          label="Orphan Nodes"
-          description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
-        />
-        <button
-          type="button"
-          onClick={() => {
-            if (stats.orphanNodes === 0) return;
-            setOrphansExpanded((v) => {
-              const next = !v;
-              if (next) onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)));
-              else onHighlight?.(new Set());
-              return next;
-            });
-          }}
-          className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
-        >
-          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
-          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.orphanNodes}</p>
-          <p className="mt-1 text-[10px] text-white/45">
-            {formatPercent(stats.orphanRate)} of active
-            {stats.orphanNodes > 0 && (
-              <span className="ml-1 text-purple-400/70">{orphansExpanded ? '▲' : '▼'}</span>
-            )}
-          </p>
-        </button>
-        {orphansExpanded && <NodeDetailList nodes={stats.orphanNodeDetails} />}
       </div>
 
     </div>
