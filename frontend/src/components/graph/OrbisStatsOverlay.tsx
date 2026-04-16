@@ -259,7 +259,7 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
                   try {
                     await submitIdea(`[Metric Suggestion] ${suggestText.trim()}`, 'idea');
                     setSuggestSent(true);
-                    setTimeout(() => setSuggestSent(false), 8000);
+                    setTimeout(() => setSuggestSent(false), 4000);
                   } catch { /* best effort */ }
                   finally {
                     setSuggestSending(false);
