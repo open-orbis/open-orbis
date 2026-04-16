@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { OrbData } from '../../api/orbs';
 import { submitIdea } from '../../api/orbs';
 import { computeOrbisStatsSummary, formatTypeLabel } from './orbisStats';
+import type { NodeDetail } from './orbisStats';
 
 interface OrbisStatsOverlayProps {
   data: OrbData;
