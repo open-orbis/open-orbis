@@ -71,6 +71,8 @@ interface ExtractedDataReviewProps {
     pageCount?: number | null,
     profile?: ExtractedProfile | null,
   ) => Promise<void>;
+  /** Fired after confirm + unmatched drafts save completes, before navigation. */
+  onComplete?: () => void | Promise<void>;
   /** Extra content rendered below the header (e.g., checkbox) */
   children?: React.ReactNode;
 }
@@ -90,6 +92,7 @@ export default function ExtractedDataReview({
   fileSizeBytes,
   pageCount,
   onConfirm: onConfirmOverride,
+  onComplete,
   children,
 }: ExtractedDataReviewProps) {
   const navigate = useNavigate();
@@ -157,6 +160,9 @@ export default function ExtractedDataReview({
             } catch { /* best effort */ }
           }
         }
+      }
+      if (onComplete) {
+        try { await onComplete(); } catch { /* best effort */ }
       }
       await fetchUser();
       if (isReplaceMode && replaced > 0) {

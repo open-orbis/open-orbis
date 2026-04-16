@@ -1072,6 +1072,13 @@ export default function OrbViewPage() {
               setExtractedImport(null);
               fetchDocuments();
             }}
+            onComplete={async () => {
+              if (!userId) return;
+              try {
+                const notes = await loadDraftNotesAsync(userId);
+                setDraftNotes(notes);
+              } catch { /* best effort */ }
+            }}
             documentId={extractedImport.documentId}
             originalFilename={extractedImport.file.name}
             fileSizeBytes={extractedImport.file.size}
