@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -16,5 +18,5 @@ class DraftUpdate(BaseModel):
 class DraftOut(BaseModel):
     uid: str
     text: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime

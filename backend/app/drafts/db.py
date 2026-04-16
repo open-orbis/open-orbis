@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.db.postgres import get_pool
 
 
@@ -15,7 +17,7 @@ async def list_drafts(user_id: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def create_draft(uid: str, user_id: str, text: str, now: str) -> dict:
+async def create_draft(uid: str, user_id: str, text: str, now: datetime) -> dict:
     pool = await get_pool()
     await pool.execute(
         "INSERT INTO drafts (uid, user_id, text, created_at, updated_at) "
@@ -29,7 +31,7 @@ async def create_draft(uid: str, user_id: str, text: str, now: str) -> dict:
     return {"uid": uid, "text": text, "created_at": now, "updated_at": now}
 
 
-async def update_draft(uid: str, user_id: str, text: str, now: str) -> dict | None:
+async def update_draft(uid: str, user_id: str, text: str, now: datetime) -> dict | None:
     pool = await get_pool()
     result = await pool.execute(
         "UPDATE drafts SET text = $1, updated_at = $2 WHERE uid = $3 AND user_id = $4",

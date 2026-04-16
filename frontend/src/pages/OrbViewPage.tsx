@@ -157,6 +157,7 @@ export default function OrbViewPage() {
     cvOwnerName: string | null;
     profile: import('../api/cv').ExtractedProfile | null;
     unmatchedCount: number;
+    unmatchedEntries: string[];
     skippedCount: number;
     file: File;
     documentId: string | null;
@@ -223,6 +224,7 @@ export default function OrbViewPage() {
             cvOwnerName: job.result.cv_owner_name || null,
             profile: job.result.profile || null,
             unmatchedCount: job.result.unmatched?.length || 0,
+            unmatchedEntries: job.result.unmatched || [],
             skippedCount: job.result.skipped_nodes?.length || 0,
             file: new File([], job.filename || 'document'),
             documentId: job.result.document_id || null,
@@ -528,6 +530,7 @@ export default function OrbViewPage() {
                 cvOwnerName: job.result.cv_owner_name || null,
                 profile: job.result.profile || null,
                 unmatchedCount: job.result.unmatched?.length || 0,
+                unmatchedEntries: job.result.unmatched || [],
                 skippedCount: job.result.skipped_nodes?.length || 0,
                 file,
                 documentId: job.result.document_id || null,
@@ -615,6 +618,7 @@ export default function OrbViewPage() {
                     cvOwnerName: job.result.cv_owner_name || null,
                     profile: job.result.profile || null,
                     unmatchedCount: job.result.unmatched?.length || 0,
+                    unmatchedEntries: job.result.unmatched || [],
                     skippedCount: job.result.skipped_nodes?.length || 0,
                     file: new File([], job.filename || 'document'),
                     documentId: job.result.document_id || null,
@@ -1058,6 +1062,7 @@ export default function OrbViewPage() {
             cvOwnerName={extractedImport.cvOwnerName}
             profile={extractedImport.profile}
             unmatchedCount={extractedImport.unmatchedCount}
+            unmatchedEntries={extractedImport.unmatchedEntries}
             skippedCount={extractedImport.skippedCount}
             truncated={false}
             onReset={() => setExtractedImport(null)}
@@ -1066,6 +1071,13 @@ export default function OrbViewPage() {
               await confirmImport(nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile);
               setExtractedImport(null);
               fetchDocuments();
+            }}
+            onComplete={async () => {
+              if (!userId) return;
+              try {
+                const notes = await loadDraftNotesAsync(userId);
+                setDraftNotes(notes);
+              } catch { /* best effort */ }
             }}
             documentId={extractedImport.documentId}
             originalFilename={extractedImport.file.name}
