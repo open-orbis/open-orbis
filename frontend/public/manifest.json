@@ -1,0 +1,20 @@
+{
+  "name": "OpenOrbis",
+  "short_name": "OpenOrbis",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08060d",
+  "theme_color": "#7c3aed"
+}
