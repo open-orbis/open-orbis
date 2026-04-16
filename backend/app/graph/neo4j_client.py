@@ -20,8 +20,12 @@ async def get_driver() -> AsyncDriver:
             auth=(settings.neo4j_user, settings.neo4j_password),
             max_connection_pool_size=50,
             connection_acquisition_timeout=10,
-            max_connection_lifetime=5
-            * 60,  # recycle before VPC connector drops idle TCP
+            # VPC connector / NAT can silently drop idle Bolt TCP sockets; the
+            # pool then hands out dead connections and the first request after
+            # idle fails with "TCPTransport closed". Recycle aggressively and
+            # liveness-check before reuse.
+            max_connection_lifetime=60,
+            liveness_check_timeout=30,
             keep_alive=True,
         )
     return _driver
