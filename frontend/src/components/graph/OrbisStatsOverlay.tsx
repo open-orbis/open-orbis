@@ -70,6 +70,7 @@ const METRIC_CARD_LG = 'rounded-lg border border-white/8 bg-white/[0.03] p-2.5 t
 
 function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
   const [orphansExpanded, setOrphansExpanded] = useState(false);
+  const [hubExpanded, setHubExpanded] = useState(false);
   return (
     <div className="w-[min(336px,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-[0_20px_60px_rgba(0,0,0,0.45)] p-3.5">
       <div className="flex items-start justify-between gap-2">
@@ -81,13 +82,23 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         </div>
       </div>
 
-      {/* Top Hub — prominent at the top */}
+      {/* Top Hub — prominent at the top, clickable to show neighbors */}
       <div className={`mt-3 ${METRIC_CARD_LG}`}>
-        <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
-        <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
-        <p className="mt-1 text-[10px] text-white/45">
-          {formatTypeLabel(stats.topHubType)} {stats.topHubDegree > 0 && `\u00b7 ${stats.topHubDegree} active edges`}
-        </p>
+        <button
+          type="button"
+          onClick={() => stats.topHubDegree > 0 && setHubExpanded((v) => !v)}
+          className={`w-full text-left ${stats.topHubDegree > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
+          <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
+          <p className="mt-1 text-[10px] text-white/45">
+            {formatTypeLabel(stats.topHubType)} {stats.topHubDegree > 0 && `\u00b7 ${stats.topHubNeighbors.length} neighbors`}
+            {stats.topHubDegree > 0 && (
+              <span className="ml-1 text-purple-400/70">{hubExpanded ? '▲' : '▼'}</span>
+            )}
+          </p>
+        </button>
+        {hubExpanded && <NodeDetailList nodes={stats.topHubNeighbors} />}
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">

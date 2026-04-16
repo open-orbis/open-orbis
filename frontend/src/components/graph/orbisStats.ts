@@ -29,6 +29,7 @@ export interface OrbisStatsSummary {
   topHubName: string;
   topHubType: string | null;
   topHubDegree: number;
+  topHubNeighbors: NodeDetail[];
   orphanNodes: number;
   orphanRate: number;
   orphanNodeDetails: NodeDetail[];
@@ -194,6 +195,16 @@ export function computeOrbisStatsSummary(
     }
   }
 
+  // ── Adjacency for neighbor lookups ──
+  const adj = new Map<string, Set<string>>();
+  for (const id of activeDomainIds) adj.set(id, new Set());
+  for (const link of activeLinks) {
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    adj.get(s)?.add(t);
+    adj.get(t)?.add(s);
+  }
+
   // ── Top Hub ──
   const topHub = [...activeDomainNodes]
     .map((node) => ({ uid: node.uid, degree: degreeById.get(node.uid) ?? 0 }))
@@ -204,6 +215,16 @@ export function computeOrbisStatsSummary(
   const topHubName = topHubNode ? getNodeDisplayName(topHubNode) : 'No active edges yet';
   const topHubType = topHubNode ? getPrimaryLabel(topHubNode) || null : null;
   const topHubDegree = topHub?.degree ?? 0;
+
+  // 1-hop neighbors of top hub
+  const topHubNeighbors: NodeDetail[] = topHub
+    ? [...(adj.get(topHub.uid) ?? [])]
+        .map((uid) => {
+          const node = nodesById.get(uid) ?? {};
+          return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name))
+    : [];
 
   // ── Orphan node details ──
   const orphanNodeDetails: NodeDetail[] = activeDomainNodes
@@ -235,6 +256,7 @@ export function computeOrbisStatsSummary(
     topHubName,
     topHubType,
     topHubDegree,
+    topHubNeighbors,
     orphanNodes,
     orphanRate,
     orphanNodeDetails,
