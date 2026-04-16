@@ -223,9 +223,17 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
       </div>
 
       {showSuggest && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuggest(false)} />
-          <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          onClick={() => setShowSuggest(false)}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="absolute inset-0 bg-black/60" />
+          <div
+            className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={() => setShowSuggest(false)}
