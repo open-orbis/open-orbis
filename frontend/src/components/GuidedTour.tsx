@@ -38,12 +38,6 @@ const STEPS: TourStep[] = [
     disableBeacon: true,
   },
   {
-    target: '[data-tour="node-count"]',
-    title: 'Quick Stats',
-    content: 'Here you can see how many nodes and edges your orbis contains.',
-    placement: 'bottom',
-  },
-  {
     target: '[data-tour="undo-redo"]',
     title: 'Undo And Redo',
     content: 'Undo and redo your recent changes — adding or deleting nodes can be reversed.',

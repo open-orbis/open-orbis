@@ -7,16 +7,13 @@ import {
   createShareToken,
   getPublicFilters,
   listAccessGrants,
-  listConnectionRequests,
   listShareTokens,
-  acceptConnectionRequest,
-  rejectConnectionRequest,
   revokeAccessGrant,
   revokeShareToken,
   updateAccessGrantFilters,
   updatePublicFilters,
 } from '../../api/orbs';
-import type { AccessGrant, ConnectionRequest, OrbVisibility, ShareToken } from '../../api/orbs';
+import type { AccessGrant, OrbVisibility, ShareToken } from '../../api/orbs';
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 
@@ -56,12 +53,6 @@ export default function SharePanel({
   const [editingGrantKeywords, setEditingGrantKeywords] = useState('');
   const [editingGrantHiddenTypes, setEditingGrantHiddenTypes] = useState('');
   const [updatingGrantFiltersId, setUpdatingGrantFiltersId] = useState<string | null>(null);
-  const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
-  const [pendingLoading, setPendingLoading] = useState(false);
-  const [acceptingRequestId, setAcceptingRequestId] = useState<string | null>(null);
-  const [acceptKeywords, setAcceptKeywords] = useState('');
-  const [acceptHiddenTypes, setAcceptHiddenTypes] = useState('');
-  const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const addToast = useToastStore((s) => s.addToast);
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
@@ -143,14 +134,6 @@ export default function SharePanel({
     };
   }, [isRestricted]);
 
-  useEffect(() => {
-    if (!isRestricted) return;
-    setPendingLoading(true);
-    listConnectionRequests()
-      .then(setPendingRequests)
-      .catch(() => {})
-      .finally(() => setPendingLoading(false));
-  }, [isRestricted]);
 
   useEffect(() => {
     const panel = modalRef.current;
@@ -337,35 +320,6 @@ export default function SharePanel({
     await saveGrantFilters(grant.grant_id, '', '');
   };
 
-  const handleAcceptRequest = async (requestId: string) => {
-    const keywords = acceptKeywords.split(',').map(k => k.trim()).filter(Boolean);
-    const hiddenTypes = acceptHiddenTypes.split(',').map(t => t.trim()).filter(Boolean);
-    try {
-      await acceptConnectionRequest(requestId, { keywords, hidden_node_types: hiddenTypes });
-      setPendingRequests(prev => prev.filter(r => r.request_id !== requestId));
-      setAcceptingRequestId(null);
-      setAcceptKeywords('');
-      setAcceptHiddenTypes('');
-      // Refresh grants list
-      listAccessGrants().then(g => setGrants(g.grants));
-      addToast('Access granted', 'success');
-    } catch {
-      addToast('Failed to accept request', 'error');
-    }
-  };
-
-  const handleRejectRequest = async (requestId: string) => {
-    setRejectingRequestId(requestId);
-    try {
-      await rejectConnectionRequest(requestId);
-      setPendingRequests(prev => prev.filter(r => r.request_id !== requestId));
-      addToast('Request rejected', 'success');
-    } catch {
-      addToast('Failed to reject request', 'error');
-    } finally {
-      setRejectingRequestId(null);
-    }
-  };
 
   const [pendingVisibility, setPendingVisibility] = useState<OrbVisibility | null>(null);
 
@@ -745,91 +699,6 @@ export default function SharePanel({
 
             {isRestricted && (
               <>
-                {(pendingLoading || pendingRequests.length > 0) && (
-                  <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <label className="text-xs text-amber-200/80 uppercase tracking-wide font-medium">Pending Requests</label>
-                      <span className="text-[11px] text-amber-200/60">{pendingRequests.length}</span>
-                    </div>
-                    {pendingLoading && <p className="text-[11px] text-gray-500">Loading requests...</p>}
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {pendingRequests.map((req) => (
-                        <div key={req.request_id} className="border border-gray-700 rounded-lg px-3 py-2.5 bg-gray-900/60 space-y-2">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm text-white truncate">{req.requester_name || req.requester_email}</p>
-                              <p className="text-[11px] text-gray-400 mt-0.5">{req.requester_email}</p>
-                              <p className="text-[10px] text-gray-500 mt-0.5">{formatDate(req.created_at)}</p>
-                            </div>
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setAcceptingRequestId(acceptingRequestId === req.request_id ? null : req.request_id);
-                                  setAcceptKeywords('');
-                                  setAcceptHiddenTypes('');
-                                }}
-                                className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRejectRequest(req.request_id)}
-                                disabled={rejectingRequestId === req.request_id}
-                                className="h-8 px-3 rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-50 text-xs font-medium transition-colors"
-                              >
-                                {rejectingRequestId === req.request_id ? 'Rejecting...' : 'Reject'}
-                              </button>
-                            </div>
-                          </div>
-
-                          {acceptingRequestId === req.request_id && (
-                            <div className="rounded-lg border border-gray-700/70 bg-gray-900/60 p-2.5 space-y-2">
-                              <div>
-                                <label className="text-[10px] text-gray-500 uppercase tracking-wide">Filtered Keywords (comma separated)</label>
-                                <input
-                                  type="text"
-                                  value={acceptKeywords}
-                                  onChange={(e) => setAcceptKeywords(e.target.value)}
-                                  placeholder="python, machine learning"
-                                  className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
-                                />
-                              </div>
-                              <div>
-                                <label className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types (comma separated)</label>
-                                <input
-                                  type="text"
-                                  value={acceptHiddenTypes}
-                                  onChange={(e) => setAcceptHiddenTypes(e.target.value)}
-                                  placeholder="Skill, Project"
-                                  className="mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg px-2.5 py-2 text-white text-xs placeholder-gray-500"
-                                />
-                              </div>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleAcceptRequest(req.request_id)}
-                                  className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition-colors"
-                                >
-                                  Confirm &amp; Grant Access
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setAcceptingRequestId(null)}
-                                  className="h-8 px-3 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs font-medium transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 <div className="rounded-xl border border-gray-700 bg-gray-800/40 p-4">
                   <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Invite By Email</label>
                   <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Invite people who can view this orbis after signing in according to the filters selected.</p>
