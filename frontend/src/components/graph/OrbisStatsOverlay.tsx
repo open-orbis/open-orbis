@@ -97,6 +97,9 @@ function ClusterDetailList({ clusters }: { clusters: ClusterDetail[] }) {
   );
 }
 
+const METRIC_CARD = 'rounded-lg border border-white/8 bg-white/[0.03] p-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
+const METRIC_CARD_LG = 'rounded-lg border border-white/8 bg-white/[0.03] p-2.5 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
+
 function ExpandableMetric({ label, description, value, hint, children, count }: {
   label: string;
   description: string;
@@ -107,7 +110,7 @@ function ExpandableMetric({ label, description, value, hint, children, count }: 
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+    <div className={`relative ${METRIC_CARD_LG}`}>
       <MetricInfo label={label} description={description} />
       <button
         type="button"
@@ -129,6 +132,7 @@ function ExpandableMetric({ label, description, value, hint, children, count }: 
 }
 
 function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
+  const [areasExpanded, setAreasExpanded] = useState(false);
   return (
     <div className="w-[min(336px,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-[0_20px_60px_rgba(0,0,0,0.45)] p-3.5">
       <div className="flex items-start justify-between gap-2">
@@ -141,38 +145,38 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
       </div>
 
       {/* Top Hub — prominent at the top */}
-      <div className="mt-3 rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+      <div className={`mt-3 ${METRIC_CARD_LG}`}>
         <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
         <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
         <p className="mt-1 text-[10px] text-white/45">
-          {formatTypeLabel(stats.topHubType)} {stats.topHubDegree > 0 && `\u00b7 ${stats.topHubDegree} active links`}
+          {formatTypeLabel(stats.topHubType)} {stats.topHubDegree > 0 && `\u00b7 ${stats.topHubDegree} active edges`}
         </p>
       </div>
 
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">
+        <div className={METRIC_CARD}>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Active Nodes</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.activeNodes}</p>
           <p className="mt-1 text-[10px] text-white/45">{stats.visibleNodes} visible</p>
         </div>
 
-        <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">
+        <div className={METRIC_CARD}>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Active Edges</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.activeLinks}</p>
           <p className="mt-1 text-[10px] text-white/45">{stats.visibleLinks} visible</p>
         </div>
 
-        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
             label="Density"
-            description="Ratio of actual links to the maximum possible links among active nodes."
+            description="Ratio of actual edges to the maximum possible edges among active nodes."
           />
           <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Density</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.density, 1)}</p>
-          <p className="mt-1 text-[10px] text-white/45">{stats.avgLinksPerNode.toFixed(1)} links/node</p>
+          <p className="mt-1 text-[10px] text-white/45">{stats.avgLinksPerNode.toFixed(1)} edges/node</p>
         </div>
 
-        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
             label="Skill Coverage"
             description="Percentage of non-skill nodes linked to at least one skill."
@@ -184,7 +188,7 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
           </p>
         </div>
 
-        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
             label="Freshness"
             description="Percentage of dated nodes with at least one date in the last 24 months. Higher means your orbis reflects recent activity."
@@ -207,19 +211,28 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
           <NodeDetailList nodes={stats.orphanNodeDetails} />
         </ExpandableMetric>
 
-        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
             label="Background Areas"
             description="Key areas of your background, each identified by the skill most connected to your experiences, certifications, and projects."
           />
-          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Background Areas</p>
-          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.backgroundAreas}</p>
-          {stats.clusterDetails.length > 0 && (
-            <p className="mt-1 text-[10px] text-white/55 truncate">
-              {stats.clusterDetails.map((c) => c.hub.name).join(', ')}
-            </p>
-          )}
-          {stats.backgroundAreas > 0 && <ClusterDetailList clusters={stats.clusterDetails} />}
+          <button
+            type="button"
+            onClick={() => stats.backgroundAreas > 0 && setAreasExpanded((v) => !v)}
+            className={`w-full text-left ${stats.backgroundAreas > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+          >
+            <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Background Areas</p>
+            <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.backgroundAreas}</p>
+            {stats.clusterDetails.length > 0 && (
+              <p className="mt-1 text-[10px] text-white/55 truncate">
+                {stats.clusterDetails.map((c) => c.hub.name).join(', ')}
+                {stats.backgroundAreas > 0 && (
+                  <span className="ml-1 text-purple-400/70">{areasExpanded ? '▲' : '▼'}</span>
+                )}
+              </p>
+            )}
+          </button>
+          {areasExpanded && <ClusterDetailList clusters={stats.clusterDetails} />}
         </div>
       </div>
 
