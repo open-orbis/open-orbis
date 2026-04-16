@@ -50,18 +50,15 @@ function freshnessColor(score: number): string {
   return 'text-red-400';
 }
 
-function NodeDetailList({ nodes, max = 8 }: { nodes: NodeDetail[]; max?: number }) {
-  const shown = nodes.slice(0, max);
-  const more = nodes.length - shown.length;
+function NodeDetailList({ nodes }: { nodes: NodeDetail[] }) {
   return (
-    <div className="mt-2 space-y-1 max-h-32 overflow-y-auto">
-      {shown.map((n) => (
+    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+      {nodes.map((n) => (
         <div key={n.uid} className="flex items-center gap-2 text-[11px]">
           <span className="text-white/70 truncate flex-1">{n.name}</span>
           <span className="text-white/30 flex-shrink-0">{n.type}</span>
         </div>
       ))}
-      {more > 0 && <p className="text-[10px] text-white/30">+{more} more</p>}
     </div>
   );
 }
