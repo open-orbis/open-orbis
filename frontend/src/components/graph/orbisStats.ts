@@ -3,19 +3,6 @@ import type { OrbData, OrbNode } from '../../api/orbs';
 const SKILL_LABEL = 'Skill';
 const PERSON_LABEL = 'Person';
 const SKILL_LINK_TYPE = 'USED_SKILL';
-const DOMAIN_TYPE_UNIVERSE = [
-  'Education',
-  'WorkExperience',
-  'Certification',
-  'Language',
-  'Publication',
-  'Project',
-  'Skill',
-  'Patent',
-  'Award',
-  'Outreach',
-  'Training',
-] as const;
 
 const DATE_FIELDS = [
   'start_date', 'end_date', 'date',
@@ -23,67 +10,36 @@ const DATE_FIELDS = [
   'filing_date', 'grant_date',
 ] as const;
 
-const REQUIRED_FIELDS_BY_TYPE: Record<string, string[]> = {
-  Education: ['institution', 'degree', 'start_date'],
-  WorkExperience: ['title', 'company', 'start_date'],
-  Certification: ['name', 'issuing_organization'],
-  Language: ['name', 'proficiency'],
-  Publication: ['title'],
-  Project: ['title', 'description'],
-  Skill: ['name'],
-  Patent: ['title'],
-  Award: ['title'],
-  Outreach: ['title'],
-  Training: ['title'],
-};
+export interface NodeDetail {
+  uid: string;
+  name: string;
+  type: string;
+}
 
 export interface OrbisStatsSummary {
-  visibleNodes: number;
   activeNodes: number;
-  visibleLinks: number;
+  visibleNodes: number;
   activeLinks: number;
-  hiddenNodes: number;
-  mutedNodes: number;
-  typeDiversity: number;
-  avgLinksPerNode: number;
+  visibleLinks: number;
   density: number;
-  connectivityRate: number;
+  avgLinksPerNode: number;
   skillCoverageRate: number;
   skillLinkedNodes: number;
   skillEligibleNodes: number;
   topHubName: string;
   topHubType: string | null;
   topHubDegree: number;
-  signatureSkillName: string;
-  signatureSkillLinks: number;
-  usedSkillEdges: number;
-  focusTopSkillEdges: number;
-  focusScore: number;
-  careerSpanMonths: number;
-  careerSpanYears: number;
-  careerSpanHasData: boolean;
-  careerSpanLabel: string;
-  recencyScore: number;
-  recentActiveNodes: number;
-  hubConcentration: number;
-  domainBalanceScore: number;
-  completenessRate: number;
-  completeNodes: number;
-  largestClusterRate: number;
-  largestClusterNodes: number;
-  shareReadinessScore: number;
+  topHubNeighbors: NodeDetail[];
+  orphanNodes: number;
+  orphanRate: number;
+  orphanNodeDetails: NodeDetail[];
+  freshnessScore: number;
   filtersActive: boolean;
 }
 
 const DISPLAY_FIELDS = [
-  'name',
-  'title',
-  'company',
-  'institution',
-  'organization',
-  'role',
-  'degree',
-  'issuing_organization',
+  'name', 'title', 'company', 'institution', 'organization',
+  'role', 'degree', 'issuing_organization',
 ] as const;
 
 function getPrimaryLabel(node: Pick<OrbNode, '_labels'> | Record<string, unknown>): string {
@@ -106,7 +62,6 @@ function getNodeDisplayName(node: Record<string, unknown>): string {
     const raw = node[field];
     if (typeof raw === 'string' && raw.trim()) return raw.trim();
   }
-
   const label = getPrimaryLabel(node);
   return label || 'Node';
 }
@@ -114,16 +69,6 @@ function getNodeDisplayName(node: Record<string, unknown>): string {
 function clampRatio(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
-}
-
-function hasValue(value: unknown): boolean {
-  if (value == null) return false;
-  if (typeof value === 'string') return value.trim().length > 0;
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (typeof value === 'boolean') return true;
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value as Record<string, unknown>).length > 0;
-  return false;
 }
 
 function normalizeDate(raw: string): string | null {
@@ -161,21 +106,12 @@ function toMonthIndex(ym: string): number {
   return year * 12 + (month - 1);
 }
 
-function formatMonthIndex(monthIndex: number): string {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const year = Math.floor(monthIndex / 12);
-  const month = monthIndex % 12;
-  return `${months[month]} ${year}`;
+function formatTypeLabel(type: string | null): string {
+  if (!type) return 'Node';
+  return type.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
-function isNodeComplete(node: Record<string, unknown>): boolean {
-  const nodeType = getPrimaryLabel(node);
-  const required = REQUIRED_FIELDS_BY_TYPE[nodeType];
-  if (required?.length) {
-    return required.every((key) => hasValue(node[key]));
-  }
-  return DISPLAY_FIELDS.some((field) => hasValue(node[field]));
-}
+export { formatTypeLabel };
 
 export function computeOrbisStatsSummary(
   data: OrbData,
@@ -197,205 +133,134 @@ export function computeOrbisStatsSummary(
     return true;
   });
 
-  const visibleIds = new Set<string>([personId, ...visibleDomainNodes.map((node) => node.uid)]);
+  const visibleDomainIds = new Set(visibleDomainNodes.map((n) => n.uid));
   const activeDomainNodes = visibleDomainNodes.filter((node) => !filteredIds.has(node.uid));
-  const activeIds = new Set<string>([personId, ...activeDomainNodes.map((node) => node.uid)]);
+  const activeDomainIds = new Set(activeDomainNodes.map((n) => n.uid));
+
+  // ── Filter links: exclude Person node edges ──
+  const isPersonEdge = (link: { source: unknown; target: unknown }) => {
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    return s === personId || t === personId;
+  };
 
   const visibleLinks = data.links.filter((link) => {
-    const source = getLinkEndpointId(link.source);
-    const target = getLinkEndpointId(link.target);
-    return source && target && visibleIds.has(source) && visibleIds.has(target);
+    if (isPersonEdge(link)) return false;
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    return s && t && visibleDomainIds.has(s) && visibleDomainIds.has(t);
   });
 
   const activeLinks = visibleLinks.filter((link) => {
-    const source = getLinkEndpointId(link.source);
-    const target = getLinkEndpointId(link.target);
-    return activeIds.has(source) && activeIds.has(target);
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    return activeDomainIds.has(s) && activeDomainIds.has(t);
   });
 
+  // ── Degree counts (Person edges excluded) ──
   const degreeById = new Map<string, number>();
-  for (const id of activeIds) degreeById.set(id, 0);
+  for (const id of activeDomainIds) degreeById.set(id, 0);
   for (const link of activeLinks) {
-    const source = getLinkEndpointId(link.source);
-    const target = getLinkEndpointId(link.target);
-    degreeById.set(source, (degreeById.get(source) ?? 0) + 1);
-    degreeById.set(target, (degreeById.get(target) ?? 0) + 1);
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    degreeById.set(s, (degreeById.get(s) ?? 0) + 1);
+    degreeById.set(t, (degreeById.get(t) ?? 0) + 1);
   }
 
-  const connectedActiveNodes = activeDomainNodes.filter((node) => (degreeById.get(node.uid) ?? 0) > 0).length;
-  const typeDiversity = new Set(activeDomainNodes.map((node) => getPrimaryLabel(node)).filter(Boolean)).size;
-  const avgLinksPerNode = activeDomainNodes.length > 0 ? activeLinks.length / activeDomainNodes.length : 0;
-  const possibleEdges = activeIds.size > 1 ? (activeIds.size * (activeIds.size - 1)) / 2 : 0;
+  // ── Density ──
+  const n = activeDomainIds.size;
+  const avgLinksPerNode = n > 0 ? activeLinks.length / n : 0;
+  const possibleEdges = n > 1 ? (n * (n - 1)) / 2 : 0;
   const density = possibleEdges > 0 ? activeLinks.length / possibleEdges : 0;
 
+  // ── Orphan nodes (0 edges after excluding Person edges) ──
+  const orphanNodes = activeDomainNodes.filter((node) => (degreeById.get(node.uid) ?? 0) === 0).length;
+  const orphanRate = clampRatio(n > 0 ? orphanNodes / n : 0);
+
+  // ── Skill coverage ──
   const skillCoverageCandidates = activeDomainNodes.filter((node) => getPrimaryLabel(node) !== SKILL_LABEL);
   const linkedCandidateIds = new Set<string>();
-  const skillEdgeCountById = new Map<string, number>();
-  let usedSkillEdges = 0;
 
   for (const link of activeLinks) {
     if (link.type !== SKILL_LINK_TYPE) continue;
-    const source = getLinkEndpointId(link.source);
-    const target = getLinkEndpointId(link.target);
-    const sourceType = getPrimaryLabel(nodesById.get(source) ?? {});
-    const targetType = getPrimaryLabel(nodesById.get(target) ?? {});
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    const sType = getPrimaryLabel(nodesById.get(s) ?? {});
+    const tType = getPrimaryLabel(nodesById.get(t) ?? {});
 
-    if (sourceType === SKILL_LABEL && targetType !== SKILL_LABEL && targetType !== PERSON_LABEL) {
-      linkedCandidateIds.add(target);
-      usedSkillEdges += 1;
-      skillEdgeCountById.set(source, (skillEdgeCountById.get(source) ?? 0) + 1);
-    } else if (targetType === SKILL_LABEL && sourceType !== SKILL_LABEL && sourceType !== PERSON_LABEL) {
-      linkedCandidateIds.add(source);
-      usedSkillEdges += 1;
-      skillEdgeCountById.set(target, (skillEdgeCountById.get(target) ?? 0) + 1);
+    if (sType === SKILL_LABEL && tType !== SKILL_LABEL && tType !== PERSON_LABEL) {
+      linkedCandidateIds.add(t);
+    } else if (tType === SKILL_LABEL && sType !== SKILL_LABEL && sType !== PERSON_LABEL) {
+      linkedCandidateIds.add(s);
     }
   }
 
+  // ── Adjacency for neighbor lookups ──
+  const adj = new Map<string, Set<string>>();
+  for (const id of activeDomainIds) adj.set(id, new Set());
+  for (const link of activeLinks) {
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    adj.get(s)?.add(t);
+    adj.get(t)?.add(s);
+  }
+
+  // ── Top Hub ──
   const topHub = [...activeDomainNodes]
     .map((node) => ({ uid: node.uid, degree: degreeById.get(node.uid) ?? 0 }))
-    .filter((entry) => entry.degree > 0)
+    .filter((e) => e.degree > 0)
     .sort((a, b) => b.degree - a.degree || a.uid.localeCompare(b.uid))[0];
 
   const topHubNode = topHub ? nodesById.get(topHub.uid) : null;
-  const topHubName = topHubNode ? getNodeDisplayName(topHubNode) : 'No active links yet';
+  const topHubName = topHubNode ? getNodeDisplayName(topHubNode) : 'No active edges yet';
   const topHubType = topHubNode ? getPrimaryLabel(topHubNode) || null : null;
   const topHubDegree = topHub?.degree ?? 0;
-  const hubConcentration = clampRatio(activeLinks.length > 0 ? topHubDegree / activeLinks.length : 0);
 
-  const signatureSkill = [...skillEdgeCountById.entries()]
-    .map(([uid, links]) => {
-      const skillNode = nodesById.get(uid) ?? {};
-      return { uid, links, name: getNodeDisplayName(skillNode) };
-    })
-    .sort((a, b) => b.links - a.links || a.name.localeCompare(b.name))[0];
+  // 1-hop neighbors of top hub, sorted by their edge count (most connected first)
+  const topHubNeighbors: NodeDetail[] = topHub
+    ? [...(adj.get(topHub.uid) ?? [])]
+        .map((uid) => {
+          const node = nodesById.get(uid) ?? {};
+          return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)), degree: degreeById.get(uid) ?? 0 };
+        })
+        .sort((a, b) => b.degree - a.degree || a.name.localeCompare(b.name))
+    : [];
 
-  const signatureSkillName = signatureSkill?.name ?? 'No linked skill yet';
-  const signatureSkillLinks = signatureSkill?.links ?? 0;
-  const topSkillEntries = [...skillEdgeCountById.values()].sort((a, b) => b - a);
-  const focusTopSkillEdges = topSkillEntries.slice(0, 3).reduce((sum, count) => sum + count, 0);
-  const focusScore = clampRatio(usedSkillEdges > 0 ? focusTopSkillEdges / usedSkillEdges : 0);
+  // ── Orphan node details ──
+  const orphanNodeDetails: NodeDetail[] = activeDomainNodes
+    .filter((node) => (degreeById.get(node.uid) ?? 0) === 0)
+    .map((node) => ({ uid: node.uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) }));
 
-  const allDateMonths: number[] = [];
-  for (const node of activeDomainNodes) {
-    const dates = getNormalizedNodeDates(node);
-    for (const date of dates) allDateMonths.push(toMonthIndex(date));
-  }
-
-  const careerSpanHasData = allDateMonths.length > 0;
-  const minDateMonth = careerSpanHasData ? Math.min(...allDateMonths) : 0;
-  const maxDateMonth = careerSpanHasData ? Math.max(...allDateMonths) : 0;
-  const careerSpanMonths = careerSpanHasData ? Math.max(0, maxDateMonth - minDateMonth) : 0;
-  const careerSpanYears = careerSpanMonths / 12;
-  const careerSpanLabel = careerSpanHasData
-    ? `${formatMonthIndex(minDateMonth)} - ${formatMonthIndex(maxDateMonth)}`
-    : 'No dated nodes';
-
+  // ── Freshness score ──
+  // Score based on % of nodes with a date in the last 24 months.
   const currentMonth = referenceDate.getUTCFullYear() * 12 + referenceDate.getUTCMonth();
-  const recencyCutoffMonth = currentMonth - 23;
-  const recentActiveNodes = activeDomainNodes.filter((node) => {
-    const dates = getNormalizedNodeDates(node);
-    if (dates.length === 0) return false;
-    return dates.some((date) => toMonthIndex(date) >= recencyCutoffMonth);
-  }).length;
-  const recencyScore = clampRatio(activeDomainNodes.length > 0 ? recentActiveNodes / activeDomainNodes.length : 0);
-
-  const domainTypeCounts = new Map<string, number>();
-  for (const node of activeDomainNodes) {
-    const type = getPrimaryLabel(node);
-    if (!type) continue;
-    domainTypeCounts.set(type, (domainTypeCounts.get(type) ?? 0) + 1);
-  }
-  let entropy = 0;
-  for (const count of domainTypeCounts.values()) {
-    const proportion = count / Math.max(1, activeDomainNodes.length);
-    entropy += -proportion * Math.log(proportion);
-  }
-  const maxEntropy = Math.log(DOMAIN_TYPE_UNIVERSE.length);
-  const domainBalanceScore = clampRatio(maxEntropy > 0 ? entropy / maxEntropy : 0);
-
-  const completeNodes = activeDomainNodes.filter((node) => isNodeComplete(node)).length;
-  const completenessRate = clampRatio(activeDomainNodes.length > 0 ? completeNodes / activeDomainNodes.length : 0);
-
-  const adjacency = new Map<string, Set<string>>();
-  for (const id of activeIds) adjacency.set(id, new Set<string>());
-  for (const link of activeLinks) {
-    const source = getLinkEndpointId(link.source);
-    const target = getLinkEndpointId(link.target);
-    adjacency.get(source)?.add(target);
-    adjacency.get(target)?.add(source);
-  }
-
-  let largestClusterNodes = 0;
-  const visited = new Set<string>();
-  for (const id of activeIds) {
-    if (visited.has(id)) continue;
-    const queue = [id];
-    visited.add(id);
-    let domainNodeCount = 0;
-
-    while (queue.length > 0) {
-      const current = queue.shift() as string;
-      if (current !== personId) domainNodeCount += 1;
-      const neighbors = adjacency.get(current);
-      if (!neighbors) continue;
-      for (const neighbor of neighbors) {
-        if (visited.has(neighbor)) continue;
-        visited.add(neighbor);
-        queue.push(neighbor);
-      }
-    }
-
-    if (domainNodeCount > largestClusterNodes) largestClusterNodes = domainNodeCount;
-  }
-  const largestClusterRate = clampRatio(
-    activeDomainNodes.length > 0 ? largestClusterNodes / activeDomainNodes.length : 0,
+  const recencyCutoff = currentMonth - 23;
+  const datedNodes = activeDomainNodes.filter((node) => getNormalizedNodeDates(node).length > 0);
+  const recentNodes = datedNodes.filter((node) =>
+    getNormalizedNodeDates(node).some((d) => toMonthIndex(d) >= recencyCutoff),
   );
-
-  // Share readiness: weighted blend of profile quality signals.
-  const shareReadinessScore = clampRatio(
-    (0.4 * completenessRate) +
-    (0.25 * (skillCoverageCandidates.length > 0 ? linkedCandidateIds.size / skillCoverageCandidates.length : 0)) +
-    (0.2 * (activeDomainNodes.length > 0 ? connectedActiveNodes / activeDomainNodes.length : 0)) +
-    (0.15 * domainBalanceScore),
-  );
+  const freshnessScore = datedNodes.length > 0 ? clampRatio(recentNodes.length / datedNodes.length) : 0;
 
   return {
-    visibleNodes: visibleDomainNodes.length,
     activeNodes: activeDomainNodes.length,
-    visibleLinks: visibleLinks.length,
+    visibleNodes: visibleDomainNodes.length,
     activeLinks: activeLinks.length,
-    hiddenNodes: data.nodes.length - visibleDomainNodes.length,
-    mutedNodes: visibleDomainNodes.length - activeDomainNodes.length,
-    typeDiversity,
-    avgLinksPerNode,
+    visibleLinks: visibleLinks.length,
     density: clampRatio(density),
-    connectivityRate: clampRatio(activeDomainNodes.length > 0 ? connectedActiveNodes / activeDomainNodes.length : 0),
+    avgLinksPerNode,
     skillCoverageRate: clampRatio(
       skillCoverageCandidates.length > 0 ? linkedCandidateIds.size / skillCoverageCandidates.length : 0,
     ),
     skillLinkedNodes: linkedCandidateIds.size,
     skillEligibleNodes: skillCoverageCandidates.length,
-    signatureSkillName,
-    signatureSkillLinks,
-    usedSkillEdges,
-    focusTopSkillEdges,
-    focusScore,
-    careerSpanMonths,
-    careerSpanYears,
-    careerSpanHasData,
-    careerSpanLabel,
-    recencyScore,
-    recentActiveNodes,
-    hubConcentration,
-    domainBalanceScore,
-    completenessRate,
-    completeNodes,
-    largestClusterRate,
-    largestClusterNodes,
-    shareReadinessScore,
     topHubName,
     topHubType,
     topHubDegree,
+    topHubNeighbors,
+    orphanNodes,
+    orphanRate,
+    orphanNodeDetails,
+    freshnessScore,
     filtersActive: filteredIds.size > 0 || hiddenTypes.size > 0,
   };
 }

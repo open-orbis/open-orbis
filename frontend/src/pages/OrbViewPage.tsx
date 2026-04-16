@@ -959,6 +959,7 @@ export default function OrbViewPage() {
           data={data}
           filteredNodeIds={filteredNodeIds}
           hiddenNodeTypes={hiddenNodeTypes}
+          onHighlight={setHighlightedNodeIds}
         />
       )}
 

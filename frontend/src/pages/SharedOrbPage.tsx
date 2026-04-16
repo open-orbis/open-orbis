@@ -8,6 +8,7 @@ import NodeTypeFilter from '../components/graph/NodeTypeFilter';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DateRangeSlider from '../components/graph/DateRangeSlider';
+import OrbisStatsOverlay from '../components/graph/OrbisStatsOverlay';
 import { useDateFilterStore, computeDateFilteredNodeIds, getNodeDates } from '../stores/dateFilterStore';
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
@@ -324,6 +325,13 @@ export default function SharedOrbPage() {
         height={dimensions.height}
         focusNodeId={focusRequest?.nodeUid || null}
         focusNodeToken={focusRequest?.seq ?? 0}
+      />
+
+      <OrbisStatsOverlay
+        data={data}
+        filteredNodeIds={dateFilteredNodeIds}
+        hiddenNodeTypes={hiddenNodeTypes}
+        onHighlight={setHighlightedNodeIds}
       />
 
       {/* ── Chat Box (no Add / Share buttons) ── */}

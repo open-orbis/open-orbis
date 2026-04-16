@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { OrbData } from '../../api/orbs';
-import { computeOrbisStatsSummary } from './orbisStats';
+import { submitIdea } from '../../api/orbs';
+import { computeOrbisStatsSummary, formatTypeLabel } from './orbisStats';
 
 interface OrbisStatsOverlayProps {
   data: OrbData;
   filteredNodeIds?: Set<string>;
   hiddenNodeTypes?: Set<string>;
+  onHighlight?: (nodeIds: Set<string>) => void;
 }
 
 interface OrbisPulsePanelProps {
   stats: ReturnType<typeof computeOrbisStatsSummary>;
+  onHighlight?: (nodeIds: Set<string>) => void;
 }
 
 const COMPACT_BREAKPOINT_PX = 1280;
@@ -25,7 +29,7 @@ function MetricInfo({ description, label }: { description: string; label: string
         >
           i
         </button>
-        <div className="pointer-events-none absolute right-0 top-6 z-10 w-56 rounded-lg border border-white/15 bg-black/90 px-2 py-1.5 text-[10px] leading-snug text-white/80 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="pointer-events-none absolute right-0 top-6 z-50 w-56 rounded-lg border border-white/15 bg-black/90 px-2 py-1.5 text-[10px] leading-snug text-white/80 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
           {description}
         </div>
       </div>
@@ -37,24 +41,41 @@ function formatPercent(value: number, digits = 0): string {
   return `${(value * 100).toFixed(digits)}%`;
 }
 
-function formatTypeLabel(type: string | null): string {
-  if (!type) return 'Node';
-  return type.replace(/([a-z])([A-Z])/g, '$1 $2');
-}
-
 function metricHint(active: number, total: number): string {
   if (active === total) return 'All visible';
   return `${active} of ${total}`;
 }
 
-function shareReadinessLabel(score: number): string {
-  if (score >= 0.8) return 'Excellent';
-  if (score >= 0.65) return 'Strong';
-  if (score >= 0.5) return 'Improving';
-  return 'Needs work';
+function freshnessColor(score: number): string {
+  if (score >= 0.7) return 'text-emerald-400';
+  if (score >= 0.4) return 'text-amber-400';
+  return 'text-red-400';
 }
 
-function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
+function NodeDetailList({ nodes }: { nodes: NodeDetail[] }) {
+  return (
+    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+      {nodes.map((n) => (
+        <div key={n.uid} className="flex items-center gap-2 text-[11px]">
+          <span className="text-white/70 truncate flex-1">{n.name}</span>
+          <span className="text-white/30 flex-shrink-0">{n.type}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const METRIC_CARD = 'rounded-lg border border-white/8 bg-white/[0.03] p-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
+const METRIC_CARD_LG = 'rounded-lg border border-white/8 bg-white/[0.03] p-2.5 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
+
+
+function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
+  const [orphansExpanded, setOrphansExpanded] = useState(false);
+  const [hubExpanded, setHubExpanded] = useState(false);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestText, setSuggestText] = useState('');
+  const [suggestSending, setSuggestSending] = useState(false);
+  const [suggestSent, setSuggestSent] = useState(false);
   return (
     <div className="w-[min(336px,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-[0_20px_60px_rgba(0,0,0,0.45)] p-3.5">
       <div className="flex items-start justify-between gap-2">
@@ -66,33 +87,99 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">
+      {/* Top Hub — prominent at the top, clickable to show neighbors, hover highlights */}
+      <div
+        className={`mt-3 ${METRIC_CARD_LG}`}
+        onMouseEnter={() => stats.topHubNeighbors.length > 0 && onHighlight?.(new Set(stats.topHubNeighbors.map((n) => n.uid)))}
+        onMouseLeave={() => !hubExpanded && onHighlight?.(new Set())}
+      >
+        <button
+          type="button"
+          onClick={() => {
+            if (stats.topHubDegree === 0) return;
+            setHubExpanded((v) => {
+              const next = !v;
+              if (next) onHighlight?.(new Set(stats.topHubNeighbors.map((n) => n.uid)));
+              else onHighlight?.(new Set());
+              return next;
+            });
+          }}
+          className={`w-full text-left ${stats.topHubDegree > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
+          <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
+          <p className="mt-1 text-[10px] text-white/45">
+            {formatTypeLabel(stats.topHubType)} {stats.topHubDegree > 0 && `\u00b7 ${stats.topHubNeighbors.length} neighbors`}
+            {stats.topHubDegree > 0 && (
+              <span className="ml-1 text-purple-400/70">{hubExpanded ? '▲' : '▼'}</span>
+            )}
+          </p>
+        </button>
+        {hubExpanded && <NodeDetailList nodes={stats.topHubNeighbors} />}
+      </div>
+
+      {/* Orphan Nodes — full width below top hub, highlights on hover */}
+      <div
+        className={`relative mt-2 ${METRIC_CARD_LG}`}
+        onMouseEnter={() => stats.orphanNodes > 0 && onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)))}
+        onMouseLeave={() => !orphansExpanded && onHighlight?.(new Set())}
+      >
+        <MetricInfo
+          label="Orphan Nodes"
+          description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (stats.orphanNodes === 0) return;
+            setOrphansExpanded((v) => {
+              const next = !v;
+              if (next) onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)));
+              else onHighlight?.(new Set());
+              return next;
+            });
+          }}
+          className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.orphanNodes}</p>
+          <p className="mt-1 text-[10px] text-white/45">
+            {formatPercent(stats.orphanRate)} of active
+            {stats.orphanNodes > 0 && (
+              <span className="ml-1 text-purple-400/70">{orphansExpanded ? '▲' : '▼'}</span>
+            )}
+          </p>
+        </button>
+        {orphansExpanded && <NodeDetailList nodes={stats.orphanNodeDetails} />}
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className={METRIC_CARD}>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Active Nodes</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.activeNodes}</p>
           <p className="mt-1 text-[10px] text-white/45">{stats.visibleNodes} visible</p>
         </div>
 
-        <div className="rounded-lg border border-white/8 bg-white/[0.03] p-2">
+        <div className={METRIC_CARD}>
           <p className="text-[10px] uppercase tracking-wide text-white/40">Active Edges</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.activeLinks}</p>
           <p className="mt-1 text-[10px] text-white/45">{stats.visibleLinks} visible</p>
         </div>
 
-        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
-            label="Density"
-            description="Active links divided by the maximum possible links among active nodes in the current view."
+            label="Avg Edges/Node"
+            description="Average number of edges per node. Higher means your nodes are well connected to each other."
           />
-          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Density</p>
-          <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.density, 1)}</p>
-          <p className="mt-1 text-[10px] text-white/45">{stats.avgLinksPerNode.toFixed(1)} links/node</p>
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Avg Edges/Node</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.avgLinksPerNode.toFixed(1)}</p>
+          <p className="mt-1 text-[10px] text-white/45">{stats.activeLinks} total edges</p>
         </div>
 
-        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+        <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
             label="Skill Coverage"
-            description="Share of active non-skill nodes connected to at least one skill through a USED_SKILL link."
+            description="Percentage of non-skill nodes linked to at least one skill."
           />
           <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Skill Coverage</p>
           <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.skillCoverageRate)}</p>
@@ -100,25 +187,95 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
             {stats.skillLinkedNodes}/{stats.skillEligibleNodes} linked
           </p>
         </div>
+
+        <div className={`relative ${METRIC_CARD_LG}`}>
+          <MetricInfo
+            label="Freshness"
+            description="Percentage of dated nodes with at least one date in the last 24 months. Higher means your orbis reflects recent activity."
+          />
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Freshness</p>
+          <p className={`mt-1 text-lg leading-none font-semibold ${freshnessColor(stats.freshnessScore)}`}>{formatPercent(stats.freshnessScore)}</p>
+          <p className="mt-1 text-[10px] text-white/45">recent entries</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => !suggestSent && setShowSuggest(true)}
+          className={`${METRIC_CARD_LG} flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center ${suggestSent ? 'border-emerald-500/30 bg-emerald-500/10' : ''}`}
+        >
+          {suggestSent ? (
+            <>
+              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <p className="text-[10px] text-emerald-300 font-bold leading-tight">Thanks!</p>
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <p className="text-[10px] text-purple-300 font-medium leading-tight">Suggest a metric</p>
+            </>
+          )}
+        </button>
       </div>
 
-      <div className="mt-2.5 rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
-        <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
-        <p className="mt-1 text-sm leading-tight text-white/90 truncate">{stats.topHubName}</p>
-        <p className="mt-1 text-[10px] text-white/45">
-          {formatTypeLabel(stats.topHubType)} • {stats.topHubDegree} active links
-        </p>
-      </div>
-
-      <div className="relative mt-2.5 rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
-        <MetricInfo
-          label="Share Readiness"
-          description="Weighted score: 40% completeness, 25% skill coverage, 20% connectivity, 15% domain balance."
-        />
-        <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Share Readiness</p>
-        <p className="mt-1 text-lg leading-none font-semibold text-white">{formatPercent(stats.shareReadinessScore)}</p>
-        <p className="mt-1 text-[10px] text-white/45">{shareReadinessLabel(stats.shareReadinessScore)}</p>
-      </div>
+      {showSuggest && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowSuggest(false)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowSuggest(false)}
+              className="absolute right-3 top-3 h-8 w-8 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors flex items-center justify-center"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-white text-base font-semibold mb-1">Suggest a Metric</h3>
+            <p className="text-gray-400 text-sm mb-4">What metric would you find useful in Orbis Pulse?</p>
+            <textarea
+              autoFocus
+              value={suggestText}
+              onChange={(e) => setSuggestText(e.target.value)}
+              placeholder="Describe the metric you'd like to see..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-500 resize-none h-28 focus:outline-none focus:border-purple-500/50"
+            />
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowSuggest(false)}
+                className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!suggestText.trim() || suggestSending}
+                onClick={async () => {
+                  setSuggestSending(true);
+                  try {
+                    await submitIdea(`[Metric Suggestion] ${suggestText.trim()}`, 'idea');
+                    setSuggestSent(true);
+                    setTimeout(() => setSuggestSent(false), 4000);
+                  } catch { /* best effort */ }
+                  finally {
+                    setSuggestSending(false);
+                    setSuggestText('');
+                    setShowSuggest(false);
+                  }
+                }}
+                className="h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+              >
+                {suggestSending ? 'Sending...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
     </div>
   );
@@ -128,6 +285,7 @@ export default function OrbisStatsOverlay({
   data,
   filteredNodeIds = new Set(),
   hiddenNodeTypes = new Set(),
+  onHighlight,
 }: OrbisStatsOverlayProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isCompact, setIsCompact] = useState<boolean>(() => {
@@ -181,7 +339,7 @@ export default function OrbisStatsOverlay({
     <div
       ref={containerRef}
       data-tour="orbis-pulse"
-      className="pointer-events-none fixed right-4 bottom-32 z-20 sm:right-6 sm:bottom-8"
+      className="pointer-events-none fixed right-4 bottom-32 z-[45] sm:right-6 sm:bottom-8"
     >
       {dismissed ? (
         /* Collapsed pill — click to re-open */
@@ -209,7 +367,7 @@ export default function OrbisStatsOverlay({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <OrbisPulsePanel stats={stats} />
+              <OrbisPulsePanel stats={stats} onHighlight={onHighlight} />
             </div>
           )}
           <button
@@ -242,7 +400,7 @@ export default function OrbisStatsOverlay({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-          <OrbisPulsePanel stats={stats} />
+          <OrbisPulsePanel stats={stats} onHighlight={onHighlight} />
         </div>
       )}
     </div>
