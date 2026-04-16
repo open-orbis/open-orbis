@@ -216,14 +216,14 @@ export function computeOrbisStatsSummary(
   const topHubType = topHubNode ? getPrimaryLabel(topHubNode) || null : null;
   const topHubDegree = topHub?.degree ?? 0;
 
-  // 1-hop neighbors of top hub
+  // 1-hop neighbors of top hub, sorted by their edge count (most connected first)
   const topHubNeighbors: NodeDetail[] = topHub
     ? [...(adj.get(topHub.uid) ?? [])]
         .map((uid) => {
           const node = nodesById.get(uid) ?? {};
-          return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) };
+          return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)), degree: degreeById.get(uid) ?? 0 };
         })
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => b.degree - a.degree || a.name.localeCompare(b.name))
     : [];
 
   // ── Orphan node details ──
