@@ -39,10 +39,8 @@ export interface OrbisStatsSummary {
   orphanRate: number;
   orphanNodeDetails: NodeDetail[];
   freshnessScore: number;
-  skillClusters: number;
+  backgroundAreas: number;
   clusterDetails: ClusterDetail[];
-  bridgeNodes: number;
-  bridgeNodeDetails: NodeDetail[];
   filtersActive: boolean;
 }
 
@@ -230,100 +228,87 @@ export function computeOrbisStatsSummary(
   );
   const freshnessScore = datedNodes.length > 0 ? clampRatio(recentNodes.length / datedNodes.length) : 0;
 
-  // ── Skill clusters & bridge nodes ──
-  // Build adjacency among domain nodes only (Person excluded)
-  const adj = new Map<string, Set<string>>();
-  for (const id of activeDomainIds) adj.set(id, new Set());
+  // ── Background Areas ──
+  // Group non-skill nodes around the skill they're most connected to via USED_SKILL.
+  // Each top skill with linked domain nodes defines a "background area".
+  const skillToMembers = new Map<string, Set<string>>();
   for (const link of activeLinks) {
+    if (link.type !== SKILL_LINK_TYPE) continue;
     const s = getLinkEndpointId(link.source);
     const t = getLinkEndpointId(link.target);
-    adj.get(s)?.add(t);
-    adj.get(t)?.add(s);
+    const sType = getPrimaryLabel(nodesById.get(s) ?? {});
+    const tType = getPrimaryLabel(nodesById.get(t) ?? {});
+
+    let skillUid: string | null = null;
+    let domainUid: string | null = null;
+    if (sType === SKILL_LABEL && tType !== SKILL_LABEL && tType !== PERSON_LABEL) {
+      skillUid = s; domainUid = t;
+    } else if (tType === SKILL_LABEL && sType !== SKILL_LABEL && sType !== PERSON_LABEL) {
+      skillUid = t; domainUid = s;
+    }
+    if (skillUid && domainUid) {
+      if (!skillToMembers.has(skillUid)) skillToMembers.set(skillUid, new Set());
+      skillToMembers.get(skillUid)!.add(domainUid);
+    }
   }
 
-  // Find connected components (BFS) and collect node details per cluster
-  const componentOf = new Map<string, number>();
-  let componentCount = 0;
-  const componentNodeIds: string[][] = [];
-  for (const id of activeDomainIds) {
-    if (componentOf.has(id)) continue;
-    const cid = componentCount++;
-    const queue = [id];
-    componentOf.set(id, cid);
-    const members: string[] = [];
-    while (queue.length > 0) {
-      const cur = queue.shift() as string;
-      members.push(cur);
-      for (const nb of adj.get(cur) ?? []) {
-        if (componentOf.has(nb)) continue;
-        componentOf.set(nb, cid);
-        queue.push(nb);
-      }
+  // Assign each domain node to the skill with the most connections to it.
+  // Track how many USED_SKILL links each node has to each skill.
+  const nodeToSkillLinks = new Map<string, Map<string, number>>();
+  for (const link of activeLinks) {
+    if (link.type !== SKILL_LINK_TYPE) continue;
+    const s = getLinkEndpointId(link.source);
+    const t = getLinkEndpointId(link.target);
+    const sType = getPrimaryLabel(nodesById.get(s) ?? {});
+    const tType = getPrimaryLabel(nodesById.get(t) ?? {});
+
+    let skillUid: string | null = null;
+    let domainUid: string | null = null;
+    if (sType === SKILL_LABEL && tType !== SKILL_LABEL && tType !== PERSON_LABEL) {
+      skillUid = s; domainUid = t;
+    } else if (tType === SKILL_LABEL && sType !== SKILL_LABEL && sType !== PERSON_LABEL) {
+      skillUid = t; domainUid = s;
     }
-    componentNodeIds.push(members);
+    if (skillUid && domainUid) {
+      if (!nodeToSkillLinks.has(domainUid)) nodeToSkillLinks.set(domainUid, new Map());
+      const m = nodeToSkillLinks.get(domainUid)!;
+      m.set(skillUid, (m.get(skillUid) ?? 0) + 1);
+    }
   }
-  // Clusters = components with at least 2 nodes, each identified by its most connected node (hub)
-  const clusterDetails: ClusterDetail[] = componentNodeIds
-    .filter((m) => m.length >= 2)
-    .sort((a, b) => b.length - a.length)
-    .map((members) => {
-      // Find the hub: the member with the highest degree in this cluster
-      let hubUid = members[0];
-      let hubDeg = degreeById.get(hubUid) ?? 0;
-      for (const uid of members) {
-        const d = degreeById.get(uid) ?? 0;
-        if (d > hubDeg) { hubUid = uid; hubDeg = d; }
-      }
-      const hubNode = nodesById.get(hubUid) ?? {};
-      const hub: NodeDetail = { uid: hubUid, name: getNodeDisplayName(hubNode), type: formatTypeLabel(getPrimaryLabel(hubNode)) };
+
+  // Each domain node belongs to the skill cluster where it has the most links
+  const clusterMembers = new Map<string, string[]>(); // skillUid -> domainUid[]
+  for (const [domainUid, skillMap] of nodeToSkillLinks) {
+    let bestSkill = '';
+    let bestCount = 0;
+    for (const [skillUid, count] of skillMap) {
+      if (count > bestCount) { bestSkill = skillUid; bestCount = count; }
+    }
+    if (bestSkill) {
+      if (!clusterMembers.has(bestSkill)) clusterMembers.set(bestSkill, []);
+      clusterMembers.get(bestSkill)!.push(domainUid);
+    }
+  }
+
+  // Build cluster details: only clusters with at least 1 member, sorted by size
+  const clusterDetails: ClusterDetail[] = [...clusterMembers.entries()]
+    .filter(([, members]) => members.length >= 1)
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([skillUid, members]) => {
+      const skillNode = nodesById.get(skillUid) ?? {};
+      const hub: NodeDetail = { uid: skillUid, name: getNodeDisplayName(skillNode), type: formatTypeLabel(getPrimaryLabel(skillNode)) };
       const nodes = members.map((uid) => {
         const node = nodesById.get(uid) ?? {};
         return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) };
       });
       return { hub, size: members.length, nodes };
     });
-  const skillClusters = clusterDetails.length;
 
-  // Bridge nodes: articulation points whose removal increases component count.
-  const apSet = new Set<string>();
-  if (activeDomainIds.size > 0) {
-    const ids = [...activeDomainIds];
-    const disc = new Map<string, number>();
-    const low = new Map<string, number>();
-    const parentMap = new Map<string, string | null>();
-    let timer = 0;
-
-    const dfs = (u: string) => {
-      disc.set(u, timer);
-      low.set(u, timer);
-      timer++;
-      let children = 0;
-      for (const v of adj.get(u) ?? []) {
-        if (!disc.has(v)) {
-          children++;
-          parentMap.set(v, u);
-          dfs(v);
-          low.set(u, Math.min(low.get(u)!, low.get(v)!));
-          if (parentMap.get(u) === null && children > 1) apSet.add(u);
-          if (parentMap.get(u) !== null && low.get(v)! >= disc.get(u)!) apSet.add(u);
-        } else if (v !== parentMap.get(u)) {
-          low.set(u, Math.min(low.get(u)!, disc.get(v)!));
-        }
-      }
-    };
-
-    for (const id of ids) {
-      if (!disc.has(id)) {
-        parentMap.set(id, null);
-        dfs(id);
-      }
-    }
-  }
-  const bridgeNodes = apSet.size;
-  const bridgeNodeDetails: NodeDetail[] = [...apSet].map((uid) => {
-    const node = nodesById.get(uid) ?? {};
-    return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) };
-  });
+  // Only show top clusters (skip very small ones with just 1 node unless there are few clusters)
+  const meaningfulClusters = clusterDetails.length <= 5
+    ? clusterDetails
+    : clusterDetails.filter((c) => c.size >= 2);
+  const backgroundAreas = meaningfulClusters.length;
 
   return {
     activeNodes: activeDomainNodes.length,
@@ -344,10 +329,8 @@ export function computeOrbisStatsSummary(
     orphanRate,
     orphanNodeDetails,
     freshnessScore,
-    skillClusters,
-    clusterDetails,
-    bridgeNodes,
-    bridgeNodeDetails,
+    backgroundAreas,
+    clusterDetails: meaningfulClusters,
     filtersActive: filteredIds.size > 0 || hiddenTypes.size > 0,
   };
 }

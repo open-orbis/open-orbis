@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { OrbData } from '../../api/orbs';
 import { computeOrbisStatsSummary, formatTypeLabel } from './orbisStats';
-import type { NodeDetail, ClusterDetail } from './orbisStats';
+import type { ClusterDetail } from './orbisStats';
 
 interface OrbisStatsOverlayProps {
   data: OrbData;
@@ -210,27 +210,17 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
         <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
           <MetricInfo
             label="Background Areas"
-            description="Clusters of interconnected nodes, each identified by its most connected hub. They summarize the key areas of expertise."
+            description="Key areas of your background, each identified by the skill most connected to your experiences, certifications, and projects."
           />
           <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Background Areas</p>
-          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.skillClusters}</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.backgroundAreas}</p>
           {stats.clusterDetails.length > 0 && (
             <p className="mt-1 text-[10px] text-white/55 truncate">
               {stats.clusterDetails.map((c) => c.hub.name).join(', ')}
             </p>
           )}
-          {stats.skillClusters > 0 && <ClusterDetailList clusters={stats.clusterDetails} />}
+          {stats.backgroundAreas > 0 && <ClusterDetailList clusters={stats.clusterDetails} />}
         </div>
-
-        <ExpandableMetric
-          label="Bridge Nodes"
-          description="Nodes that connect otherwise separate parts of your graph. They tie your career story together."
-          value={stats.bridgeNodes}
-          hint="key connectors"
-          count={stats.bridgeNodes}
-        >
-          <NodeDetailList nodes={stats.bridgeNodeDetails} />
-        </ExpandableMetric>
       </div>
 
     </div>
