@@ -66,20 +66,31 @@ function NodeDetailList({ nodes, max = 8 }: { nodes: NodeDetail[]; max?: number 
 }
 
 function ClusterDetailList({ clusters }: { clusters: ClusterDetail[] }) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   return (
-    <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+    <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
       {clusters.map((cluster, i) => (
-        <div key={i}>
-          <p className="text-[10px] text-white/50 font-medium">Cluster {i + 1} — {cluster.nodes.length} nodes</p>
-          <div className="mt-0.5 space-y-0.5">
-            {cluster.nodes.slice(0, 5).map((n) => (
-              <div key={n.uid} className="flex items-center gap-2 text-[11px] pl-2">
-                <span className="text-white/70 truncate flex-1">{n.name}</span>
-                <span className="text-white/30 flex-shrink-0">{n.type}</span>
-              </div>
-            ))}
-            {cluster.nodes.length > 5 && <p className="text-[10px] text-white/30 pl-2">+{cluster.nodes.length - 5} more</p>}
-          </div>
+        <div key={i} className="rounded-md border border-white/6 bg-white/[0.02] px-2.5 py-1.5">
+          <button
+            type="button"
+            onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
+            className="w-full flex items-center gap-2 text-left cursor-pointer"
+          >
+            <span className="text-[11px] text-white/80 font-medium truncate flex-1">{cluster.hub.name}</span>
+            <span className="text-[10px] text-white/30 flex-shrink-0">{cluster.size} nodes</span>
+            <span className="text-[10px] text-purple-400/70">{expandedIdx === i ? '▲' : '▼'}</span>
+          </button>
+          {expandedIdx === i && (
+            <div className="mt-1.5 space-y-0.5 border-t border-white/5 pt-1.5">
+              {cluster.nodes.slice(0, 8).map((n) => (
+                <div key={n.uid} className="flex items-center gap-2 text-[10px] pl-1">
+                  <span className="text-white/60 truncate flex-1">{n.name}</span>
+                  <span className="text-white/25 flex-shrink-0">{n.type}</span>
+                </div>
+              ))}
+              {cluster.nodes.length > 8 && <p className="text-[10px] text-white/25 pl-1">+{cluster.nodes.length - 8} more</p>}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -196,15 +207,20 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
           <NodeDetailList nodes={stats.orphanNodeDetails} />
         </ExpandableMetric>
 
-        <ExpandableMetric
-          label="Skill Clusters"
-          description="Groups of interconnected nodes. More clusters indicate diverse, distinct areas of expertise."
-          value={stats.skillClusters}
-          hint="connected groups"
-          count={stats.skillClusters}
-        >
-          <ClusterDetailList clusters={stats.clusterDetails} />
-        </ExpandableMetric>
+        <div className="relative rounded-lg border border-white/8 bg-white/[0.03] p-2.5">
+          <MetricInfo
+            label="Background Areas"
+            description="Clusters of interconnected nodes, each identified by its most connected hub. They summarize the key areas of expertise."
+          />
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Background Areas</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.skillClusters}</p>
+          {stats.clusterDetails.length > 0 && (
+            <p className="mt-1 text-[10px] text-white/55 truncate">
+              {stats.clusterDetails.map((c) => c.hub.name).join(', ')}
+            </p>
+          )}
+          {stats.skillClusters > 0 && <ClusterDetailList clusters={stats.clusterDetails} />}
+        </div>
 
         <ExpandableMetric
           label="Bridge Nodes"

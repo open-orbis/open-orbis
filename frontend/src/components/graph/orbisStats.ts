@@ -17,6 +17,8 @@ export interface NodeDetail {
 }
 
 export interface ClusterDetail {
+  hub: NodeDetail;
+  size: number;
   nodes: NodeDetail[];
 }
 
@@ -260,16 +262,26 @@ export function computeOrbisStatsSummary(
     }
     componentNodeIds.push(members);
   }
-  // Skill clusters = components with at least 2 nodes (meaningful clusters)
+  // Clusters = components with at least 2 nodes, each identified by its most connected node (hub)
   const clusterDetails: ClusterDetail[] = componentNodeIds
     .filter((m) => m.length >= 2)
     .sort((a, b) => b.length - a.length)
-    .map((members) => ({
-      nodes: members.map((uid) => {
+    .map((members) => {
+      // Find the hub: the member with the highest degree in this cluster
+      let hubUid = members[0];
+      let hubDeg = degreeById.get(hubUid) ?? 0;
+      for (const uid of members) {
+        const d = degreeById.get(uid) ?? 0;
+        if (d > hubDeg) { hubUid = uid; hubDeg = d; }
+      }
+      const hubNode = nodesById.get(hubUid) ?? {};
+      const hub: NodeDetail = { uid: hubUid, name: getNodeDisplayName(hubNode), type: formatTypeLabel(getPrimaryLabel(hubNode)) };
+      const nodes = members.map((uid) => {
         const node = nodesById.get(uid) ?? {};
         return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) };
-      }),
-    }));
+      });
+      return { hub, size: members.length, nodes };
+    });
   const skillClusters = clusterDetails.length;
 
   // Bridge nodes: articulation points whose removal increases component count.
