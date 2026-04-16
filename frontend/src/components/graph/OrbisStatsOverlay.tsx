@@ -180,7 +180,7 @@ export default function OrbisStatsOverlay({
     <div
       ref={containerRef}
       data-tour="orbis-pulse"
-      className="pointer-events-none fixed right-4 bottom-24 z-20 sm:right-6 sm:bottom-8"
+      className="pointer-events-none fixed right-4 bottom-32 z-20 sm:right-6 sm:bottom-8"
     >
       {isCompact ? (
         <div className="flex flex-col items-end gap-2">

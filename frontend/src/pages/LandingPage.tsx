@@ -58,37 +58,46 @@ function FeatureRow({ side, color, colorName, icon, title, description }: {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-40px' });
 
-  const iconEl = (
+  const iconBlock = (
     <div className="flex items-center justify-center">
       <div
-        className="w-20 h-20 sm:w-36 sm:h-36 rounded-2xl sm:rounded-3xl flex items-center justify-center relative"
+        className="w-24 h-24 sm:w-36 sm:h-36 rounded-2xl sm:rounded-3xl flex items-center justify-center relative"
         style={{ background: `linear-gradient(135deg, ${color}20, ${color}08)`, border: `1px solid ${color}25` }}
       >
         <div className="absolute inset-0 rounded-3xl blur-[40px] opacity-30" style={{ backgroundColor: color }} />
-        <svg className={`w-8 h-8 sm:w-16 sm:h-16 text-${colorName}-400 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className={`w-10 h-10 sm:w-16 sm:h-16 text-${colorName}-400 relative z-10`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {icon}
         </svg>
       </div>
     </div>
   );
 
-  const textEl = (
+  const textBlock = (
     <div className={`flex flex-col justify-center text-center sm:text-left ${side === 'left' ? 'sm:pl-8' : 'sm:pr-8 sm:text-right'}`}>
       <h3 className="text-white text-xl sm:text-2xl font-bold mb-3">{title}</h3>
       <p className="text-white/40 text-sm sm:text-base leading-relaxed max-w-md mx-auto sm:mx-0">{description}</p>
     </div>
   );
 
-  // Single container: column on mobile, 2-col grid on desktop
+  // Mobile: icon + title + description grouped as one unit
+  // Desktop: 2-col grid with alternating icon/text sides
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.7, ease: 'easeOut' }}
-      className={`flex flex-col items-center gap-4 sm:grid sm:grid-cols-2 sm:gap-16 sm:items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}
     >
-      {side === 'left' ? <>{iconEl}{textEl}</> : <>{textEl}{iconEl}</>}
+      {/* Mobile layout */}
+      <div className="flex flex-col items-center gap-2 sm:hidden">
+        {iconBlock}
+        <h3 className="text-white text-xl font-bold">{title}</h3>
+        <p className="text-white/40 text-sm leading-relaxed max-w-md text-center">{description}</p>
+      </div>
+      {/* Desktop layout */}
+      <div className={`hidden sm:grid sm:grid-cols-2 sm:gap-16 sm:items-center ${side === 'right' ? 'sm:direction-rtl' : ''}`}>
+        {side === 'left' ? <>{iconBlock}{textBlock}</> : <>{textBlock}{iconBlock}</>}
+      </div>
     </motion.div>
   );
 }
@@ -381,7 +390,7 @@ export default function LandingPage() {
             </h2>
           </FadeIn>
 
-          <div className="space-y-16 sm:space-y-32">
+          <div className="space-y-10 sm:space-y-32">
             {/* 1 — Left */}
             <FeatureRow side="left" color="#f59e0b" colorName="amber"
               icon={<><circle cx="12" cy="12" r="2.5" strokeWidth={1.5} /><circle cx="4" cy="6" r="1.5" strokeWidth={1.5} /><circle cx="20" cy="6" r="1.5" strokeWidth={1.5} /><circle cx="4" cy="18" r="1.5" strokeWidth={1.5} /><circle cx="20" cy="18" r="1.5" strokeWidth={1.5} /><circle cx="12" cy="2.5" r="1.5" strokeWidth={1.5} /><line x1="10" y1="10.5" x2="5.2" y2="7" strokeWidth={1.5} strokeLinecap="round" /><line x1="14" y1="10.5" x2="18.8" y2="7" strokeWidth={1.5} strokeLinecap="round" /><line x1="10" y1="13.5" x2="5.2" y2="17" strokeWidth={1.5} strokeLinecap="round" /><line x1="14" y1="13.5" x2="18.8" y2="17" strokeWidth={1.5} strokeLinecap="round" /><line x1="12" y1="9.5" x2="12" y2="4" strokeWidth={1.5} strokeLinecap="round" /></>}

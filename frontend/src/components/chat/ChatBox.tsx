@@ -259,7 +259,7 @@ export default function ChatBox({
     <div
       data-tour="chatbox"
       ref={containerRef}
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full max-w-[90vw] sm:max-w-xl px-2 sm:px-4 pb-6 sm:pb-10"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full px-3 sm:px-4 sm:max-w-xl pb-4 sm:pb-10"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -413,8 +413,8 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* Feedback button above chatbox */}
-      <div className="flex justify-center mb-1.5">
+      {/* Feedback button above chatbox — hidden on mobile to avoid overlap with Orbis Pulse */}
+      <div className="hidden sm:flex justify-center mb-1.5">
         <button
           type="button"
           onClick={() => { if (!feedbackSent) setShowFeedback(true); }}
@@ -429,12 +429,12 @@ export default function ChatBox({
       </div>
 
       {/* Bottom bar — discover + recenter + chat input + action buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {onDiscover && (
           <button
             type="button"
             onClick={onDiscover}
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
+            className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
             title="Discover uses"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,7 +446,7 @@ export default function ChatBox({
           <button
             type="button"
             onClick={onRecenter}
-            className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
+            className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
             title="Recenter graph"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -457,7 +457,7 @@ export default function ChatBox({
         {/* Chat input */}
         <form onSubmit={handleSubmit} className="flex-1">
           <div
-            className="flex items-center gap-2 sm:gap-3 rounded-full px-3 sm:px-5 py-2.5 sm:py-3 backdrop-blur-md shadow-lg"
+            className="flex items-center gap-2 sm:gap-3 rounded-full px-2.5 sm:px-5 py-2 sm:py-3 backdrop-blur-md shadow-lg"
             style={{
               backgroundColor: 'rgba(255,255,255,0.12)',
               border: '1px solid rgba(255,255,255,0.15)',
@@ -497,7 +497,7 @@ export default function ChatBox({
               <button
                 data-tour="visibility"
                 onClick={onShare}
-                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border text-white/90 hover:text-white transition-all shadow-lg ${shareButtonClass}`}
+                className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border text-white/90 hover:text-white transition-all shadow-lg ${shareButtonClass}`}
                 title="Share"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -509,7 +509,7 @@ export default function ChatBox({
               <button
                 data-tour="add-entry"
                 onClick={onAdd}
-                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40 ${highlightAdd ? 'animate-pulse ring-2 ring-purple-400 ring-offset-2 ring-offset-black' : ''}`}
+                className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40 ${highlightAdd ? 'animate-pulse ring-2 ring-purple-400 ring-offset-2 ring-offset-black' : ''}`}
                 title="Add Entry"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -520,7 +520,7 @@ export default function ChatBox({
           </div>
         )}
       </div>
-      <p className="mt-2 text-center text-[11px] text-white/35">
+      <p className="mt-2 text-center text-[11px] text-white/35 hidden sm:block">
         {interactionHint}
       </p>
 
