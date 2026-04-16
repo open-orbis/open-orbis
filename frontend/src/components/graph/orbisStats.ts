@@ -16,12 +16,6 @@ export interface NodeDetail {
   type: string;
 }
 
-export interface ClusterDetail {
-  hub: NodeDetail;
-  size: number;
-  nodes: NodeDetail[];
-}
-
 export interface OrbisStatsSummary {
   activeNodes: number;
   visibleNodes: number;
@@ -39,8 +33,6 @@ export interface OrbisStatsSummary {
   orphanRate: number;
   orphanNodeDetails: NodeDetail[];
   freshnessScore: number;
-  backgroundAreas: number;
-  clusterDetails: ClusterDetail[];
   filtersActive: boolean;
 }
 
@@ -228,46 +220,6 @@ export function computeOrbisStatsSummary(
   );
   const freshnessScore = datedNodes.length > 0 ? clampRatio(recentNodes.length / datedNodes.length) : 0;
 
-  // ── Background Areas ──
-  // Each skill defines a background area. Its size = all domain nodes connected to it
-  // via USED_SKILL edges (the actual neighborhood visible in the graph).
-  const skillNeighbors = new Map<string, Set<string>>();
-  for (const link of activeLinks) {
-    if (link.type !== SKILL_LINK_TYPE) continue;
-    const s = getLinkEndpointId(link.source);
-    const t = getLinkEndpointId(link.target);
-    const sType = getPrimaryLabel(nodesById.get(s) ?? {});
-    const tType = getPrimaryLabel(nodesById.get(t) ?? {});
-
-    let skillUid: string | null = null;
-    let domainUid: string | null = null;
-    if (sType === SKILL_LABEL && tType !== SKILL_LABEL && tType !== PERSON_LABEL) {
-      skillUid = s; domainUid = t;
-    } else if (tType === SKILL_LABEL && sType !== SKILL_LABEL && sType !== PERSON_LABEL) {
-      skillUid = t; domainUid = s;
-    }
-    if (skillUid && domainUid) {
-      if (!skillNeighbors.has(skillUid)) skillNeighbors.set(skillUid, new Set());
-      skillNeighbors.get(skillUid)!.add(domainUid);
-    }
-  }
-
-  // Build cluster details sorted by neighbor count, filter to skills with 2+ neighbors
-  const clusterDetails: ClusterDetail[] = [...skillNeighbors.entries()]
-    .filter(([, members]) => members.size >= 2)
-    .sort((a, b) => b[1].size - a[1].size)
-    .map(([skillUid, memberSet]) => {
-      const skillNode = nodesById.get(skillUid) ?? {};
-      const hub: NodeDetail = { uid: skillUid, name: getNodeDisplayName(skillNode), type: formatTypeLabel(getPrimaryLabel(skillNode)) };
-      const nodes = [...memberSet].map((uid) => {
-        const node = nodesById.get(uid) ?? {};
-        return { uid, name: getNodeDisplayName(node), type: formatTypeLabel(getPrimaryLabel(node)) };
-      });
-      return { hub, size: memberSet.size, nodes };
-    });
-  const meaningfulClusters = clusterDetails;
-  const backgroundAreas = meaningfulClusters.length;
-
   return {
     activeNodes: activeDomainNodes.length,
     visibleNodes: visibleDomainNodes.length,
@@ -287,8 +239,6 @@ export function computeOrbisStatsSummary(
     orphanRate,
     orphanNodeDetails,
     freshnessScore,
-    backgroundAreas,
-    clusterDetails: meaningfulClusters,
     filtersActive: filteredIds.size > 0 || hiddenTypes.size > 0,
   };
 }

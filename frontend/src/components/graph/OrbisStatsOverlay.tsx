@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { OrbData } from '../../api/orbs';
 import { computeOrbisStatsSummary, formatTypeLabel } from './orbisStats';
-import type { ClusterDetail } from './orbisStats';
 
 interface OrbisStatsOverlayProps {
   data: OrbData;
@@ -65,74 +64,12 @@ function NodeDetailList({ nodes, max = 8 }: { nodes: NodeDetail[]; max?: number 
   );
 }
 
-function ClusterDetailList({ clusters }: { clusters: ClusterDetail[] }) {
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-  return (
-    <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
-      {clusters.map((cluster, i) => (
-        <div key={i} className="rounded-md border border-white/6 bg-white/[0.02] px-2.5 py-1.5">
-          <button
-            type="button"
-            onClick={() => setExpandedIdx(expandedIdx === i ? null : i)}
-            className="w-full flex items-center gap-2 text-left cursor-pointer"
-          >
-            <span className="text-[11px] text-white/80 font-medium truncate flex-1">{cluster.hub.name}</span>
-            <span className="text-[10px] text-white/30 flex-shrink-0">{cluster.size} nodes</span>
-            <span className="text-[10px] text-purple-400/70">{expandedIdx === i ? '▲' : '▼'}</span>
-          </button>
-          {expandedIdx === i && (
-            <div className="mt-1.5 space-y-0.5 border-t border-white/5 pt-1.5">
-              {cluster.nodes.slice(0, 8).map((n) => (
-                <div key={n.uid} className="flex items-center gap-2 text-[10px] pl-1">
-                  <span className="text-white/60 truncate flex-1">{n.name}</span>
-                  <span className="text-white/25 flex-shrink-0">{n.type}</span>
-                </div>
-              ))}
-              {cluster.nodes.length > 8 && <p className="text-[10px] text-white/25 pl-1">+{cluster.nodes.length - 8} more</p>}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 const METRIC_CARD = 'rounded-lg border border-white/8 bg-white/[0.03] p-2 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
 const METRIC_CARD_LG = 'rounded-lg border border-white/8 bg-white/[0.03] p-2.5 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06] hover:shadow-[0_0_12px_rgba(255,255,255,0.04)]';
 
-function ExpandableMetric({ label, description, value, hint, children, count }: {
-  label: string;
-  description: string;
-  value: React.ReactNode;
-  hint: string;
-  children: React.ReactNode;
-  count: number;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <div className={`relative ${METRIC_CARD_LG}`}>
-      <MetricInfo label={label} description={description} />
-      <button
-        type="button"
-        onClick={() => count > 0 && setExpanded((v) => !v)}
-        className={`w-full text-left ${count > 0 ? 'cursor-pointer' : 'cursor-default'}`}
-      >
-        <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">{label}</p>
-        <p className="mt-1 text-lg leading-none font-semibold text-white">{value}</p>
-        <p className="mt-1 text-[10px] text-white/45">
-          {hint}
-          {count > 0 && (
-            <span className="ml-1 text-purple-400/70">{expanded ? '▲' : '▼'}</span>
-          )}
-        </p>
-      </button>
-      {expanded && children}
-    </div>
-  );
-}
 
 function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
-  const [areasExpanded, setAreasExpanded] = useState(false);
+  const [orphansExpanded, setOrphansExpanded] = useState(false);
   return (
     <div className="w-[min(336px,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/50 backdrop-blur-md shadow-[0_20px_60px_rgba(0,0,0,0.45)] p-3.5">
       <div className="flex items-start justify-between gap-2">
@@ -197,42 +134,27 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
           <p className={`mt-1 text-lg leading-none font-semibold ${freshnessColor(stats.freshnessScore)}`}>{formatPercent(stats.freshnessScore)}</p>
           <p className="mt-1 text-[10px] text-white/45">recent entries</p>
         </div>
-      </div>
-
-      {/* Expandable metrics */}
-      <div className="mt-2 space-y-2">
-        <ExpandableMetric
-          label="Orphan Nodes"
-          description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
-          value={stats.orphanNodes}
-          hint={`${formatPercent(stats.orphanRate)} of active`}
-          count={stats.orphanNodes}
-        >
-          <NodeDetailList nodes={stats.orphanNodeDetails} />
-        </ExpandableMetric>
 
         <div className={`relative ${METRIC_CARD_LG}`}>
           <MetricInfo
-            label="Background Areas"
-            description="Key areas of your background, each identified by the skill most connected to your experiences, certifications, and projects."
+            label="Orphan Nodes"
+            description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
           />
           <button
             type="button"
-            onClick={() => stats.backgroundAreas > 0 && setAreasExpanded((v) => !v)}
-            className={`w-full text-left ${stats.backgroundAreas > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+            onClick={() => stats.orphanNodes > 0 && setOrphansExpanded((v) => !v)}
+            className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
           >
-            <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Background Areas</p>
-            <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.backgroundAreas}</p>
-            {stats.clusterDetails.length > 0 && (
-              <p className="mt-1 text-[10px] text-white/55 truncate">
-                {stats.clusterDetails.map((c) => c.hub.name).join(', ')}
-                {stats.backgroundAreas > 0 && (
-                  <span className="ml-1 text-purple-400/70">{areasExpanded ? '▲' : '▼'}</span>
-                )}
-              </p>
-            )}
+            <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
+            <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.orphanNodes}</p>
+            <p className="mt-1 text-[10px] text-white/45">
+              {formatPercent(stats.orphanRate)} of active
+              {stats.orphanNodes > 0 && (
+                <span className="ml-1 text-purple-400/70">{orphansExpanded ? '▲' : '▼'}</span>
+              )}
+            </p>
           </button>
-          {areasExpanded && <ClusterDetailList clusters={stats.clusterDetails} />}
+          {orphansExpanded && <NodeDetailList nodes={stats.orphanNodeDetails} />}
         </div>
       </div>
 
