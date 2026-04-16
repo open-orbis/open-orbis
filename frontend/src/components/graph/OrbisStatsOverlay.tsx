@@ -200,15 +200,24 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
 
         <button
           type="button"
-          onClick={() => setShowSuggest(true)}
-          className={`${METRIC_CARD_LG} flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center`}
+          onClick={() => !suggestSent && setShowSuggest(true)}
+          className={`${METRIC_CARD_LG} flex flex-col items-center justify-center gap-1.5 cursor-pointer text-center ${suggestSent ? 'border-emerald-500/30 bg-emerald-500/10' : ''}`}
         >
-          <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-          <p className="text-[10px] text-purple-300 font-medium leading-tight">
-            {suggestSent ? 'Thanks!' : 'Suggest a metric'}
-          </p>
+          {suggestSent ? (
+            <>
+              <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <p className="text-[10px] text-emerald-300 font-bold leading-tight">Thanks!</p>
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+              <p className="text-[10px] text-purple-300 font-medium leading-tight">Suggest a metric</p>
+            </>
+          )}
         </button>
       </div>
 
@@ -250,7 +259,7 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
                   try {
                     await submitIdea(`[Metric Suggestion] ${suggestText.trim()}`, 'idea');
                     setSuggestSent(true);
-                    setTimeout(() => setSuggestSent(false), 5000);
+                    setTimeout(() => setSuggestSent(false), 8000);
                   } catch { /* best effort */ }
                   finally {
                     setSuggestSending(false);
