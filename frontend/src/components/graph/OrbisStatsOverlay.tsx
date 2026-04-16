@@ -134,28 +134,29 @@ function OrbisPulsePanel({ stats }: OrbisPulsePanelProps) {
           <p className={`mt-1 text-lg leading-none font-semibold ${freshnessColor(stats.freshnessScore)}`}>{formatPercent(stats.freshnessScore)}</p>
           <p className="mt-1 text-[10px] text-white/45">recent entries</p>
         </div>
+      </div>
 
-        <div className={`relative ${METRIC_CARD_LG}`}>
-          <MetricInfo
-            label="Orphan Nodes"
-            description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
-          />
-          <button
-            type="button"
-            onClick={() => stats.orphanNodes > 0 && setOrphansExpanded((v) => !v)}
-            className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
-          >
-            <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
-            <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.orphanNodes}</p>
-            <p className="mt-1 text-[10px] text-white/45">
-              {formatPercent(stats.orphanRate)} of active
-              {stats.orphanNodes > 0 && (
-                <span className="ml-1 text-purple-400/70">{orphansExpanded ? '▲' : '▼'}</span>
-              )}
-            </p>
-          </button>
-          {orphansExpanded && <NodeDetailList nodes={stats.orphanNodeDetails} />}
-        </div>
+      {/* Orphan Nodes — full width below the grid */}
+      <div className={`relative mt-2 ${METRIC_CARD_LG}`}>
+        <MetricInfo
+          label="Orphan Nodes"
+          description="Nodes with no connections to other nodes. Consider linking them to skills or experiences."
+        />
+        <button
+          type="button"
+          onClick={() => stats.orphanNodes > 0 && setOrphansExpanded((v) => !v)}
+          className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
+        >
+          <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
+          <p className="mt-1 text-lg leading-none font-semibold text-white">{stats.orphanNodes}</p>
+          <p className="mt-1 text-[10px] text-white/45">
+            {formatPercent(stats.orphanRate)} of active
+            {stats.orphanNodes > 0 && (
+              <span className="ml-1 text-purple-400/70">{orphansExpanded ? '▲' : '▼'}</span>
+            )}
+          </p>
+        </button>
+        {orphansExpanded && <NodeDetailList nodes={stats.orphanNodeDetails} />}
       </div>
 
     </div>
