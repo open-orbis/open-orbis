@@ -88,11 +88,19 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
       <div
         className={`mt-3 ${METRIC_CARD_LG}`}
         onMouseEnter={() => stats.topHubNeighbors.length > 0 && onHighlight?.(new Set(stats.topHubNeighbors.map((n) => n.uid)))}
-        onMouseLeave={() => onHighlight?.(new Set())}
+        onMouseLeave={() => !hubExpanded && onHighlight?.(new Set())}
       >
         <button
           type="button"
-          onClick={() => stats.topHubDegree > 0 && setHubExpanded((v) => !v)}
+          onClick={() => {
+            if (stats.topHubDegree === 0) return;
+            setHubExpanded((v) => {
+              const next = !v;
+              if (next) onHighlight?.(new Set(stats.topHubNeighbors.map((n) => n.uid)));
+              else onHighlight?.(new Set());
+              return next;
+            });
+          }}
           className={`w-full text-left ${stats.topHubDegree > 0 ? 'cursor-pointer' : 'cursor-default'}`}
         >
           <p className="text-[10px] uppercase tracking-wide text-white/40">Top Hub</p>
@@ -157,7 +165,7 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
       <div
         className={`relative mt-2 ${METRIC_CARD_LG}`}
         onMouseEnter={() => stats.orphanNodes > 0 && onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)))}
-        onMouseLeave={() => onHighlight?.(new Set())}
+        onMouseLeave={() => !orphansExpanded && onHighlight?.(new Set())}
       >
         <MetricInfo
           label="Orphan Nodes"
@@ -165,7 +173,15 @@ function OrbisPulsePanel({ stats, onHighlight }: OrbisPulsePanelProps) {
         />
         <button
           type="button"
-          onClick={() => stats.orphanNodes > 0 && setOrphansExpanded((v) => !v)}
+          onClick={() => {
+            if (stats.orphanNodes === 0) return;
+            setOrphansExpanded((v) => {
+              const next = !v;
+              if (next) onHighlight?.(new Set(stats.orphanNodeDetails.map((n) => n.uid)));
+              else onHighlight?.(new Set());
+              return next;
+            });
+          }}
           className={`w-full text-left ${stats.orphanNodes > 0 ? 'cursor-pointer' : 'cursor-default'}`}
         >
           <p className="pr-7 text-[10px] uppercase tracking-wide text-white/40">Orphan Nodes</p>
