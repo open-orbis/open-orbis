@@ -135,6 +135,7 @@ export default function OrbisStatsOverlay({
     return window.innerWidth < COMPACT_BREAKPOINT_PX;
   });
   const [compactOpen, setCompactOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   const stats = useMemo(
     () => computeOrbisStatsSummary(data, hiddenNodeTypes, filteredNodeIds),
@@ -182,10 +183,32 @@ export default function OrbisStatsOverlay({
       data-tour="orbis-pulse"
       className="pointer-events-none fixed right-4 bottom-32 z-20 sm:right-6 sm:bottom-8"
     >
-      {isCompact ? (
+      {dismissed ? (
+        /* Collapsed pill — click to re-open */
+        <button
+          type="button"
+          onClick={() => setDismissed(false)}
+          className="pointer-events-auto inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/65 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white/90 shadow-lg shadow-black/40 hover:bg-black/75 transition-colors"
+        >
+          <span style={{ color: '#C43A82' }}>Orbis Pulse</span>
+          <svg className="h-3.5 w-3.5 text-white/70" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path d="M5 13l5-6 5 6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      ) : isCompact ? (
         <div className="flex flex-col items-end gap-2">
           {compactOpen && (
-            <div className="pointer-events-auto">
+            <div className="pointer-events-auto relative">
+              <button
+                type="button"
+                onClick={() => { setCompactOpen(false); setDismissed(true); }}
+                className="absolute top-2 right-2 w-6 h-6 rounded-md text-white/40 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors z-10"
+                aria-label="Close Orbis Pulse"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
               <OrbisPulsePanel stats={stats} />
             </div>
           )}
@@ -208,7 +231,17 @@ export default function OrbisStatsOverlay({
           </button>
         </div>
       ) : (
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto relative">
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="absolute top-2 right-2 w-6 h-6 rounded-md text-white/40 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors z-10"
+            aria-label="Close Orbis Pulse"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
           <OrbisPulsePanel stats={stats} />
         </div>
       )}

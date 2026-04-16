@@ -35,6 +35,7 @@ import type { DocumentMetadata } from '../api/cv';
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
 
 import SharePanel from '../components/graph/SharePanel';
+import PendingConnectionsDropdown from '../components/graph/PendingConnectionsDropdown';
 
 
 // ── Icon components ──
@@ -650,9 +651,6 @@ export default function OrbViewPage() {
                 </div>
                 <span className="text-white font-bold text-sm tracking-tight hidden sm:inline">OpenOrbis</span>
               </div>
-              <div className="hidden sm:block w-px h-5 bg-white/10" />
-              <span data-tour="node-count" className="text-white text-xs hidden sm:inline">{data.nodes.length} nodes &middot; {data.links.length} edges</span>
-
               {/* Tools hamburger — visible below lg */}
               {!isPendingDeletion && (
                 <div className="relative lg:hidden" ref={toolsMenuRef}>
@@ -743,19 +741,24 @@ export default function OrbViewPage() {
                           onChange={handleImportInputChange}
                         />
                       </label>
-                      {/* Notes */}
-                      <button
-                        onClick={() => { setShowDrafts(true); setShowToolsMenu(false); }}
-                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 transition-all"
-                      >
-                        <IconNotes />
-                        Notes
-                        {draftNotes.length > 0 && (
-                          <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                            {draftNotes.length}
-                          </span>
-                        )}
-                      </button>
+                      {/* Connections + Notes */}
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <PendingConnectionsDropdown />
+                        </div>
+                        <button
+                          onClick={() => { setShowDrafts(true); setShowToolsMenu(false); }}
+                          className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-purple-300 hover:border-purple-400/30 hover:bg-purple-500/10 transition-all"
+                        >
+                          <IconNotes />
+                          Notes
+                          {draftNotes.length > 0 && (
+                            <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                              {draftNotes.length}
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -763,37 +766,6 @@ export default function OrbViewPage() {
 
               {!isPendingDeletion && (
                 <div className="hidden lg:flex items-center gap-1.5 ml-2">
-                  {/* Undo / Redo */}
-                  <div data-tour="undo-redo" className="flex items-center">
-                    <button
-                      onClick={handleUndo}
-                      disabled={undoStack.length === 0}
-                      className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
-                        undoStack.length === 0
-                          ? 'text-teal-500/20 cursor-default'
-                          : 'text-teal-400 hover:text-teal-300 hover:bg-teal-500/10'
-                      }`}
-                      title="Undo"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={handleRedo}
-                      disabled={redoStack.length === 0}
-                      className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
-                        redoStack.length === 0
-                          ? 'text-sky-500/20 cursor-default'
-                          : 'text-sky-400 hover:text-sky-300 hover:bg-sky-500/10'
-                      }`}
-                      title="Redo"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
-                      </svg>
-                    </button>
-                  </div>
                   <div data-tour="node-types">
                     <NodeTypeFilter
                       hiddenTypes={hiddenNodeTypes}
@@ -841,12 +813,47 @@ export default function OrbViewPage() {
                       onChange={handleImportInputChange}
                     />
                   </label>
+                  {/* Undo / Redo */}
+                  <div data-tour="undo-redo" className="flex items-center">
+                    <button
+                      onClick={handleUndo}
+                      disabled={undoStack.length === 0}
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                        undoStack.length === 0
+                          ? 'text-teal-500/20 cursor-default'
+                          : 'text-teal-400 hover:text-teal-300 hover:bg-teal-500/10'
+                      }`}
+                      title="Undo"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={handleRedo}
+                      disabled={redoStack.length === 0}
+                      className={`h-8 w-8 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                        redoStack.length === 0
+                          ? 'text-sky-500/20 cursor-default'
+                          : 'text-sky-400 hover:text-sky-300 hover:bg-sky-500/10'
+                      }`}
+                      title="Redo"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
+
+              <div className="hidden lg:block">
+                <PendingConnectionsDropdown />
+              </div>
 
               <div data-tour="notes" className="hidden lg:block">
                 <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
