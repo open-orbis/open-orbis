@@ -14,7 +14,37 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://open-orbis.com"><img src="https://img.shields.io/badge/demo-open--orbis.com-7c3aed?logo=vercel&logoColor=white" alt="Live demo"></a>
 </p>
+
+<p align="center">
+  <a href="https://open-orbis.com">
+    <img src="docs/assets/landing-hero.png" alt="OpenOrbis landing page — a glowing violet orb surrounded by orbital rings and the headline 'Beyond the CV.'" width="820">
+  </a>
+  <br>
+  <sub><em>Landing page — your career as a living, orbiting knowledge graph.</em></sub>
+</p>
+
+<br>
+
+<details>
+<summary><b>Contents</b></summary>
+
+- [What is OpenOrbis?](#what-is-openorbis)
+- [See it in action](#see-it-in-action)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Running Tests](#running-tests)
+- [MCP Integration](#mcp-integration)
+- [Knowledge Graph Schema](#knowledge-graph-schema)
+- [Contributing](#contributing)
+- [Roadmap & known limitations](#roadmap--known-limitations)
+- [Documentation](#documentation)
+
+</details>
 
 <br>
 
@@ -25,6 +55,27 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 🌐 **Share it** — every orbis gets a unique URL and QR code, ready to send to recruiters or embed in your portfolio
 
 🤖 **Query it** — AI agents (Claude, Cursor, Copilot) can access your graph natively via the **Model Context Protocol (MCP)**
+
+> [!TIP]
+> **Why a graph, not a document?** A CV is a flat story about one person. A graph lets *skills connect across experiences*, *dates compose into a timeline*, and *AI agents answer "where did you use X?"* without re-reading a PDF.
+
+---
+
+## See it in action
+
+<p align="center">
+  <img src="docs/assets/myorbis-graph.png" alt="OpenOrbis dashboard showing a 3D force-directed knowledge graph in the center, an Orbis Pulse panel with Top Hub / Orphan Nodes / Active Nodes / Active Edges / Avg Edges/Node / Skill Coverage / Freshness metrics on the right, a time-range slider on the left, and a chat-style query bar at the bottom." width="820">
+  <br>
+  <sub><em>/myorbis — your graph, Orbis Pulse metrics, date-range timeline, and chat-style search.</em></sub>
+</p>
+
+A typical session:
+
+1. **Upload your CV** (PDF / DOCX / TXT) — the pipeline extracts experiences, skills, education, publications, projects and more as typed nodes.
+2. **Review and edit** the extracted entries in tabbed lists before they touch the graph.
+3. **Explore** the 3D orbis: rotate, zoom, filter by node type or keyword, slide the timeline.
+4. **Share** — copy the public URL, generate a scannable QR, or grant access by email with per-viewer privacy filters.
+5. **Query via MCP** — connect Claude / Cursor / an MCP-aware agent to ask questions about your graph in natural language.
 
 ---
 
@@ -78,18 +129,52 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 
 ## Tech Stack
 
-<table>
-<tr><td><strong>Frontend</strong></td><td>React 19 · TypeScript · Vite 8 · Tailwind CSS v4 · Three.js · Framer Motion · Zustand</td></tr>
-<tr><td><strong>Backend</strong></td><td>FastAPI · Python 3.10+ · Uvicorn</td></tr>
-<tr><td><strong>Database</strong></td><td>Neo4j 5 (graph database with vector indexes)</td></tr>
-<tr><td><strong>AI / LLM</strong></td><td>Anthropic Claude (via CLI) · Ollama (llama3.2:3b local fallback)</td></tr>
-<tr><td><strong>Auth</strong></td><td>JWT (HS256) · Google OAuth · LinkedIn OAuth</td></tr>
-<tr><td><strong>Encryption</strong></td><td>Fernet (cryptography)</td></tr>
-<tr><td><strong>Agent Protocol</strong></td><td>MCP (Model Context Protocol)</td></tr>
-<tr><td><strong>PDF</strong></td><td>PyMuPDF (extraction) · fpdf2 (generation)</td></tr>
-<tr><td><strong>CI/CD</strong></td><td>GitHub Actions — lint · unit tests · CV extraction quality</td></tr>
-<tr><td><strong>Package Mgrs</strong></td><td>uv (backend) · npm (frontend)</td></tr>
-</table>
+<p>
+  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite 8">
+  <img src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS v4">
+  <img src="https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white" alt="Three.js">
+  <img src="https://img.shields.io/badge/Framer_Motion-pink?logo=framer&logoColor=white" alt="Framer Motion">
+  <img src="https://img.shields.io/badge/Zustand-state-ffbf4d" alt="Zustand">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776ab?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/Uvicorn-222?logo=gunicorn&logoColor=white" alt="Uvicorn">
+  <img src="https://img.shields.io/badge/uv-package_mgr-261230?logo=uv" alt="uv">
+  <img src="https://img.shields.io/badge/Ruff-linter-d7ff64?logo=ruff&logoColor=black" alt="Ruff">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Neo4j_5-graph_DB-018bff?logo=neo4j&logoColor=white" alt="Neo4j 5">
+  <img src="https://img.shields.io/badge/Vector_Indexes-1536d-blueviolet" alt="Vector indexes (1536d)">
+  <img src="https://img.shields.io/badge/PostgreSQL-cv_jobs-336791?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/SQLite-document_store-003b57?logo=sqlite&logoColor=white" alt="SQLite">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Claude-primary_LLM-cc785c?logo=anthropic&logoColor=white" alt="Anthropic Claude">
+  <img src="https://img.shields.io/badge/Vertex_AI-Gemini-4285F4?logo=googlecloud&logoColor=white" alt="Vertex AI Gemini">
+  <img src="https://img.shields.io/badge/Ollama-local_fallback-black?logo=ollama" alt="Ollama">
+  <img src="https://img.shields.io/badge/MCP-agent_protocol-7c3aed" alt="MCP">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/JWT-HS256-000?logo=jsonwebtokens&logoColor=white" alt="JWT">
+  <img src="https://img.shields.io/badge/Google_OAuth-4285F4?logo=google&logoColor=white" alt="Google OAuth">
+  <img src="https://img.shields.io/badge/LinkedIn_OAuth-0A66C2?logo=linkedin&logoColor=white" alt="LinkedIn OAuth">
+  <img src="https://img.shields.io/badge/Fernet-AES_128-7c3aed" alt="Fernet">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Cloud_Run-deploy-4285F4?logo=googlecloud&logoColor=white" alt="Cloud Run">
+  <img src="https://img.shields.io/badge/Firebase_Hosting-frontend-FFCA28?logo=firebase&logoColor=black" alt="Firebase Hosting">
+  <img src="https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
+  <img src="https://img.shields.io/badge/Playwright-e2e-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
+  <img src="https://img.shields.io/badge/pytest-tests-0A9EDC?logo=pytest&logoColor=white" alt="pytest">
+</p>
 
 ---
 
@@ -126,6 +211,9 @@ orb_project/
 ---
 
 ## Getting Started
+
+> [!IMPORTANT]
+> End-to-end setup takes **~5 minutes** on a warm cache: Docker for Neo4j + Ollama, `uv sync` for the backend, `npm ci` for the frontend. Hot reload is on for both.
 
 ### Prerequisites
 
@@ -247,36 +335,86 @@ uv run python -m mcp_server.server    # streamable-http transport
 
 Each user's orb is a graph rooted at a **Person** node, connected to domain-specific nodes via typed relationships:
 
-```
-Person ──HAS_EDUCATION──────────► Education
-       ──HAS_WORK_EXPERIENCE───► WorkExperience
-       ──HAS_SKILL─────────────► Skill
-       ──SPEAKS────────────────► Language
-       ──HAS_CERTIFICATION─────► Certification
-       ──HAS_PUBLICATION───────► Publication
-       ──HAS_PROJECT───────────► Project
-       ──HAS_PATENT────────────► Patent
-       ──HAS_AWARD─────────────► Award
-       ──HAS_OUTREACH──────────► Outreach
+```mermaid
+flowchart LR
+    Person((Person)):::root
+
+    Education[Education]
+    WorkExperience[WorkExperience]
+    Skill[Skill]:::skill
+    Language[Language]
+    Certification[Certification]
+    Publication[Publication]
+    Project[Project]
+    Patent[Patent]
+    Award[Award]
+    Outreach[Outreach]
+
+    Person -- HAS_EDUCATION --> Education
+    Person -- HAS_WORK_EXPERIENCE --> WorkExperience
+    Person -- HAS_SKILL --> Skill
+    Person -- SPEAKS --> Language
+    Person -- HAS_CERTIFICATION --> Certification
+    Person -- HAS_PUBLICATION --> Publication
+    Person -- HAS_PROJECT --> Project
+    Person -- HAS_PATENT --> Patent
+    Person -- HAS_AWARD --> Award
+    Person -- HAS_OUTREACH --> Outreach
+
+    WorkExperience -. USED_SKILL .-> Skill
+    Project -. USED_SKILL .-> Skill
+    Education -. USED_SKILL .-> Skill
+    Publication -. USED_SKILL .-> Skill
+
+    classDef root fill:#7c3aed,stroke:#a78bfa,color:#fff,stroke-width:2px;
+    classDef skill fill:#c084fc,stroke:#7c3aed,color:#2e1065;
 ```
 
 The key graph feature is **`USED_SKILL`** — a cross-link between experience nodes and Skill nodes, enabling queries like *"which skills were used at company X?"*
 
-> See [`docs/database.md`](docs/database.md) for query patterns and indexes.
+> [!NOTE]
+> Full schema, indexes, and query patterns live in [`docs/database.md`](docs/database.md), including provenance nodes (`OntologyVersion`, `ProcessingRecord`) that track which ontology + LLM version produced each extraction.
 
 ---
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Run linters before committing:
+We welcome contributions from anyone interested in personal-knowledge-graph UX, graph databases, LLM-powered extraction, or the MCP ecosystem.
+
+**Workflow:**
+
+1. Fork the repo and clone your fork.
+2. Create a feature branch — `git checkout -b feat/your-feature` (prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`).
+3. Keep PRs focused — one concern per PR.
+4. Run linters + tests locally before pushing:
    ```bash
-   cd backend && uv run ruff check . && uv run ruff format .
-   cd frontend && npm run lint
+   cd backend  && uv run ruff check . && uv run ruff format --check . \
+     && uv run pytest tests/unit/ -v --cov=app --cov-fail-under=50
+   cd frontend && npm run lint && npm run build
    ```
-4. Ensure tests pass with >= 75% coverage
-5. Open a pull request against `main`
+5. Update the relevant docs in `docs/` (see [CLAUDE.md](CLAUDE.md) pre-PR check) — API, schema, navigation, or architecture changes each have their own file.
+6. Open the PR against `main` with a Summary + Test plan + Documentation section.
+
+Good first issues are tagged [`good first issue`](https://github.com/Brotherhood94/orb_project/labels/good%20first%20issue). If you want to discuss a larger change first, open an issue with your proposal.
+
+---
+
+## Roadmap & known limitations
+
+**On the roadmap:**
+
+- Mobile polish sweep (in progress — see [#369](https://github.com/Brotherhood94/orb_project/issues/369))
+- Full E2E coverage across iOS Safari / Android Chrome
+- Vector-embedding upgrade (currently deterministic placeholders for semantic search)
+- Public-profile themes (custom accent colour + layout)
+- Native mobile wrappers (PWA first, then considering Capacitor)
+- Expanded MCP toolset (node creation, timeline queries)
+
+**Known limitations today:**
+
+- **LLM cost vs. quality trade-off** — Claude gives the best extraction quality; Ollama (`llama3.2:3b`) is the free local fallback but accuracy on complex CVs drops noticeably.
+- **Semantic search** is wired end-to-end but the vector indexes use placeholder embeddings — planned swap to a production embedding model.
+- **Admin dashboard** is desktop-first; mobile support is lower-priority.
 
 ---
 
