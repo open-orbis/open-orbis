@@ -47,3 +47,7 @@
 | Inputs ≥ 16 px font-size (no iOS zoom-on-focus) | Pass | Verified via search for `text-xs` on `<input>` — only `text-sm` + `text-base` on form inputs |
 | Horizontal scroll absent at 360 px | Fail | Hero overflow (Task 4), other cases deferred |
 | Hover-only affordances | Pass | Tooltips trigger on touch via graph lib; settings dropdowns toggle on tap |
+
+---
+
+**Initial pass PR:** [#375](https://github.com/Brotherhood94/orb_project/pull/375).
