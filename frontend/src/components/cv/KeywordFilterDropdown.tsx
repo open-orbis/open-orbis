@@ -93,24 +93,24 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
             </div>
 
             <div className="px-4 py-3">
+              <input
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                placeholder="e.g. confidential, private..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent mb-2"
+              />
               <div className="flex items-center gap-2 mb-2">
-                <input
-                  value={newKeyword}
-                  onChange={(e) => setNewKeyword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                  placeholder="e.g. confidential, private..."
-                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
-                />
                 <button
                   onClick={handleAdd}
-                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer shrink-0"
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors cursor-pointer"
                 >
                   Add
                 </button>
                 <button
                   onClick={deactivateAll}
                   disabled={activeKeywords.length === 0}
-                  className="bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer shrink-0"
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors cursor-pointer"
                 >
                   Deactivate All
                 </button>
