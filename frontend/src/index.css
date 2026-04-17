@@ -64,3 +64,13 @@ html, body {
   color: rgba(255, 255, 255, 0.25) !important;
   font-family: 'Inter', -apple-system, sans-serif !important;
 }
+
+/* Safe-area insets — rely on viewport-fit=cover in the viewport meta (set
+   in index.html). Used by floating bottom bars (ChatBox) and any header
+   that needs to clear the iOS notch / Android status bar. */
+.safe-top    { padding-top:    max(var(--tw-safe-top,    0px), env(safe-area-inset-top)); }
+.safe-bottom { padding-bottom: max(var(--tw-safe-bottom, 0px), env(safe-area-inset-bottom)); }
+.safe-x {
+  padding-left:  max(var(--tw-safe-left,  0px), env(safe-area-inset-left));
+  padding-right: max(var(--tw-safe-right, 0px), env(safe-area-inset-right));
+}

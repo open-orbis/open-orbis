@@ -345,10 +345,20 @@ export default function OrbisStatsOverlay({
   }, [compactOpen, isCompact]);
 
   return (
+    <>
+      {isCompact && compactOpen && (
+        <div
+          className="fixed inset-0 z-[41] bg-black/55 backdrop-blur-sm sm:hidden"
+          onClick={() => setCompactOpen(false)}
+          aria-hidden="true"
+        />
+      )}
     <div
       ref={containerRef}
       data-tour="orbis-pulse"
-      className="pointer-events-none fixed right-4 bottom-32 z-[30] sm:right-6 sm:bottom-8"
+      className={`pointer-events-none fixed right-4 bottom-32 sm:right-6 sm:bottom-8 sm:z-[30] ${
+        isCompact && compactOpen ? 'z-[42]' : 'z-[30]'
+      }`}
     >
       {dismissed ? (
         /* Collapsed pill — click to re-open */
@@ -413,5 +423,6 @@ export default function OrbisStatsOverlay({
         </div>
       )}
     </div>
+    </>
   );
 }

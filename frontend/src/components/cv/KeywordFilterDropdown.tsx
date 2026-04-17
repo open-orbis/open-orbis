@@ -2,7 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useFilterStore } from '../../stores/filterStore';
 
-export default function KeywordFilterDropdown() {
+interface KeywordFilterDropdownProps {
+  label?: string;
+  fullWidth?: boolean;
+}
+
+export default function KeywordFilterDropdown({ label, fullWidth = false }: KeywordFilterDropdownProps = {}) {
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
   const [open, setOpen] = useState(false);
   const [newKeyword, setNewKeyword] = useState('');
@@ -36,25 +41,28 @@ export default function KeywordFilterDropdown() {
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={`${fullWidth ? 'w-full' : ''} relative`}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className={`h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
+        className={`${fullWidth ? 'w-full justify-between' : ''} h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
           activeKeywords.length > 0
             ? 'text-amber-400 bg-amber-500/10'
             : 'text-white/40 hover:text-white hover:bg-white/5'
         }`}
         title="Keyword filters"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-        </svg>
-        <span className="hidden sm:inline">Filters</span>
-        {activeKeywords.length > 0 && (
-          <span className="bg-amber-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-            {activeKeywords.length}
-          </span>
-        )}
+        {label && <span className="text-white/65">{label}</span>}
+        <span className="flex items-center gap-1.5">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          {!label && <span className="hidden sm:inline">Filters</span>}
+          {activeKeywords.length > 0 && (
+            <span className="bg-amber-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              {activeKeywords.length}
+            </span>
+          )}
+        </span>
       </button>
 
       <AnimatePresence>
@@ -64,7 +72,7 @@ export default function KeywordFilterDropdown() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-80 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+            className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-white/5">
               <h3 className="text-white text-sm font-semibold">Keyword Filters</h3>

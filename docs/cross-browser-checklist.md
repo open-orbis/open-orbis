@@ -91,3 +91,17 @@ These are expected — not bugs:
 | Clipboard API | Secure context | Secure context | Prompts permission |
 | WebGL 2.0 | Yes | Yes | Yes (15+) |
 
+
+## Mobile
+
+Manual checks before shipping anything UI-visible. Run at iPhone SE (375 × 667), Pixel 5 (393 × 851) minimum; ideally a real iPhone SE on iOS Safari 17+ for final sign-off.
+
+- [ ] Landing `/` — no horizontal scroll; HeroOrb fits; headline is readable.
+- [ ] Tap every primary CTA (Google / LinkedIn sign-in, "Create your orbis"). Target ≥ 44 × 44 px.
+- [ ] `/myorbis` — header bar doesn't overflow; Tools hamburger opens; UserMenu dropdown is above the Orbis Pulse.
+- [ ] `/myorbis` — Orbis Pulse compact mode works; tapping a card expands + doesn't overlap ChatBox.
+- [ ] ChatBox — focus the input. Keyboard opens, input stays visible, no layout jump. Safe-area inset keeps the input above the home indicator on notched devices.
+- [ ] Hover a graph node (touch-and-hold to emulate hover) — tooltip appears on screen, not clipped by edge. Release — tooltip dismisses.
+- [ ] Open SharePanel → Copy URL + Show QR. Modal scrolls within itself; dismiss via X, backdrop, and ESC (hardware keyboard only).
+- [ ] OS "reduce motion" on → HeroOrb animations pause.
+- [ ] Rotate device to landscape at each checkpoint.

@@ -33,6 +33,10 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
   const [showCVs, setShowCVs] = useState(false);
   const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const fetchDocs = useCallback(async () => {
@@ -92,7 +96,7 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
         }
         title="Account menu"
       >
-        {label && <span className="text-white/80 text-xs font-medium leading-none">{label}</span>}
+        {label && <span className="hidden sm:inline text-white/80 text-xs font-medium leading-none">{label}</span>}
         <div className={`rounded-full bg-purple-600/30 border border-purple-500/40 overflow-hidden flex items-center justify-center flex-shrink-0 ${label ? 'w-7 h-7' : 'w-10 h-10'}`}>
           {avatarSrc ? (
             <img src={avatarSrc} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
@@ -231,6 +235,21 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
             <div className="mx-1 my-1 h-px bg-white/10" />
 
             <div className="px-1 pb-1">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-white/30 font-semibold px-2">Feedback</p>
+              <button
+                onClick={() => { setOpen(false); setShowFeedback(true); }}
+                className="mt-1 group w-full h-10 flex items-center gap-3 px-2.5 rounded-lg text-sm text-white/75 hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-white/45 group-hover:text-emerald-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span className="flex-1 text-left">{feedbackSent ? 'Thanks for inspiring us!' : 'Send Feedback'}</span>
+              </button>
+            </div>
+
+            <div className="mx-1 my-1 h-px bg-white/10" />
+
+            <div className="px-1 pb-1">
               <p className="text-[10px] uppercase tracking-[0.14em] text-white/30 font-semibold px-2">Session</p>
               <button
                 onClick={handleLogout}
@@ -268,6 +287,65 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
             onStartTour={onStartTour}
           />
         </AnimatePresence>,
+        document.body,
+      )}
+
+      {/* Feedback modal — moved from ChatBox so it's reachable from the top-right menu on all viewports */}
+      {showFeedback && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFeedback(false)} />
+          <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowFeedback(false)}
+              className="absolute right-3 top-3 h-8 w-8 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors flex items-center justify-center"
+              aria-label="Close feedback"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-white text-base font-semibold mb-1">Send Feedback</h3>
+            <p className="text-gray-400 text-sm mb-4">What would you like to share with us?</p>
+            <textarea
+              autoFocus
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="Your feedback, ideas, or suggestions..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-500 resize-none h-28 focus:outline-none focus:border-purple-500/50"
+            />
+            <div className="flex items-center justify-end gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowFeedback(false)}
+                className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!feedbackText.trim() || feedbackSending}
+                onClick={async () => {
+                  setFeedbackSending(true);
+                  try {
+                    const { submitIdea } = await import('../api/orbs');
+                    await submitIdea(feedbackText.trim(), 'feedback');
+                    setFeedbackSent(true);
+                    setTimeout(() => setFeedbackSent(false), 5000);
+                  } catch { /* best effort */ }
+                  finally {
+                    setFeedbackSending(false);
+                    setFeedbackText('');
+                    setShowFeedback(false);
+                  }
+                }}
+                className="h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+              >
+                {feedbackSending ? 'Sending...' : 'Send'}
+              </button>
+            </div>
+          </div>
+        </div>,
         document.body,
       )}
     </div>
@@ -470,14 +548,14 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
           <p className="text-white/50 text-sm">Manage your Orbis ID and account lifecycle.</p>
         </div>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Tabs sidebar */}
-          <div className="w-36 sm:w-44 border-r border-white/10 p-2.5 sm:p-3 flex flex-col gap-1 bg-black/30">
+        <div className="flex flex-col sm:flex-row flex-1 min-h-0">
+          {/* Tabs sidebar — vertical on desktop, horizontal scroll rail on mobile */}
+          <div className="flex-row overflow-x-auto shrink-0 sm:w-44 sm:flex-col sm:overflow-visible border-b sm:border-b-0 sm:border-r border-white/10 p-2 sm:p-3 flex gap-1 bg-black/30">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setError(''); setSuccess(false); setShowDeleteConfirm(false); }}
-                className={`flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 ${
+                className={`shrink-0 flex items-center gap-2 sm:gap-2.5 text-left px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 ${
                   activeTab === tab.id
                     ? 'bg-purple-500/15 border border-purple-400/30 text-white font-medium'
                     : 'border border-transparent text-white/55 hover:text-white hover:bg-white/8'
@@ -487,7 +565,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                 {tab.label}
               </button>
             ))}
-            <div className="mt-auto pt-3 border-t border-white/5">
+            <div className="hidden sm:block mt-auto pt-3 border-t border-white/5">
               <button
                 onClick={() => {
                   onClose();
@@ -531,13 +609,13 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                   <div>
                     <label className="text-xs text-white/45 uppercase tracking-[0.12em] font-medium">Custom Orbis ID</label>
                     <p className="text-[11px] text-white/45 mt-1 mb-5">Choose a memorable ID for your orbis. This will be your public URL and MCP identifier.</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/40 text-sm">{window.location.origin}/</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                      <span className="text-white/40 text-xs sm:text-sm break-all sm:break-normal sm:whitespace-nowrap">{window.location.origin}/</span>
                       <input
                         value={customId}
                         onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }}
                         placeholder="your-name"
-                        className="flex-1 bg-white/[0.04] border border-white/15 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400/70 focus:border-transparent"
+                        className="flex-1 min-w-0 w-full sm:w-auto bg-white/[0.04] border border-white/15 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400/70 focus:border-transparent"
                       />
                     </div>
                     {error && <p className="text-red-400 text-xs mt-2">{error}</p>}

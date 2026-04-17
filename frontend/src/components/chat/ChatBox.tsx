@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode, OrbVisibility } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
@@ -99,10 +98,6 @@ export default function ChatBox({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeResultIndex, setActiveResultIndex] = useState(-1);
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackText, setFeedbackText] = useState('');
-  const [feedbackSending, setFeedbackSending] = useState(false);
-  const [feedbackSent, setFeedbackSent] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const setMessages = (updater: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => {
@@ -259,7 +254,7 @@ export default function ChatBox({
     <div
       data-tour="chatbox"
       ref={containerRef}
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full px-3 sm:px-4 sm:max-w-xl pb-4 sm:pb-10"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 z-40 w-full px-3 sm:px-4 sm:max-w-xl pb-40 sm:pb-48 safe-bottom"
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -413,20 +408,7 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* Feedback button above chatbox — hidden on mobile to avoid overlap with Orbis Pulse */}
-      <div className="hidden sm:flex justify-center mb-1.5">
-        <button
-          type="button"
-          onClick={() => { if (!feedbackSent) setShowFeedback(true); }}
-          className={`text-[10px] transition-colors ${
-            feedbackSent
-              ? 'text-yellow-400 font-bold'
-              : 'text-emerald-400/30 hover:text-emerald-400/60'
-          }`}
-        >
-          {feedbackSent ? 'Thanks for inspiring us!' : 'Send Feedback'}
-        </button>
-      </div>
+      {/* Feedback moved to the top-right user menu (see UserMenu.tsx) */}
 
       {/* Bottom bar — discover + recenter + chat input + action buttons */}
       <div className="flex items-center gap-1.5 sm:gap-2">
@@ -434,7 +416,7 @@ export default function ChatBox({
           <button
             type="button"
             onClick={onDiscover}
-            className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
+            className="hidden sm:flex w-8 h-8 sm:w-11 sm:h-11 rounded-full items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
             title="Discover uses"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,7 +428,7 @@ export default function ChatBox({
           <button
             type="button"
             onClick={onRecenter}
-            className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
+            className="hidden sm:flex w-8 h-8 sm:w-11 sm:h-11 rounded-full items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
             title="Recenter graph"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -524,63 +506,6 @@ export default function ChatBox({
         {interactionHint}
       </p>
 
-      {/* Feedback modal — portaled to body to escape chatbox z-index/pointer traps */}
-      {showFeedback && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowFeedback(false)} />
-          <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setShowFeedback(false)}
-              className="absolute right-3 top-3 h-8 w-8 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 transition-colors flex items-center justify-center"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <h3 className="text-white text-base font-semibold mb-1">Send Feedback</h3>
-            <p className="text-gray-400 text-sm mb-4">What would you like to share with us?</p>
-            <textarea
-              autoFocus
-              value={feedbackText}
-              onChange={(e) => setFeedbackText(e.target.value)}
-              placeholder="Your feedback, ideas, or suggestions..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-500 resize-none h-28 focus:outline-none focus:border-purple-500/50"
-            />
-            <div className="flex items-center justify-end gap-2 mt-4">
-              <button
-                type="button"
-                onClick={() => setShowFeedback(false)}
-                className="h-9 px-4 rounded-lg border border-gray-600 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!feedbackText.trim() || feedbackSending}
-                onClick={async () => {
-                  setFeedbackSending(true);
-                  try {
-                    const { submitIdea } = await import('../../api/orbs');
-                    await submitIdea(feedbackText.trim(), 'feedback');
-                    setFeedbackSent(true);
-                    setTimeout(() => setFeedbackSent(false), 5000);
-                  } catch { /* best effort */ }
-                  finally {
-                    setFeedbackSending(false);
-                    setFeedbackText('');
-                    setShowFeedback(false);
-                  }
-                }}
-                className="h-9 px-4 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-              >
-                {feedbackSending ? 'Sending...' : 'Send'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }

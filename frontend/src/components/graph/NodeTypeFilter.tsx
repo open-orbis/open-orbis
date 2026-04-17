@@ -22,9 +22,11 @@ interface NodeTypeFilterProps {
   onShowAll: () => void;
   onHideAll: () => void;
   onSetVisible: (types: Set<string>) => void;
+  label?: string;
+  fullWidth?: boolean;
 }
 
-export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSetVisible }: NodeTypeFilterProps) {
+export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSetVisible, label, fullWidth = false }: NodeTypeFilterProps) {
   const [open, setOpen] = useState(false);
   const [filterActive, setFilterActive] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -71,30 +73,33 @@ export default function NodeTypeFilter({ hiddenTypes, onShowAll, onHideAll, onSe
   };
 
   return (
-    <div ref={ref} className="relative z-30 select-none">
+    <div ref={ref} className={`${fullWidth ? 'w-full' : ''} relative z-30 select-none`}>
       <button
         onClick={() => setOpen(!open)}
-        className={`h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
+        className={`${fullWidth ? 'w-full justify-between' : ''} h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg transition-all cursor-pointer ${
           filterActive
             ? 'text-purple-400 bg-purple-500/10'
             : 'text-white/40 hover:text-white/80 hover:bg-white/5'
         }`}
         aria-label="Toggle node types visibility"
       >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-        </svg>
-        <span className="hidden sm:inline">Node types</span>
-        {filterActive && (
-          <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-            {ALL_TYPES.length - hiddenTypes.size}
-          </span>
-        )}
+        {label && <span className="text-white/65">{label}</span>}
+        <span className="flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          {!label && <span className="hidden sm:inline">Node types</span>}
+          {filterActive && (
+            <span className="bg-purple-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+              {ALL_TYPES.length - hiddenTypes.size}
+            </span>
+          )}
+        </span>
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl p-3 w-56">
+        <div className="absolute top-full right-0 mt-1 bg-gray-900/95 backdrop-blur-sm border border-white/10 rounded-xl shadow-2xl p-3 w-[min(14rem,calc(100vw-2rem))]">
           <p className="text-white/30 text-[10px] mb-2 italic">Visual only — does not affect shared links or privacy filters.</p>
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">

@@ -114,6 +114,7 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
           <button
             onClick={onGoogleLogin}
             disabled={busy}
+            aria-label="Sign in with Google"
             className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/40 hover:bg-white/[0.12] disabled:opacity-40 transition-all duration-300 flex items-center justify-center cursor-pointer"
             style={{ boxShadow: 'none' }}
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 20px rgba(66,133,244,0.3)'; e.currentTarget.style.borderColor = 'rgba(66,133,244,0.4)'; }}
@@ -140,6 +141,7 @@ function SignInButtons({ onGoogleLogin, signingInProvider, disabled }: { onGoogl
           <button
             onClick={() => { if (!busy) redirectToLinkedIn(); }}
             disabled={busy}
+            aria-label="Sign in with LinkedIn"
             className="w-14 h-14 rounded-full bg-white/[0.07] border border-white/40 hover:bg-white/[0.12] disabled:opacity-40 transition-all duration-300 flex items-center justify-center cursor-pointer"
             style={{ boxShadow: 'none' }}
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 20px rgba(10,102,194,0.3)'; e.currentTarget.style.borderColor = 'rgba(10,102,194,0.4)'; }}

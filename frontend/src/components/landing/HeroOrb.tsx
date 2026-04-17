@@ -109,7 +109,7 @@ export default function HeroOrb() {
   return (
     <>
       <style>{KEYFRAMES}</style>
-      <div className="w-96 h-96 md:w-[36rem] md:h-[36rem]">
+      <div className="w-[min(90vw,24rem)] aspect-square md:w-[36rem] md:h-[36rem]">
         <svg
           viewBox="0 0 400 400"
           xmlns="http://www.w3.org/2000/svg"
