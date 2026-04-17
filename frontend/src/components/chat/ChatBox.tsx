@@ -434,7 +434,7 @@ export default function ChatBox({
           <button
             type="button"
             onClick={onDiscover}
-            className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
+            className="hidden sm:flex w-8 h-8 sm:w-11 sm:h-11 rounded-full items-center justify-center bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 text-yellow-400 hover:text-yellow-300 transition-all backdrop-blur-sm flex-shrink-0 shadow-lg shadow-yellow-600/10"
             title="Discover uses"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -446,7 +446,7 @@ export default function ChatBox({
           <button
             type="button"
             onClick={onRecenter}
-            className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
+            className="hidden sm:flex w-8 h-8 sm:w-11 sm:h-11 rounded-full items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 hover:border-white/25 text-white/50 hover:text-white transition-all backdrop-blur-sm flex-shrink-0"
             title="Recenter graph"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

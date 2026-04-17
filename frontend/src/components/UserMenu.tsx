@@ -92,7 +92,7 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
         }
         title="Account menu"
       >
-        {label && <span className="text-white/80 text-xs font-medium leading-none">{label}</span>}
+        {label && <span className="hidden sm:inline text-white/80 text-xs font-medium leading-none">{label}</span>}
         <div className={`rounded-full bg-purple-600/30 border border-purple-500/40 overflow-hidden flex items-center justify-center flex-shrink-0 ${label ? 'w-7 h-7' : 'w-10 h-10'}`}>
           {avatarSrc ? (
             <img src={avatarSrc} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
