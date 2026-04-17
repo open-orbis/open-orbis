@@ -331,7 +331,6 @@ Good first issues are tagged [`good first issue`](https://github.com/Brotherhood
 - **LLM cost vs. quality trade-off** — Claude gives the best extraction quality; Ollama (`llama3.2:3b`) is the free local fallback but accuracy on complex CVs drops noticeably.
 - **Semantic search** is wired end-to-end but the vector indexes use placeholder embeddings — planned swap to a production embedding model.
 - **Admin dashboard** is desktop-first; mobile support is lower-priority.
-- **Invite-code gate** — the project currently runs as a closed beta. Self-hosted instances can toggle this off via `/admin` once you promote yourself to admin.
 
 ---
 
