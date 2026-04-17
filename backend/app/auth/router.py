@@ -505,6 +505,68 @@ async def revoke_api_key_endpoint(
     return {"status": "revoked"}
 
 
+# ── Gift invites (#385) — per-user quota of 3 codes to share with friends ─
+
+
+@router.get("/me/invites")
+async def list_my_invites(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """List the caller's gift invite codes + quota state."""
+    from app.auth.gift_invites import (
+        GIFT_INVITE_QUOTA,
+        count_gift_invites,
+        list_gift_invites,
+    )
+
+    items = await list_gift_invites(db, user_id=current_user["user_id"])
+    _, consumed = await count_gift_invites(db, user_id=current_user["user_id"])
+    return {
+        "quota": GIFT_INVITE_QUOTA,
+        "total_issued": len(items),
+        "consumed": consumed,
+        "remaining": GIFT_INVITE_QUOTA - consumed,
+        "codes": [
+            {
+                "code": it["code"],
+                "created_at": it.get("created_at"),
+                "used_at": it.get("used_at"),
+                "used_by": it.get("used_by"),
+            }
+            for it in items
+        ],
+    }
+
+
+@router.post("/me/invites/generate")
+@limiter.limit("10/minute")
+async def generate_my_invite(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncDriver = Depends(get_db),
+):
+    """Generate one invite code, capped at the per-user quota."""
+    from app.auth.gift_invites import (
+        GIFT_INVITE_QUOTA,
+        generate_gift_invite,
+    )
+
+    status, record = await generate_gift_invite(
+        db, user_id=current_user["user_id"]
+    )
+    if status == "quota_reached":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Quota reached ({GIFT_INVITE_QUOTA} invites total per user).",
+        )
+    assert record is not None
+    return {
+        "code": record["code"],
+        "created_at": record.get("created_at"),
+    }
+
+
 # ── Dev-login (test environments only) ─────────────────────────────────
 
 if settings.env == "development":

@@ -25,6 +25,7 @@ import { loadDraftNotes, loadDraftNotesAsync } from '../components/drafts/DraftN
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
+import GiftInviteButton from '../components/GiftInviteButton';
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport, getJob } from '../api/cv';
@@ -962,6 +963,9 @@ export default function OrbViewPage() {
           onHighlight={setHighlightedNodeIds}
         />
       )}
+
+      {/* Gift invitation button — bottom-left; per-user quota of 3 (#385) */}
+      {!isPendingDeletion && <GiftInviteButton />}
 
       {/* NodeTypeFilter moved to header bar */}
 
