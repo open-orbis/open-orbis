@@ -474,6 +474,115 @@ def test_admin_create_batch(admin_client):
     assert len(response.json()) == 1
 
 
+def test_admin_create_batch_without_prefix_uses_default_format(admin_client):
+    """Batch create accepts a null/missing prefix and returns default-format codes."""
+    with patch(
+        "app.admin.router.create_batch_access_codes",
+        AsyncMock(
+            return_value=[
+                {
+                    "code": "A3K9-B2X7",
+                    "label": "",
+                    "active": True,
+                    "used_at": None,
+                    "used_by": None,
+                    "created_at": "2026-04-10T12:00:00",
+                    "created_by": "admin-user",
+                }
+            ]
+        ),
+    ) as batch_mock:
+        response = admin_client.post(
+            "/admin/access-codes/batch",
+            json={"count": 1},
+        )
+
+    assert response.status_code == 201
+    assert batch_mock.await_args.kwargs["prefix"] is None
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Default code generation
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_generate_default_code_format():
+    """Default invite codes are XXXX-XXXX with only the safe alphabet."""
+    import re
+
+    from app.admin.service import (
+        DEFAULT_CODE_ALPHABET,
+        generate_default_code,
+    )
+
+    pattern = re.compile(
+        rf"^[{re.escape(DEFAULT_CODE_ALPHABET)}]{{4}}-[{re.escape(DEFAULT_CODE_ALPHABET)}]{{4}}$"
+    )
+    for _ in range(50):
+        assert pattern.match(generate_default_code())
+
+
+def test_generate_default_code_is_random():
+    """Two consecutive calls must (overwhelmingly likely) differ."""
+    from app.admin.service import generate_default_code
+
+    samples = {generate_default_code() for _ in range(20)}
+    assert len(samples) > 15
+
+
+@pytest.mark.asyncio
+async def test_create_batch_access_codes_uses_default_when_no_prefix(mock_db):
+    """Without a prefix the batch helper generates default-format codes."""
+    import re
+
+    from app.admin.service import DEFAULT_CODE_ALPHABET, create_batch_access_codes
+
+    session_mock = mock_db.session.return_value.__aenter__.return_value
+    created_codes: list[str] = []
+
+    async def _run(query, **kwargs):
+        created_codes.append(kwargs["code"])
+        result = AsyncMock()
+        result.single = AsyncMock(return_value={"a": {"code": kwargs["code"]}})
+        return result
+
+    session_mock.run = _run
+
+    await create_batch_access_codes(
+        mock_db, count=3, label="", created_by="admin", prefix=None
+    )
+    pattern = re.compile(
+        rf"^[{re.escape(DEFAULT_CODE_ALPHABET)}]{{4}}-[{re.escape(DEFAULT_CODE_ALPHABET)}]{{4}}$"
+    )
+    assert len(created_codes) == 3
+    for code in created_codes:
+        assert pattern.match(code), code
+
+
+@pytest.mark.asyncio
+async def test_create_batch_access_codes_respects_prefix(mock_db):
+    """A non-empty prefix keeps the legacy `{prefix}-{suffix}` format."""
+    from app.admin.service import create_batch_access_codes
+
+    session_mock = mock_db.session.return_value.__aenter__.return_value
+    created_codes: list[str] = []
+
+    async def _run(query, **kwargs):
+        created_codes.append(kwargs["code"])
+        result = AsyncMock()
+        result.single = AsyncMock(return_value={"a": {"code": kwargs["code"]}})
+        return result
+
+    session_mock.run = _run
+
+    await create_batch_access_codes(
+        mock_db, count=2, label="", created_by="admin", prefix="launch"
+    )
+    assert len(created_codes) == 2
+    for code in created_codes:
+        assert code.startswith("launch-")
+
+
 def test_admin_pending_users(admin_client):
     with patch(
         "app.admin.router.list_pending_persons",

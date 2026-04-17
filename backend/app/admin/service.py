@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import secrets
 
 from neo4j import AsyncDriver
 
@@ -62,6 +63,25 @@ from app.graph.queries import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# Alphabet used when auto-generating default invite codes. Excludes
+# ambiguous glyphs (0/O, 1/I/L, U) so users can retype a code from a
+# screenshot or print without misreadings.
+DEFAULT_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789"
+DEFAULT_CODE_SEGMENT_LEN = 4
+
+
+def generate_default_code() -> str:
+    """Return a default-format invite code: 4 alphanumerics, hyphen, 4 alphanumerics."""
+
+    def _segment() -> str:
+        return "".join(
+            secrets.choice(DEFAULT_CODE_ALPHABET)
+            for _ in range(DEFAULT_CODE_SEGMENT_LEN)
+        )
+
+    return f"{_segment()}-{_segment()}"
 
 
 # ── BetaConfig (singleton) ──
@@ -279,17 +299,21 @@ async def count_access_codes(db: AsyncDriver) -> dict[str, int]:
 async def create_batch_access_codes(
     db: AsyncDriver,
     *,
-    prefix: str,
     count: int,
     label: str,
     created_by: str,
+    prefix: str | None = None,
 ) -> list[dict]:
     import uuid
 
+    clean_prefix = (prefix or "").strip()
     codes = []
     async with db.session() as session:
         for _ in range(count):
-            code = f"{prefix}-{uuid.uuid4().hex[:6]}"
+            if clean_prefix:
+                code = f"{clean_prefix}-{uuid.uuid4().hex[:6]}"
+            else:
+                code = generate_default_code()
             result = await session.run(
                 CREATE_ACCESS_CODE,
                 code=code,

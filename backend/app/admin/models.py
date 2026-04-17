@@ -44,7 +44,10 @@ class AccessCodeResponse(BaseModel):
 
 
 class AccessCodeBatchCreate(BaseModel):
-    prefix: str = Field(min_length=2, max_length=32)
+    # When omitted (or empty), codes are generated in the default
+    # XXXX-XXXX alphanumeric format. A non-empty prefix keeps the
+    # legacy `{prefix}-{suffix}` shape for campaign tagging.
+    prefix: str | None = Field(default=None, max_length=32)
     count: int = Field(ge=1, le=500)
     label: str = ""
 

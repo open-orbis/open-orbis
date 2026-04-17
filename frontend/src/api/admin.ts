@@ -63,6 +63,25 @@ export async function updateBetaConfig(
 
 // ── Access Codes ──
 
+// Mirrors backend/app/admin/service.py:DEFAULT_CODE_ALPHABET — ambiguous
+// glyphs (0/O, 1/I/L, U) are excluded so users can retype a printed code.
+const DEFAULT_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
+const DEFAULT_CODE_SEGMENT_LEN = 4;
+
+export function generateDefaultCode(): string {
+  const crypto = window.crypto ?? (globalThis as { crypto?: Crypto }).crypto;
+  const segment = () => {
+    const buf = new Uint32Array(DEFAULT_CODE_SEGMENT_LEN);
+    crypto.getRandomValues(buf);
+    let out = '';
+    for (let i = 0; i < DEFAULT_CODE_SEGMENT_LEN; i++) {
+      out += DEFAULT_CODE_ALPHABET[buf[i] % DEFAULT_CODE_ALPHABET.length];
+    }
+    return out;
+  };
+  return `${segment()}-${segment()}`;
+}
+
 export async function listAccessCodes(): Promise<AccessCode[]> {
   // Backend is paginated (L2 fix). Hit the cap so the admin dashboard
   // keeps showing everything until proper pagination UI lands.
@@ -85,8 +104,10 @@ export async function createBatchAccessCodes(
   count: number,
   label: string = '',
 ): Promise<AccessCode[]> {
+  const trimmed = prefix.trim();
   const { data } = await client.post('/admin/access-codes/batch', {
-    prefix,
+    // Empty prefix ⇒ backend falls back to default XXXX-XXXX format.
+    prefix: trimmed || null,
     count,
     label,
   });

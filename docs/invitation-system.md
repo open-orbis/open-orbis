@@ -70,8 +70,8 @@ The admin dashboard is accessible at `/admin` (or via the UserMenu dropdown, vis
 - Toggle button: "Codice invito: OBBLIGATORIO" / "Piattaforma: APERTA A TUTTI" (with confirmation dialog)
 
 ### Codici Invito Tab
-- **Create single code** — specify code name + optional label
-- **Create batch** — specify prefix + count + optional label (generates codes like `prefix-a1b2c3`)
+- **Create single code** — pick a code (click **Generate** to fill the default `XXXX-XXXX` format, or type a custom 3–64 character code) + optional label.
+- **Create batch** — count + optional prefix + optional label. Empty prefix ⇒ codes are generated in the default `XXXX-XXXX` format; a non-empty prefix keeps the legacy `{prefix}-{suffix}` shape for campaign tagging.
 - **Filter** — All / Available / Used
 - **Table** — code (click to copy), label, status, used by, created date, actions (activate/deactivate, delete)
 
@@ -104,13 +104,19 @@ uv run python -m scripts.grant_admin --user-id google-112726584537002607480 --re
 Once you're admin, you can create codes from the dashboard UI or via curl:
 
 ```bash
-# Single code
+# Single code (any 3–64 character code — e.g. the default XXXX-XXXX format)
 curl -X POST http://localhost:8000/admin/access-codes \
   -H "Authorization: Bearer <your-jwt>" \
   -H "Content-Type: application/json" \
-  -d '{"code": "invito-mario", "label": "amici"}'
+  -d '{"code": "A3K9-B2X7", "label": "amici"}'
 
-# Batch (generates 50 codes with prefix "launch")
+# Batch default format (generates 50 codes shaped like XXXX-XXXX)
+curl -X POST http://localhost:8000/admin/access-codes/batch \
+  -H "Authorization: Bearer <your-jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"count": 50, "label": "launch-day"}'
+
+# Batch with a custom prefix (keeps the legacy "{prefix}-{suffix}" shape)
 curl -X POST http://localhost:8000/admin/access-codes/batch \
   -H "Authorization: Bearer <your-jwt>" \
   -H "Content-Type: application/json" \

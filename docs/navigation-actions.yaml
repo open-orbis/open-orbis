@@ -686,19 +686,28 @@
 
 - id: ADMIN_CREATE_CODE
   from_state: ADMIN
-  action: Fill code name + optional label, click "Crea"
+  action: Type a code (or click "Generate" to fill the default XXXX-XXXX format) + optional label, click "Crea"
   selector_or_control: "single code creation form in Codici invito tab"
   preconditions: [authenticated, is_admin, code_not_empty]
   expected_effect: Creates single AccessCode node, refreshes code list
   next_state: ADMIN (code list updated)
   fallback_on_failure: Error toast (409 if code already exists)
 
+- id: ADMIN_GENERATE_DEFAULT_CODE
+  from_state: ADMIN
+  action: Click "Generate" button next to the single-code input
+  selector_or_control: "Generate button in single code creation form"
+  preconditions: [authenticated, is_admin]
+  expected_effect: Fills the code input with a client-side random XXXX-XXXX code (4 alphanumerics + '-' + 4 alphanumerics, ambiguous glyphs excluded)
+  next_state: ADMIN (form updated; no DB write yet)
+  fallback_on_failure: null
+
 - id: ADMIN_CREATE_BATCH_CODES
   from_state: ADMIN
-  action: Fill prefix + count + optional label, click "Genera N"
+  action: Fill count + optional prefix + optional label, click "Genera N"
   selector_or_control: "batch creation form in Codici invito tab"
-  preconditions: [authenticated, is_admin, prefix_not_empty]
-  expected_effect: Creates N AccessCode nodes with auto-generated suffixes, refreshes list
+  preconditions: [authenticated, is_admin]
+  expected_effect: Creates N AccessCode nodes — empty prefix ⇒ default XXXX-XXXX format, non-empty prefix ⇒ legacy "{prefix}-{suffix}" shape. Refreshes list.
   next_state: ADMIN (code list updated)
   fallback_on_failure: Error toast
 
