@@ -53,7 +53,7 @@ Middleware stack (outermost first):
 | `drafts/` | Draft notes CRUD (create, list, update, delete) |
 | `ideas/` | Feature idea / feedback submission (source: `idea` or `feedback`) and admin listing |
 | `snapshots/` | Orb version snapshots (save, restore, delete, auto-create on CV import) |
-| `mcp_server/` | MCP server exposing 6 tools for AI agent access to orb data (API key auth) |
+| `mcp_server/` | MCP server exposing 5 tools for AI agent access to orb data (API key auth) |
 
 ### Dependency Injection
 
@@ -96,6 +96,7 @@ Stage 5: User polls GET /cv/job/{job_id} → result
     ▼
 Stage 6: User Review + Confirm
     ├─ Frontend shows extracted nodes for editing (tabbed by node type)
+    ├─ Any entries the LLM could not classify (`result.unmatched[]`) are persisted to the user's drafts collection via `POST /drafts` — the user can later enhance and promote them into nodes manually instead of losing the raw text (#359).
     └─ POST /cv/confirm: wipes existing graph, MERGE nodes with dedup keys, creates USED_SKILL links
 ```
 
@@ -140,6 +141,14 @@ Two distinct 3D contexts:
 2. **OrbGraph3D** (main app) — react-force-graph-3d with custom THREE.js node rendering, shared geometry pool, node object cache, animated orbital rings, background star field
 
 Performance optimizations: shared geometry (never recreated), node object cache (invalidated on data/filter changes), direct refs for animated objects, single `requestAnimationFrame` loop, ref-based state to avoid React re-renders.
+
+### Notable UI Surfaces on `/myorbis`
+
+- **Orbis Pulse** (`components/graph/OrbisStatsOverlay.tsx`) — floating metrics panel. Current metric set: *Top Hub* (clickable, expands to neighbor list), *Orphan Nodes* (clickable, expands to list), *Active Nodes / Active Edges* (plus "visible" subcounts under filters), *Avg Edges/Node* (replaced the older "density" metric in #354), *Skill Coverage*, *Freshness*. A *Suggest a metric* cell lets users submit feedback via `POST /ideas`. Panel collapses to a pill on small screens (`compactOpen` state). Dismissible via the `dismissed` state; pill returns to re-open.
+- **Share panel** (`components/graph/SharePanel.tsx`) — visibility switch, public/filtered URL rows, share-token management, access grants, and access-request (connection request) review. Each URL row exposes `Copy URL` + `Show QR` actions.
+- **QR share modal** (`components/graph/QrShareModal.tsx`) — renders a violet-on-white QR for any share URL (#365). SVG is rasterized client-side for PNG download at 4× scale; no center logo. Called from both the public link row and each share-token row.
+- **Pending connection-requests dropdown** (`components/graph/PendingConnectionsDropdown.tsx`) — header-level inbox of access requests backed by `backend/app/orbs/access_requests.py`. Accept creates an `AccessGrant` (with optional filters); reject marks the request resolved.
+- **Guided tour** (`components/GuidedTour.tsx`) — react-joyride overlay; 13 steps covering graph, header controls, connections dropdown, notes, search, user menu, Orbis Pulse, add-entry, visibility, and chatbox. Auto-triggers for new users; re-runnable from Settings.
 
 ### Routing
 

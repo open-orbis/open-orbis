@@ -125,7 +125,19 @@ When adding/removing pages, routes, modals, or interactive elements, update `doc
 
 Before creating any pull request, you MUST:
 
-1. Run `git diff main...HEAD` to review all changes in the branch
-2. Assess whether changes affect project structure, architecture, API, conventions, or infrastructure
-3. If they do, update `CLAUDE.md` and/or the relevant `docs/*.md` file before committing
-4. Add a "## Documentation" section to the PR description listing which docs were updated, or "No doc changes needed" if the changes are purely internal/cosmetic
+1. Run `git diff main...HEAD` to review all changes in the branch.
+2. For each change, ask which of these docs it could affect — don't skip this check even for small PRs:
+
+   | Change type | Likely doc(s) to touch |
+   |---|---|
+   | New or renamed API endpoint, changed payload shape, new rate-limit tier | `docs/api.md` |
+   | New Neo4j node type, relationship, constraint, or index | `docs/database.md` |
+   | New backend module or cross-module data flow | `docs/architecture.md` |
+   | New page, modal, dropdown, or overlay on `/myorbis` (or change to an existing one) | `docs/navigation-flow.md` **and** `docs/navigation-actions.yaml` |
+   | New `data-tour` target or changed guided-tour step list | `docs/navigation-flow.md` (tour step count + order) |
+   | New Cloud Run flag, env var, or deploy-time policy change | `docs/deployment.md` |
+   | New env var or first-run command | `docs/onboarding.md` |
+   | Test threshold or fixture convention change | `docs/testing.md` / `docs/cv-extraction-quality.md` |
+
+3. Update the relevant files in the **same PR** as the code change. Never defer doc updates — history shows the gap accumulates faster than you'd expect (see #368).
+4. Add a "## Documentation" section to the PR description listing which docs were updated, or "No doc changes needed" if the changes are purely internal/cosmetic. If you claim "no doc changes needed", spot-check the table above one more time before trusting that claim.

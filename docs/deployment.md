@@ -108,6 +108,12 @@ curl -s -o /dev/null -w "%{http_code}" https://open-orbis.web.app
 
 Functional smoke test: log in, open an orb, upload a CV.
 
+### Cloud Run instance policy
+
+Backend (`orbis-api`) deploys with `--min-instances=1` (see `.github/workflows/deploy.yml`). This keeps one warm instance live at all times, trading a small baseline cost for first-request latency — a cold start on this stack can add several seconds because the container has to initialise the Neo4j async driver and validate connectivity before it can answer. The MCP server (`orbis-mcp`) runs `--min-instances=0` since it's called infrequently by agent clients and cold-start cost is tolerable.
+
+Rationale for `orbis-api` at `1` was landed in #363 — if you see it flipped back to `0`, expect user-visible latency regressions.
+
 ### GCP service accounts
 
 | Service Account | Purpose | Created by |

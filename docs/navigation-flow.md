@@ -2,7 +2,7 @@
 
 > Navigable user-flow map for agent-based UX evaluation. Covers all pages, modals, interactions, guards, and error states.
 >
-> **Last updated:** 2026-04-14 | **Issue:** #193, #274
+> **Last updated:** 2026-04-17 | **Issue:** #193, #274, #368
 
 ## How to Update This Map
 
@@ -97,9 +97,11 @@ stateDiagram-v2
     %% ── Modals & Panels ──
     state "FloatingInput (Add/Edit Node)" as FLOATING_INPUT
     state "SharePanel (modal)" as SHARE_PANEL
+    state "QR Share Modal" as QR_MODAL
     state "ProfilePanel (modal)" as PROFILE_PANEL
     state "AccountSettings (modal)" as ACCOUNT_SETTINGS
     state "DraftNotes (slide-out)" as DRAFT_NOTES
+    state "Pending Connections (dropdown)" as CONNECTIONS_DROPDOWN
     state "Import Review (overlay)" as IMPORT_REVIEW
     state "Import Limit Warning (modal)" as IMPORT_LIMIT
     state "Guided Tour (overlay)" as GUIDED_TOUR
@@ -121,6 +123,11 @@ stateDiagram-v2
     FLOATING_INPUT --> MAIN: Save / Cancel / Delete
     MAIN --> SHARE_PANEL: Click Share
     SHARE_PANEL --> MAIN: Close
+    SHARE_PANEL --> QR_MODAL: Click Show QR (public row or per-token row)
+    QR_MODAL --> SHARE_PANEL: Close / backdrop / Esc
+    MAIN --> CONNECTIONS_DROPDOWN: Click header Connections button
+    CONNECTIONS_DROPDOWN --> MAIN: Close / outside click / Esc / Reject
+    CONNECTIONS_DROPDOWN --> MAIN: Accept (creates AccessGrant)
     MAIN --> PROFILE_PANEL: Click profile image
     PROFILE_PANEL --> MAIN: Close
     MAIN --> ACCOUNT_SETTINGS: UserMenu > Account settings
@@ -205,13 +212,15 @@ flowchart TD
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
 | `FLOATING_INPUT` | (modal on ORB_VIEW) | Yes | Add/edit node form |
-| `SHARE_PANEL` | (modal on ORB_VIEW) | Yes | Share links + QR code |
+| `SHARE_PANEL` | (modal on ORB_VIEW) | Yes | Visibility switch, public/filtered URLs, share tokens, access grants, connection-request review |
+| `QR_MODAL` | (modal above SHARE_PANEL) | Yes | Violet-on-white QR for a given share URL; SVG + PNG downloads |
+| `CONNECTIONS_DROPDOWN` | (dropdown on ORB_VIEW header, `lg+`) | Yes | Inbox of pending access requests — accept (creates AccessGrant) or reject |
 | `PROFILE_PANEL` | (modal on ORB_VIEW) | Yes | Edit profile + social links |
 | `ACCOUNT_SETTINGS` | (modal on ORB_VIEW) | Yes | Orbis ID, Versions, Account tabs |
 | `DRAFT_NOTES` | (panel on ORB_VIEW) | Yes | Draft notes list + management |
 | `IMPORT_REVIEW` | (overlay on ORB_VIEW) | Yes | Review imported document data |
 | `IMPORT_LIMIT` | (modal on ORB_VIEW) | Yes | Document limit confirmation |
-| `GUIDED_TOUR` | (overlay on ORB_VIEW) | Yes | 9-step interactive tour (react-joyride). Auto-triggers for new users, restartable from Settings sidebar |
+| `GUIDED_TOUR` | (overlay on ORB_VIEW) | Yes | 13-step interactive tour (react-joyride). Steps: graph → node-types → keyword-filter → export → import → connections → notes → search → user-menu → orbis-pulse → add-entry → visibility → chatbox. Auto-triggers for new users, restartable from Settings sidebar |
 
 ---
 
