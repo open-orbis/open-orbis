@@ -64,3 +64,32 @@ export async function joinWaitlist(): Promise<{ status: string; waitlist_joined_
 export async function recoverAccount(): Promise<void> {
   await client.post('/auth/me/recover');
 }
+
+// ── Gift invites (#385) — per-user quota of 3 invite codes ──
+
+export interface GiftInvite {
+  code: string;
+  created_at: string | null;
+  used_at: string | null;
+  used_by: string | null;
+}
+
+export interface GiftInvitesState {
+  quota: number;
+  total_issued: number;
+  consumed: number;
+  remaining: number;
+  codes: GiftInvite[];
+}
+
+export async function getMyInvites(): Promise<GiftInvitesState> {
+  const { data } = await client.get<GiftInvitesState>('/auth/me/invites');
+  return data;
+}
+
+export async function generateMyInvite(): Promise<{ code: string; created_at: string | null }> {
+  const { data } = await client.post<{ code: string; created_at: string | null }>(
+    '/auth/me/invites/generate',
+  );
+  return data;
+}

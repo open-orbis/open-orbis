@@ -302,6 +302,36 @@ RETURN
     count(CASE WHEN a.used_at IS NULL AND a.active = true THEN 1 END) AS available
 """
 
+# User-issued "gift invite" codes — #385. Mirror the admin AccessCode shape but
+# tag with source='gift' and store the issuer's user_id so the quota can be
+# enforced per user and the owner can see which friends redeemed.
+CREATE_GIFT_INVITE = """
+CREATE (a:AccessCode {
+    code: $code,
+    label: $label,
+    active: true,
+    used_at: null,
+    used_by: null,
+    created_at: datetime(),
+    created_by: $user_id,
+    source: 'gift'
+})
+RETURN a
+"""
+
+LIST_GIFT_INVITES = """
+MATCH (a:AccessCode {source: 'gift', created_by: $user_id})
+RETURN a
+ORDER BY a.created_at DESC
+"""
+
+COUNT_GIFT_INVITES = """
+MATCH (a:AccessCode {source: 'gift', created_by: $user_id})
+RETURN
+    count(a) AS total_issued,
+    count(CASE WHEN a.used_at IS NOT NULL THEN 1 END) AS consumed
+"""
+
 # Pending users: registered but not yet activated (no signup_code, not admin),
 # and currently marked as joined to the waitlist.
 
