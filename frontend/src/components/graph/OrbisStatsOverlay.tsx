@@ -20,19 +20,44 @@ interface OrbisPulsePanelProps {
 const COMPACT_BREAKPOINT_PX = 1280;
 
 function MetricInfo({ description, label }: { description: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (e: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
   return (
-    <div className="absolute right-1.5 top-1.5 pointer-events-auto">
-      <div className="group relative">
+    <div ref={containerRef} className="absolute right-1.5 top-1.5 pointer-events-auto">
+      <div className="relative">
         <button
           type="button"
           aria-label={`${label} metric info`}
-          className="h-[18px] w-[18px] rounded-full border border-white/20 bg-white/5 text-[10px] font-semibold text-white/75 flex items-center justify-center cursor-help"
+          aria-expanded={open}
+          onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+          className="h-5 w-5 sm:h-[18px] sm:w-[18px] rounded-full border border-white/20 bg-white/5 text-[11px] sm:text-[10px] font-semibold text-white/75 flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-white transition-colors"
         >
           i
         </button>
-        <div className="pointer-events-none absolute right-0 top-6 z-50 w-56 rounded-lg border border-white/15 bg-black/90 px-2 py-1.5 text-[10px] leading-snug text-white/80 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-          {description}
-        </div>
+        {open && (
+          <div className="absolute right-0 top-7 sm:top-6 z-50 w-[min(18rem,calc(100vw-3rem))] sm:w-56 rounded-lg border border-white/15 bg-black/95 px-3 py-2 text-xs sm:text-[11px] leading-snug text-white/90 shadow-xl">
+            {description}
+          </div>
+        )}
       </div>
     </div>
   );
