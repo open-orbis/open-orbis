@@ -42,8 +42,8 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | GET | `/admin/beta-config` | Admin | Read `invite_code_required` toggle state |
 | PATCH | `/admin/beta-config` | Admin | Update `invite_code_required` (true = codes required, false = open platform) |
 | GET | `/admin/access-codes` | Admin | List all invite codes with status (used/available/inactive) |
-| POST | `/admin/access-codes` | Admin | Create single invite code (`{code, label?}`) |
-| POST | `/admin/access-codes/batch` | Admin | Batch create codes (`{prefix, count, label?}`) |
+| POST | `/admin/access-codes` | Admin | Create single invite code (`{code, label?}`). Default UI-generated format is `XXXX-XXXX` (4 alphanumerics + `-` + 4 alphanumerics); any 3–64 character custom code is also accepted. |
+| POST | `/admin/access-codes/batch` | Admin | Batch create codes (`{count, prefix?, label?}`). Empty/omitted `prefix` → codes in default `XXXX-XXXX` format; non-empty prefix → legacy `{prefix}-{suffix}` format for campaign tagging. |
 | PATCH | `/admin/access-codes/{code}` | Admin | Toggle code active/inactive |
 | DELETE | `/admin/access-codes/{code}` | Admin | Delete unused code |
 | GET | `/admin/pending-users` | Admin | List users registered but not yet activated |

@@ -16,6 +16,7 @@ import {
   deleteUser,
   createAccessCode,
   createBatchAccessCodes,
+  generateDefaultCode,
   toggleAccessCode,
   deleteAccessCode,
   updateBetaConfig,
@@ -338,7 +339,7 @@ export default function AdminPage() {
   };
 
   const handleCreateBatch = async () => {
-    if (!batchPrefix.trim() || batchCount < 1) return;
+    if (batchCount < 1) return;
     setBatchCreating(true);
     try {
       await createBatchAccessCodes(batchPrefix.trim(), batchCount, batchLabel.trim());
@@ -735,20 +736,22 @@ export default function AdminPage() {
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-4">
               <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-3">Create single code</h3>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input type="text" value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Code (e.g. invite-john)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <input type="text" value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="XXXX-XXXX (or custom)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <button type="button" onClick={() => setNewCode(generateDefaultCode())} className="sm:w-28 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-white/80 text-sm font-medium px-3 py-2 rounded-lg transition-colors whitespace-nowrap" title="Fill with a random XXXX-XXXX code">Generate</button>
                 <input type="text" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Label (opt.)" className="sm:w-40 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
                 <button onClick={handleCreateCode} disabled={creating || !newCode.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{creating ? '...' : 'Create'}</button>
               </div>
+              <p className="text-white/30 text-xs mt-2">Default format is 4 alphanumerics, a dash, then 4 more (e.g. A3K9-B2X7). Override with any 3–64 character code.</p>
             </div>
 
             {/* Create batch */}
             <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-4">
               <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-3">Generate batch codes</h3>
               <div className="flex flex-col sm:flex-row gap-2">
-                <input type="text" value={batchPrefix} onChange={(e) => setBatchPrefix(e.target.value)} placeholder="Prefix (e.g. launch)" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
+                <input type="text" value={batchPrefix} onChange={(e) => setBatchPrefix(e.target.value)} placeholder="Prefix — leave empty for XXXX-XXXX" className="flex-1 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
                 <input type="number" value={batchCount} onChange={(e) => setBatchCount(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={500} className="sm:w-24 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none" />
                 <input type="text" value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="Label (opt.)" className="sm:w-36 bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-lg px-3 py-2 outline-none placeholder:text-white/20" />
-                <button onClick={handleCreateBatch} disabled={batchCreating || !batchPrefix.trim()} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{batchCreating ? '...' : `Generate ${batchCount}`}</button>
+                <button onClick={handleCreateBatch} disabled={batchCreating} className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">{batchCreating ? '...' : `Generate ${batchCount}`}</button>
               </div>
             </div>
 
