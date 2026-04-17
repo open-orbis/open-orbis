@@ -660,7 +660,7 @@ export default function OrbViewPage() {
                 <div className="relative lg:hidden" ref={toolsMenuRef}>
                   <button
                     onClick={() => setShowToolsMenu((v) => !v)}
-                    className="h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
+                    className="h-10 sm:h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-3 sm:px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -675,7 +675,7 @@ export default function OrbViewPage() {
                         <button
                           onClick={handleUndo}
                           disabled={undoStack.length === 0}
-                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2.5 sm:py-2 rounded-lg border transition-all ${
                             undoStack.length === 0
                               ? 'border-teal-500/10 text-teal-500/20 cursor-default'
                               : 'border-teal-500/30 text-teal-400 hover:text-teal-300 hover:bg-teal-500/10 cursor-pointer'
@@ -689,7 +689,7 @@ export default function OrbViewPage() {
                         <button
                           onClick={handleRedo}
                           disabled={redoStack.length === 0}
-                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
+                          className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2.5 sm:py-2 rounded-lg border transition-all ${
                             redoStack.length === 0
                               ? 'border-sky-500/10 text-sky-500/20 cursor-default'
                               : 'border-sky-500/30 text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 cursor-pointer'
