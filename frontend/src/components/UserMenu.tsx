@@ -438,7 +438,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
   ];
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center p-2 sm:p-4 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

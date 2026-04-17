@@ -450,6 +450,15 @@
   next_state: SHARE_PANEL (copied feedback)
   fallback_on_failure: null
 
+- id: SHARE_SHOW_QR
+  from_state: SHARE_PANEL
+  action: Click Show QR on public or per-token link
+  selector_or_control: "Show QR button next to Copy URL"
+  preconditions: [orb_id_set]
+  expected_effect: Opens QrShareModal with a violet-on-white QR for the link; offers SVG/PNG download
+  next_state: SHARE_PANEL (qr modal open)
+  fallback_on_failure: null
+
 # ── Shared Orb (Public) ──
 
 - id: SHARED_SEARCH
