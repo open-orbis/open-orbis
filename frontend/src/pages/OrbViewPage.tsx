@@ -818,7 +818,7 @@ export default function OrbViewPage() {
                     />
                   </label>
                   {/* Undo / Redo */}
-                  <div data-tour="undo-redo" className="flex items-center">
+                  <div className="flex items-center">
                     <button
                       onClick={handleUndo}
                       disabled={undoStack.length === 0}
@@ -855,7 +855,7 @@ export default function OrbViewPage() {
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
 
-              <div className="hidden lg:block">
+              <div data-tour="connections" className="hidden lg:block">
                 <PendingConnectionsDropdown />
               </div>
 

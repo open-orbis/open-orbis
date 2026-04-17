@@ -38,12 +38,6 @@ const STEPS: TourStep[] = [
     disableBeacon: true,
   },
   {
-    target: '[data-tour="undo-redo"]',
-    title: 'Undo And Redo',
-    content: 'Undo and redo your recent changes — adding or deleting nodes can be reversed.',
-    placement: 'bottom',
-  },
-  {
     target: '[data-tour="node-types"]',
     title: 'View Node Types',
     content: 'Open this to view your node categories (education, skills, work experience, and more).',
@@ -68,6 +62,12 @@ const STEPS: TourStep[] = [
     placement: 'bottom',
   },
   {
+    target: '[data-tour="connections"]',
+    title: 'Connection Requests',
+    content: 'When another user asks to connect their orbis to yours, the request lands here. Open the dropdown to review and accept or reject pending requests.',
+    placement: 'bottom',
+  },
+  {
     target: '[data-tour="notes"]',
     title: 'Draft Notes',
     content: 'Draft notes — jot down quick thoughts, then convert them into graph entries when ready. AI enhancement can help structure your notes.',
@@ -88,7 +88,7 @@ const STEPS: TourStep[] = [
   {
     target: '[data-tour="orbis-pulse"]',
     title: 'Orbis Pulse',
-    content: 'Orbis Pulse gives you live graph metrics (active nodes/edges, density, skill coverage, top hub, and share readiness) based on the current view and filters.',
+    content: 'Orbis Pulse gives you live graph metrics — top hub, orphan nodes, active nodes & edges, avg edges/node, skill coverage, and freshness — based on the current view and filters.',
     placement: 'left',
   },
   {
