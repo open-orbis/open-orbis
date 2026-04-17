@@ -16,7 +16,7 @@
 | ACTIVATION | Pass | Pass | Pass | Single form, already `px-*` safe |
 | CREATE | Pass | Pass | Pass | Two stacking PathCards |
 | CV_UPLOAD | Pass | Pass | Pass | Drag-and-drop area fills width |
-| CV_REVIEW | Fail | Fail | Fail | Long tabbed lists — deferred-to-follow-up; file as separate issue |
+| CV_REVIEW | Deferred-#373 | Deferred-#373 | Deferred-#373 | Long tabbed lists — tracked in #373 |
 | ORB_VIEW | Fail | Fail | Pass | Header bar, ChatBox keyboard, NodeTooltip off-screen — Tasks 3, 5, 6 |
 | SHARED_ORB | Fail | Fail | Pass | Same NodeTooltip bug + chat overlay sizing |
 | CV_EXPORT | Pass | Pass | Pass | Print stylesheet; tolerable |
@@ -32,7 +32,7 @@
 | SHARE_PANEL open | ORB_VIEW | Pass | Pass | Pass | Modal fills screen on mobile |
 | SHARE_SHOW_QR | SHARE_PANEL | Pass | Pass | Pass | `QrShareModal` uses `92vw` |
 | SHARE_COPY_LINK | SHARE_PANEL | Pass | Pass | Pass | Button + input inline |
-| CONNECTIONS_OPEN | ORB_VIEW | Deferred | Deferred | Deferred | Dropdown is `hidden lg:block` — no mobile UI yet |
+| CONNECTIONS_OPEN | ORB_VIEW | Deferred-#374 | Deferred-#374 | Deferred-#374 | Dropdown is `hidden lg:block` — mobile surface tracked in #374 |
 | User-menu dropdown | ORB_VIEW | Pass | Pass | Pass | z-index already fixed in previous PR |
 | ChatBox submit | ORB_VIEW | Fail | Fail | Pass | Keyboard pushes layout, no safe-area inset — Task 6 |
 | Node hover tooltip | ORB_VIEW | Fail | Fail | Pass | NodeTooltip clamp uses fixed 420 px — Task 3 |
