@@ -20,19 +20,65 @@ interface OrbisPulsePanelProps {
 const COMPACT_BREAKPOINT_PX = 1280;
 
 function MetricInfo({ description, label }: { description: string; label: string }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointer = (e: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointer);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointer);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [open]);
+
   return (
-    <div className="absolute right-1.5 top-1.5 pointer-events-auto">
-      <div className="group relative">
+    <div ref={containerRef} className="absolute right-1.5 top-1.5 pointer-events-auto">
+      <div className="relative">
         <button
           type="button"
           aria-label={`${label} metric info`}
-          className="h-[18px] w-[18px] rounded-full border border-white/20 bg-white/5 text-[10px] font-semibold text-white/75 flex items-center justify-center cursor-help"
+          aria-expanded={open}
+          onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+          className="h-5 w-5 sm:h-[18px] sm:w-[18px] rounded-full border border-white/20 bg-white/5 text-[11px] sm:text-[10px] font-semibold text-white/75 flex items-center justify-center cursor-pointer hover:bg-white/10 hover:text-white transition-colors"
         >
           i
         </button>
-        <div className="pointer-events-none absolute right-0 top-6 z-50 w-56 rounded-lg border border-white/15 bg-black/90 px-2 py-1.5 text-[10px] leading-snug text-white/80 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-          {description}
-        </div>
+        {open && (
+          <>
+            {/* Mobile backdrop — captures tap-to-dismiss and lifts the tooltip above the Pulse modal */}
+            <div
+              className="fixed inset-0 z-[60] bg-black/50 sm:hidden"
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="fixed left-4 right-4 bottom-4 z-[61] sm:absolute sm:inset-auto sm:right-0 sm:top-6 sm:left-auto sm:bottom-auto sm:w-56 sm:z-50 rounded-lg border border-white/15 bg-black/95 px-4 py-3 sm:px-3 sm:py-2 text-sm sm:text-[11px] leading-snug text-white/90 shadow-2xl">
+              <div className="flex items-start justify-between gap-3 sm:hidden mb-1.5">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/45 font-semibold">{label}</span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+                  aria-label="Close"
+                  className="-my-1 -mr-1 p-1 text-white/50 hover:text-white"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {description}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
