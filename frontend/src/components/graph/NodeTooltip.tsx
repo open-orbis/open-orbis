@@ -115,9 +115,15 @@ export default function NodeTooltip({ node, position }: NodeTooltipProps) {
   const description = node.description as string | undefined;
   const nodeUrl = (node.url || node.company_url || node.credential_url || node.doi) as string | undefined;
 
-  // Clamp tooltip position so it doesn't overflow the viewport
-  const tooltipX = Math.min(position.x + 16, window.innerWidth - 420);
-  const tooltipY = Math.min(position.y + 16, window.innerHeight - 300);
+  // Clamp tooltip position so it doesn't overflow the viewport. The tooltip
+  // width/height is fluid (`max-w-[85vw] sm:max-w-sm`), so use the viewport
+  // itself rather than a hard-coded 420 px — on narrow viewports the old
+  // bound went negative and pushed the tooltip off-screen.
+  const TOOLTIP_PAD = 12;
+  const estW = Math.min(340, window.innerWidth * 0.85);
+  const estH = 260;
+  const tooltipX = Math.max(TOOLTIP_PAD, Math.min(position.x + 16, window.innerWidth - estW - TOOLTIP_PAD));
+  const tooltipY = Math.max(TOOLTIP_PAD, Math.min(position.y + 16, window.innerHeight - estH - TOOLTIP_PAD));
 
   return (
     <div
