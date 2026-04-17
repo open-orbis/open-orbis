@@ -117,7 +117,14 @@ JWT validation on protected endpoints via `HTTPBearer` scheme. Refresh tokens su
 
 ### Encryption
 
-Fernet symmetric encryption for PII fields (`email`, `phone`, `address`). Key from `ENCRYPTION_KEY` env var; auto-generated in dev mode if missing (data won't survive restarts).
+Fernet symmetric encryption for PII fields (`email`, `cv_email`, `phone`, `address`). Key from `ENCRYPTION_KEY` env var; auto-generated in dev mode if missing (data won't survive restarts).
+
+**Two separate email fields on `:Person` (#394):**
+
+- `email` — OAuth-verified sign-up address. Set at Person creation and self-healed on every subsequent login. Canonical address for admin UI, transactional notifications (CV ready / failed / access grant / activation), and identity.
+- `cv_email` — Email the LLM parsed from the CV text, if any. Reference-only. Never used as identity or for notifications. CV confirm (`POST /cv/confirm` + `POST /cv/import-confirm`) writes here, not to `email`.
+
+The separation exists because the LLM can hallucinate contact info, CVs can contain stale addresses, and uploaded CVs can even belong to third parties.
 
 ## Frontend Architecture
 

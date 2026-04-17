@@ -132,6 +132,8 @@ The client should poll `GET /cv/job/{job_id}` until `status` is `succeeded` or `
 
 When `document_id` is provided, the confirm endpoint records document metadata (including `entities_count` and `edges_count` computed from the nodes/relationships). If the user already has 3 documents, the oldest is automatically evicted.
 
+**Person-email invariant (#394):** the confirm payload's extracted `profile.email` is stored on `Person.cv_email` (Fernet-encrypted, reference-only), **never** on `Person.email`. `Person.email` is the OAuth sign-up address and is only set at account creation or on subsequent logins (self-healing in `_get_or_create_person`). Admin UI and every transactional notification (CV-ready / CV-failed / access-grant / activation) always read `Person.email`. The same invariant applies to `/cv/import-confirm`.
+
 ### Document Metadata Response (`GET /cv/documents`)
 
 ```json

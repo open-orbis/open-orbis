@@ -471,15 +471,29 @@ async def _persist_nodes_inner(  # noqa: C901
 
 
 def _build_person_updates(data: ConfirmRequest) -> dict:
-    """Build Person node property updates from CV extraction results."""
+    """Build Person node property updates from CV extraction results.
+
+    Never overwrites the OAuth-verified sign-up email (`Person.email`). The
+    LLM can hallucinate contact info, CVs can contain someone else's email,
+    and the admin dashboard + transactional notifications must always use
+    the verified address (#394). CV-parsed email is captured separately as
+    `cv_email` if it differs, so it's visible but never treated as identity.
+    """
     updates: dict[str, str] = {}
     if data.cv_owner_name:
         updates["cv_display_name"] = data.cv_owner_name
     if data.profile:
         profile_dict = data.profile.model_dump(exclude_none=True)
-        for pii_field in ("email", "phone"):
-            if pii_field in profile_dict:
-                profile_dict[pii_field] = encrypt_value(profile_dict[pii_field])
+
+        # Move the CV-parsed email out of `email` (identity field) and into
+        # `cv_email` (reference-only field). Do NOT overwrite `p.email`.
+        cv_email = profile_dict.pop("email", None)
+        if cv_email:
+            updates["cv_email"] = encrypt_value(cv_email)
+
+        if "phone" in profile_dict:
+            profile_dict["phone"] = encrypt_value(profile_dict["phone"])
+
         updates.update(profile_dict)
     return updates
 

@@ -79,6 +79,24 @@ async def _get_or_create_person(
             person = dict(record["p"])
             is_admin_user = bool(person.get("is_admin", False))
             has_code = person.get("signup_code") is not None
+
+            # Heal Person.email if an earlier CV-confirm flow overwrote it
+            # (#394). The OAuth claim is the only trusted source for the
+            # sign-up email — every login we see re-asserts it.
+            stored_email = person.get("email")
+            verified = encrypt_value(email)
+            try:
+                current_plain = decrypt_value(stored_email) if stored_email else None
+            except Exception:
+                current_plain = None
+            if current_plain != email:
+                await session.run(
+                    "MATCH (p:Person {user_id: $user_id}) "
+                    "SET p.email = $email, p.updated_at = datetime()",
+                    user_id=user_id,
+                    email=verified,
+                )
+
             return {
                 "activated": not invite_required or is_admin_user or has_code,
                 "gdpr_consent": bool(person.get("gdpr_consent", False)),
