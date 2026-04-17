@@ -3,10 +3,6 @@
 // than Three.js so landing-page first paint isn't blocked on a WebGL context.
 
 const KEYFRAMES = `
-  @keyframes hero-orb-rotate {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
   @keyframes hero-orb-halo-pulse {
     0%, 100% { opacity: 0.85; transform: scale(1); }
     50%      { opacity: 1;    transform: scale(1.03); }
@@ -19,21 +15,18 @@ const KEYFRAMES = `
     0%, 100% { opacity: 1; }
     50%      { opacity: 0.55; }
   }
-  .hero-orb-system,
   .hero-orb-halo,
   .hero-orb-core,
   .hero-orb-node {
     transform-box: fill-box;
     transform-origin: center;
   }
-  .hero-orb-system { animation: hero-orb-rotate 90s linear infinite; }
-  .hero-orb-halo   { animation: hero-orb-halo-pulse 5s ease-in-out infinite; }
-  .hero-orb-core   { animation: hero-orb-core-pulse 4s ease-in-out infinite; }
+  .hero-orb-halo { animation: hero-orb-halo-pulse 5s ease-in-out infinite; }
+  .hero-orb-core { animation: hero-orb-core-pulse 4s ease-in-out infinite; }
   .hero-orb-node.delay-1 { animation: hero-orb-node-twinkle 3.2s ease-in-out infinite 0.4s; }
   .hero-orb-node.delay-2 { animation: hero-orb-node-twinkle 4.1s ease-in-out infinite 1.1s; }
   .hero-orb-node.delay-3 { animation: hero-orb-node-twinkle 3.6s ease-in-out infinite 2.0s; }
   @media (prefers-reduced-motion: reduce) {
-    .hero-orb-system,
     .hero-orb-halo,
     .hero-orb-core,
     .hero-orb-node { animation: none !important; }
@@ -44,7 +37,7 @@ export default function HeroOrb() {
   return (
     <>
       <style>{KEYFRAMES}</style>
-      <div className="w-64 h-64 md:w-80 md:h-80">
+      <div className="w-80 h-80 md:w-[28rem] md:h-[28rem]">
         <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" aria-hidden>
           <defs>
             <radialGradient id="hero-orb-core-grad" cx="50%" cy="50%" r="50%">
@@ -65,7 +58,7 @@ export default function HeroOrb() {
 
           <circle className="hero-orb-halo" cx="200" cy="200" r="195" fill="url(#hero-orb-halo-grad)" />
 
-          <g className="hero-orb-system">
+          <g>
             <g strokeWidth="0.8" fill="none" opacity={0.55}>
               <ellipse cx="200" cy="200" rx="185" ry="58" stroke="#a78bfa" strokeDasharray="1 3" transform="rotate(-22 200 200)" />
               <ellipse cx="200" cy="200" rx="165" ry="48" stroke="#8b5cf6" transform="rotate(18 200 200)" />
