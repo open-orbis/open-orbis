@@ -67,12 +67,23 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
 
       <AnimatePresence>
         {open && (
+          <>
+            {/* Mobile backdrop — makes the popover feel like a modal on narrow viewports */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[41] bg-black/60 backdrop-blur-sm sm:hidden"
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+            />
           <motion.div
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-[calc(100vw-3rem)] sm:w-80 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[42] max-h-[85vh] overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:translate-y-0 sm:mt-2 sm:w-80 sm:max-h-none sm:overflow-hidden sm:z-50 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
           >
             <div className="px-4 py-3 border-b border-white/5">
               <h3 className="text-white text-sm font-semibold">Keyword Filters</h3>
@@ -155,6 +166,7 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
               )}
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
