@@ -413,8 +413,8 @@ export default function ChatBox({
         </div>
       )}
 
-      {/* Feedback button above chatbox — hidden on mobile to avoid overlap with Orbis Pulse */}
-      <div className="hidden sm:flex justify-center mb-1.5">
+      {/* Feedback button above chatbox — stays narrow and centred so it doesn't collide with the Orbis Pulse pill on the right */}
+      <div className="flex justify-center mb-1.5">
         <button
           type="button"
           onClick={() => { if (!feedbackSent) setShowFeedback(true); }}
