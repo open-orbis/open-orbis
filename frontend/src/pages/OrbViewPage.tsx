@@ -20,6 +20,7 @@ import type { ChatMessage } from '../components/chat/ChatBox';
 import DiscoverUsesModal from '../components/DiscoverUsesModal';
 import DraftNotes from '../components/drafts/DraftNotes';
 import ExtractedDataReview from '../components/onboarding/ExtractedDataReview';
+import UnmatchedEntriesReview from '../components/onboarding/UnmatchedEntriesReview';
 import type { DraftNote } from '../components/drafts/DraftNotes';
 import { loadDraftNotes, loadDraftNotesAsync } from '../components/drafts/DraftNotes';
 import ProcessingCounter from '../components/cv/ProcessingCounter';
@@ -162,6 +163,7 @@ export default function OrbViewPage() {
     file: File;
     documentId: string | null;
   } | null>(null);
+  const [importUnmatchedOpen, setImportUnmatchedOpen] = useState(false);
 
   const [pendingReviewJobId, setPendingReviewJobId] = useState<string | null>(null);
 
@@ -218,17 +220,19 @@ export default function OrbViewPage() {
       reviewHandledRef.current = true;
       getJob(reviewJobId).then((job) => {
         if (job.status === 'succeeded' && job.result) {
+          const unmatched = job.result.unmatched || [];
           setExtractedImport({
             nodes: job.result.nodes,
             relationships: job.result.relationships || [],
             cvOwnerName: job.result.cv_owner_name || null,
             profile: job.result.profile || null,
-            unmatchedCount: job.result.unmatched?.length || 0,
-            unmatchedEntries: job.result.unmatched || [],
+            unmatchedCount: unmatched.length,
+            unmatchedEntries: unmatched,
             skippedCount: job.result.skipped_nodes?.length || 0,
             file: new File([], job.filename || 'document'),
             documentId: job.result.document_id || null,
           });
+          setImportUnmatchedOpen(unmatched.length > 0);
           window.history.replaceState({}, '', '/myorbis');
         }
       }).catch(() => {
@@ -524,17 +528,19 @@ export default function OrbViewPage() {
           if (job.status === 'succeeded') {
             clearInterval(pollId);
             if (job.result && job.result.nodes.length > 0) {
+              const unmatched = job.result.unmatched || [];
               setExtractedImport({
                 nodes: job.result.nodes,
                 relationships: job.result.relationships || [],
                 cvOwnerName: job.result.cv_owner_name || null,
                 profile: job.result.profile || null,
-                unmatchedCount: job.result.unmatched?.length || 0,
-                unmatchedEntries: job.result.unmatched || [],
+                unmatchedCount: unmatched.length,
+                unmatchedEntries: unmatched,
                 skippedCount: job.result.skipped_nodes?.length || 0,
                 file,
                 documentId: job.result.document_id || null,
               });
+              setImportUnmatchedOpen(unmatched.length > 0);
             } else {
               addToast('No entries extracted from document.', 'error');
             }
@@ -612,17 +618,19 @@ export default function OrbViewPage() {
             onClick={() => {
               getJob(pendingReviewJobId).then((job) => {
                 if (job.result) {
+                  const unmatched = job.result.unmatched || [];
                   setExtractedImport({
                     nodes: job.result.nodes,
                     relationships: job.result.relationships || [],
                     cvOwnerName: job.result.cv_owner_name || null,
                     profile: job.result.profile || null,
-                    unmatchedCount: job.result.unmatched?.length || 0,
-                    unmatchedEntries: job.result.unmatched || [],
+                    unmatchedCount: unmatched.length,
+                    unmatchedEntries: unmatched,
                     skippedCount: job.result.skipped_nodes?.length || 0,
                     file: new File([], job.filename || 'document'),
                     documentId: job.result.document_id || null,
                   });
+                  setImportUnmatchedOpen(unmatched.length > 0);
                 }
                 setPendingReviewJobId(null);
               }).catch(() => {
@@ -1049,8 +1057,32 @@ export default function OrbViewPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Import: unmatched entries review (intermediate step) ── */}
+      {extractedImport && importUnmatchedOpen && (
+        <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
+          <UnmatchedEntriesReview
+            entries={extractedImport.unmatchedEntries}
+            onBack={() => { setExtractedImport(null); setImportUnmatchedOpen(false); }}
+            backLabel="Cancel import"
+            onDone={({ classifiedNodes, remainingUnmatched }) => {
+              setExtractedImport((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      nodes: [...prev.nodes, ...classifiedNodes],
+                      unmatchedEntries: remainingUnmatched,
+                      unmatchedCount: remainingUnmatched.length,
+                    }
+                  : prev,
+              );
+              setImportUnmatchedOpen(false);
+            }}
+          />
+        </div>
+      )}
+
       {/* ── Import review overlay ── */}
-      {extractedImport && (
+      {extractedImport && !importUnmatchedOpen && (
         <div className="fixed inset-0 z-50 bg-black overflow-y-auto">
           <ExtractedDataReview
             initialNodes={extractedImport.nodes}
@@ -1061,11 +1093,12 @@ export default function OrbViewPage() {
             unmatchedEntries={extractedImport.unmatchedEntries}
             skippedCount={extractedImport.skippedCount}
             truncated={false}
-            onReset={() => setExtractedImport(null)}
+            onReset={() => { setExtractedImport(null); setImportUnmatchedOpen(false); }}
             resetLabel="Cancel import"
             onConfirm={async (nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile) => {
               await confirmImport(nodes, rels, name, documentId, originalFilename, fileSizeBytes, pageCount, profile);
               setExtractedImport(null);
+              setImportUnmatchedOpen(false);
               fetchDocuments();
             }}
             onComplete={async () => {

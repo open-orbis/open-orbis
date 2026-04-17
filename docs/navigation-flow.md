@@ -27,6 +27,7 @@ stateDiagram-v2
     state "GDPR Consent Gate" as CONSENT_GATE
     state "Create Orb (/create)" as CREATE
     state "CV Upload Onboarding" as CV_UPLOAD
+    state "Unmatched Entries Review" as CV_UNMATCHED
     state "Extracted Data Review" as CV_REVIEW
     state "Manual Build (guided)" as MANUAL_BUILD
     state "Orb View (/myorbis)" as ORB_VIEW
@@ -63,7 +64,9 @@ stateDiagram-v2
     %% ── Create flows ──
     CREATE --> CV_UPLOAD: Choose "Build from CV"
     CREATE --> ORB_VIEW: Choose "Build from scratch" (allowEmpty)
-    CV_UPLOAD --> CV_REVIEW: Extraction complete
+    CV_UPLOAD --> CV_UNMATCHED: Extraction complete (with unmatched entries)
+    CV_UPLOAD --> CV_REVIEW: Extraction complete (no unmatched entries)
+    CV_UNMATCHED --> CV_REVIEW: Continue (classify + skip)
     CV_REVIEW --> ORB_VIEW: Confirm import
     CV_UPLOAD --> CV_UPLOAD: Extraction failed (retry)
     MANUAL_BUILD --> ORB_VIEW: Done / View My Orbis
@@ -201,6 +204,7 @@ flowchart TD
 | `LINKEDIN_CALLBACK` | `/auth/linkedin/callback` | No | LinkedIn OAuth code exchange |
 | `CREATE` | `/create` | Yes | Path selection (CV upload vs manual) |
 | `CV_UPLOAD` | `/create` (subview) | Yes | PDF drag-and-drop + progress |
+| `CV_UNMATCHED` | `/create` (subview) | Yes | Per-entry classify-or-skip for entries the extractor could not categorize. Only shown when `unmatched.length > 0`. |
 | `CV_REVIEW` | `/create` (subview) | Yes | Review extracted nodes before confirm |
 | `MANUAL_BUILD` | `/create` (subview) | Yes | Step-by-step guided node creation |
 | `ORB_VIEW` | `/myorbis` | Yes | Main orb editor/dashboard |
