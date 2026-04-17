@@ -54,9 +54,30 @@ function MetricInfo({ description, label }: { description: string; label: string
           i
         </button>
         {open && (
-          <div className="absolute right-0 top-7 sm:top-6 z-50 w-[min(18rem,calc(100vw-3rem))] sm:w-56 rounded-lg border border-white/15 bg-black/95 px-3 py-2 text-xs sm:text-[11px] leading-snug text-white/90 shadow-xl">
-            {description}
-          </div>
+          <>
+            {/* Mobile backdrop — captures tap-to-dismiss and lifts the tooltip above the Pulse modal */}
+            <div
+              className="fixed inset-0 z-[60] bg-black/50 sm:hidden"
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="fixed left-4 right-4 bottom-4 z-[61] sm:absolute sm:inset-auto sm:right-0 sm:top-6 sm:left-auto sm:bottom-auto sm:w-56 sm:z-50 rounded-lg border border-white/15 bg-black/95 px-4 py-3 sm:px-3 sm:py-2 text-sm sm:text-[11px] leading-snug text-white/90 shadow-2xl">
+              <div className="flex items-start justify-between gap-3 sm:hidden mb-1.5">
+                <span className="text-[10px] uppercase tracking-[0.15em] text-white/45 font-semibold">{label}</span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setOpen(false); }}
+                  aria-label="Close"
+                  className="-my-1 -mr-1 p-1 text-white/50 hover:text-white"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {description}
+            </div>
+          </>
         )}
       </div>
     </div>
