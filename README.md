@@ -14,6 +14,15 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/lint.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml"><img src="https://github.com/Brotherhood94/orb_project/actions/workflows/unit-tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://open-orbis.com"><img src="https://img.shields.io/badge/demo-open--orbis.com-7c3aed?logo=vercel&logoColor=white" alt="Live demo"></a>
+</p>
+
+<p align="center">
+  <a href="https://open-orbis.com">
+    <img src="docs/assets/landing-hero.png" alt="OpenOrbis landing page — a glowing violet orb surrounded by orbital rings and the headline 'Beyond the CV.'" width="820">
+  </a>
+  <br>
+  <sub><em>Landing page — your career as a living, orbiting knowledge graph.</em></sub>
 </p>
 
 <br>
@@ -25,6 +34,24 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 🌐 **Share it** — every orbis gets a unique URL and QR code, ready to send to recruiters or embed in your portfolio
 
 🤖 **Query it** — AI agents (Claude, Cursor, Copilot) can access your graph natively via the **Model Context Protocol (MCP)**
+
+---
+
+## See it in action
+
+<p align="center">
+  <img src="docs/assets/myorbis-graph.png" alt="OpenOrbis dashboard showing a 3D force-directed knowledge graph in the center, an Orbis Pulse panel with Top Hub / Orphan Nodes / Active Nodes / Active Edges / Avg Edges/Node / Skill Coverage / Freshness metrics on the right, a time-range slider on the left, and a chat-style query bar at the bottom." width="820">
+  <br>
+  <sub><em>/myorbis — your graph, Orbis Pulse metrics, date-range timeline, and chat-style search.</em></sub>
+</p>
+
+A typical session:
+
+1. **Upload your CV** (PDF / DOCX / TXT) — the pipeline extracts experiences, skills, education, publications, projects and more as typed nodes.
+2. **Review and edit** the extracted entries in tabbed lists before they touch the graph.
+3. **Explore** the 3D orbis: rotate, zoom, filter by node type or keyword, slide the timeline.
+4. **Share** — copy the public URL, generate a scannable QR, or grant access by email with per-viewer privacy filters.
+5. **Query via MCP** — connect Claude / Cursor / an MCP-aware agent to ask questions about your graph in natural language.
 
 ---
 
@@ -268,15 +295,43 @@ The key graph feature is **`USED_SKILL`** — a cross-link between experience no
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/your-feature`)
-3. Run linters before committing:
+We welcome contributions from anyone interested in personal-knowledge-graph UX, graph databases, LLM-powered extraction, or the MCP ecosystem.
+
+**Workflow:**
+
+1. Fork the repo and clone your fork.
+2. Create a feature branch — `git checkout -b feat/your-feature` (prefixes: `feat/`, `fix/`, `docs/`, `refactor/`, `test/`).
+3. Keep PRs focused — one concern per PR.
+4. Run linters + tests locally before pushing:
    ```bash
-   cd backend && uv run ruff check . && uv run ruff format .
-   cd frontend && npm run lint
+   cd backend  && uv run ruff check . && uv run ruff format --check . \
+     && uv run pytest tests/unit/ -v --cov=app --cov-fail-under=50
+   cd frontend && npm run lint && npm run build
    ```
-4. Ensure tests pass with >= 75% coverage
-5. Open a pull request against `main`
+5. Update the relevant docs in `docs/` (see [CLAUDE.md](CLAUDE.md) pre-PR check) — API, schema, navigation, or architecture changes each have their own file.
+6. Open the PR against `main` with a Summary + Test plan + Documentation section.
+
+Good first issues are tagged [`good first issue`](https://github.com/Brotherhood94/orb_project/labels/good%20first%20issue). If you want to discuss a larger change first, open an issue with your proposal.
+
+---
+
+## Roadmap & known limitations
+
+**On the roadmap:**
+
+- Mobile polish sweep (in progress — see [#369](https://github.com/Brotherhood94/orb_project/issues/369))
+- Full E2E coverage across iOS Safari / Android Chrome
+- Vector-embedding upgrade (currently deterministic placeholders for semantic search)
+- Public-profile themes (custom accent colour + layout)
+- Native mobile wrappers (PWA first, then considering Capacitor)
+- Expanded MCP toolset (node creation, timeline queries)
+
+**Known limitations today:**
+
+- **LLM cost vs. quality trade-off** — Claude gives the best extraction quality; Ollama (`llama3.2:3b`) is the free local fallback but accuracy on complex CVs drops noticeably.
+- **Semantic search** is wired end-to-end but the vector indexes use placeholder embeddings — planned swap to a production embedding model.
+- **Admin dashboard** is desktop-first; mobile support is lower-priority.
+- **Invite-code gate** — the project currently runs as a closed beta. Self-hosted instances can toggle this off via `/admin` once you promote yourself to admin.
 
 ---
 
