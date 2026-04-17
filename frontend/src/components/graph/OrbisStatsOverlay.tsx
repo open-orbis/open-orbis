@@ -53,18 +53,18 @@ function MetricInfo({ description, label }: { description: string; label: string
         >
           i
         </button>
-        {open && (
+        {open && createPortal(
           <>
             {/* Metric info tooltip sits at the top of the z-index scale
-                (see docs/architecture.md) so it always wins over ChatBox,
-                header, Pulse overlay, toast, and any modal. */}
+                (see docs/architecture.md). Portaled to document.body so the
+                Pulse panel's stacking context (z-[30] / z-[42]) can't cap it. */}
             <div
               className="fixed inset-0 z-[1000] bg-black/50 sm:hidden"
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
-            <div className="fixed left-4 right-4 bottom-4 z-[1001] sm:absolute sm:inset-auto sm:right-0 sm:top-6 sm:left-auto sm:bottom-auto sm:w-56 rounded-lg border border-white/15 bg-black/95 px-4 py-3 sm:px-3 sm:py-2 text-sm sm:text-[11px] leading-snug text-white/90 shadow-2xl">
-              <div className="flex items-start justify-between gap-3 sm:hidden mb-1.5">
+            <div className="fixed left-4 right-4 bottom-4 z-[1001] sm:left-auto sm:right-6 sm:bottom-auto sm:top-24 sm:w-56 rounded-lg border border-white/15 bg-black/95 px-4 py-3 sm:px-3 sm:py-2 text-sm sm:text-[11px] leading-snug text-white/90 shadow-2xl">
+              <div className="flex items-start justify-between gap-3 mb-1.5 sm:hidden">
                 <span className="text-[10px] uppercase tracking-[0.15em] text-white/45 font-semibold">{label}</span>
                 <button
                   type="button"
@@ -79,7 +79,8 @@ function MetricInfo({ description, label }: { description: string; label: string
               </div>
               {description}
             </div>
-          </>
+          </>,
+          document.body,
         )}
       </div>
     </div>
