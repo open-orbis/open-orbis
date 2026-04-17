@@ -552,9 +552,7 @@ async def generate_my_invite(
         generate_gift_invite,
     )
 
-    status, record = await generate_gift_invite(
-        db, user_id=current_user["user_id"]
-    )
+    status, record = await generate_gift_invite(db, user_id=current_user["user_id"])
     if status == "quota_reached":
         raise HTTPException(
             status_code=409,
