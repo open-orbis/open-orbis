@@ -137,7 +137,7 @@ Axios instance with base URL controlled by `VITE_API_URL` env var (defaults to `
 ### 3D Graph Rendering
 
 Two distinct 3D contexts:
-1. **HeroOrb** (landing page) — React Three Fiber with animated sphere, particles, rays, and Bloom post-processing
+1. **HeroOrb** (landing page) — CSS-animated SVG composition matching the GDG DevFest 2026 poster mark (`print/openorbis-a3-poster.html`): outer halo, 4 tilted orbital rings, 4 ring-bound satellite nodes that orbit via CSS `offset-path`, a slowly-rotating background "constellation" group, and a central node styled after the top-left myorbis logo. No WebGL on first paint — landing is now the lightest route.
 2. **OrbGraph3D** (main app) — react-force-graph-3d with custom THREE.js node rendering, shared geometry pool, node object cache, animated orbital rings, background star field
 
 Performance optimizations: shared geometry (never recreated), node object cache (invalidated on data/filter changes), direct refs for animated objects, single `requestAnimationFrame` loop, ref-based state to avoid React re-renders.
