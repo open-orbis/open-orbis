@@ -113,7 +113,7 @@ export default function PendingConnectionsDropdown({ label = 'Connections', full
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 sm:w-96 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-[calc(100vw-3rem)] sm:w-96 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-white/10">
             <div className="flex items-center justify-between">
               <h3 className="text-xs text-emerald-300 uppercase tracking-[0.12em] font-semibold">Pending Connections</h3>

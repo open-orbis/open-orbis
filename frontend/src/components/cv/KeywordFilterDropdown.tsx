@@ -72,7 +72,7 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+            className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-[calc(100vw-3rem)] sm:w-80 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
           >
             <div className="px-4 py-3 border-b border-white/5">
               <h3 className="text-white text-sm font-semibold">Keyword Filters</h3>
