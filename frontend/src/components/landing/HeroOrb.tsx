@@ -1,173 +1,111 @@
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import * as THREE from 'three';
+// Ported from print/openorbis-a3-poster.html (issue #371) — keeps the composition
+// consistent with the marketing poster / DevFest handouts. CSS-animated SVG rather
+// than Three.js so landing-page first paint isn't blocked on a WebGL context.
 
-function OrbSphere() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-    if (meshRef.current) {
-      meshRef.current.rotation.y = t * 0.15;
-      meshRef.current.rotation.x = Math.sin(t * 0.1) * 0.1;
-    }
-    if (glowRef.current) {
-      glowRef.current.scale.setScalar(1 + Math.sin(t * 0.8) * 0.05);
-    }
-  });
-
-  return (
-    <group>
-      {/* Outer glow sphere — dark purple ring */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[2.2, 32, 32]} />
-        <meshBasicMaterial color="#7c3aed" transparent opacity={0.12} />
-      </mesh>
-
-      {/* Main orb — bright vibrant purple core */}
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[1.8, 64, 64]} />
-        <meshStandardMaterial
-          color="#a855f6"
-          emissive="#a855f6"
-          emissiveIntensity={0.8}
-          roughness={0.2}
-          metalness={0.6}
-        />
-      </mesh>
-
-      {/* Inner bright core */}
-      <mesh>
-        <sphereGeometry args={[1.0, 32, 32]} />
-        <meshBasicMaterial color="#c084fc" transparent opacity={0.4} />
-      </mesh>
-
-      {/* Highlight ring */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.0, 0.015, 16, 100]} />
-        <meshBasicMaterial color="#c084fc" transparent opacity={0.4} />
-      </mesh>
-    </group>
-  );
-}
-
-function Particles() {
-  const count = 300;
-  const ref = useRef<THREE.Points>(null);
-
-  const positions = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 2.5 + Math.random() * 2.5;
-      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      pos[i * 3 + 2] = r * Math.cos(phi);
-    }
-    return pos;
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (ref.current) {
-      ref.current.rotation.y = clock.getElapsedTime() * 0.03;
-      ref.current.rotation.x = clock.getElapsedTime() * 0.01;
-    }
-  });
-
-  return (
-    <points ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        color="#a78bfa"
-        size={0.03}
-        transparent
-        opacity={0.7}
-        sizeAttenuation
-      />
-    </points>
-  );
-}
-
-function Rays() {
-  const groupRef = useRef<THREE.Group>(null);
-  const rayCount = 12;
-
-  const rays = useMemo(() => {
-    return Array.from({ length: rayCount }, (_, i) => {
-      const angle = (i / rayCount) * Math.PI * 2;
-      const length = 1.5 + Math.random() * 1.5;
-      return { angle, length, phase: Math.random() * Math.PI * 2 };
-    });
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    const t = clock.getElapsedTime();
-    groupRef.current.children.forEach((child, i) => {
-      const ray = rays[i];
-      const pulse = 0.5 + 0.5 * Math.sin(t * 1.2 + ray.phase);
-      (child as THREE.Mesh).scale.set(1, pulse, 1);
-    });
-  });
-
-  return (
-    <group ref={groupRef}>
-      {rays.map((ray, i) => (
-        <mesh
-          key={i}
-          position={[
-            Math.cos(ray.angle) * 2.1,
-            Math.sin(ray.angle) * 2.1,
-            0,
-          ]}
-          rotation={[0, 0, ray.angle - Math.PI / 2]}
-        >
-          <planeGeometry args={[0.02, ray.length]} />
-          <meshBasicMaterial
-            color="#8b5cf6"
-            transparent
-            opacity={0.3}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
+const KEYFRAMES = `
+  @keyframes hero-orb-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  @keyframes hero-orb-halo-pulse {
+    0%, 100% { opacity: 0.85; transform: scale(1); }
+    50%      { opacity: 1;    transform: scale(1.03); }
+  }
+  @keyframes hero-orb-core-pulse {
+    0%, 100% { opacity: 0.85; }
+    50%      { opacity: 1; }
+  }
+  @keyframes hero-orb-node-twinkle {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+  .hero-orb-system,
+  .hero-orb-halo,
+  .hero-orb-core,
+  .hero-orb-node {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .hero-orb-system { animation: hero-orb-rotate 90s linear infinite; }
+  .hero-orb-halo   { animation: hero-orb-halo-pulse 5s ease-in-out infinite; }
+  .hero-orb-core   { animation: hero-orb-core-pulse 4s ease-in-out infinite; }
+  .hero-orb-node.delay-1 { animation: hero-orb-node-twinkle 3.2s ease-in-out infinite 0.4s; }
+  .hero-orb-node.delay-2 { animation: hero-orb-node-twinkle 4.1s ease-in-out infinite 1.1s; }
+  .hero-orb-node.delay-3 { animation: hero-orb-node-twinkle 3.6s ease-in-out infinite 2.0s; }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-orb-system,
+    .hero-orb-halo,
+    .hero-orb-core,
+    .hero-orb-node { animation: none !important; }
+  }
+`;
 
 export default function HeroOrb() {
   return (
-    <div className="w-64 h-64 md:w-80 md:h-80">
-      <Canvas
-        camera={{ position: [0, 0, 8], fov: 45 }}
-        gl={{ antialias: true, alpha: true }}
-        style={{ background: 'transparent' }}
-      >
-        <ambientLight intensity={0.3} />
-        <pointLight position={[5, 5, 5]} intensity={1} color="#a855f6" />
-        <pointLight position={[-5, -3, 3]} intensity={0.5} color="#7c3aed" />
+    <>
+      <style>{KEYFRAMES}</style>
+      <div className="w-64 h-64 md:w-80 md:h-80">
+        <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" className="w-full h-full" aria-hidden>
+          <defs>
+            <radialGradient id="hero-orb-core-grad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#e9d5ff" stopOpacity={1} />
+              <stop offset="30%" stopColor="#a78bfa" stopOpacity={0.9} />
+              <stop offset="70%" stopColor="#7c3aed" stopOpacity={0.5} />
+              <stop offset="100%" stopColor="#4c1d95" stopOpacity={0} />
+            </radialGradient>
+            <radialGradient id="hero-orb-halo-grad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#7c3aed" stopOpacity={0.35} />
+              <stop offset="70%" stopColor="#6d28d9" stopOpacity={0.05} />
+              <stop offset="100%" stopColor="#000000" stopOpacity={0} />
+            </radialGradient>
+            <filter id="hero-orb-soft-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" />
+            </filter>
+          </defs>
 
-        <OrbSphere />
-        <Particles />
-        <Rays />
+          <circle className="hero-orb-halo" cx="200" cy="200" r="195" fill="url(#hero-orb-halo-grad)" />
 
-        <EffectComposer>
-          <Bloom
-            intensity={1.2}
-            luminanceThreshold={0.2}
-            luminanceSmoothing={0.9}
-            mipmapBlur
+          <g className="hero-orb-system">
+            <g strokeWidth="0.8" fill="none" opacity={0.55}>
+              <ellipse cx="200" cy="200" rx="185" ry="58" stroke="#a78bfa" strokeDasharray="1 3" transform="rotate(-22 200 200)" />
+              <ellipse cx="200" cy="200" rx="165" ry="48" stroke="#8b5cf6" transform="rotate(18 200 200)" />
+              <ellipse cx="200" cy="200" rx="145" ry="38" stroke="#a78bfa" strokeDasharray="2 2" transform="rotate(-35 200 200)" />
+              <ellipse cx="200" cy="200" rx="120" ry="30" stroke="#c4b5fd" transform="rotate(50 200 200)" />
+            </g>
+
+            <g>
+              <circle className="hero-orb-node delay-1" cx="385" cy="200" r="3.5" fill="#fbbf24" />
+              <circle cx="58" cy="160" r="3" fill="#a78bfa" />
+              <circle className="hero-orb-node delay-2" cx="340" cy="275" r="2.5" fill="#8b5cf6" />
+              <circle cx="80" cy="255" r="2.5" fill="#c4b5fd" />
+              <circle cx="260" cy="60" r="3" fill="#a78bfa" />
+              <circle className="hero-orb-node delay-3" cx="310" cy="115" r="2" fill="#f59e0b" />
+              <circle cx="140" cy="340" r="2.5" fill="#818cf8" />
+              <circle cx="135" cy="75" r="2" fill="#c4b5fd" />
+            </g>
+
+            <g stroke="#8b5cf6" strokeWidth="0.4" opacity={0.35}>
+              <line x1="385" y1="200" x2="200" y2="200" />
+              <line x1="58" y1="160" x2="200" y2="200" />
+              <line x1="260" y1="60" x2="200" y2="200" />
+              <line x1="140" y1="340" x2="200" y2="200" />
+              <line x1="310" y1="115" x2="260" y2="60" />
+              <line x1="80" y1="255" x2="140" y2="340" />
+            </g>
+          </g>
+
+          <circle
+            className="hero-orb-core"
+            cx="200"
+            cy="200"
+            r="80"
+            fill="url(#hero-orb-core-grad)"
+            filter="url(#hero-orb-soft-glow)"
           />
-        </EffectComposer>
-      </Canvas>
-    </div>
+          <circle cx="200" cy="200" r="22" fill="#e9d5ff" />
+          <circle cx="200" cy="200" r="14" fill="#ffffff" />
+        </svg>
+      </div>
+    </>
   );
 }
