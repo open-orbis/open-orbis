@@ -23,7 +23,11 @@ from app.graph.queries import (
 )
 
 GIFT_INVITE_QUOTA = 3
-GIFT_INVITE_PREFIX = "gift-"
+
+# Human-friendly alphabet — drops 0/1/I/O/l to avoid mis-reads when copied by
+# hand. 32 characters → ~40 bits of entropy across the 8-char body, which is
+# plenty for a single-use code gated by quota.
+_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 
 def _sanitize(d: dict) -> dict:
@@ -37,8 +41,9 @@ def _sanitize(d: dict) -> dict:
 
 
 def _generate_code() -> str:
-    """Short, human-readable, URL-safe invite code."""
-    return f"{GIFT_INVITE_PREFIX}{secrets.token_urlsafe(6)}"
+    """Human-readable invite code in the shape ``XXXX-XXXX``."""
+    body = "".join(secrets.choice(_ALPHABET) for _ in range(8))
+    return f"{body[:4]}-{body[4:]}"
 
 
 async def list_gift_invites(db: AsyncDriver, user_id: str) -> list[dict[str, Any]]:
