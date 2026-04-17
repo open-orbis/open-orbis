@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFilterStore } from '../../stores/filterStore';
 import { useToastStore } from '../../stores/toastStore';
+import QrShareModal from './QrShareModal';
 import {
   createAccessGrant,
   createShareToken,
@@ -58,6 +59,7 @@ export default function SharePanel({
   const { keywords, activeKeywords, addKeyword, removeKeyword, toggleKeyword, deactivateAll } = useFilterStore();
   const [inlineFilterKeyword, setInlineFilterKeyword] = useState('');
   const [privacyHiddenTypes, setPrivacyHiddenTypes] = useState<Set<string>>(new Set());
+  const [qrShareUrl, setQrShareUrl] = useState<string | null>(null);
   const privacyHiddenTypesArray = useMemo(() => Array.from(privacyHiddenTypes), [privacyHiddenTypes]);
   const hiddenTypesArray = useMemo(() => Array.from(hiddenNodeTypes), [hiddenNodeTypes]);
   const hasActiveFilters = activeKeywords.length > 0 || privacyHiddenTypesArray.length > 0;
@@ -431,7 +433,18 @@ export default function SharePanel({
                 onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
                 className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
               >
-                Copy
+                Copy URL
+              </button>
+              <button
+                type="button"
+                onClick={() => setQrShareUrl(bareUrl)}
+                className="h-10 px-4 rounded-lg bg-violet-600 hover:bg-violet-700 border border-violet-500 text-white text-sm font-medium transition-colors shrink-0 flex items-center gap-1.5"
+                aria-label="Show QR code for Orbis link"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
+                </svg>
+                Show QR
               </button>
             </div>
           </div>
@@ -680,6 +693,17 @@ export default function SharePanel({
                                 className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
                               >
                                 Copy URL
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setQrShareUrl(`${bareUrl}?token=${token.token_id}`)}
+                                className="h-7 px-2 rounded border border-violet-500/60 bg-violet-600/80 hover:bg-violet-600 text-white text-[10px] font-medium transition-colors shrink-0 flex items-center gap-1"
+                                aria-label="Show QR code for this token URL"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
+                                </svg>
+                                Show QR
                               </button>
                               <button
                                 type="button"
@@ -1019,6 +1043,11 @@ export default function SharePanel({
           </>
         )}
       </AnimatePresence>
+      <QrShareModal
+        open={!!qrShareUrl}
+        url={qrShareUrl ?? ''}
+        onClose={() => setQrShareUrl(null)}
+      />
     </div>
   );
 }
