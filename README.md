@@ -27,6 +27,27 @@
 
 <br>
 
+<details>
+<summary><b>Contents</b></summary>
+
+- [What is OpenOrbis?](#what-is-openorbis)
+- [See it in action](#see-it-in-action)
+- [Key Features](#key-features)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Running Tests](#running-tests)
+- [MCP Integration](#mcp-integration)
+- [Knowledge Graph Schema](#knowledge-graph-schema)
+- [Contributing](#contributing)
+- [Roadmap & known limitations](#roadmap--known-limitations)
+- [Documentation](#documentation)
+
+</details>
+
+<br>
+
 ## What is OpenOrbis?
 
 OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Instead of a static PDF, your professional identity — skills, experience, education, projects, publications, awards, outreach, and more — becomes a queryable data structure that both humans and AI agents can explore.
@@ -34,6 +55,9 @@ OpenOrbis turns your CV into a **living, interactive 3D knowledge graph**. Inste
 🌐 **Share it** — every orbis gets a unique URL and QR code, ready to send to recruiters or embed in your portfolio
 
 🤖 **Query it** — AI agents (Claude, Cursor, Copilot) can access your graph natively via the **Model Context Protocol (MCP)**
+
+> [!TIP]
+> **Why a graph, not a document?** A CV is a flat story about one person. A graph lets *skills connect across experiences*, *dates compose into a timeline*, and *AI agents answer "where did you use X?"* without re-reading a PDF.
 
 ---
 
@@ -105,18 +129,52 @@ A typical session:
 
 ## Tech Stack
 
-<table>
-<tr><td><strong>Frontend</strong></td><td>React 19 · TypeScript · Vite 8 · Tailwind CSS v4 · Three.js · Framer Motion · Zustand</td></tr>
-<tr><td><strong>Backend</strong></td><td>FastAPI · Python 3.10+ · Uvicorn</td></tr>
-<tr><td><strong>Database</strong></td><td>Neo4j 5 (graph database with vector indexes)</td></tr>
-<tr><td><strong>AI / LLM</strong></td><td>Anthropic Claude (via CLI) · Ollama (llama3.2:3b local fallback)</td></tr>
-<tr><td><strong>Auth</strong></td><td>JWT (HS256) · Google OAuth · LinkedIn OAuth</td></tr>
-<tr><td><strong>Encryption</strong></td><td>Fernet (cryptography)</td></tr>
-<tr><td><strong>Agent Protocol</strong></td><td>MCP (Model Context Protocol)</td></tr>
-<tr><td><strong>PDF</strong></td><td>PyMuPDF (extraction) · fpdf2 (generation)</td></tr>
-<tr><td><strong>CI/CD</strong></td><td>GitHub Actions — lint · unit tests · CV extraction quality</td></tr>
-<tr><td><strong>Package Mgrs</strong></td><td>uv (backend) · npm (frontend)</td></tr>
-</table>
+<p>
+  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white" alt="Vite 8">
+  <img src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white" alt="Tailwind CSS v4">
+  <img src="https://img.shields.io/badge/Three.js-black?logo=three.js&logoColor=white" alt="Three.js">
+  <img src="https://img.shields.io/badge/Framer_Motion-pink?logo=framer&logoColor=white" alt="Framer Motion">
+  <img src="https://img.shields.io/badge/Zustand-state-ffbf4d" alt="Zustand">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776ab?logo=python&logoColor=white" alt="Python 3.10+">
+  <img src="https://img.shields.io/badge/Uvicorn-222?logo=gunicorn&logoColor=white" alt="Uvicorn">
+  <img src="https://img.shields.io/badge/uv-package_mgr-261230?logo=uv" alt="uv">
+  <img src="https://img.shields.io/badge/Ruff-linter-d7ff64?logo=ruff&logoColor=black" alt="Ruff">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Neo4j_5-graph_DB-018bff?logo=neo4j&logoColor=white" alt="Neo4j 5">
+  <img src="https://img.shields.io/badge/Vector_Indexes-1536d-blueviolet" alt="Vector indexes (1536d)">
+  <img src="https://img.shields.io/badge/PostgreSQL-cv_jobs-336791?logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/SQLite-document_store-003b57?logo=sqlite&logoColor=white" alt="SQLite">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Claude-primary_LLM-cc785c?logo=anthropic&logoColor=white" alt="Anthropic Claude">
+  <img src="https://img.shields.io/badge/Vertex_AI-Gemini-4285F4?logo=googlecloud&logoColor=white" alt="Vertex AI Gemini">
+  <img src="https://img.shields.io/badge/Ollama-local_fallback-black?logo=ollama" alt="Ollama">
+  <img src="https://img.shields.io/badge/MCP-agent_protocol-7c3aed" alt="MCP">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/JWT-HS256-000?logo=jsonwebtokens&logoColor=white" alt="JWT">
+  <img src="https://img.shields.io/badge/Google_OAuth-4285F4?logo=google&logoColor=white" alt="Google OAuth">
+  <img src="https://img.shields.io/badge/LinkedIn_OAuth-0A66C2?logo=linkedin&logoColor=white" alt="LinkedIn OAuth">
+  <img src="https://img.shields.io/badge/Fernet-AES_128-7c3aed" alt="Fernet">
+</p>
+
+<p>
+  <img src="https://img.shields.io/badge/Cloud_Run-deploy-4285F4?logo=googlecloud&logoColor=white" alt="Cloud Run">
+  <img src="https://img.shields.io/badge/Firebase_Hosting-frontend-FFCA28?logo=firebase&logoColor=black" alt="Firebase Hosting">
+  <img src="https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions">
+  <img src="https://img.shields.io/badge/Playwright-e2e-2EAD33?logo=playwright&logoColor=white" alt="Playwright">
+  <img src="https://img.shields.io/badge/pytest-tests-0A9EDC?logo=pytest&logoColor=white" alt="pytest">
+</p>
 
 ---
 
@@ -153,6 +211,9 @@ orb_project/
 ---
 
 ## Getting Started
+
+> [!IMPORTANT]
+> End-to-end setup takes **~5 minutes** on a warm cache: Docker for Neo4j + Ollama, `uv sync` for the backend, `npm ci` for the frontend. Hot reload is on for both.
 
 ### Prerequisites
 
@@ -274,22 +335,45 @@ uv run python -m mcp_server.server    # streamable-http transport
 
 Each user's orb is a graph rooted at a **Person** node, connected to domain-specific nodes via typed relationships:
 
-```
-Person ──HAS_EDUCATION──────────► Education
-       ──HAS_WORK_EXPERIENCE───► WorkExperience
-       ──HAS_SKILL─────────────► Skill
-       ──SPEAKS────────────────► Language
-       ──HAS_CERTIFICATION─────► Certification
-       ──HAS_PUBLICATION───────► Publication
-       ──HAS_PROJECT───────────► Project
-       ──HAS_PATENT────────────► Patent
-       ──HAS_AWARD─────────────► Award
-       ──HAS_OUTREACH──────────► Outreach
+```mermaid
+flowchart LR
+    Person((Person)):::root
+
+    Education[Education]
+    WorkExperience[WorkExperience]
+    Skill[Skill]:::skill
+    Language[Language]
+    Certification[Certification]
+    Publication[Publication]
+    Project[Project]
+    Patent[Patent]
+    Award[Award]
+    Outreach[Outreach]
+
+    Person -- HAS_EDUCATION --> Education
+    Person -- HAS_WORK_EXPERIENCE --> WorkExperience
+    Person -- HAS_SKILL --> Skill
+    Person -- SPEAKS --> Language
+    Person -- HAS_CERTIFICATION --> Certification
+    Person -- HAS_PUBLICATION --> Publication
+    Person -- HAS_PROJECT --> Project
+    Person -- HAS_PATENT --> Patent
+    Person -- HAS_AWARD --> Award
+    Person -- HAS_OUTREACH --> Outreach
+
+    WorkExperience -. USED_SKILL .-> Skill
+    Project -. USED_SKILL .-> Skill
+    Education -. USED_SKILL .-> Skill
+    Publication -. USED_SKILL .-> Skill
+
+    classDef root fill:#7c3aed,stroke:#a78bfa,color:#fff,stroke-width:2px;
+    classDef skill fill:#c084fc,stroke:#7c3aed,color:#2e1065;
 ```
 
 The key graph feature is **`USED_SKILL`** — a cross-link between experience nodes and Skill nodes, enabling queries like *"which skills were used at company X?"*
 
-> See [`docs/database.md`](docs/database.md) for query patterns and indexes.
+> [!NOTE]
+> Full schema, indexes, and query patterns live in [`docs/database.md`](docs/database.md), including provenance nodes (`OntologyVersion`, `ProcessingRecord`) that track which ontology + LLM version produced each extraction.
 
 ---
 
