@@ -470,14 +470,14 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
           <p className="text-white/50 text-sm">Manage your Orbis ID and account lifecycle.</p>
         </div>
 
-        <div className="flex flex-1 min-h-0">
-          {/* Tabs sidebar */}
-          <div className="w-36 sm:w-44 border-r border-white/10 p-2.5 sm:p-3 flex flex-col gap-1 bg-black/30">
+        <div className="flex flex-col sm:flex-row flex-1 min-h-0">
+          {/* Tabs sidebar — vertical on desktop, horizontal scroll rail on mobile */}
+          <div className="flex-row overflow-x-auto shrink-0 sm:w-44 sm:flex-col sm:overflow-visible border-b sm:border-b-0 sm:border-r border-white/10 p-2 sm:p-3 flex gap-1 bg-black/30">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id); setError(''); setSuccess(false); setShowDeleteConfirm(false); }}
-                className={`flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 ${
+                className={`shrink-0 flex items-center gap-2 sm:gap-2.5 text-left px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 ${
                   activeTab === tab.id
                     ? 'bg-purple-500/15 border border-purple-400/30 text-white font-medium'
                     : 'border border-transparent text-white/55 hover:text-white hover:bg-white/8'
@@ -487,7 +487,7 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                 {tab.label}
               </button>
             ))}
-            <div className="mt-auto pt-3 border-t border-white/5">
+            <div className="hidden sm:block mt-auto pt-3 border-t border-white/5">
               <button
                 onClick={() => {
                   onClose();
@@ -531,13 +531,13 @@ function AccountSettingsModal({ orbId, onOrbIdChanged, onClose, onStartTour }: {
                   <div>
                     <label className="text-xs text-white/45 uppercase tracking-[0.12em] font-medium">Custom Orbis ID</label>
                     <p className="text-[11px] text-white/45 mt-1 mb-5">Choose a memorable ID for your orbis. This will be your public URL and MCP identifier.</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/40 text-sm">{window.location.origin}/</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                      <span className="text-white/40 text-xs sm:text-sm break-all sm:break-normal sm:whitespace-nowrap">{window.location.origin}/</span>
                       <input
                         value={customId}
                         onChange={(e) => { setCustomId(e.target.value); setError(''); setSuccess(false); }}
                         placeholder="your-name"
-                        className="flex-1 bg-white/[0.04] border border-white/15 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400/70 focus:border-transparent"
+                        className="flex-1 min-w-0 w-full sm:w-auto bg-white/[0.04] border border-white/15 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-400/70 focus:border-transparent"
                       />
                     </div>
                     {error && <p className="text-red-400 text-xs mt-2">{error}</p>}

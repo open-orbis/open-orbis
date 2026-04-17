@@ -426,38 +426,40 @@ export default function SharePanel({
           <div>
             <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Orbis Link</label>
             <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Link to your orbis.</p>
-            <div className="flex items-center gap-2">
-              <input readOnly value={bareUrl} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-              <button
-                type="button"
-                onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
-                className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
-              >
-                Copy URL
-              </button>
-              <button
-                type="button"
-                onClick={() => setQrShareUrl(bareUrl)}
-                className="h-10 px-4 rounded-lg bg-violet-600 hover:bg-violet-700 border border-violet-500 text-white text-sm font-medium transition-colors shrink-0 flex items-center gap-1.5"
-                aria-label="Show QR code for Orbis link"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
-                </svg>
-                Show QR
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input readOnly value={bareUrl} className="flex-1 min-w-0 w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard.writeText(bareUrl); addToast('Orbis link copied', 'success'); }}
+                  className="flex-1 sm:flex-none h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors"
+                >
+                  Copy URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrShareUrl(bareUrl)}
+                  className="flex-1 sm:flex-none h-10 px-4 rounded-lg bg-violet-600 hover:bg-violet-700 border border-violet-500 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+                  aria-label="Show QR code for Orbis link"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
+                  </svg>
+                  Show QR
+                </button>
+              </div>
             </div>
           </div>
           {isPublic && (
             <div>
               <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP URI</label>
               <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this URI to connect AI agents to your orbis.</p>
-              <div className="flex items-center gap-2">
-                <input readOnly value={`orb://${orbId}`} className="flex-1 min-w-0 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <input readOnly value={`orb://${orbId}`} className="flex-1 min-w-0 w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
                 <button
                   type="button"
                   onClick={() => { navigator.clipboard.writeText(`orb://${orbId}`); addToast('MCP URI copied', 'success'); }}
-                  className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors shrink-0"
+                  className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors sm:shrink-0"
                 >
                   Copy
                 </button>

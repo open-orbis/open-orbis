@@ -702,19 +702,15 @@ export default function OrbViewPage() {
                         </button>
                       </div>
                       <p className="text-[10px] uppercase tracking-[0.12em] text-white/35 font-semibold px-1">View & Data</p>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-xs text-white/65">Node types</span>
-                        <NodeTypeFilter
-                          hiddenTypes={hiddenNodeTypes}
-                          onShowAll={handleShowAllNodeTypes}
-                          onHideAll={handleHideAllNodeTypes}
-                          onSetVisible={handleSetVisibleNodeTypes}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between px-1">
-                        <span className="text-xs text-white/65">Keywords</span>
-                        <KeywordFilterDropdown />
-                      </div>
+                      <NodeTypeFilter
+                        hiddenTypes={hiddenNodeTypes}
+                        onShowAll={handleShowAllNodeTypes}
+                        onHideAll={handleHideAllNodeTypes}
+                        onSetVisible={handleSetVisibleNodeTypes}
+                        label="Node types"
+                        fullWidth
+                      />
+                      <KeywordFilterDropdown label="Filters" fullWidth />
                       <button
                         onClick={() => window.open('/cv-export', '_blank')}
                         className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
@@ -748,7 +744,7 @@ export default function OrbViewPage() {
                       {/* Connections + Notes */}
                       <div className="flex gap-2">
                         <div className="flex-1">
-                          <PendingConnectionsDropdown />
+                          <PendingConnectionsDropdown label="Connection" fullWidth />
                         </div>
                         <button
                           onClick={() => { setShowDrafts(true); setShowToolsMenu(false); }}
