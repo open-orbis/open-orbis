@@ -21,14 +21,46 @@ const COMPACT_BREAKPOINT_PX = 1280;
 
 function MetricInfo({ description, label }: { description: string; label: string }) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  // Desktop-only: compute a position near the (i) button when the tooltip opens,
+  // and keep it correct on scroll/resize. Mobile uses the bottom-sheet layout
+  // (inset-x-4 bottom-4) and ignores `anchor`.
+  useEffect(() => {
+    if (!open) return;
+    const TOOLTIP_W = 224; // matches sm:w-56
+    const GAP = 8;
+    const updateAnchor = () => {
+      const btn = buttonRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      // Prefer opening to the LEFT of the button (toward the centre of the
+      // panel) so it stays on-screen; clamp inside the viewport.
+      const left = Math.max(
+        GAP,
+        Math.min(window.innerWidth - TOOLTIP_W - GAP, rect.right - TOOLTIP_W),
+      );
+      const top = rect.bottom + GAP;
+      setAnchor({ left, top });
+    };
+    updateAnchor();
+    window.addEventListener('resize', updateAnchor);
+    window.addEventListener('scroll', updateAnchor, true);
+    return () => {
+      window.removeEventListener('resize', updateAnchor);
+      window.removeEventListener('scroll', updateAnchor, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handlePointer = (e: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (buttonRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -42,9 +74,10 @@ function MetricInfo({ description, label }: { description: string; label: string
   }, [open]);
 
   return (
-    <div ref={containerRef} className="absolute right-1.5 top-1.5 pointer-events-auto">
+    <div className="absolute right-1.5 top-1.5 pointer-events-auto">
       <div className="relative">
         <button
+          ref={buttonRef}
           type="button"
           aria-label={`${label} metric info`}
           aria-expanded={open}
@@ -53,16 +86,23 @@ function MetricInfo({ description, label }: { description: string; label: string
         >
           i
         </button>
-        {open && (
+        {open && createPortal(
           <>
-            {/* Mobile backdrop — captures tap-to-dismiss and lifts the tooltip above the Pulse modal */}
+            {/* Metric info tooltip — portaled to body to escape the Pulse
+                stacking context (z-[30] / z-[42]). Mobile: full-width bottom
+                sheet with backdrop. Desktop: small popover anchored near the
+                triggering (i) button via getBoundingClientRect. */}
             <div
-              className="fixed inset-0 z-[60] bg-black/50 sm:hidden"
+              className="fixed inset-0 z-[1000] bg-black/50 sm:hidden"
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
-            <div className="fixed left-4 right-4 bottom-4 z-[61] sm:absolute sm:inset-auto sm:right-0 sm:top-6 sm:left-auto sm:bottom-auto sm:w-56 sm:z-50 rounded-lg border border-white/15 bg-black/95 px-4 py-3 sm:px-3 sm:py-2 text-sm sm:text-[11px] leading-snug text-white/90 shadow-2xl">
-              <div className="flex items-start justify-between gap-3 sm:hidden mb-1.5">
+            <div
+              ref={panelRef}
+              style={anchor ? { left: anchor.left, top: anchor.top } : undefined}
+              className="fixed left-4 right-4 bottom-4 z-[1001] sm:left-auto sm:right-auto sm:bottom-auto sm:w-56 rounded-lg border border-white/15 bg-black/95 px-4 py-3 sm:px-3 sm:py-2 text-sm sm:text-[11px] leading-snug text-white/90 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-3 mb-1.5 sm:hidden">
                 <span className="text-[10px] uppercase tracking-[0.15em] text-white/45 font-semibold">{label}</span>
                 <button
                   type="button"
@@ -77,7 +117,8 @@ function MetricInfo({ description, label }: { description: string; label: string
               </div>
               {description}
             </div>
-          </>
+          </>,
+          document.body,
         )}
       </div>
     </div>

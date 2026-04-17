@@ -150,6 +150,28 @@ Performance optimizations: shared geometry (never recreated), node object cache 
 - **Pending connection-requests dropdown** (`components/graph/PendingConnectionsDropdown.tsx`) — header-level inbox of access requests backed by `backend/app/orbs/access_requests.py`. Accept creates an `AccessGrant` (with optional filters); reject marks the request resolved.
 - **Guided tour** (`components/GuidedTour.tsx`) — react-joyride overlay; 13 steps covering graph, header controls, connections dropdown, notes, search, user menu, Orbis Pulse, add-entry, visibility, and chatbox. Auto-triggers for new users; re-runnable from Settings.
 
+### Z-index tiers
+
+Overlays in the frontend share a conscious stacking scale — pick the right tier instead of guessing, so metric tooltips never slip behind a toast and a modal never slips behind the ChatBox:
+
+| Tier | Range | Used for |
+|---|---|---|
+| **Base** | default | 3D graph canvas, static page content |
+| **Pulse background** | `z-[30]` | Orbis Pulse compact pill + desktop panel |
+| **ChatBox** | `z-[40]` | Floating bottom chat/search bar |
+| **Pulse mobile sheet** | `z-[41]` backdrop / `z-[42]` panel | Mobile Orbis Pulse bottom sheet |
+| **Header** | `z-[50]` | Top-of-page OrbView header |
+| **UserMenu dropdown** | `z-[50]` | Avatar menu (inherits header context) |
+| **Toast** | `z-[100]` | Transient toast notifications |
+| **ProfileEditor modal** | `z-[130]` | Profile editor (portaled) |
+| **AccountSettings modal** | `z-[200]` | Account settings (portaled) |
+| **Metric info tooltip** | `z-[1000]` backdrop / `z-[1001]` panel | Orbis Pulse metric `(i)` tooltip — **must always win** (#387) |
+
+**Rules of thumb:**
+- New overlays pick the **lowest tier** that still wins over the surfaces they need to sit above. Don't jump straight to the top tier unless the UX really demands it.
+- Modals rendered via `createPortal` should live in the **Modal** tier (`z-[130]`–`z-[200]`) — not a bespoke value.
+- The **Metric info tier (`1000`)** is reserved for tooltips/explanations that must pierce through every modal. Don't reuse it for ordinary modals.
+
 ### Routing
 
 | Path | Page | Auth |
