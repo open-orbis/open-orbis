@@ -28,7 +28,7 @@ async def call_gemini(
         output_tokens (int | None): Output token count if available.
     """
     from google import genai
-    from google.genai.types import GenerateContentConfig
+    from google.genai.types import GenerateContentConfig, ThinkingConfig
 
     from app.config import settings
 
@@ -43,15 +43,21 @@ async def call_gemini(
         location=settings.vertex_region,
     )
 
+    # Thinking budget — explicit so we can observe/tune it. Default in
+    # settings is 32 768 (the Pro ceiling). `-1` = dynamic (model chooses).
+    # `0` = thinking disabled (only valid on Flash / Flash-Lite; Pro ignores).
+    thinking_budget = settings.gemini_thinking_budget
     config = GenerateContentConfig(
         system_instruction=system_prompt,
         max_output_tokens=65536,
+        thinking_config=ThinkingConfig(thinking_budget=thinking_budget),
     )
 
     logger.info(
-        "Calling Gemini via Vertex AI: model=%s, region=%s",
+        "Calling Gemini via Vertex AI: model=%s, region=%s, thinking_budget=%s",
         model,
         settings.vertex_region,
+        thinking_budget,
     )
 
     response = await asyncio.to_thread(
@@ -66,9 +72,20 @@ async def call_gemini(
 
     input_tokens = None
     output_tokens = None
+    thinking_tokens = None
     if response.usage_metadata:
         input_tokens = response.usage_metadata.prompt_token_count
         output_tokens = response.usage_metadata.candidates_token_count
+        # `thoughts_token_count` on google-genai ≥ 1.22; guard for older SDKs.
+        thinking_tokens = getattr(response.usage_metadata, "thoughts_token_count", None)
+
+    if thinking_tokens is not None:
+        logger.info(
+            "Gemini usage: prompt=%s, output=%s, thinking=%s",
+            input_tokens,
+            output_tokens,
+            thinking_tokens,
+        )
 
     return {
         "content": content,
@@ -76,4 +93,5 @@ async def call_gemini(
         "duration_ms": None,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
+        "thinking_tokens": thinking_tokens,
     }

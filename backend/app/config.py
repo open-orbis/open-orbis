@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     llm_provider: str = "vertex"
     claude_model: str = "claude-opus-4-6"
     gemini_model: str = "gemini-2.5-pro"
+    # Gemini thinking budget in tokens. For gemini-2.5-pro the valid range is
+    # 128 → 32768; -1 = dynamic (model picks). Default to the ceiling so CV
+    # extraction gets the most reasoning headroom it can for complex CVs.
+    gemini_thinking_budget: int = 32768
 
     # Vertex AI configuration (used when llm_provider=vertex)
     gcp_project_id: str = ""

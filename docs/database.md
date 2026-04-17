@@ -10,7 +10,8 @@ Orbis uses Neo4j 5 (Community Edition) as its graph database. All queries are in
 |----------|------|-------|
 | `user_id` | string | Unique identifier |
 | `orb_id` | string | User-chosen public slug |
-| `email` | string | Fernet-encrypted |
+| `email` | string | Fernet-encrypted. **OAuth-verified sign-up email** — set at Person creation from the Google / LinkedIn claim and kept in sync on every subsequent login (`auth/router.py::_get_or_create_person` heals it if it drifts). Never mutated by CV confirm. Canonical address for admin UI + transactional notifications. |
+| `cv_email` | string or null | Fernet-encrypted. Email the LLM parsed from the CV text, if it found one. Reference-only — never used as identity or for notifications (CVs can contain stale or third-party addresses). Written by `POST /cv/confirm` via `_build_person_updates` (#394). |
 | `name` | string | |
 | `headline` | string | |
 | `location` | string | |

@@ -215,3 +215,58 @@ def test_confirm_cv_invalid_node_type(client, mock_db):
     response = client.post("/cv/confirm", json=payload)
     assert response.status_code == 200
     assert response.json()["created"] == 0
+
+
+# ── #394: CV-parsed profile must not overwrite the OAuth-verified email ──
+
+
+def test_build_person_updates_routes_cv_email_to_cv_email_field():
+    """CV-parsed email goes to `cv_email` (encrypted) — never to `email`."""
+    from app.cv.models import ConfirmRequest, ExtractedProfile
+    from app.cv.router import _build_person_updates
+    from app.graph.encryption import decrypt_value
+
+    data = ConfirmRequest(
+        cv_owner_name="CV Owner",
+        nodes=[],
+        relationships=[],
+        profile=ExtractedProfile(
+            email="someone-from-cv@example.com",
+            phone="+10000000000",
+            headline="Staff Engineer",
+            linkedin_url="https://linkedin.com/in/cvowner",
+        ),
+    )
+
+    updates = _build_person_updates(data)
+
+    # Identity field untouched — admin dashboard, notifications, etc. stay on OAuth email.
+    assert "email" not in updates, "CV-confirm must NEVER set Person.email"
+
+    # CV-parsed email is still captured, but as an encrypted reference-only field.
+    assert "cv_email" in updates
+    assert decrypt_value(updates["cv_email"]) == "someone-from-cv@example.com"
+
+    # Non-identity profile fields continue to flow through.
+    assert updates["headline"] == "Staff Engineer"
+    assert updates["linkedin_url"] == "https://linkedin.com/in/cvowner"
+    assert decrypt_value(updates["phone"]) == "+10000000000"
+
+
+def test_build_person_updates_with_profile_missing_email():
+    """If the LLM didn't extract any email, no cv_email field is added."""
+    from app.cv.models import ConfirmRequest, ExtractedProfile
+    from app.cv.router import _build_person_updates
+
+    data = ConfirmRequest(
+        cv_owner_name="CV Owner",
+        nodes=[],
+        relationships=[],
+        profile=ExtractedProfile(headline="Senior Researcher"),
+    )
+
+    updates = _build_person_updates(data)
+
+    assert "email" not in updates
+    assert "cv_email" not in updates
+    assert updates["headline"] == "Senior Researcher"

@@ -26,6 +26,49 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPT = """You are a CV/resume parsing assistant. Given raw text extracted from a CV document,
 extract the person's profile information AND classify every entry into structured nodes.
 
+## How to reason
+
+Work in **two explicit phases** — do not mix them. Use your full reasoning / thinking
+budget for each phase. The phases happen entirely *within your internal reasoning*;
+the only thing you emit is the final JSON at the end.
+
+### Phase 1 — per-entry classification (narrow context)
+
+Read the CV top to bottom and break it into **individual entries** (one job, one
+degree, one publication, one project, one course, ...). For each entry **in
+isolation**:
+
+1. Focus *only* on that entry's text — ignore what came before or after.
+2. Decide its `node_type` using the rules below.
+3. Extract the expected properties from just that entry's text.
+4. Do **not** attempt to derive relationships in this phase. Do not reference
+   other entries. Keep the mental context small.
+
+Collect the resulting nodes in order. Also detect and extract the person's
+profile fields as you encounter them (they usually sit at the top of the CV
+and don't need cross-entry reasoning).
+
+If an entry clearly cannot be classified into any of the node types below,
+append its raw text to `unmatched` and move on.
+
+### Phase 2 — cross-entry relationship discovery (wide context)
+
+Now that every entry has been classified, read the **entire list of nodes**
+you produced and look across them to find meaningful connections:
+
+- **USED_SKILL** edges — for every work_experience / project / education /
+  publication / patent / award / outreach / training, identify which `skill`
+  nodes were used or referenced (explicitly or implicitly). See the
+  *Relationships* section below for the detection heuristics.
+- If a skill is implied by an entry but no matching skill node was produced
+  in Phase 1, **add the missing skill node** and then create the USED_SKILL
+  edge to it. Do not skip relationships for missing nodes.
+- Be insightful: a paper on "Quantum Gate Synthesis" → link to "Quantum
+  Computing". A role titled "iOS Developer" → link to "Swift" / "iOS". An
+  outreach talk at PyCon → link to "Python".
+
+Only after Phase 2 is complete do you emit the final JSON.
+
 ## Person Profile
 
 Extract the following about the CV owner (all optional, include only if found):
