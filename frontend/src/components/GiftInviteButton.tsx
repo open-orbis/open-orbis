@@ -28,11 +28,6 @@ function GiftIcon({ className = 'w-4 h-4' }: { className?: string }) {
   );
 }
 
-function buildActivationUrl(code: string): string {
-  const base = window.location.origin;
-  return `${base}/activate?code=${encodeURIComponent(code)}`;
-}
-
 export default function GiftInviteButton() {
   const [state, setState] = useState<GiftInvitesState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,11 +76,10 @@ export default function GiftInviteButton() {
   };
 
   const handleCopy = async (code: string) => {
-    const url = buildActivationUrl(code);
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(code);
       setCopiedCode(code);
-      addToast('Invite link copied', 'success');
+      addToast('Invite code copied', 'success');
       setTimeout(() => setCopiedCode((c) => (c === code ? null : c)), 1800);
     } catch {
       addToast('Copy failed', 'error');
@@ -232,7 +226,6 @@ function CodeRow({
   copied: boolean;
 }) {
   const consumed = !!code.used_at;
-  const url = buildActivationUrl(code.code);
   return (
     <li
       className={`rounded-xl border px-3 py-2.5 flex flex-col gap-2 ${
@@ -242,36 +235,37 @@ function CodeRow({
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <code className="text-xs font-mono text-white/90 truncate">{code.code}</code>
-        {consumed ? (
-          <span className="text-[10px] uppercase tracking-wide text-emerald-300/80 font-semibold shrink-0">
-            Redeemed
-          </span>
-        ) : (
-          <span className="text-[10px] uppercase tracking-wide text-red-300/90 font-semibold shrink-0">
-            Active
-          </span>
+        <span className="text-[10px] uppercase tracking-wide font-semibold">
+          {consumed ? (
+            <span className="text-emerald-300/80">Redeemed</span>
+          ) : (
+            <span className="text-red-300/90">Active</span>
+          )}
+        </span>
+        {consumed && code.used_by && (
+          <span className="text-[10px] text-white/40 truncate">Joined by {code.used_by}</span>
         )}
       </div>
       {!consumed && (
         <div className="flex items-center gap-2">
           <input
             readOnly
-            value={url}
+            value={code.code}
             onFocus={(e) => e.currentTarget.select()}
-            className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white/85 font-mono"
+            aria-label="Activation code"
+            className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-sm text-white font-mono tracking-[0.08em]"
           />
           <button
             type="button"
             onClick={() => onCopy(code.code)}
             className="shrink-0 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-white text-[11px] font-semibold py-1.5 px-3 transition-colors cursor-pointer"
           >
-            {copied ? 'Copied' : 'Copy link'}
+            {copied ? 'Copied' : 'Copy code'}
           </button>
         </div>
       )}
-      {consumed && code.used_by && (
-        <p className="text-[10px] text-white/40">Joined by {code.used_by}</p>
+      {consumed && (
+        <code className="text-xs font-mono text-white/40 tracking-[0.08em]">{code.code}</code>
       )}
     </li>
   );
