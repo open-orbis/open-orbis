@@ -206,6 +206,8 @@ Query params: `?format=json|jsonld|pdf`, `?filter_token=`, `?filter_keyword=`, `
 | PUT | `/drafts/{uid}` | JWT | Update a draft note |
 | DELETE | `/drafts/{uid}` | JWT | Delete a draft note |
 
+Drafts are also auto-populated by the CV flow: any entries the LLM returns in `result.unmatched[]` (lines it could not classify into a node type) are POSTed to `/drafts` by the frontend before the user enters the review step (#359), so no raw text is silently dropped. The user can then enhance and promote those drafts into nodes manually.
+
 ## Ideas (`/ideas`)
 
 | Method | Path | Auth | Description |

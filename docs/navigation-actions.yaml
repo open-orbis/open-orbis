@@ -2,7 +2,7 @@
 # Each entry defines a user action with its trigger, preconditions, effect, and next state.
 # Used by autonomous agents for end-to-end UX evaluation.
 #
-# Last updated: 2026-04-14 | Issue: #193, #216, #274
+# Last updated: 2026-04-17 | Issue: #193, #216, #274, #368
 
 # ── Landing Page ──
 
@@ -456,7 +456,72 @@
   selector_or_control: "Show QR button next to Copy URL"
   preconditions: [orb_id_set]
   expected_effect: Opens QrShareModal with a violet-on-white QR for the link; offers SVG/PNG download
-  next_state: SHARE_PANEL (qr modal open)
+  next_state: QR_MODAL
+  fallback_on_failure: null
+
+- id: QR_DOWNLOAD_SVG
+  from_state: QR_MODAL
+  action: Click SVG download button
+  selector_or_control: "primary violet SVG button inside QrShareModal"
+  preconditions: []
+  expected_effect: Downloads orbis-qr.svg (self-contained, no external refs) to disk
+  next_state: QR_MODAL
+  fallback_on_failure: null
+
+- id: QR_DOWNLOAD_PNG
+  from_state: QR_MODAL
+  action: Click PNG download button
+  selector_or_control: "tonal violet PNG button inside QrShareModal"
+  preconditions: []
+  expected_effect: Rasterizes the QR SVG to a 4x-scaled PNG (solid white background) and downloads orbis-qr.png
+  next_state: QR_MODAL
+  fallback_on_failure: null
+
+- id: QR_CLOSE
+  from_state: QR_MODAL
+  action: Close via X, backdrop click, or Esc
+  selector_or_control: "close affordances on QrShareModal"
+  preconditions: []
+  expected_effect: Dismisses QR modal, returns focus to SharePanel
+  next_state: SHARE_PANEL
+  fallback_on_failure: null
+
+# ── Pending Connections Dropdown ──
+
+- id: CONNECTIONS_OPEN
+  from_state: ORB_VIEW
+  action: Click header Connections button (lg+ viewport)
+  selector_or_control: "Connections button in right-aligned header cluster"
+  preconditions: [authenticated, viewport >= lg]
+  expected_effect: Opens dropdown and fetches pending requests via GET /orbs/me/connection-requests
+  next_state: CONNECTIONS_DROPDOWN
+  fallback_on_failure: Dropdown shows empty state
+
+- id: CONNECTIONS_ACCEPT
+  from_state: CONNECTIONS_DROPDOWN
+  action: Click Accept on a pending request (optionally with keyword / hidden-type filters)
+  selector_or_control: "Accept button per request row"
+  preconditions: [authenticated, request_pending]
+  expected_effect: POST /orbs/me/connection-requests/{request_id}/accept creates an AccessGrant for the requester's email with optional filters; row disappears from list
+  next_state: CONNECTIONS_DROPDOWN
+  fallback_on_failure: Toast "Failed to accept request"
+
+- id: CONNECTIONS_REJECT
+  from_state: CONNECTIONS_DROPDOWN
+  action: Click Reject on a pending request
+  selector_or_control: "Reject button per request row"
+  preconditions: [authenticated, request_pending]
+  expected_effect: POST /orbs/me/connection-requests/{request_id}/reject marks request resolved=rejected; row disappears from list
+  next_state: CONNECTIONS_DROPDOWN
+  fallback_on_failure: Toast "Failed to reject request"
+
+- id: CONNECTIONS_CLOSE
+  from_state: CONNECTIONS_DROPDOWN
+  action: Outside click or Esc
+  selector_or_control: null
+  preconditions: []
+  expected_effect: Closes dropdown
+  next_state: ORB_VIEW
   fallback_on_failure: null
 
 # ── Shared Orb (Public) ──

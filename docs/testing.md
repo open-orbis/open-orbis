@@ -32,7 +32,7 @@ Unit tests mock Neo4j entirely (no database needed). The `conftest.py` provides:
 - `mock_db` — mock AsyncDriver with session/run/single chain
 - `client` — `TestClient` with `get_db` and `get_current_user` overrides
 
-Coverage minimum: **75%** (enforced in CI).
+Coverage minimum: **50%** (enforced in CI via `--cov-fail-under=50` in `.github/workflows/unit-tests.yml`).
 
 ### Integration Tests
 
