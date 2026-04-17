@@ -325,8 +325,8 @@ export default function ExtractedDataReview({
           )}
           {typeKeys.length > 0 && (
             <>
-              {/* Type tabs */}
-              <div className="flex flex-wrap gap-1.5 mb-4">
+              {/* Type tabs — horizontal scroll rail on mobile, wrap on sm+ */}
+              <div className="flex sm:flex-wrap overflow-x-auto gap-1.5 mb-4 -mx-1 px-1 pb-1 sm:pb-0 sm:overflow-visible sm:mx-0 sm:px-0">
                 {typeKeys.map((type) => {
                   const color = NODE_TYPE_COLORS[type] || '#8b5cf6';
                   const label = NODE_TYPE_LABELS[type] || type;
@@ -336,7 +336,7 @@ export default function ExtractedDataReview({
                     <button
                       key={type}
                       onClick={() => setActiveTypeTab(type)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      className={`shrink-0 sm:shrink flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                         isActive
                           ? 'bg-white/10 text-white border border-white/20'
                           : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:text-white/60 hover:bg-white/[0.06]'
@@ -467,19 +467,19 @@ export default function ExtractedDataReview({
           </p>
         )}
 
-        <div className="flex gap-3 justify-center">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-center gap-2 sm:gap-3">
+          <button
+            onClick={onReset}
+            className="w-full sm:w-auto border border-white/10 text-white/40 hover:text-white/70 font-medium py-3 px-6 rounded-xl transition-colors text-base cursor-pointer"
+          >
+            {resetLabel}
+          </button>
           <button
             onClick={handleConfirmClick}
             disabled={confirming || extractedNodes.length === 0}
-            className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 text-base cursor-pointer"
+            className="w-full sm:w-auto bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-semibold py-3 px-8 rounded-xl transition-all shadow-xl shadow-purple-600/20 text-base cursor-pointer"
           >
             {confirming ? 'Adding...' : `Add ${extractedNodes.length} entries to graph`}
-          </button>
-          <button
-            onClick={onReset}
-            className="border border-white/10 text-white/40 hover:text-white/70 font-medium py-3 px-6 rounded-xl transition-colors text-base cursor-pointer"
-          >
-            {resetLabel}
           </button>
         </div>
       </div>
