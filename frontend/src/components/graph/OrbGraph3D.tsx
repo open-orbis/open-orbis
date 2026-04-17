@@ -31,6 +31,7 @@ interface OrbGraph3DProps {
 const SHARED_GEO = {
   personCore: new THREE.SphereGeometry(6, 24, 24),
   personInnerGlow: new THREE.SphereGeometry(2.4, 12, 12),
+  personInnerDot: new THREE.SphereGeometry(1.1, 12, 12),
   personMidGlow: new THREE.SphereGeometry(8.4, 12, 12),
   personRing1: new THREE.TorusGeometry(9.6, 0.15, 8, 48),
   personRing2: new THREE.TorusGeometry(11.4, 0.1, 8, 48),
@@ -409,21 +410,33 @@ export default function OrbGraph3D({
     const group = new THREE.Group();
 
     if (isPerson) {
-      // ── Person node: emissive core + orbital rings (no PointLight) ──
+      // ── Person node: styled after the top-left myorbis logo mark — a
+      // semi-transparent purple-600 outer disc with a solid purple-400
+      // inner dot. Orbital rings + mid-glow retained so the root node
+      // still reads as the graph's focal point. ──
       const coreMat = new THREE.MeshBasicMaterial({
-        color: nodeCol,
+        color: isFiltered ? new THREE.Color('#ffffff') : new THREE.Color('#9333ea'),
         transparent: true,
-        opacity: (isDimmed ? 0.2 : 0.9) * fo,
+        opacity: (isDimmed ? 0.12 : 0.35) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.personCore, coreMat));
 
-      // Inner white glow
+      // Inner solid — matches purple-400 inner dot in the logo
       const innerGlowMat = new THREE.MeshBasicMaterial({
-        color: '#ffffff',
+        color: isFiltered ? new THREE.Color('#ffffff') : new THREE.Color('#c084fc'),
         transparent: true,
-        opacity: (isDimmed ? 0.05 : 0.55) * fo,
+        opacity: (isDimmed ? 0.3 : 1) * fo,
       });
       group.add(new THREE.Mesh(SHARED_GEO.personInnerGlow, innerGlowMat));
+
+      // Innermost bright dot — a third, brighter purple layer at the very
+      // centre reinforces the logo's concentric-circle identity in 3D.
+      const innerDotMat = new THREE.MeshBasicMaterial({
+        color: isFiltered ? new THREE.Color('#ffffff') : new THREE.Color('#e9d5ff'),
+        transparent: true,
+        opacity: (isDimmed ? 0.4 : 1) * fo,
+      });
+      group.add(new THREE.Mesh(SHARED_GEO.personInnerDot, innerDotMat));
 
       // Orbital ring 1
       const ring1Mat = new THREE.MeshBasicMaterial({
@@ -588,7 +601,15 @@ export default function OrbGraph3D({
       className="relative w-full h-full"
       onPointerMove={handlePointerMove}
       onPointerEnter={() => { isHoveringRef.current = true; }}
-      onPointerLeave={() => { isHoveringRef.current = false; }}
+      onPointerLeave={() => {
+        isHoveringRef.current = false;
+        // Dismiss the tooltip immediately when the pointer leaves the canvas.
+        // react-force-graph only fires onNodeHover(null) on ray-miss INSIDE the
+        // canvas — if the pointer exits the canvas while over a node, the
+        // tooltip would otherwise stay stuck open.
+        setHoveredNode(null);
+        hoveredNodeRef.current = null;
+      }}
     >
       <ForceGraph3D
         ref={fgRef}

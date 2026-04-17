@@ -270,22 +270,22 @@ export default function LandingPage() {
           <div className="w-[600px] h-[600px] rounded-full bg-purple-600/8 blur-[150px]" />
         </div>
 
-        {/* 3D Orb */}
+        {/* 3D Orb — sits behind the headline so the text reads on top */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 2.5, ease: 'easeOut' }}
-          className="relative z-10 mb-6"
+          className="relative z-0 -mb-24 sm:-mb-40 pointer-events-none"
         >
           <HeroOrb />
         </motion.div>
 
-        {/* Title */}
+        {/* Title — rendered above the orb for the poster-style overlap */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.8 }}
-          className="text-4xl sm:text-7xl font-bold mb-4 sm:mb-8 z-10 tracking-tight text-center"
+          className="relative text-4xl sm:text-7xl font-bold mb-4 sm:mb-8 z-20 tracking-tight text-center"
         >
           Beyond the{' '}
           <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
@@ -297,7 +297,7 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.8 }}
-          className="text-white/40 text-base sm:text-xl mb-8 sm:mb-16 z-10 max-w-lg text-center leading-relaxed"
+          className="text-white/40 text-base sm:text-xl mb-3 sm:mb-5 z-10 max-w-lg text-center leading-relaxed"
         >
           <span className="text-white/60 font-semibold">Your career reimagined for the AI era.</span><br />
           Queryable, shareable, portable.
@@ -360,7 +360,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Interactive Demo Orb ── */}
-      <section className="relative px-4 sm:px-6">
+      <section className="relative px-4 sm:px-6 mt-10 sm:mt-16">
         <FadeIn className="max-w-5xl mx-auto">
           {/* Text above the canvas */}
           <div className="text-center mb-4">
