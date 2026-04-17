@@ -113,7 +113,14 @@ export default function PendingConnectionsDropdown({ label = 'Connections', full
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 sm:w-96 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <>
+          {/* Mobile backdrop — converts the dropdown into a centred modal on <sm */}
+          <div
+            className="fixed inset-0 z-[41] bg-black/60 backdrop-blur-sm sm:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+        <div className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[42] max-h-[85vh] overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-full sm:translate-y-0 sm:mt-2 sm:w-96 sm:max-h-none sm:overflow-hidden sm:z-50 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl">
           <div className="px-4 py-3 border-b border-white/10">
             <div className="flex items-center justify-between">
               <h3 className="text-xs text-emerald-300 uppercase tracking-[0.12em] font-semibold">Pending Connections</h3>
@@ -205,6 +212,7 @@ export default function PendingConnectionsDropdown({ label = 'Connections', full
             </div>
           </div>
         </div>
+        </>
       )}
     </div>
   );

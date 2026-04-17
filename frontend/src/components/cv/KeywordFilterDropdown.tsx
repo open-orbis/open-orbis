@@ -67,12 +67,23 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
 
       <AnimatePresence>
         {open && (
+          <>
+            {/* Mobile backdrop — makes the popover feel like a modal on narrow viewports */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="fixed inset-0 z-[41] bg-black/60 backdrop-blur-sm sm:hidden"
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+            />
           <motion.div
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 mt-2 w-[min(20rem,calc(100vw-2rem))] bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
+            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[42] max-h-[85vh] overflow-y-auto sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:translate-y-0 sm:mt-2 sm:w-80 sm:max-h-none sm:overflow-hidden sm:z-50 bg-neutral-950/95 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl"
           >
             <div className="px-4 py-3 border-b border-white/5">
               <h3 className="text-white text-sm font-semibold">Keyword Filters</h3>
@@ -82,24 +93,24 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
             </div>
 
             <div className="px-4 py-3">
+              <input
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                placeholder="e.g. confidential, private..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent mb-2"
+              />
               <div className="flex items-center gap-2 mb-2">
-                <input
-                  value={newKeyword}
-                  onChange={(e) => setNewKeyword(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                  placeholder="e.g. confidential, private..."
-                  className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-transparent"
-                />
                 <button
                   onClick={handleAdd}
-                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer shrink-0"
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium py-1.5 px-3 rounded-lg transition-colors cursor-pointer"
                 >
                   Add
                 </button>
                 <button
                   onClick={deactivateAll}
                   disabled={activeKeywords.length === 0}
-                  className="bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors whitespace-nowrap cursor-pointer shrink-0"
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed text-white/70 text-xs font-medium py-1.5 px-3 rounded-lg transition-colors cursor-pointer"
                 >
                   Deactivate All
                 </button>
@@ -155,6 +166,7 @@ export default function KeywordFilterDropdown({ label, fullWidth = false }: Keyw
               )}
             </div>
           </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
