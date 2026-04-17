@@ -657,7 +657,7 @@ export default function OrbViewPage() {
               </div>
               {/* Tools hamburger — visible below lg */}
               {!isPendingDeletion && (
-                <div className="relative lg:hidden" ref={toolsMenuRef}>
+                <div className="relative xl:hidden" ref={toolsMenuRef}>
                   <button
                     onClick={() => setShowToolsMenu((v) => !v)}
                     className="h-10 sm:h-8 leading-none flex items-center gap-1 text-xs font-medium py-1.5 px-3 sm:px-2 rounded-lg text-white/55 hover:text-white hover:bg-white/8 transition-all"
@@ -765,7 +765,7 @@ export default function OrbViewPage() {
               )}
 
               {!isPendingDeletion && (
-                <div className="hidden lg:flex items-center gap-1.5 ml-2">
+                <div className="hidden xl:flex items-center gap-1.5 ml-2">
                   <div data-tour="node-types">
                     <NodeTypeFilter
                       hiddenTypes={hiddenNodeTypes}
@@ -851,11 +851,11 @@ export default function OrbViewPage() {
             <div className="h-8 flex items-center gap-1">
               <ProcessingCounter />
 
-              <div data-tour="connections" className="hidden lg:block">
+              <div data-tour="connections" className="hidden xl:block">
                 <PendingConnectionsDropdown />
               </div>
 
-              <div data-tour="notes" className="hidden lg:block">
+              <div data-tour="notes" className="hidden xl:block">
                 <HeaderBtn onClick={() => setShowDrafts(true)} variant="outline">
                   <IconNotes />
                   <span>Notes</span>
