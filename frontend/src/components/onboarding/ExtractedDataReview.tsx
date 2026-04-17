@@ -286,7 +286,7 @@ export default function ExtractedDataReview({
                   )}
                   {unmatchedCount > 0 && (
                     <p className="text-amber-200/90 text-xs">
-                      {unmatchedCount} entr{unmatchedCount === 1 ? 'y was' : 'ies were'} not classified and moved to Draft Notes.
+                      {unmatchedCount} entr{unmatchedCount === 1 ? 'y was' : 'ies were'} skipped and will be saved as Draft Notes on confirm.
                     </p>
                   )}
                 </div>

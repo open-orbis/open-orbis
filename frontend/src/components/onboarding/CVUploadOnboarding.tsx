@@ -2,12 +2,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { uploadCV, getCVProgress, getDocuments, getJob } from '../../api/cv';
 import type { ExtractedData, ExtractedProfile, ExtractedRelationship, CVProgressData } from '../../api/cv';
-import { useAuthStore } from '../../stores/authStore';
-import { loadDraftNotes, saveDraftNotes } from '../drafts/DraftNotes';
 import ExtractedDataReview from './ExtractedDataReview';
+import UnmatchedEntriesReview from './UnmatchedEntriesReview';
 
 export default function CVUploadOnboarding() {
-  const { user } = useAuthStore();
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [processingUiActive, setProcessingUiActive] = useState(false);
@@ -52,19 +50,9 @@ export default function CVUploadOnboarding() {
             if (runId !== activeUploadRunRef.current) return;
             if (job.result) {
               const result = job.result;
-              let unmatchedCount = 0;
-              if (result.unmatched && result.unmatched.length > 0 && user?.user_id) {
-                const existing = loadDraftNotes(user.user_id);
-                const newNotes = result.unmatched.map((text: string) => ({
-                  id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-                  text: `[From CV] ${text}`,
-                  createdAt: Date.now(),
-                  fromVoice: false,
-                }));
-                saveDraftNotes(user.user_id, [...newNotes, ...existing]);
-                unmatchedCount = result.unmatched.length;
-              }
-              if (result.nodes.length === 0 && (!result.unmatched || result.unmatched.length === 0)) {
+              const unmatchedEntries = result.unmatched || [];
+              const unmatchedCount = unmatchedEntries.length;
+              if (result.nodes.length === 0 && unmatchedCount === 0) {
                 setError('No entries could be extracted from this file. Try a different CV or use manual entry.');
               } else {
                 setExtractedData({
@@ -73,7 +61,7 @@ export default function CVUploadOnboarding() {
                   cvOwnerName: result.cv_owner_name || null,
                   profile: result.profile || null,
                   unmatchedCount,
-                  unmatchedEntries: result.unmatched || [],
+                  unmatchedEntries,
                   skippedCount: result.skipped_nodes?.length || 0,
                   truncated: result.truncated || false,
                   documentId: result.document_id || null,
@@ -81,6 +69,7 @@ export default function CVUploadOnboarding() {
                   fileSizeBytes: lastFile?.size || null,
                   pageCount: null,
                 });
+                setUnmatchedReviewOpen(unmatchedCount > 0);
               }
             } else {
               setError('CV processing completed but no data was returned. Please try again.');
@@ -123,6 +112,7 @@ export default function CVUploadOnboarding() {
     fileSizeBytes: number | null;
     pageCount: number | null;
   } | null>(null);
+  const [unmatchedReviewOpen, setUnmatchedReviewOpen] = useState(false);
 
   const [showLimitWarning, setShowLimitWarning] = useState(false);
   const [oldestDoc, setOldestDoc] = useState<{ name: string; date: string } | null>(null);
@@ -242,6 +232,31 @@ export default function CVUploadOnboarding() {
     resetToUploadStep();
   }, [resetToUploadStep]);
 
+  // ── Unmatched review (intermediate step) ──
+  if (extractedData && unmatchedReviewOpen) {
+    return (
+      <UnmatchedEntriesReview
+        entries={extractedData.unmatchedEntries}
+        header={<OnboardingStages current="review" />}
+        onBack={() => { setExtractedData(null); setUnmatchedReviewOpen(false); }}
+        backLabel="Back to upload"
+        onDone={({ classifiedNodes, remainingUnmatched }) => {
+          setExtractedData((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  nodes: [...prev.nodes, ...classifiedNodes],
+                  unmatchedEntries: remainingUnmatched,
+                  unmatchedCount: remainingUnmatched.length,
+                }
+              : prev,
+          );
+          setUnmatchedReviewOpen(false);
+        }}
+      />
+    );
+  }
+
   // ── Review mode (shared component) ──
   if (extractedData) {
     return (
@@ -254,7 +269,7 @@ export default function CVUploadOnboarding() {
         unmatchedEntries={extractedData.unmatchedEntries}
         skippedCount={extractedData.skippedCount}
         truncated={extractedData.truncated}
-        onReset={() => setExtractedData(null)}
+        onReset={() => { setExtractedData(null); setUnmatchedReviewOpen(false); }}
         resetLabel="Try another file"
         documentId={extractedData.documentId}
         originalFilename={extractedData.originalFilename}

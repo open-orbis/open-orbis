@@ -124,6 +124,42 @@
   next_state: IMPORT_LIMIT
   fallback_on_failure: null
 
+- id: CV_UNMATCHED_CLASSIFY
+  from_state: CV_UNMATCHED
+  action: Pick a type for an unmatched entry and submit the inline NodeForm
+  selector_or_control: "row type select + NodeForm submit"
+  preconditions: [extraction_complete, unmatched_count > 0]
+  expected_effect: Entry is promoted to a graph node; it will be merged into the extracted nodes when the user clicks Continue
+  next_state: CV_UNMATCHED
+  fallback_on_failure: null
+
+- id: CV_UNMATCHED_SKIP_ONE
+  from_state: CV_UNMATCHED
+  action: Click "Skip for now" on a single unmatched row
+  selector_or_control: "row skip button"
+  preconditions: [extraction_complete, unmatched_count > 0]
+  expected_effect: Entry is marked skipped and will be saved as a Draft Note on final confirm
+  next_state: CV_UNMATCHED
+  fallback_on_failure: null
+
+- id: CV_UNMATCHED_SKIP_ALL
+  from_state: CV_UNMATCHED
+  action: Click "Skip all & continue"
+  selector_or_control: "header Skip all link"
+  preconditions: [extraction_complete, unmatched_count > 0]
+  expected_effect: Every pending entry is marked skipped; hands control to CV_REVIEW. Already-classified entries keep their type.
+  next_state: CV_REVIEW
+  fallback_on_failure: null
+
+- id: CV_UNMATCHED_CONTINUE
+  from_state: CV_UNMATCHED
+  action: Click "Continue to review"
+  selector_or_control: "primary button"
+  preconditions: [extraction_complete, unmatched_count > 0]
+  expected_effect: Hands control to CV_REVIEW with classified entries appended to nodes and remaining unmatched kept as skipped
+  next_state: CV_REVIEW
+  fallback_on_failure: null
+
 - id: CV_REVIEW_CONFIRM
   from_state: CV_REVIEW
   action: Click "Add entries to graph"

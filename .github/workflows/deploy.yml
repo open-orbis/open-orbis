@@ -208,6 +208,27 @@ jobs:
           echo "backend_url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
           echo "Backend URL: ${BACKEND_URL:-<will be set after first deploy>}"
 
+      # Heal any stuck traffic spec from a previously failed deploy.
+      # If spec.traffic pins a revision that never became Ready, Cloud Run
+      # can't reconcile and subsequent `gcloud run deploy` calls fail with
+      # "Revision X is not ready and cannot serve traffic". Reset the spec
+      # to the revision that is actually serving (status.traffic) so the
+      # upcoming deploy starts from a clean base.
+      - name: Heal stuck backend traffic spec
+        run: |
+          SPEC_REV=$(gcloud run services describe "$BACKEND_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(spec.traffic[0].revisionName)" 2>/dev/null || echo "")
+          SERVING_REV=$(gcloud run services describe "$BACKEND_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(status.traffic[0].revisionName)" 2>/dev/null || echo "")
+          if [ -n "$SPEC_REV" ] && [ -n "$SERVING_REV" ] && [ "$SPEC_REV" != "$SERVING_REV" ]; then
+            echo "::warning::spec.traffic pinned to $SPEC_REV but status serves $SERVING_REV; resetting spec to unblock deploy"
+            gcloud run services update-traffic "$BACKEND_SERVICE" \
+              --region="$REGION" --project="$PROJECT_ID" \
+              --to-revisions="$SERVING_REV=100"
+          fi
+
       # Deploy backend
       - name: Deploy backend to Cloud Run
         run: |
@@ -233,14 +254,21 @@ jobs:
 
       - name: Ensure backend traffic routes to new revision
         run: |
+          # Use latestReadyRevisionName (not latestCreatedRevisionName): a
+          # created-but-not-Ready revision would otherwise get pinned via
+          # --to-revisions and brick the service for future deploys.
           NEW_REV=$(gcloud run services describe "$BACKEND_SERVICE" \
             --region="$REGION" --project="$PROJECT_ID" \
-            --format="value(status.latestCreatedRevisionName)")
+            --format="value(status.latestReadyRevisionName)")
           SERVING_REV=$(gcloud run services describe "$BACKEND_SERVICE" \
             --region="$REGION" --project="$PROJECT_ID" \
             --format="value(status.traffic[0].revisionName)")
+          if [ -z "$NEW_REV" ]; then
+            echo "::error::No Ready revision found for $BACKEND_SERVICE"
+            exit 1
+          fi
           if [ "$NEW_REV" != "$SERVING_REV" ]; then
-            echo "::warning::Traffic stuck on $SERVING_REV, forcing route to $NEW_REV"
+            echo "::warning::Traffic stuck on $SERVING_REV, forcing route to $NEW_REV (Ready)"
             gcloud run services update-traffic "$BACKEND_SERVICE" \
               --region="$REGION" --project="$PROJECT_ID" \
               --to-revisions="$NEW_REV=100"
@@ -251,6 +279,22 @@ jobs:
       - name: Mark backend deployed
         id: backend-done
         run: echo "done=true" >> "$GITHUB_OUTPUT"
+
+      # Heal stuck MCP traffic spec (same rationale as backend).
+      - name: Heal stuck MCP traffic spec
+        run: |
+          SPEC_REV=$(gcloud run services describe "$MCP_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(spec.traffic[0].revisionName)" 2>/dev/null || echo "")
+          SERVING_REV=$(gcloud run services describe "$MCP_SERVICE" \
+            --region="$REGION" --project="$PROJECT_ID" \
+            --format="value(status.traffic[0].revisionName)" 2>/dev/null || echo "")
+          if [ -n "$SPEC_REV" ] && [ -n "$SERVING_REV" ] && [ "$SPEC_REV" != "$SERVING_REV" ]; then
+            echo "::warning::spec.traffic pinned to $SPEC_REV but status serves $SERVING_REV; resetting spec to unblock deploy"
+            gcloud run services update-traffic "$MCP_SERVICE" \
+              --region="$REGION" --project="$PROJECT_ID" \
+              --to-revisions="$SERVING_REV=100"
+          fi
 
       # Deploy MCP
       - name: Deploy MCP to Cloud Run
@@ -277,12 +321,16 @@ jobs:
         run: |
           NEW_REV=$(gcloud run services describe "$MCP_SERVICE" \
             --region="$REGION" --project="$PROJECT_ID" \
-            --format="value(status.latestCreatedRevisionName)")
+            --format="value(status.latestReadyRevisionName)")
           SERVING_REV=$(gcloud run services describe "$MCP_SERVICE" \
             --region="$REGION" --project="$PROJECT_ID" \
             --format="value(status.traffic[0].revisionName)")
+          if [ -z "$NEW_REV" ]; then
+            echo "::error::No Ready revision found for $MCP_SERVICE"
+            exit 1
+          fi
           if [ "$NEW_REV" != "$SERVING_REV" ]; then
-            echo "::warning::Traffic stuck on $SERVING_REV, forcing route to $NEW_REV"
+            echo "::warning::Traffic stuck on $SERVING_REV, forcing route to $NEW_REV (Ready)"
             gcloud run services update-traffic "$MCP_SERVICE" \
               --region="$REGION" --project="$PROJECT_ID" \
               --to-revisions="$NEW_REV=100"
