@@ -12,6 +12,22 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 const POLL_INTERVAL = 5000;
 
+// Gift codes ship in the shape XXXX-XXXX (see backend/app/auth/gift_invites.py).
+// Format as the user types: uppercase, auto-insert a hyphen after the 4th
+// character, cap the body at 8 characters. Codes that are already hyphenated
+// (admin-issued formats like `gdg-abc123`) pass through untouched apart from
+// uppercasing, so we don't mangle legacy codes.
+function formatInviteCode(raw: string): string {
+  const trimmed = raw.trim();
+  // If the input already contains a separator, let the user keep typing
+  // freely. Just uppercase it.
+  if (trimmed.includes('-')) return trimmed.toUpperCase();
+  // Gift-code pattern: only ASCII alphanumerics, 8-char body + one hyphen.
+  const alnum = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+  if (alnum.length <= 4) return alnum;
+  return `${alnum.slice(0, 4)}-${alnum.slice(4)}`;
+}
+
 export default function ActivatePage() {
   const navigate = useNavigate();
   const { user, fetchUser, logout } = useAuthStore();
@@ -137,13 +153,15 @@ export default function ActivatePage() {
           <input
             type="text"
             value={code}
-            onChange={(e) => { setCode(e.target.value); setError(null); }}
+            onChange={(e) => { setCode(formatInviteCode(e.target.value)); setError(null); }}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit(); }}
-            placeholder="Enter your invite code"
+            placeholder="XXXX-XXXX"
             autoFocus
             spellCheck={false}
             autoComplete="off"
-            className="bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-xl px-4 py-3 outline-none transition-colors placeholder:text-white/20 text-center font-mono tracking-wider"
+            autoCapitalize="characters"
+            inputMode="text"
+            className="bg-white/[0.04] border border-white/[0.08] focus:border-purple-500/40 text-white text-sm rounded-xl px-4 py-3 outline-none transition-colors placeholder:text-white/20 text-center font-mono tracking-wider uppercase"
           />
           <button
             onClick={handleSubmit}
