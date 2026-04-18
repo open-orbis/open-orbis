@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from 'react';
 import { textSearch } from '../../api/orbs';
 import type { OrbNode, OrbVisibility } from '../../api/orbs';
 import { NODE_TYPE_COLORS } from '../graph/NodeColors';
@@ -26,6 +26,11 @@ interface ChatBoxProps {
   interactionHint?: string;
   onRecenter?: () => void;
   visibility?: OrbVisibility;
+  // Rendered on mobile only, at the left of the bar row (same level as the
+  // action circles on the right). Used for compact triggers that would
+  // otherwise overlap the search bar if floated separately (e.g. the gift
+  // invite icon on /myorbis — #385).
+  mobileLeftSlot?: ReactNode;
 }
 
 export type { ChatMessage };
@@ -94,6 +99,7 @@ export default function ChatBox({
   interactionHint = 'Zoom: mouse wheel · Pan: right-drag · Rotate: left-drag',
   onRecenter,
   visibility = 'public',
+  mobileLeftSlot,
 }: ChatBoxProps) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -412,6 +418,11 @@ export default function ChatBox({
 
       {/* Bottom bar — discover + recenter + chat input + action buttons */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {mobileLeftSlot && (
+          <div className="sm:hidden flex items-center flex-shrink-0">
+            {mobileLeftSlot}
+          </div>
+        )}
         {onDiscover && (
           <button
             type="button"
