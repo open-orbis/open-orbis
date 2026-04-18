@@ -188,3 +188,84 @@ def test_process_job_skips_non_queued(mock_get_job):
 
     assert response.status_code == 200
     assert response.json()["status"] == "skipped"
+
+
+# ── CV completion emails (#394 acceptance coverage) ──
+
+
+def _make_db_returning_encrypted_email(ciphertext: str | None):
+    """Build a mock AsyncDriver whose session.run().single() yields a
+    Person row with the given (encrypted) email column."""
+    from unittest.mock import MagicMock
+
+    db = MagicMock()
+    session_mock = AsyncMock()
+    db.session.return_value.__aenter__.return_value = session_mock
+    result_mock = MagicMock()
+    if ciphertext is None:
+        result_mock.single = AsyncMock(return_value=None)
+    else:
+        result_mock.single = AsyncMock(return_value={"email": ciphertext})
+    session_mock.run = AsyncMock(return_value=result_mock)
+    return db
+
+
+async def test_send_success_email_uses_decrypted_person_email():
+    """On job success the email must go to the sign-up address stored on
+    :Person.email (decrypted). This is the acceptance criterion from #394:
+    'receives a CV ready email at the sign-up address'."""
+    from app.cv.jobs_router import _send_success_email
+    from app.graph.encryption import encrypt_value
+
+    db = _make_db_returning_encrypted_email(encrypt_value("oauth@example.com"))
+    with patch(
+        "app.email.service.send_cv_ready_email", new_callable=AsyncMock
+    ) as mock_send:
+        await _send_success_email(
+            user_id="google-123",
+            db=db,
+            job_id="job-abc",
+            node_count=7,
+            edge_count=3,
+        )
+
+    mock_send.assert_awaited_once()
+    kwargs = mock_send.await_args.kwargs
+    assert kwargs["to"] == "oauth@example.com"
+    assert kwargs["job_id"] == "job-abc"
+    assert kwargs["node_count"] == 7
+    assert kwargs["edge_count"] == 3
+
+
+async def test_send_success_email_skips_when_no_email():
+    """If the Person row has no email, nothing is sent (no crash)."""
+    from app.cv.jobs_router import _send_success_email
+
+    db = _make_db_returning_encrypted_email(None)
+    with patch(
+        "app.email.service.send_cv_ready_email", new_callable=AsyncMock
+    ) as mock_send:
+        await _send_success_email(
+            user_id="google-123",
+            db=db,
+            job_id="job-abc",
+            node_count=0,
+            edge_count=0,
+        )
+    mock_send.assert_not_awaited()
+
+
+async def test_send_failure_email_uses_decrypted_person_email():
+    """On job failure the user still gets a notification (they're otherwise
+    stuck on a polling spinner)."""
+    from app.cv.jobs_router import _send_failure_email
+    from app.graph.encryption import encrypt_value
+
+    db = _make_db_returning_encrypted_email(encrypt_value("oauth@example.com"))
+    with patch(
+        "app.email.service.send_cv_failed_email", new_callable=AsyncMock
+    ) as mock_send:
+        await _send_failure_email(user_id="google-123", db=db)
+
+    mock_send.assert_awaited_once()
+    assert mock_send.await_args.kwargs["to"] == "oauth@example.com"

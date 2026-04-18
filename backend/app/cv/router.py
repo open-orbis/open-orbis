@@ -470,6 +470,28 @@ async def _persist_nodes_inner(  # noqa: C901
                     logger.warning("Failed to link %s -> %s: %s", from_uid, to_uid, e)
 
 
+# Profile fields the CV pipeline is allowed to write onto :Person.
+#
+# email is deliberately excluded: :Person.email is the OAuth sign-up address,
+# is the single contact channel for every transactional email (activation,
+# CV-ready, access grants, …), and must never be rewritten by an LLM reading
+# an arbitrary PDF. A user whose CV contains a stale or third-party address
+# would otherwise have all notifications silently rerouted. See #394.
+_CV_PROFILE_WRITABLE_FIELDS = (
+    "headline",
+    "location",
+    "phone",
+    "linkedin_url",
+    "github_url",
+    "twitter_url",
+    "instagram_url",
+    "scholar_url",
+    "website_url",
+    "open_to_work",
+)
+_CV_PROFILE_ENCRYPTED_FIELDS = ("phone",)
+
+
 def _build_person_updates(data: ConfirmRequest) -> dict:
     """Build Person node property updates from CV extraction results."""
     updates: dict[str, str] = {}
@@ -477,10 +499,13 @@ def _build_person_updates(data: ConfirmRequest) -> dict:
         updates["cv_display_name"] = data.cv_owner_name
     if data.profile:
         profile_dict = data.profile.model_dump(exclude_none=True)
-        for pii_field in ("email", "phone"):
-            if pii_field in profile_dict:
-                profile_dict[pii_field] = encrypt_value(profile_dict[pii_field])
-        updates.update(profile_dict)
+        for field in _CV_PROFILE_WRITABLE_FIELDS:
+            if field not in profile_dict:
+                continue
+            value = profile_dict[field]
+            if field in _CV_PROFILE_ENCRYPTED_FIELDS:
+                value = encrypt_value(value)
+            updates[field] = value
     return updates
 
 

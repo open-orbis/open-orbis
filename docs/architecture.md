@@ -102,6 +102,10 @@ Stage 6: User Review + Confirm
 
 Text input is capped at 12,000 characters. The LLM provider is controlled by `LLM_PROVIDER` and `LLM_FALLBACK_CHAIN` config settings.
 
+**CV profile fields vs. identity fields.** The LLM-extracted profile block (email, phone, headline, social URLs, …) is merged onto `:Person` by `POST /cv/confirm` through a strict allowlist in `backend/app/cv/router.py::_CV_PROFILE_WRITABLE_FIELDS`. `email` is deliberately **not** on that list — `:Person.email` is the OAuth sign-up address and the sole destination for every transactional email (activation, CV-ready/failed, access grants). Letting an LLM reading an arbitrary PDF rewrite it would silently reroute all notifications and, when the CV belongs to a third party, also exposes that third party's address to admins (#394).
+
+**CV completion notifications.** When the background job transitions to `succeeded` or `failed`, `app.cv.jobs_router._send_success_email` / `_send_failure_email` read `:Person.email`, decrypt it, and dispatch `send_cv_ready_email` / `send_cv_failed_email` (templates in `backend/app/email/templates.py`). Delivery is best-effort: a send failure is logged but does not flip the job status.
+
 ### Authentication Flow
 
 ```
@@ -110,8 +114,11 @@ POST /auth/google or /auth/linkedin
     ├─ Exchange OAuth code for user info
     ├─ Lookup user by provider ID in Neo4j
     ├─ If not found: CREATE Person node
+    ├─ If found and p.email ≠ provider email: heal p.email to the provider value (#394)
     └─ Return JWT (HS256, short-lived) + set HttpOnly refresh token cookie
 ```
+
+The heal step exists because older sessions could allow `POST /cv/confirm` to overwrite `:Person.email` with the CV-parsed address. OAuth is the identity of record, so every login snaps the stored email back to whatever the provider claims.
 
 JWT validation on protected endpoints via `HTTPBearer` scheme. Refresh tokens support token rotation — each refresh revokes the old token and issues a new pair. In production, the refresh token cookie uses `SameSite=None; Secure` and is scoped to `path=/`.
 

@@ -215,3 +215,49 @@ def test_confirm_cv_invalid_node_type(client, mock_db):
     response = client.post("/cv/confirm", json=payload)
     assert response.status_code == 200
     assert response.json()["created"] == 0
+
+
+def test_build_person_updates_drops_cv_parsed_email():
+    """Regression guard for #394: email extracted from a CV must never
+    overwrite :Person.email (which is the OAuth sign-up address and the
+    only trusted contact channel). The CV-parsed email is unverified and
+    may belong to a third party on a shared/outdated CV."""
+    from app.cv.models import ConfirmRequest, ExtractedProfile
+    from app.cv.router import _build_person_updates
+
+    data = ConfirmRequest(
+        nodes=[],
+        profile=ExtractedProfile(
+            email="cv-parsed@example.com",
+            phone="+1-555-0100",
+            headline="Staff Engineer",
+            linkedin_url="https://linkedin.com/in/x",
+        ),
+    )
+
+    updates = _build_person_updates(data)
+
+    assert "email" not in updates, (
+        "CV-parsed email leaked into Person.email update — this would "
+        "overwrite the OAuth sign-up address and reroute all transactional "
+        "email to the CV-parsed address."
+    )
+    # Non-identity fields should still flow through so the profile stays useful.
+    assert updates.get("headline") == "Staff Engineer"
+    assert updates.get("linkedin_url") == "https://linkedin.com/in/x"
+
+
+def test_build_person_updates_whitelist_rejects_unknown_fields():
+    """Only known safe profile fields are merged. An unexpected key (even
+    if Pydantic ever allowed one through) must not reach the Cypher writer."""
+    from app.cv.models import ConfirmRequest, ExtractedProfile
+    from app.cv.router import _build_person_updates
+
+    data = ConfirmRequest(
+        nodes=[],
+        profile=ExtractedProfile(headline="x", location="Berlin"),
+    )
+    updates = _build_person_updates(data)
+    # email/phone/role injection guard: caller cannot add arbitrary props
+    for forbidden in ("email", "is_admin", "signup_code", "orb_id", "user_id"):
+        assert forbidden not in updates
