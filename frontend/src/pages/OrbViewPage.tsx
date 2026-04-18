@@ -26,7 +26,7 @@ import { loadDraftNotes, loadDraftNotesAsync } from '../components/drafts/DraftN
 import ProcessingCounter from '../components/cv/ProcessingCounter';
 import KeywordFilterDropdown from '../components/cv/KeywordFilterDropdown';
 import UserMenu from '../components/UserMenu';
-import GiftInviteButton from '../components/GiftInviteButton';
+import GiftInviteButton, { GiftInviteProvider, GiftInviteIconButton } from '../components/GiftInviteButton';
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport, getJob } from '../api/cv';
@@ -599,6 +599,7 @@ export default function OrbViewPage() {
   }
 
   return (
+    <GiftInviteProvider>
     <div className="min-h-screen bg-black relative">
       {/* ── Deletion countdown banner ── */}
       {isPendingDeletion && (
@@ -1034,6 +1035,7 @@ export default function OrbViewPage() {
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
         visibility={((data?.person?.visibility as OrbVisibility) || 'public')}
+        mobileLeftSlot={<GiftInviteIconButton />}
       />}
 
       {/* ── Draft Notes ── */}
@@ -1167,5 +1169,6 @@ export default function OrbViewPage() {
       {/* ── Guided Tour ── */}
       <GuidedTour run={tourRunning} onFinish={() => setTourRunning(false)} />
     </div>
+    </GiftInviteProvider>
   );
 }
