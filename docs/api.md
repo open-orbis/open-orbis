@@ -62,7 +62,7 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | Method | Path | Auth | Rate Limit | Description |
 |--------|------|------|------------|-------------|
 | GET | `/orbs/me` | JWT | — | Full orb: person + nodes + links |
-| PUT | `/orbs/me` | JWT | — | Update Person profile fields |
+| PUT | `/orbs/me` | JWT | — | Update Person profile fields. `email` is **not** in the accepted schema — it is the OAuth sign-up address and can only be changed by re-authenticating with a different provider account (#394). |
 | PUT | `/orbs/me/orb-id` | JWT | — | Claim/update public orb_id (409 if taken) |
 | POST | `/orbs/me/profile-image` | JWT | — | Upload profile image as base64 (max 2MB) |
 | DELETE | `/orbs/me/profile-image` | JWT | — | Clear profile image |
@@ -94,7 +94,7 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/cv/upload` | JWT | Upload PDF (max 10MB). Requires GDPR consent. Stores document, dispatches Cloud Task, returns `{job_id, status: "queued"}` immediately. |
-| POST | `/cv/confirm` | JWT | Persist confirmed nodes to Neo4j. Wipes existing graph first. Accepts `document_id` to track metadata. |
+| POST | `/cv/confirm` | JWT | Persist confirmed nodes to Neo4j. Wipes existing graph first. Accepts `document_id` to track metadata. The `profile.email` field in the payload is **dropped server-side** (allowlist in `_CV_PROFILE_WRITABLE_FIELDS`) so the CV-parsed address never overwrites `:Person.email` — see #394. |
 | POST | `/cv/import` | JWT | Import supplementary document (PDF, DOCX, TXT). Stores document, dispatches Cloud Task, returns `{job_id, status: "queued"}` immediately. |
 | POST | `/cv/import-confirm` | JWT | Merge imported nodes into existing orb (no wipe). Accepts `document_id` to track metadata. |
 | GET | `/cv/documents` | JWT | List document metadata for current user (up to 3, ordered by date desc). |
@@ -115,6 +115,8 @@ All endpoints require `is_admin = true` on the authenticated Person.
 ```
 
 The client should poll `GET /cv/job/{job_id}` until `status` is `succeeded` or `failed`. On success the response includes a `result` field with the extracted nodes.
+
+On the `succeeded` / `failed` transition the worker also dispatches a best-effort transactional email (`send_cv_ready_email` / `send_cv_failed_email`) to the address stored on `:Person.email` — i.e. the OAuth sign-up address (#394). Email delivery is decoupled from job status; a Resend failure is logged but does not re-queue the job.
 
 ### Confirm Request Body
 

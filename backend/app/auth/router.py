@@ -41,7 +41,7 @@ from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.email.service import send_activation_email
 from app.graph.encryption import decrypt_value, encrypt_value
-from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID
+from app.graph.queries import CREATE_PERSON, GET_PERSON_BY_USER_ID, UPDATE_PERSON
 from app.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,25 @@ async def _get_or_create_person(
             person = dict(record["p"])
             is_admin_user = bool(person.get("is_admin", False))
             has_code = person.get("signup_code") is not None
+
+            # Self-heal :Person.email if it drifted from the OAuth claim.
+            # Historically a confirmed CV could overwrite it (see #394).
+            # OAuth is the identity of record, so on every login we snap
+            # the encrypted email back to what the provider gave us.
+            stored_email_ct = person.get("email") or ""
+            try:
+                stored_email_pt = (
+                    decrypt_value(stored_email_ct) if stored_email_ct else ""
+                )
+            except Exception:
+                stored_email_pt = ""
+            if stored_email_pt != email:
+                await session.run(
+                    UPDATE_PERSON,
+                    user_id=user_id,
+                    properties={"email": encrypt_value(email)},
+                )
+
             return {
                 "activated": not invite_required or is_admin_user or has_code,
                 "gdpr_consent": bool(person.get("gdpr_consent", False)),
