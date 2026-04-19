@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-60" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-36" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-12" r="5" fill="#a78bfa"/>
+    <circle cx="12" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="36" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="84" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <text x="90" y="300" font-family="Inter, sans-serif" font-weight="900" font-size="280" fill="#f59e0b" opacity="0.35">02</text>
+
+  <text x="90" y="520" font-family="Inter, sans-serif" font-weight="400" font-size="22" fill="#fbbf24" letter-spacing="5">REASON TWO</text>
+
+  <text x="90" y="640" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#ffffff" letter-spacing="-2">It updates</text>
+  <text x="90" y="740" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#fbbf24" letter-spacing="-2">everywhere.</text>
+
+  <text x="90" y="830" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">Add one skill. It appears in every</text>
+  <text x="90" y="875" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">share, export and embed — instantly.</text>
+
+  <!-- 3 surfaces staying in sync -->
+  <g transform="translate(90,960)" font-family="Inter, sans-serif">
+    <g>
+      <rect x="0" y="0" width="280" height="260" rx="16" fill="#1e1333" stroke="#a78bfa" stroke-width="2"/>
+      <text x="140" y="46" text-anchor="middle" font-size="20" font-weight="600" fill="#a78bfa">Public URL</text>
+      <rect x="36" y="80" width="208" height="10" rx="2" fill="#ffffff" opacity="0.3"/>
+      <rect x="36" y="110" width="160" height="8" rx="2" fill="#ffffff" opacity="0.2"/>
+      <rect x="36" y="140" width="180" height="8" rx="2" fill="#ffffff" opacity="0.2"/>
+      <rect x="36" y="200" width="100" height="30" rx="6" fill="#fbbf24" opacity="0.85"/>
+      <text x="86" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#1a0b3d">NEW</text>
+    </g>
+
+    <g transform="translate(310,0)">
+      <rect x="0" y="0" width="280" height="260" rx="16" fill="#1e1333" stroke="#fbbf24" stroke-width="2"/>
+      <text x="140" y="46" text-anchor="middle" font-size="20" font-weight="600" fill="#fbbf24">PDF export</text>
+      <rect x="36" y="80" width="208" height="10" rx="2" fill="#ffffff" opacity="0.3"/>
+      <rect x="36" y="110" width="160" height="8" rx="2" fill="#ffffff" opacity="0.2"/>
+      <rect x="36" y="140" width="180" height="8" rx="2" fill="#ffffff" opacity="0.2"/>
+      <rect x="36" y="200" width="100" height="30" rx="6" fill="#fbbf24" opacity="0.85"/>
+      <text x="86" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#1a0b3d">NEW</text>
+    </g>
+
+    <g transform="translate(620,0)">
+      <rect x="0" y="0" width="280" height="260" rx="16" fill="#1e1333" stroke="#14b8a6" stroke-width="2"/>
+      <text x="140" y="46" text-anchor="middle" font-size="20" font-weight="600" fill="#14b8a6">JSON-LD</text>
+      <rect x="36" y="80" width="208" height="10" rx="2" fill="#ffffff" opacity="0.3"/>
+      <rect x="36" y="110" width="160" height="8" rx="2" fill="#ffffff" opacity="0.2"/>
+      <rect x="36" y="140" width="180" height="8" rx="2" fill="#ffffff" opacity="0.2"/>
+      <rect x="36" y="200" width="100" height="30" rx="6" fill="#fbbf24" opacity="0.85"/>
+      <text x="86" y="220" text-anchor="middle" font-size="16" font-weight="700" fill="#1a0b3d">NEW</text>
+    </g>
+  </g>
+
+  <text x="540" y="1290" text-anchor="middle" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#ffffff" opacity="0.45">One source of truth. Always current.</text>
+</svg>

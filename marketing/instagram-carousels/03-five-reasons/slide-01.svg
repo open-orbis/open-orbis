@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <radialGradient id="bg1" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#2e1065"/>
+      <stop offset="60%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </radialGradient>
+    <linearGradient id="bignum" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg1)"/>
+
+  <!-- giant 5 -->
+  <text x="540" y="780" text-anchor="middle" font-family="Inter, sans-serif" font-weight="900" font-size="720" fill="url(#bignum)" opacity="0.95">5</text>
+
+  <!-- orbit ring behind 5 -->
+  <g fill="none" stroke="#a78bfa" stroke-width="2" opacity="0.5" transform="translate(540,560)">
+    <ellipse rx="380" ry="110" transform="rotate(-14)"/>
+  </g>
+  <circle cx="210" cy="470" r="6" fill="#fbbf24"/>
+  <circle cx="880" cy="680" r="6" fill="#a78bfa"/>
+
+  <text x="540" y="120" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="22" fill="#ffffff" opacity="0.5" letter-spacing="8">ORBIS</text>
+
+  <text x="540" y="950" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="74" fill="#ffffff" letter-spacing="-2">reasons your CV</text>
+  <text x="540" y="1040" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="74" fill="#a78bfa" letter-spacing="-2">needs an Orbis.</text>
+
+  <text x="540" y="1140" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="28" fill="#ffffff" opacity="0.6">In 2026, a PDF isn't enough.</text>
+
+  <!-- swipe cue -->
+  <g transform="translate(540,1250)">
+    <text x="-30" y="10" text-anchor="end" font-family="Inter, sans-serif" font-size="22" fill="#ffffff" opacity="0.6" font-weight="500">swipe</text>
+    <path d="M -10 0 L 40 0 M 20 -12 L 40 0 L 20 12" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

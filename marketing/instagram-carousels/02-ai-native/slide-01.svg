@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0716"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="accent1" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg1)"/>
+
+  <!-- grid -->
+  <g stroke="#1e1333" stroke-width="1" opacity="0.6">
+    <line x1="0" y1="300" x2="1080" y2="300"/>
+    <line x1="0" y1="600" x2="1080" y2="600"/>
+    <line x1="0" y1="900" x2="1080" y2="900"/>
+    <line x1="360" y1="0" x2="360" y2="1350"/>
+    <line x1="720" y1="0" x2="720" y2="1350"/>
+  </g>
+
+  <!-- terminal window -->
+  <g transform="translate(90,460)">
+    <rect width="900" height="430" rx="16" fill="#0f0820" stroke="#2d2140" stroke-width="2"/>
+    <rect width="900" height="44" rx="16" fill="#1a1030"/>
+    <rect y="28" width="900" height="16" fill="#1a1030"/>
+    <circle cx="24" cy="22" r="7" fill="#f97316"/>
+    <circle cx="48" cy="22" r="7" fill="#fbbf24"/>
+    <circle cx="72" cy="22" r="7" fill="#14b8a6"/>
+    <text x="450" y="28" text-anchor="middle" font-family="Menlo, monospace" font-size="16" fill="#ffffff" opacity="0.4">claude  —  mcp://orbis</text>
+
+    <g font-family="Menlo, monospace" font-size="22">
+      <text x="32" y="110" fill="#8b5cf6">$</text>
+      <text x="60" y="110" fill="#ffffff">claude "what's her strongest skill area?"</text>
+
+      <text x="32" y="170" fill="#14b8a6">→ querying orbis graph...</text>
+      <text x="32" y="210" fill="#14b8a6">→ 47 skill nodes, 12 projects, 4 yrs</text>
+
+      <text x="32" y="280" fill="#fbbf24">Answer:</text>
+      <text x="32" y="320" fill="#ffffff" opacity="0.85">Distributed systems — evidenced by</text>
+      <text x="32" y="352" fill="#ffffff" opacity="0.85">3 projects + Kafka, gRPC, Raft skills</text>
+      <text x="32" y="384" fill="#ffffff" opacity="0.85">linked to Staff Eng role at Acme.</text>
+    </g>
+  </g>
+
+  <!-- headline -->
+  <text x="540" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="26" fill="#14b8a6" letter-spacing="5">2026.</text>
+  <text x="540" y="320" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="88" fill="#ffffff" letter-spacing="-2">AI reads</text>
+  <text x="540" y="410" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="88" fill="url(#accent1)" letter-spacing="-2">your CV.</text>
+
+  <text x="540" y="990" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">What does it see?</text>
+
+  <text x="540" y="1190" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="68" fill="#ffffff" letter-spacing="-2">Make it a graph,</text>
+  <text x="540" y="1268" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="68" fill="#a78bfa" letter-spacing="-2">not a PDF.</text>
+</svg>

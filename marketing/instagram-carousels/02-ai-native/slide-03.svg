@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0716"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg3)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="0" r="5" fill="#a78bfa"/>
+    <circle cx="20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <text x="540" y="210" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="26" fill="#fbbf24" letter-spacing="5">60 SECONDS</text>
+  <text x="540" y="310" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="90" fill="#ffffff" letter-spacing="-2">From PDF</text>
+  <text x="540" y="390" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="90" fill="#a78bfa" letter-spacing="-2">to graph.</text>
+
+  <!-- 4-step flow vertical -->
+  <g font-family="Inter, sans-serif">
+    <g transform="translate(140,500)">
+      <circle cx="40" cy="40" r="40" fill="#7c3aed"/>
+      <text x="40" y="52" text-anchor="middle" font-weight="800" font-size="34" fill="#ffffff">1</text>
+      <text x="110" y="32" font-weight="700" font-size="30" fill="#ffffff">Upload</text>
+      <text x="110" y="66" font-size="20" fill="#ffffff" opacity="0.6">Drop your CV (PDF, DOCX, TXT).</text>
+    </g>
+
+    <g transform="translate(140,640)">
+      <circle cx="40" cy="40" r="40" fill="#8b5cf6"/>
+      <text x="40" y="52" text-anchor="middle" font-weight="800" font-size="34" fill="#ffffff">2</text>
+      <text x="110" y="32" font-weight="700" font-size="30" fill="#ffffff">AI extracts</text>
+      <text x="110" y="66" font-size="20" fill="#ffffff" opacity="0.6">Nodes for skills, roles, projects, schools.</text>
+    </g>
+
+    <g transform="translate(140,780)">
+      <circle cx="40" cy="40" r="40" fill="#a78bfa"/>
+      <text x="40" y="52" text-anchor="middle" font-weight="800" font-size="34" fill="#ffffff">3</text>
+      <text x="110" y="32" font-weight="700" font-size="30" fill="#ffffff">You review</text>
+      <text x="110" y="66" font-size="20" fill="#ffffff" opacity="0.6">Approve, edit, connect. Full control.</text>
+    </g>
+
+    <g transform="translate(140,920)">
+      <circle cx="40" cy="40" r="40" fill="#fbbf24"/>
+      <text x="40" y="52" text-anchor="middle" font-weight="800" font-size="34" fill="#1a0b3d">4</text>
+      <text x="110" y="32" font-weight="700" font-size="30" fill="#ffffff">Explore in 3D</text>
+      <text x="110" y="66" font-size="20" fill="#ffffff" opacity="0.6">Rotate. Filter. Share. Query.</text>
+    </g>
+  </g>
+
+  <!-- connector line -->
+  <line x1="180" y1="580" x2="180" y2="920" stroke="#7c3aed" stroke-width="2" stroke-dasharray="4 6" opacity="0.5"/>
+
+  <text x="540" y="1140" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="60" fill="#ffffff" letter-spacing="-2">No templates.</text>
+  <text x="540" y="1210" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="60" fill="#fbbf24" letter-spacing="-2">No formatting.</text>
+  <text x="540" y="1280" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="60" fill="#a78bfa" letter-spacing="-2">Just your Orbis.</text>
+</svg>

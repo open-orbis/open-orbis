@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg2)"/>
+
+  <!-- slide indicator -->
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa"/>
+    <circle cx="0" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <!-- faded, crumpled CV card -->
+  <g transform="translate(290,360) rotate(-6)">
+    <rect width="500" height="640" rx="12" fill="#1a1a2e" stroke="#2d2140" stroke-width="2"/>
+    <rect x="40" y="50" width="260" height="22" rx="3" fill="#ffffff" opacity="0.25"/>
+    <rect x="40" y="90" width="180" height="12" rx="2" fill="#ffffff" opacity="0.15"/>
+    <rect x="40" y="160" width="420" height="6" rx="2" fill="#ffffff" opacity="0.15"/>
+    <rect x="40" y="180" width="380" height="6" rx="2" fill="#ffffff" opacity="0.12"/>
+    <rect x="40" y="200" width="410" height="6" rx="2" fill="#ffffff" opacity="0.12"/>
+    <rect x="40" y="260" width="120" height="10" rx="2" fill="#ffffff" opacity="0.2"/>
+    <rect x="40" y="290" width="420" height="6" rx="2" fill="#ffffff" opacity="0.12"/>
+    <rect x="40" y="310" width="380" height="6" rx="2" fill="#ffffff" opacity="0.12"/>
+    <rect x="40" y="380" width="140" height="10" rx="2" fill="#ffffff" opacity="0.2"/>
+    <rect x="40" y="410" width="400" height="6" rx="2" fill="#ffffff" opacity="0.1"/>
+    <rect x="40" y="430" width="360" height="6" rx="2" fill="#ffffff" opacity="0.1"/>
+    <rect x="40" y="500" width="140" height="10" rx="2" fill="#ffffff" opacity="0.18"/>
+    <rect x="40" y="530" width="410" height="6" rx="2" fill="#ffffff" opacity="0.08"/>
+    <rect x="40" y="550" width="380" height="6" rx="2" fill="#ffffff" opacity="0.08"/>
+
+    <!-- red strike -->
+    <line x1="-20" y1="320" x2="520" y2="320" stroke="#f97316" stroke-width="6" opacity="0.9"/>
+  </g>
+
+  <!-- headline -->
+  <text x="540" y="1140" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-weight="800" font-size="82" fill="#ffffff" letter-spacing="-2">Your CV is</text>
+  <text x="540" y="1220" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-weight="800" font-size="82" fill="#f97316" letter-spacing="-2">a dead file.</text>
+
+  <text x="540" y="1290" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-weight="400" font-size="26" fill="#ffffff" opacity="0.55">Static. Flat. Reformatted for every job.</text>
+</svg>
