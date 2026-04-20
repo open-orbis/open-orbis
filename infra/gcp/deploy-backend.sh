@@ -31,7 +31,7 @@ gcloud run deploy "$BACKEND_SERVICE" \
   --concurrency=80 \
   --min-instances=0 \
   --max-instances=10 \
-  --timeout=300s \
+  --timeout=1200s \
   --allow-unauthenticated \
   --startup-cpu-boost \
   --set-secrets="JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,NEO4J_PASSWORD=neo4j-password:latest,DATABASE_URL=database-url:latest,RESEND_API_KEY=resend-api-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,LINKEDIN_CLIENT_ID=linkedin-client-id:latest,LINKEDIN_CLIENT_SECRET=linkedin-client-secret:latest" \

@@ -135,6 +135,22 @@ async def process_job(
 
         result = await classify_entries(raw_text, progress_callback=_progress_cb)
 
+        # classify_entries returns a metadata-only result with
+        # llm_provider="none" when every provider in the fallback chain
+        # fails (timeout, quota, empty response). Previously such jobs
+        # were silently stored as "succeeded" with 0 nodes, leaving the
+        # user staring at an empty graph with no failure email. Raise so
+        # the existing failure path fires.
+        if (
+            result.metadata is not None
+            and result.metadata.llm_provider == "none"
+            and not result.nodes
+        ):
+            raise RuntimeError(
+                "All LLM providers in the fallback chain failed "
+                "(timeout, quota, or empty response). See upstream logs."
+            )
+
         # Step 4: Store result
         await jobs_db.update_job_progress(
             job_id,
