@@ -109,8 +109,8 @@ Records every LLM invocation (CV extraction, note enhancement) for cost and toke
 |----------|------|-------|
 | `usage_id` | string | UUID |
 | `endpoint` | string | e.g. `/cv/upload`, `/notes/enhance` |
-| `llm_provider` | string | `claude`, `ollama`, `rule_based` |
-| `llm_model` | string | e.g. `claude-opus-4-6`, `llama3.2:3b` |
+| `llm_provider` | string | `claude`, `gemini`, `ollama`, `rule_based`, or `none` |
+| `llm_model` | string | e.g. `claude-opus-4-6`, `gemini-2.5-pro`, `llama3.2:3b`, `rule_based_parser`, `none` |
 | `input_tokens` | integer | Nullable |
 | `output_tokens` | integer | Nullable |
 | `total_tokens` | integer | Nullable (input + output) |
@@ -314,9 +314,9 @@ One node per confirmed CV import. Records which LLM was used, which prompt, and 
 |----------|------|-------------|
 | `record_id` | string (UUID) | Unique identifier |
 | `document_id` | string | References `cv_documents.document_id` in SQLite |
-| `llm_provider` | string | `"claude"`, `"ollama"`, or `"rule_based"` |
-| `llm_model` | string | e.g. `"claude-opus-4-6"`, `"llama3.2:3b"`, `"rule_based_parser"` |
-| `extraction_method` | string | `"primary"`, `"fallback_rule_based"`, or `"fallback_raw_text"` |
+| `llm_provider` | string | `"claude"`, `"gemini"`, `"ollama"`, `"rule_based"`, or `"none"` (every provider in the chain failed) |
+| `llm_model` | string | e.g. `"claude-opus-4-6"`, `"gemini-2.5-pro"`, `"llama3.2:3b"`, `"rule_based_parser"`, `"none"` |
+| `extraction_method` | string | `"primary"` (chain[0] succeeded), `"fallback_<provider>"` (a later LLM succeeded), `"fallback_rule_based"` (real rule-based parser ran), or `"fallback_raw_text"` (chain exhausted — raw text dumped as unmatched) |
 | `prompt_hash` | string | SHA-256 of the system prompt used |
 | `nodes_extracted` | integer | Count of nodes produced |
 | `edges_extracted` | integer | Count of relationships produced |

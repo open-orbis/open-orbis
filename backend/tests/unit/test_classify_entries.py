@@ -420,6 +420,34 @@ class TestFinalFallback:
             assert result.nodes == []
             assert len(result.unmatched) > 0
 
+    async def test_exhausted_chain_metadata_is_distinct_from_rule_based(self):
+        """Chain-exhausted dumps are labelled 'none/none', not 'rule_based/rule_based_parser'.
+
+        Operators need to distinguish a real rule-based extraction (parser.py
+        ran and produced nodes — extraction_method='fallback_rule_based') from
+        a chain-exhausted raw-text dump (no provider succeeded, unmatched only —
+        extraction_method='fallback_raw_text'). Both used to share the
+        'rule_based' provider label, masking silent LLM failures in prod.
+        """
+        with (
+            patch(
+                "app.cv.ollama_classifier.settings",
+                _make_settings(llm_fallback_chain="gemini-pro"),
+            ),
+            patch(
+                "app.cv.ollama_classifier._call_gemini_provider",
+                new_callable=AsyncMock,
+                side_effect=asyncio.TimeoutError(),
+            ),
+        ):
+            result = await classify_entries(
+                "This is a line of text that should appear as unmatched"
+            )
+            assert result.metadata is not None
+            assert result.metadata.llm_provider == "none"
+            assert result.metadata.llm_model == "none"
+            assert result.metadata.extraction_method == "fallback_raw_text"
+
     async def test_final_fallback_limits_to_50_lines(self):
         text = "\n".join(f"Line number {i} with enough text" for i in range(100))
         with (

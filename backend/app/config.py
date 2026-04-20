@@ -59,7 +59,10 @@ class Settings(BaseSettings):
     # When empty, a single-provider chain is derived from llm_provider.
     llm_fallback_chain: str = ""
     # Per-provider timeout in seconds before falling back to the next provider.
-    llm_timeout_seconds: int = 300
+    # Must stay comfortably below the Cloud Run request timeout (see
+    # infra/gcp/deploy-backend.sh `--timeout`) so the handler can still emit
+    # fallback + email + DB writes after the LLM call returns or times out.
+    llm_timeout_seconds: int = 900
 
     # Ollama (local LLM, used only when llm_provider=ollama)
     ollama_base_url: str = "http://localhost:11434"

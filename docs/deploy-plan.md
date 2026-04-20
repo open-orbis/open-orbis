@@ -189,7 +189,7 @@ The FastAPI backend is **stateless** (JWT auth, no server-side sessions), making
 - Startup probe: `GET /health/ready` (see [Health Endpoints](#health-endpoints))
 - Min instances: 0 (scale-to-zero)
 - Max instances: 10 (cap for early stage, adjust later)
-- Request timeout: 300s (matches `llm_timeout_seconds`)
+- Request timeout: 1200s (Gemini 2.5 Pro on long CVs can take ~15 min; must be ≥ `llm_timeout_seconds` — currently 900s — plus headroom for PDF extract, DB writes, and failure email). Cloud Tasks `dispatch_deadline` is also set to 1200s in `cloud_tasks.py` to match.
 - CPU always allocated: No (only during request processing — saves cost)
 
 **Dockerfile (`backend/Dockerfile`):**

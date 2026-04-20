@@ -439,6 +439,9 @@ async def classify_entries(  # noqa: C901
             logger.warning("%s failed (%s), falling back", display, e)
 
     # All providers exhausted — return raw text as unmatched.
+    # Labelled "none/none" (not "rule_based") so operators can distinguish
+    # this exhausted-chain dump from a real rule-based extraction, which
+    # keeps the "rule_based/rule_based_parser" labels below.
     logger.error("All providers in fallback chain failed — returning as unmatched")
     fallback_lines = [
         line.strip()
@@ -449,8 +452,8 @@ async def classify_entries(  # noqa: C901
         unmatched=fallback_lines[:50],
         truncated=truncated,
         metadata=ExtractionMetadata(
-            llm_provider="rule_based",
-            llm_model="rule_based_parser",
+            llm_provider="none",
+            llm_model="none",
             extraction_method="fallback_raw_text",
             prompt_content="",
             prompt_hash="",

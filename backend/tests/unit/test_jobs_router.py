@@ -167,6 +167,82 @@ def test_process_job_invalid_oidc_returns_401(mock_get_job):
     mock_get_job.assert_not_awaited()
 
 
+@patch("app.cv.jobs_router._send_failure_email", new_callable=AsyncMock)
+@patch("app.cv.jobs_router.jobs_db.update_job_result", new_callable=AsyncMock)
+@patch("app.cv.jobs_router.jobs_db.update_job_progress", new_callable=AsyncMock)
+@patch("app.cv.jobs_router.jobs_db.update_job_status", new_callable=AsyncMock)
+@patch("app.cv.jobs_router.jobs_db.get_job", new_callable=AsyncMock)
+def test_process_job_marks_exhausted_chain_as_failed(
+    mock_get_job,
+    mock_update_status,
+    mock_update_progress,
+    mock_update_result,
+    mock_failure_email,
+):
+    """When every LLM provider fails, classify_entries returns a
+    metadata-only result with llm_provider='none'. The job must be marked
+    failed (not succeeded with 0 nodes) so the user gets a failure email
+    instead of staring at an empty graph."""
+    from app.cv.models import ExtractionMetadata
+    from app.cv.ollama_classifier import ClassificationResult
+
+    mock_get_job.return_value = dict(_BASE_JOB)
+    exhausted = ClassificationResult(
+        nodes=[],
+        unmatched=["stray line 1", "stray line 2"],
+        metadata=ExtractionMetadata(
+            llm_provider="none",
+            llm_model="none",
+            extraction_method="fallback_raw_text",
+            prompt_content="",
+            prompt_hash="",
+        ),
+    )
+
+    client, _ = _make_client(USER_ID)
+    try:
+        with (
+            patch(
+                "app.cv.jobs_router.verify_oidc_token",
+                return_value="sa@project.iam.gserviceaccount.com",
+            ),
+            patch(
+                "app.cv_storage.storage.load_document_async",
+                new_callable=AsyncMock,
+                return_value=b"%PDF-1.4 fake",
+            ),
+            patch(
+                "app.cv.pdf_extractor.extract_text",
+                new_callable=AsyncMock,
+                return_value="Some extracted CV text",
+            ),
+            patch(
+                "app.cv.ollama_classifier.classify_entries",
+                new_callable=AsyncMock,
+                return_value=exhausted,
+            ),
+        ):
+            response = client.post(
+                "/cv/process-job",
+                json={"job_id": "job-123"},
+            )
+    finally:
+        _teardown()
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "failed"
+    # Must have been persisted with status=failed carrying the error.
+    failure_calls = [
+        c
+        for c in mock_update_result.await_args_list
+        if c.kwargs.get("status") == "failed"
+    ]
+    assert failure_calls, "expected jobs_db.update_job_result(status='failed')"
+    assert "All LLM providers" in failure_calls[0].kwargs["error_message"]
+    # And the user must get a failure email, not a success email.
+    mock_failure_email.assert_awaited_once()
+
+
 @patch("app.cv.jobs_router.jobs_db.get_job", new_callable=AsyncMock)
 def test_process_job_skips_non_queued(mock_get_job):
     """If job status is not 'queued', the endpoint returns skipped."""

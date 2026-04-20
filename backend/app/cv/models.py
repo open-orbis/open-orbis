@@ -52,10 +52,12 @@ class ExtractedData(BaseModel):
 class ExtractionMetadata(BaseModel):
     """Metadata about how a CV extraction was performed."""
 
-    llm_provider: str  # "claude", "ollama", "rule_based"
-    llm_model: str  # "claude-opus-4-6", "llama3.2:3b", "rule_based_parser"
-    extraction_method: str  # "primary", "fallback_rule_based", "fallback_raw_text"
-    prompt_content: str  # Full system prompt used (empty for rule_based)
+    llm_provider: str  # "claude", "gemini", "ollama", "rule_based", or "none"
+    llm_model: (
+        str  # e.g. "claude-opus-4-6", "gemini-2.5-pro", "rule_based_parser", "none"
+    )
+    extraction_method: str  # "primary", "fallback_<provider>", "fallback_rule_based", "fallback_raw_text"
+    prompt_content: str  # Full system prompt used (empty when no LLM was invoked)
     prompt_hash: str  # SHA-256 of prompt_content
     cost_usd: float | None = None
     duration_ms: int | None = None
