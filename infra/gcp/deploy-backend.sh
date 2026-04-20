@@ -34,6 +34,7 @@ gcloud run deploy "$BACKEND_SERVICE" \
   --timeout=1200s \
   --allow-unauthenticated \
   --cpu-boost \
+  --to-latest \
   --set-secrets="JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,NEO4J_PASSWORD=neo4j-password:latest,DATABASE_URL=database-url:latest,RESEND_API_KEY=resend-api-key:latest,GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,LINKEDIN_CLIENT_ID=linkedin-client-id:latest,LINKEDIN_CLIENT_SECRET=linkedin-client-secret:latest" \
   --set-env-vars="ENV=production,NEO4J_URI=bolt://$NEO4J_INTERNAL_IP:7687,NEO4J_USER=neo4j,LLM_PROVIDER=vertex,LLM_FALLBACK_CHAIN=$FALLBACK_CHAIN,GEMINI_MODEL=gemini-2.5-pro,GCP_PROJECT_ID=$PROJECT_ID,VERTEX_REGION=$REGION,CV_STORAGE_BUCKET=$GCS_BUCKET,FRONTEND_URL=https://open-orbis.com,COOKIE_DOMAIN=.open-orbis.com,LINKEDIN_REDIRECT_URI=https://open-orbis.com/auth/linkedin/callback,CLOUD_TASKS_QUEUE=orbis-cv-queue,CLOUD_TASKS_LOCATION=$REGION,CLOUD_RUN_URL=https://orbis-api-o5zg3whvrq-ew.a.run.app,CLOUD_RUN_SERVICE_ACCOUNT=$SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com"
 
