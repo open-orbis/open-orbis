@@ -14,6 +14,7 @@ from app.auth.router import router as auth_router
 from app.config import settings
 from app.cv.jobs_router import router as cv_jobs_router
 from app.cv.router import router as cv_router
+from app.cv.templates.router import router as cv_templates_router
 from app.drafts.router import router as drafts_router
 from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
@@ -127,6 +128,9 @@ async def lifespan(app: FastAPI):
         from app.ideas.db import ensure_source_column
 
         await ensure_table()
+        from app.cv.templates.db import ensure_table as ensure_templates_table
+
+        await ensure_templates_table()
         await ensure_source_column()
         expired = await cleanup_expired_jobs()
         if expired:
@@ -218,6 +222,7 @@ app.include_router(drafts_router, prefix=_API_PREFIX)
 app.include_router(search_router, prefix=_API_PREFIX)
 app.include_router(admin_router, prefix=_API_PREFIX)
 app.include_router(ideas_router, prefix=_API_PREFIX)
+app.include_router(cv_templates_router, prefix=_API_PREFIX)
 
 # Also mount without prefix for dev (Vite proxy strips /api)
 app.include_router(auth_router)
@@ -230,6 +235,7 @@ app.include_router(drafts_router)
 app.include_router(search_router)
 app.include_router(admin_router)
 app.include_router(ideas_router)
+app.include_router(cv_templates_router)
 
 
 # ── Health endpoints ──
