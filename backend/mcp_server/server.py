@@ -73,12 +73,15 @@ def _resolve_scope(orb_id_arg: str, token_arg: str) -> tuple[str, str]:
 
 
 def _build_starlette_app():
-    """Return the FastMCP Starlette app wrapped with the API key middleware.
+    """Return the FastMCP Starlette app wrapped with auth + rate limit."""
+    from mcp_server.rate_limit import RateLimitMiddleware
 
-    Called from ``if __name__ == "__main__"`` below and from tests that
-    need to exercise the middleware without touching mcp.run().
-    """
     app = mcp.streamable_http_app()
+    # Order matters: APIKeyMiddleware sets ContextVars that
+    # RateLimitMiddleware reads. Starlette runs middleware in reverse
+    # registration order (last added runs first), so we add
+    # RateLimitMiddleware FIRST so APIKeyMiddleware runs first per request.
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(APIKeyMiddleware, driver_factory=_get_driver)
     return app
 
