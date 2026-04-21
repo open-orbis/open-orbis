@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
+from dataclasses import dataclass
 
 from neo4j import AsyncDriver
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -27,6 +28,20 @@ from app.auth.mcp_keys import resolve_api_key
 logger = logging.getLogger(__name__)
 
 _HEADER = "x-mcp-key"
+
+
+@dataclass(frozen=True)
+class ShareContext:
+    """What a share-token-authenticated MCP request is scoped to.
+
+    All filter data is carried on the context so tools never have to
+    re-query the ShareToken row on every call."""
+
+    orb_id: str
+    keywords: list[str]
+    hidden_node_types: list[str]
+    token_id: str
+
 
 # Task-local user_id, set by APIKeyMiddleware and read by tool helpers.
 # ContextVar is the right primitive here: Starlette/asyncio propagate it

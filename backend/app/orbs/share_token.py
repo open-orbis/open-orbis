@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime, timedelta, timezone
+from typing import TYPE_CHECKING
 
 from neo4j import AsyncDriver
 from neo4j.time import Date as Neo4jDate
@@ -24,6 +25,9 @@ from app.graph.queries import (
     REVOKE_SHARE_TOKEN,
     VALIDATE_SHARE_TOKEN,
 )
+
+if TYPE_CHECKING:
+    from mcp_server.auth import ShareContext
 
 
 def _sanitize(d: dict) -> dict:
@@ -131,6 +135,29 @@ async def delete_share_token(db: AsyncDriver, user_id: str, token_id: str) -> bo
         )
         record = await result.single()
         return record is not None
+
+
+async def validate_share_token_for_mcp(
+    db: AsyncDriver, bare_token: str
+) -> ShareContext | None:
+    """Resolve a bare share-token string to a ShareContext.
+
+    Returns None if the token is missing, revoked, or expired. Used by
+    the MCP server's APIKeyMiddleware when it sees the `orbs_` prefix.
+    """
+    # Local import avoids a cycle: mcp_server.auth imports app.orbs,
+    # app.orbs should not import mcp_server at module load time.
+    from mcp_server.auth import ShareContext
+
+    row = await validate_share_token(db, bare_token)
+    if row is None:
+        return None
+    return ShareContext(
+        orb_id=row["orb_id"],
+        keywords=list(row.get("keywords") or []),
+        hidden_node_types=list(row.get("hidden_node_types") or []),
+        token_id=bare_token,
+    )
 
 
 def node_matches_filters(node: dict, keywords: list[str]) -> bool:
