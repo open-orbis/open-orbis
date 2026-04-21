@@ -8,6 +8,7 @@ fields contain any of the keywords.
 
 from __future__ import annotations
 
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
@@ -21,10 +22,13 @@ from app.config import settings
 from app.graph.queries import (
     CREATE_SHARE_TOKEN,
     DELETE_SHARE_TOKEN,
+    INCREMENT_SHARE_TOKEN_MCP_USE,
     LIST_SHARE_TOKENS,
     REVOKE_SHARE_TOKEN,
     VALIDATE_SHARE_TOKEN,
 )
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     # TYPE_CHECKING block: lets mypy/pyright resolve the return annotation
@@ -180,3 +184,21 @@ def node_matches_filters(node: dict, keywords: list[str]) -> bool:
                 if kw.lower() in lower_val:
                     return True
     return False
+
+
+async def increment_mcp_use(db: AsyncDriver, token_id: str) -> None:
+    """Best-effort counter increment for MCP share-token usage.
+
+    Callers dispatch this via `asyncio.create_task` — the response must
+    NOT wait on it. Failures are logged, not raised. Missing tokens
+    (e.g., deleted between auth and counter write) are a silent no-op
+    by virtue of the MATCH clause: zero rows match, no update happens,
+    no error.
+    """
+    try:
+        async with db.session() as session:
+            await session.run(INCREMENT_SHARE_TOKEN_MCP_USE, token_id=token_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Failed to increment mcp_use_count for token %s: %s", token_id, exc
+        )

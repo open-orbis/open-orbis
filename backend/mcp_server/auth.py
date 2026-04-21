@@ -123,6 +123,13 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
                 )
             share_token_reset = _current_share_context.set(ctx)
 
+            # Fire-and-forget audit increment. Failures must not block.
+            import asyncio
+
+            from app.orbs.share_token import increment_mcp_use
+
+            asyncio.create_task(increment_mcp_use(driver, ctx.token_id))
+
         else:
             return JSONResponse(
                 status_code=401,
