@@ -27,6 +27,12 @@ from app.graph.queries import (
 )
 
 if TYPE_CHECKING:
+    # TYPE_CHECKING block: lets mypy/pyright resolve the return annotation
+    # without importing at runtime. `from __future__ import annotations` at
+    # the top of this module makes the annotation a string at runtime, so
+    # no real import happens there. The corresponding *runtime* import
+    # inside validate_share_token_for_mcp is still required — removing
+    # either one breaks something (static analysis or runtime resolution).
     from mcp_server.auth import ShareContext
 
 
@@ -152,6 +158,11 @@ async def validate_share_token_for_mcp(
     row = await validate_share_token(db, bare_token)
     if row is None:
         return None
+    # orb_id is a load-bearing contract: validate_share_token returns None
+    # rather than a row with a missing orb_id, so a KeyError here would
+    # mean the contract has silently broken. Surface it loudly rather
+    # than defaulting. keywords / hidden_node_types ARE genuinely
+    # nullable in the data model, so we coerce them to empty lists.
     return ShareContext(
         orb_id=row["orb_id"],
         keywords=list(row.get("keywords") or []),

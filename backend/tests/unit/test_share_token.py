@@ -118,3 +118,31 @@ class TestValidateShareTokenForMcp:
         assert ctx is not None
         assert ctx.keywords == []
         assert ctx.hidden_node_types == []
+
+    async def test_keyword_list_is_defensively_copied(self):
+        """ShareContext.keywords must be a copy — mutating the source row's
+        list must not retroactively change an already-returned context."""
+        from app.orbs.share_token import validate_share_token_for_mcp
+
+        source_keywords = ["secret"]
+        source_hidden = ["skill"]
+
+        mock_db = AsyncMock()
+        with patch(
+            "app.orbs.share_token.validate_share_token",
+            new_callable=AsyncMock,
+            return_value={
+                "orb_id": "orb-copy",
+                "keywords": source_keywords,
+                "hidden_node_types": source_hidden,
+            },
+        ):
+            ctx = await validate_share_token_for_mcp(mock_db, "tok-copy")
+
+        assert ctx is not None
+        # Mutate the source lists AFTER the context was constructed
+        source_keywords.append("injected")
+        source_hidden.append("injected")
+        # Context's copies must be unchanged
+        assert ctx.keywords == ["secret"]
+        assert ctx.hidden_node_types == ["skill"]
