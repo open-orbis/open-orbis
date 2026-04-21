@@ -35,7 +35,12 @@ describe('CopyMcpConfigButton', () => {
   });
 
   it('normalizes label: lowercase, symbols to dash, collapsed', () => {
-    render(<CopyMcpConfigButton tokenId="abc" label="Recruiter\u2019s View!! 2026" />);
+    render(
+      <CopyMcpConfigButton
+        tokenId="abc"
+        label={"Recruiter\u2019s View!! 2026"}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: /copy mcp config/i }));
     const pre = screen.getByTestId('mcp-config-snippet');
     expect(pre.textContent).toContain('"orbis-recruiter-s-view-2026"');

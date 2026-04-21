@@ -9,9 +9,6 @@ interface Props {
 function normalizeLabel(label: string | null, tokenId: string): string {
   if (label) {
     const slug = label
-      .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
-        String.fromCharCode(parseInt(hex, 16)),
-      )
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/-+/g, '-')
