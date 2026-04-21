@@ -56,6 +56,9 @@ agents.md
 .superpowers/
 **/superpowers/
 
+# Git worktrees (isolated workspaces — never committed)
+.worktrees/
+
 # Playwright MCP logs
 .playwright-mcp/
 backend/.playwright-mcp/
