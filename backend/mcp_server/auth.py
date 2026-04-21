@@ -56,6 +56,15 @@ def get_current_user_id() -> str | None:
     return _current_user_id.get()
 
 
+_current_share_context: ContextVar[ShareContext | None] = ContextVar(
+    "mcp_current_share_context", default=None
+)
+
+
+def get_share_context() -> ShareContext | None:
+    return _current_share_context.get()
+
+
 class APIKeyMiddleware(BaseHTTPMiddleware):
     """Reject any request without a valid X-MCP-Key header.
 
@@ -77,15 +86,43 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             )
 
         driver: AsyncDriver = await self._driver_factory()
-        user_id = await resolve_api_key(driver, raw_key=raw_key)
-        if user_id is None:
+
+        user_token = None
+        share_token_reset = None
+
+        if raw_key.startswith("orbk_"):
+            user_id = await resolve_api_key(driver, raw_key=raw_key)
+            if user_id is None:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "invalid or revoked API key"},
+                )
+            user_token = _current_user_id.set(user_id)
+
+        elif raw_key.startswith("orbs_"):
+            # Local import keeps the auth module free of app.orbs deps
+            # at import time (resolved at first request).
+            from app.orbs.share_token import validate_share_token_for_mcp
+
+            bare = raw_key[len("orbs_") :]
+            ctx = await validate_share_token_for_mcp(driver, bare)
+            if ctx is None:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "invalid, expired, or revoked share token"},
+                )
+            share_token_reset = _current_share_context.set(ctx)
+
+        else:
             return JSONResponse(
                 status_code=401,
-                content={"error": "invalid or revoked API key"},
+                content={"error": "unrecognized credential prefix"},
             )
 
-        token = _current_user_id.set(user_id)
         try:
             return await call_next(request)
         finally:
-            _current_user_id.reset(token)
+            if user_token is not None:
+                _current_user_id.reset(user_token)
+            if share_token_reset is not None:
+                _current_share_context.reset(share_token_reset)
