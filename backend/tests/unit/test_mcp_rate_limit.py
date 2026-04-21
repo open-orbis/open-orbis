@@ -22,7 +22,16 @@ def _reset_rate_limit_buckets():
 
 @pytest.fixture(autouse=True)
 def _reset_context_vars():
-    """Clear both MCP ContextVars before and after each test."""
+    """Reset both MCP ContextVars on the TEST thread's copy.
+
+    Note: this affects direct unit tests in this file that call
+    `_credential_key_and_limit()` in the test thread. It does NOT
+    reset the ContextVars the ASGI middleware sees — those run in the
+    event loop's context copy. The end-to-end rate-limit tests rely on
+    the middleware setting its own ContextVars per request, so this
+    fixture is only relevant to the unit tests in
+    `TestCredentialKeyAndLimit`.
+    """
     user_tok = mcp_auth._current_user_id.set(None)
     share_tok = mcp_auth._current_share_context.set(None)
     yield
