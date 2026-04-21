@@ -52,8 +52,8 @@ class TestShareContext:
 
         ctx = ShareContext(
             orb_id="orb-1",
-            keywords=["secret"],
-            hidden_node_types=["skill"],
+            keywords=("secret",),
+            hidden_node_types=("skill",),
             token_id="tok-1",
         )
         with pytest.raises(dataclasses.FrozenInstanceError):
@@ -80,8 +80,8 @@ class TestValidateShareTokenForMcp:
 
         assert ctx is not None
         assert ctx.orb_id == "orb-42"
-        assert ctx.keywords == ["secret"]
-        assert ctx.hidden_node_types == ["skill"]
+        assert ctx.keywords == ("secret",)
+        assert ctx.hidden_node_types == ("skill",)
         assert ctx.token_id == "tok-42"
 
     async def test_returns_none_when_token_invalid(self):
@@ -116,8 +116,8 @@ class TestValidateShareTokenForMcp:
             ctx = await validate_share_token_for_mcp(mock_db, "tok-7")
 
         assert ctx is not None
-        assert ctx.keywords == []
-        assert ctx.hidden_node_types == []
+        assert ctx.keywords == ()
+        assert ctx.hidden_node_types == ()
 
     async def test_keyword_list_is_defensively_copied(self):
         """ShareContext.keywords must be a copy — mutating the source row's
@@ -144,5 +144,5 @@ class TestValidateShareTokenForMcp:
         source_keywords.append("injected")
         source_hidden.append("injected")
         # Context's copies must be unchanged
-        assert ctx.keywords == ["secret"]
-        assert ctx.hidden_node_types == ["skill"]
+        assert ctx.keywords == ("secret",)
+        assert ctx.hidden_node_types == ("skill",)

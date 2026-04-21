@@ -259,13 +259,17 @@ async def test_middleware_accepts_orbs_prefix_sets_share_context(
         assert bare_token == "share-abc"  # prefix must have been stripped
         return ShareContext(
             orb_id="orb-123",
-            keywords=["secret"],
-            hidden_node_types=["skill"],
+            keywords=("secret",),
+            hidden_node_types=("skill",),
             token_id="share-abc",
         )
 
     import app.orbs.share_token as share_token_module
 
+    # Patch the module attribute (not mcp_auth.validate_share_token_for_mcp)
+    # because the middleware does a LOCAL import on every call. If that
+    # import is ever hoisted to module level in auth.py, this target must
+    # change to mcp_auth to keep the monkeypatch effective.
     monkeypatch.setattr(
         share_token_module, "validate_share_token_for_mcp", fake_validate
     )
@@ -299,6 +303,10 @@ async def test_middleware_rejects_orbs_with_unknown_token(monkeypatch, reset_con
 
     import app.orbs.share_token as share_token_module
 
+    # Patch the module attribute (not mcp_auth.validate_share_token_for_mcp)
+    # because the middleware does a LOCAL import on every call. If that
+    # import is ever hoisted to module level in auth.py, this target must
+    # change to mcp_auth to keep the monkeypatch effective.
     monkeypatch.setattr(
         share_token_module, "validate_share_token_for_mcp", fake_validate
     )

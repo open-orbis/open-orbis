@@ -44,6 +44,12 @@ async def _check_access(
     "orb does not exist" from "orb exists but is private" — the MCP
     server must not become an orb enumeration oracle.
     """
+    # TODO(task-5): This function doesn't yet read `get_share_context()`.
+    # Requests authenticated via the `orbs_` transport prefix (see
+    # `APIKeyMiddleware.dispatch`) have `_current_user_id` unset and
+    # `_current_share_context` set instead. Task 5 introduces
+    # `_resolve_scope` in server.py to translate that context into an
+    # effective (orb_id, token) tuple before this function runs.
     user_id = get_current_user_id()
     if user_id is None:
         return {"error": "authentication required"}

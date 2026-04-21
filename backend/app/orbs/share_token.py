@@ -162,11 +162,11 @@ async def validate_share_token_for_mcp(
     # rather than a row with a missing orb_id, so a KeyError here would
     # mean the contract has silently broken. Surface it loudly rather
     # than defaulting. keywords / hidden_node_types ARE genuinely
-    # nullable in the data model, so we coerce them to empty lists.
+    # nullable in the data model, so we coerce them to empty tuples.
     return ShareContext(
         orb_id=row["orb_id"],
-        keywords=list(row.get("keywords") or []),
-        hidden_node_types=list(row.get("hidden_node_types") or []),
+        keywords=tuple(row.get("keywords") or ()),
+        hidden_node_types=tuple(row.get("hidden_node_types") or ()),
         token_id=bare_token,
     )
 

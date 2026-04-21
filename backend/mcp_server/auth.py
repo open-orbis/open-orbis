@@ -1,15 +1,19 @@
 """API key authentication for the MCP server.
 
-Every request to the streamable-http transport must carry ``X-MCP-Key``.
-The middleware resolves it to a user_id via ``app.auth.mcp_keys`` and
-stores it in a ContextVar that the tool functions read on the hot path.
+Every request to the streamable-http transport must carry `X-MCP-Key`.
+The middleware branches by prefix:
 
-Tools may then serve:
-- the authenticated user's own orb (any visibility), or
-- any public orb (same scope the unauthenticated MCP used to serve).
+- `orbk_...` → resolves to a `user_id` via `app.auth.mcp_keys`. The
+  authenticated user's own orb is unfiltered; any public orb is
+  readable with visibility filtering applied at the tool layer.
+- `orbs_...` → resolves to a `ShareContext(orb_id, keywords,
+  hidden_node_types, token_id)` via `app.orbs.share_token`. The request
+  is scoped to one orb; filters from the token are auto-applied.
 
-No key → 401 before the request ever hits a tool, so bulk anonymous
-enumeration is impossible.
+Both paths populate a task-local ContextVar (`_current_user_id` OR
+`_current_share_context`) that tool helpers read on the hot path. No
+prefix match → 401 before the request reaches any tool, so bulk
+anonymous enumeration is impossible.
 """
 
 from __future__ import annotations
@@ -35,11 +39,17 @@ class ShareContext:
     """What a share-token-authenticated MCP request is scoped to.
 
     All filter data is carried on the context so tools never have to
-    re-query the ShareToken row on every call."""
+    re-query the ShareToken row on every call.
+
+    `keywords` and `hidden_node_types` are tuples (not lists) so they
+    can't be mutated in place through a reference — `frozen=True` alone
+    only blocks attribute reassignment, not content mutation of mutable
+    containers.
+    """
 
     orb_id: str
-    keywords: list[str]
-    hidden_node_types: list[str]
+    keywords: tuple[str, ...]
+    hidden_node_types: tuple[str, ...]
     token_id: str
 
 
