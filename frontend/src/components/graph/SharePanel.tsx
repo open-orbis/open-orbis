@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useFilterStore } from '../../stores/filterStore';
 import { useToastStore } from '../../stores/toastStore';
 import QrShareModal from './QrShareModal';
+import { CopyMcpConfigButton } from './CopyMcpConfigButton';
 import {
   createAccessGrant,
   createShareToken,
@@ -629,6 +630,18 @@ export default function SharePanel({
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
+                                {token.mcp_use_count > 0 && (
+                                  <p className="text-[10px] text-gray-500 mt-0.5">
+                                    Last MCP use:{' '}
+                                    {token.mcp_last_used_at
+                                      ? new Date(token.mcp_last_used_at).toLocaleString(undefined, {
+                                          dateStyle: 'medium',
+                                          timeStyle: 'short',
+                                        })
+                                      : '—'}{' '}
+                                    · {token.mcp_use_count} {token.mcp_use_count === 1 ? 'query' : 'queries'}
+                                  </p>
+                                )}
                                 <p className="text-[10px] text-gray-500 mt-0.5">
                                   {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
                                   {' · '}{formatDate(token.created_at)}
@@ -707,13 +720,11 @@ export default function SharePanel({
                                 </svg>
                                 Show QR
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => { navigator.clipboard.writeText(`orb://${orbId}+${token.token_id}`); addToast('MCP URI copied', 'success'); }}
-                                className="h-7 px-2 rounded border border-gray-700 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-medium transition-colors shrink-0"
-                              >
-                                Copy MCP
-                              </button>
+                              <CopyMcpConfigButton
+                                tokenId={token.token_id}
+                                label={token.label}
+                                onCopied={() => addToast('MCP config copied', 'success')}
+                              />
                             </div>
                           </div>
                         ))}
