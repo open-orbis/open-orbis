@@ -482,11 +482,36 @@ def test_list_share_tokens_includes_mcp_audit_fields(mock_list, client, mock_db)
     response = client.get("/orbs/me/share-tokens")
     assert response.status_code == 200
     tokens = response.json()["tokens"]
-    assert tokens, "fixture should create at least one share token"
+    assert tokens, "mock returned an empty list"
     tok = tokens[0]
     assert "mcp_last_used_at" in tok
     assert "mcp_use_count" in tok
     assert tok["mcp_use_count"] == 0  # fresh token, never used via MCP
+    assert tok["mcp_last_used_at"] is None
+
+
+@patch("app.orbs.router.list_share_tokens")
+def test_list_share_tokens_mcp_audit_fields_default_when_absent(
+    mock_list, client, mock_db
+):
+    """MCP audit fields default correctly when absent from the Neo4j node (pre-existing tokens)."""
+    mock_list.return_value = [
+        {
+            "token_id": "abc123",
+            "orb_id": "test-orb",
+            "keywords": [],
+            "hidden_node_types": [],
+            "label": "test",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "expires_at": None,
+            "revoked": False,
+            # mcp_use_count and mcp_last_used_at deliberately absent
+        }
+    ]
+    response = client.get("/orbs/me/share-tokens")
+    assert response.status_code == 200
+    tok = response.json()["tokens"][0]
+    assert tok["mcp_use_count"] == 0
     assert tok["mcp_last_used_at"] is None
 
 
