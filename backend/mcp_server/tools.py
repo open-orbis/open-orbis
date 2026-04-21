@@ -56,7 +56,11 @@ async def _check_access(
         # _resolve_scope in server.py aligns orb_id with share_ctx.orb_id,
         # but defend in depth: a mismatch here means a tool was called
         # through a code path that bypassed _resolve_scope.
-        if orb_id != share_ctx.orb_id:
+        # Defense-in-depth: reject mismatched or degenerate orb_id. The
+        # middleware's validate_share_token_for_mcp should always produce a
+        # non-empty orb_id, but ShareContext is a plain dataclass with no
+        # field-level validation — belt-and-suspenders.
+        if not share_ctx.orb_id or orb_id != share_ctx.orb_id:
             return {"error": f"Orb '{orb_id}' not accessible"}
         return {
             "keywords": list(share_ctx.keywords),

@@ -39,6 +39,8 @@ class TestResolveScope:
             _current_share_context.reset(reset)
 
     def test_logs_warning_on_orb_id_mismatch(self, caplog):
+        import hashlib
+
         from mcp_server.auth import ShareContext, _current_share_context
         from mcp_server.server import _resolve_scope
 
@@ -54,7 +56,14 @@ class TestResolveScope:
                 orb, tok = _resolve_scope("orb-B", "")
             assert orb == "orb-A"  # share context wins
             assert tok == "tok-A"
-            assert any("mismatched orb_id" in r.message for r in caplog.records)
+            # The WARNING must reveal the mismatch but NEVER the raw token_id
+            expected_hint = hashlib.sha256(b"tok-A").hexdigest()[:12]
+            assert any(
+                "mismatched orb_id" in r.message
+                and expected_hint in r.message
+                and "tok-A" not in r.message  # raw token must NOT leak
+                for r in caplog.records
+            )
         finally:
             _current_share_context.reset(reset)
 
@@ -104,6 +113,30 @@ class TestCheckAccessUnderShareContext:
         try:
             driver = MagicMock()
             access = await _check_access(driver, "orb-B", "tok-A")
+            assert "error" in access
+            assert "not accessible" in access["error"]
+        finally:
+            _current_share_context.reset(reset)
+
+    async def test_rejects_empty_orb_id_in_share_context(self):
+        """Defense-in-depth: an empty share_ctx.orb_id must not match
+        an empty LLM-supplied orb_id."""
+        from mcp_server.auth import ShareContext, _current_share_context
+        from mcp_server.tools import _check_access
+
+        # Degenerate ShareContext somehow got constructed with an empty
+        # orb_id. This should never happen via the middleware, but the
+        # dataclass doesn't enforce it.
+        ctx = ShareContext(
+            orb_id="",
+            keywords=(),
+            hidden_node_types=(),
+            token_id="tok",
+        )
+        reset = _current_share_context.set(ctx)
+        try:
+            driver = MagicMock()
+            access = await _check_access(driver, "", "tok")
             assert "error" in access
             assert "not accessible" in access["error"]
         finally:

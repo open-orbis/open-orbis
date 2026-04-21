@@ -8,6 +8,7 @@ either that user's own orb or any public orb.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 from mcp.server.fastmcp import FastMCP
@@ -56,12 +57,16 @@ def _resolve_scope(orb_id_arg: str, token_arg: str) -> tuple[str, str]:
     ctx = get_share_context()
     if ctx is not None:
         if orb_id_arg and orb_id_arg != ctx.orb_id:
+            # Hash the token_id so the bearer credential never appears in
+            # application logs. Orb ids are identifiers without access
+            # capability on their own, so they're safe to log.
+            token_hint = hashlib.sha256(ctx.token_id.encode()).hexdigest()[:12]
             logger.warning(
                 "Share-scoped MCP call with mismatched orb_id: "
-                "requested=%s scoped=%s token=%s",
+                "requested=%s scoped=%s token=sha256:%s…",
                 orb_id_arg,
                 ctx.orb_id,
-                ctx.token_id,
+                token_hint,
             )
         return ctx.orb_id, ctx.token_id
     return orb_id_arg, token_arg
