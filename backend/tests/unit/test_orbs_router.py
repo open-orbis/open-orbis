@@ -461,6 +461,35 @@ def test_revoke_share_token_not_found(mock_revoke, client, mock_db):
     assert response.status_code == 404
 
 
+@patch("app.orbs.router.list_share_tokens")
+def test_list_share_tokens_includes_mcp_audit_fields(mock_list, client, mock_db):
+    """GET /orbs/me/share-tokens returns mcp_last_used_at and mcp_use_count."""
+    mock_list.return_value = [
+        {
+            "token_id": "abc123",
+            "orb_id": "test-orb",
+            "keywords": [],
+            "hidden_node_types": [],
+            "label": "test",
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "expires_at": None,
+            "revoked": False,
+            "mcp_use_count": 0,
+            "mcp_last_used_at": None,
+        }
+    ]
+
+    response = client.get("/orbs/me/share-tokens")
+    assert response.status_code == 200
+    tokens = response.json()["tokens"]
+    assert tokens, "fixture should create at least one share token"
+    tok = tokens[0]
+    assert "mcp_last_used_at" in tok
+    assert "mcp_use_count" in tok
+    assert tok["mcp_use_count"] == 0  # fresh token, never used via MCP
+    assert tok["mcp_last_used_at"] is None
+
+
 def test_claim_orb_id_conflict(client, mock_db):
     """Claiming an orb_id already taken by another user returns 409."""
     existing_record = {"p": MockNode({"user_id": "other-user"}, ["Person"])}
