@@ -8,6 +8,8 @@ either that user's own orb or any public orb.
 
 from __future__ import annotations
 
+import logging
+
 from mcp.server.fastmcp import FastMCP
 from neo4j import AsyncGraphDatabase
 
@@ -20,6 +22,8 @@ from mcp_server.tools import (
     get_orb_summary,
     get_skills_for_experience,
 )
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "Orbis", instructions="Query professional knowledge graphs (orbs) from Orbis."
@@ -38,6 +42,31 @@ async def _get_driver():
     return _driver
 
 
+def _resolve_scope(orb_id_arg: str, token_arg: str) -> tuple[str, str]:
+    """Return the effective (orb_id, token) for this tool invocation.
+
+    - User-key mode: both args pass through unchanged (today's behavior).
+    - Share-token mode: the share context set by APIKeyMiddleware is
+      authoritative. `orb_id_arg` is ignored from the LLM's perspective;
+      we pass the share token's id back through as `token` so the
+      existing filter code in `tools.py` treats the request uniformly.
+    """
+    from mcp_server.auth import get_share_context
+
+    ctx = get_share_context()
+    if ctx is not None:
+        if orb_id_arg and orb_id_arg != ctx.orb_id:
+            logger.warning(
+                "Share-scoped MCP call with mismatched orb_id: "
+                "requested=%s scoped=%s token=%s",
+                orb_id_arg,
+                ctx.orb_id,
+                ctx.token_id,
+            )
+        return ctx.orb_id, ctx.token_id
+    return orb_id_arg, token_arg
+
+
 def _build_starlette_app():
     """Return the FastMCP Starlette app wrapped with the API key middleware.
 
@@ -52,6 +81,7 @@ def _build_starlette_app():
 @mcp.tool()
 async def orbis_get_summary(orb_id: str, token: str = "") -> dict:
     """Get a summary of a person's professional profile including name, headline, location, and counts of each node type. Leave ``token`` empty when querying an orb you own."""
+    orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_orb_summary(driver, orb_id, token)
 
@@ -59,6 +89,7 @@ async def orbis_get_summary(orb_id: str, token: str = "") -> dict:
 @mcp.tool()
 async def orbis_get_full_orb(orb_id: str, token: str = "") -> dict:
     """Get the complete graph data for a person's orb, filtered according to the share token's privacy settings when a token is supplied."""
+    orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_orb_full(driver, orb_id, token)
 
@@ -68,6 +99,7 @@ async def orbis_get_nodes_by_type(
     orb_id: str, node_type: str, token: str = ""
 ) -> list[dict]:
     """Get all nodes of a specific type from an orb. Valid node_types: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
+    orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_nodes_by_type(driver, orb_id, node_type, token)
 
@@ -75,6 +107,7 @@ async def orbis_get_nodes_by_type(
 @mcp.tool()
 async def orbis_get_connections(orb_id: str, node_uid: str, token: str = "") -> dict:
     """Get all relationships and connected nodes for a specific node identified by its uid."""
+    orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_connections(driver, orb_id, node_uid, token)
 
@@ -84,6 +117,7 @@ async def orbis_get_skills_for_experience(
     orb_id: str, experience_uid: str, token: str = ""
 ) -> list[dict]:
     """Get all skills that were used in a specific work experience or project, identified by the experience's uid."""
+    orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_skills_for_experience(driver, orb_id, experience_uid, token)
 
