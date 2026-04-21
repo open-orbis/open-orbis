@@ -101,6 +101,7 @@ stateDiagram-v2
     state "FloatingInput (Add/Edit Node)" as FLOATING_INPUT
     state "SharePanel (modal)" as SHARE_PANEL
     state "QR Share Modal" as QR_MODAL
+    state "MCP Config Popover" as MCP_CONFIG_POPOVER
     state "ProfilePanel (modal)" as PROFILE_PANEL
     state "AccountSettings (modal)" as ACCOUNT_SETTINGS
     state "DraftNotes (slide-out)" as DRAFT_NOTES
@@ -128,6 +129,8 @@ stateDiagram-v2
     SHARE_PANEL --> MAIN: Close
     SHARE_PANEL --> QR_MODAL: Click Show QR (public row or per-token row)
     QR_MODAL --> SHARE_PANEL: Close / backdrop / Esc
+    SHARE_PANEL --> MCP_CONFIG_POPOVER: Click Copy MCP config on share-token row
+    MCP_CONFIG_POPOVER --> SHARE_PANEL: Close / toggle trigger
     MAIN --> CONNECTIONS_DROPDOWN: Click header Connections button
     CONNECTIONS_DROPDOWN --> MAIN: Close / outside click / Esc / Reject
     CONNECTIONS_DROPDOWN --> MAIN: Accept (creates AccessGrant)
@@ -218,6 +221,7 @@ flowchart TD
 | `FLOATING_INPUT` | (modal on ORB_VIEW) | Yes | Add/edit node form |
 | `SHARE_PANEL` | (modal on ORB_VIEW) | Yes | Visibility switch, public/filtered URLs, share tokens, access grants, connection-request review |
 | `QR_MODAL` | (modal above SHARE_PANEL) | Yes | Violet-on-white QR for a given share URL; SVG + PNG downloads |
+| `MCP_CONFIG_POPOVER` | (popover on SHARE_PANEL share-token row) | Yes | Inline popover showing the MCP client config JSON snippet scoped to a share token; violet Copy snippet button writes JSON to clipboard |
 | `CONNECTIONS_DROPDOWN` | (dropdown on ORB_VIEW header, `lg+`) | Yes | Inbox of pending access requests — accept (creates AccessGrant) or reject |
 | `PROFILE_PANEL` | (modal on ORB_VIEW) | Yes | Edit profile + social links |
 | `ACCOUNT_SETTINGS` | (modal on ORB_VIEW) | Yes | Orbis ID, Versions, Account tabs |

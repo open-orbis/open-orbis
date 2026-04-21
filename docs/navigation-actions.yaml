@@ -486,6 +486,33 @@
   next_state: SHARE_PANEL (copied feedback)
   fallback_on_failure: null
 
+- id: SHARE_COPY_MCP_CONFIG
+  from_state: SHARE_PANEL
+  action: Click Copy MCP config on a share-token row
+  selector_or_control: "'Copy MCP config' button inside share-token row (CopyMcpConfigButton)"
+  preconditions: [share_token_minted]
+  expected_effect: Opens the MCP config popover with a JSON snippet scoped to this share token
+  next_state: MCP_CONFIG_POPOVER
+  fallback_on_failure: null
+
+- id: MCP_COPY_SNIPPET
+  from_state: MCP_CONFIG_POPOVER
+  action: Click Copy snippet inside the MCP config popover
+  selector_or_control: "violet 'Copy snippet' button inside the MCP config popover"
+  preconditions: []
+  expected_effect: Writes the full MCP client config JSON to the clipboard and fires an 'MCP config copied' toast
+  next_state: MCP_CONFIG_POPOVER
+  fallback_on_failure: null
+
+- id: MCP_CLOSE_POPOVER
+  from_state: MCP_CONFIG_POPOVER
+  action: Click Close (or toggle the trigger button again)
+  selector_or_control: "'Close' button inside the MCP config popover"
+  preconditions: []
+  expected_effect: Dismisses the MCP config popover, returns focus to the share-token row
+  next_state: SHARE_PANEL
+  fallback_on_failure: null
+
 - id: SHARE_SHOW_QR
   from_state: SHARE_PANEL
   action: Click Show QR on public or per-token link
