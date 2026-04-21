@@ -224,3 +224,33 @@ Drafts are also auto-populated by the CV flow: any entries the LLM returns in `r
 |--------|------|------|-------------|
 | GET | `/admin/cv-jobs` | Admin | Paginated list of all CV processing jobs. Optional `?status=queued\|running\|succeeded\|failed\|cancelled` filter. Returns `CVJobsPage` with user name/email resolved. |
 | POST | `/admin/cv-jobs/{job_id}/cancel` | Admin | Cancel a queued or running CV job. |
+
+## MCP Server
+
+MCP requests are authenticated via the `X-MCP-Key` header. See `docs/architecture.md` for the full server design.
+
+### MCP share-token auth
+
+In addition to user API keys (`orbk_...`), the MCP server accepts share
+tokens as transport credentials. A request with a header like:
+
+```
+X-MCP-Key: orbs_<share-token-id>
+```
+
+is scoped to the orb the share token was minted for. The token's
+`keywords` and `hidden_node_types` filters are auto-applied to every
+tool response; the tool-level `orb_id` and `token` arguments are
+ignored — the share context is authoritative.
+
+**Rate limits** (per credential, sliding 60s window, in-memory per
+process):
+- User keys (`orbk_...`): 300 requests/minute
+- Share tokens (`orbs_...`): 120 requests/minute
+
+Rate-limit denials return `429` with a `Retry-After: <seconds>` header.
+
+**Audit**: `GET /api/orbs/me/share-tokens` returns two new fields per
+token: `mcp_last_used_at` (nullable ISO datetime) and `mcp_use_count`
+(integer, default 0). Both update on every successful share-mode MCP
+request.

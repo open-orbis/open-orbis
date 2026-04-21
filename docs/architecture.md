@@ -200,7 +200,16 @@ Separate process (`python -m mcp_server.server`) exposing 5 tools via streamable
 
 ### Authentication
 
-All MCP requests require an `X-MCP-Key` header containing a user-scoped API key (prefix `orbk_`). The `APIKeyMiddleware` validates the key by looking up its SHA-256 hash in Neo4j and resolves it to a `user_id`. Missing or invalid key returns 401 before reaching any tool.
+All MCP requests require an `X-MCP-Key` header. Missing or invalid key returns 401 before reaching any tool.
+
+**Transport auth** accepts two credential types on the same `X-MCP-Key` header, discriminated by prefix:
+
+- `orbk_...` — resolves to a `user_id` via `app.auth.mcp_keys`. Used by the orb owner connecting their own AI agent. Full access to the owner's orb; visibility filtering at the tool layer for public orbs.
+- `orbs_...` — resolves to a `ShareContext(orb_id, keywords, hidden_node_types, token_id)` via `app.orbs.share_token.validate_share_token_for_mcp`. Scoped to one orb; filters auto-applied.
+
+Per-credential rate limits (`mcp_server/rate_limit.py`): 300/min for user keys, 120/min for share tokens. Share-mode requests also trigger a fire-and-forget `increment_mcp_use` Cypher update so the owner sees `mcp_use_count` / `mcp_last_used_at` on each token in the Share panel.
+
+For the full design rationale see `docs/superpowers/specs/2026-04-21-mcp-share-token-auth-design.md`.
 
 ### Access Control
 

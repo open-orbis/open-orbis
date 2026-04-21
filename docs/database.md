@@ -146,6 +146,26 @@ API keys for MCP server authentication. Raw key returned once at creation; only 
 
 Linked via `(Person)-[:HAS_MCP_API_KEY]->(MCPApiKey)`.
 
+### ShareToken
+
+Created when a user generates a shareable link for a public orb. Tokens gate access to `public` orbs and carry optional privacy filters.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `token_id` | string | URL-safe random 32-byte token |
+| `orb_id` | string | Denormalized from Person at creation time |
+| `keywords` | string[] | Exclusion keywords — nodes whose text fields match are hidden |
+| `hidden_node_types` | string[] | Node type labels excluded from the response |
+| `label` | string | User-supplied display name |
+| `created_at` | datetime | |
+| `expires_at` | datetime | Nullable — absent means no expiry |
+| `revoked` | boolean | Soft delete |
+| `revoked_at` | datetime | Nullable |
+| `mcp_last_used_at` | datetime | Nullable. Updated on every successful share-token MCP request. |
+| `mcp_use_count` | integer | Default 0. Incremented atomically on each successful share-mode MCP request (via `increment_mcp_use`). |
+
+Linked via `(Person)-[:HAS_SHARE_TOKEN]->(ShareToken)`.
+
 ## Relationships
 
 | Relationship | From | To | Purpose |
