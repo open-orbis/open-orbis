@@ -68,6 +68,8 @@ export interface ShareToken {
   created_at: string;
   expires_at: string | null;
   revoked: boolean;
+  mcp_last_used_at: string | null;
+  mcp_use_count: number;
 }
 
 export async function createShareToken(
