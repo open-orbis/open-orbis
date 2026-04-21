@@ -38,7 +38,10 @@ class TestIncrementMcpUse:
         await increment_mcp_use(mock_driver, "tok-abc")
 
     async def test_logs_warning_on_failure(self, caplog):
-        """Failed writes produce a WARNING-level log with the token_id."""
+        """Failed writes produce a WARNING-level log with a hashed token hint
+        — never the raw token_id, because it IS the bearer credential."""
+        import hashlib
+
         from app.orbs.share_token import increment_mcp_use
 
         mock_driver = MagicMock()
@@ -47,8 +50,11 @@ class TestIncrementMcpUse:
         with caplog.at_level("WARNING", logger="app.orbs.share_token"):
             await increment_mcp_use(mock_driver, "tok-xyz")
 
+        expected_hint = hashlib.sha256(b"tok-xyz").hexdigest()[:12]
         assert any(
-            "mcp_use_count" in r.message and "tok-xyz" in r.message
+            "mcp_use_count" in r.message
+            and expected_hint in r.message
+            and "tok-xyz" not in r.message  # raw token must NOT leak
             for r in caplog.records
         )
 
@@ -110,9 +116,11 @@ class TestMiddlewareDispatchesAuditWrite:
         try:
             r = client.get("/mcp", headers={"X-MCP-Key": "orbs_anything"})
             assert r.status_code == 200
-            # The audit task is scheduled on the event loop. TestClient runs
-            # requests synchronously via a background loop, so briefly yield
-            # to let the task finish.
+            # TestClient's anyio blocking portal drains pending tasks
+            # before returning, so by the time client.get() completes the
+            # create_task has already run. The short sleep is a defensive
+            # yield in case the portal behavior ever changes; it does NOT
+            # yield across event loops.
             await asyncio.sleep(0.05)
             assert invoked_with.get("token_id") == "tok-123"
         finally:

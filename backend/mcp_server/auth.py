@@ -124,6 +124,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             share_token_reset = _current_share_context.set(ctx)
 
             # Fire-and-forget audit increment. Failures must not block.
+            # Local import (same rationale as validate_share_token_for_mcp
+            # above) keeps auth.py free of app.orbs deps at module load.
             import asyncio
 
             from app.orbs.share_token import increment_mcp_use

@@ -8,6 +8,7 @@ fields contain any of the keywords.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -190,15 +191,28 @@ async def increment_mcp_use(db: AsyncDriver, token_id: str) -> None:
     """Best-effort counter increment for MCP share-token usage.
 
     Callers dispatch this via `asyncio.create_task` — the response must
-    NOT wait on it. Failures are logged, not raised. Missing tokens
-    (e.g., deleted between auth and counter write) are a silent no-op
-    by virtue of the MATCH clause: zero rows match, no update happens,
-    no error.
+    NOT wait on it. Failures are logged (never raised), and the
+    `token_id` is logged only as a short sha256 hint, never in clear,
+    because `orbs_<token_id>` IS the bearer credential for this
+    request — a plaintext log could end up in a log aggregator and
+    leak the token.
+
+    Missing tokens (e.g., deleted between auth and counter write) are
+    a silent no-op by virtue of the `MATCH` clause: zero rows match,
+    no update happens, no error.
+
+    On process shutdown (e.g. Cloud Run SIGTERM) any in-flight task
+    created here may be abandoned silently. This is accepted under
+    the best-effort counter contract — the counter is eventually
+    consistent, not authoritative.
     """
     try:
         async with db.session() as session:
             await session.run(INCREMENT_SHARE_TOKEN_MCP_USE, token_id=token_id)
     except Exception as exc:  # noqa: BLE001
+        token_hint = hashlib.sha256(token_id.encode()).hexdigest()[:12]
         logger.warning(
-            "Failed to increment mcp_use_count for token %s: %s", token_id, exc
+            "Failed to increment mcp_use_count for token sha256:%s…: %s",
+            token_hint,
+            exc,
         )
