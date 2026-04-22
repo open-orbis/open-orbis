@@ -20,6 +20,7 @@ from app.graph.neo4j_client import close_driver, get_driver
 from app.ideas.router import router as ideas_router
 from app.notes.router import router as notes_router
 from app.oauth.authorize_router import router as oauth_authorize_router
+from app.oauth.grants_router import router as oauth_grants_router
 from app.oauth.register_router import router as oauth_register_router
 from app.oauth.revoke_router import router as oauth_revoke_router
 from app.oauth.token_router import router as oauth_token_router
@@ -230,7 +231,9 @@ app.include_router(oauth_authorize_router, prefix=_API_PREFIX)
 app.include_router(oauth_token_router, prefix=_API_PREFIX)
 app.include_router(oauth_revoke_router, prefix=_API_PREFIX)
 app.include_router(oauth_well_known_router, prefix=_API_PREFIX)
+app.include_router(oauth_grants_router, prefix=_API_PREFIX)
 app.include_router(oauth_well_known_router)
+app.include_router(oauth_grants_router)
 
 # Also mount without prefix for dev (Vite proxy strips /api)
 app.include_router(auth_router)
