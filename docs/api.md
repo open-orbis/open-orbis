@@ -224,3 +224,216 @@ Drafts are also auto-populated by the CV flow: any entries the LLM returns in `r
 |--------|------|------|-------------|
 | GET | `/admin/cv-jobs` | Admin | Paginated list of all CV processing jobs. Optional `?status=queued\|running\|succeeded\|failed\|cancelled` filter. Returns `CVJobsPage` with user name/email resolved. |
 | POST | `/admin/cv-jobs/{job_id}/cancel` | Admin | Cancel a queued or running CV job. |
+
+## MCP Server
+
+MCP requests are authenticated via the `X-MCP-Key` header. See `docs/architecture.md` for the full server design.
+
+### MCP share-token auth
+
+In addition to user API keys (`orbk_...`), the MCP server accepts share
+tokens as transport credentials. A request with a header like:
+
+```
+X-MCP-Key: orbs_<share-token-id>
+```
+
+is scoped to the orb the share token was minted for. The token's
+`keywords` and `hidden_node_types` filters are auto-applied to every
+tool response; the tool-level `orb_id` and `token` arguments are
+ignored — the share context is authoritative.
+
+**Rate limits** (per credential, sliding 60s window, in-memory per
+process):
+- User keys (`orbk_...`): 300 requests/minute
+- Share tokens (`orbs_...`): 120 requests/minute
+
+Rate-limit denials return `429` with a `Retry-After: <seconds>` header.
+
+**Audit**: `GET /api/orbs/me/share-tokens` returns two new fields per
+token: `mcp_last_used_at` (nullable ISO datetime) and `mcp_use_count`
+(integer, default 0). Both update on every successful share-mode MCP
+request.
+
+### MCP OAuth bearer auth
+
+The MCP server also accepts OAuth access tokens issued by the authorization
+server below:
+
+```
+Authorization: Bearer oauth_<token>
+```
+
+The token is resolved to a `user_id` + optional `share_token_id` (when the
+grant was issued in `restricted` access mode) via the `oauth_access_tokens`
+PostgreSQL table. Share-token filters are applied automatically — the same
+pipeline as `orbs_...` credentials. See [OAuth 2.1 authorization server](#oauth-21-authorization-server) below.
+
+## OAuth 2.1 authorization server
+
+Full design rationale: `docs/superpowers/specs/2026-04-21-mcp-oauth-authorization-design.md`.
+
+The authorization server is mounted directly on the main FastAPI app at
+`/oauth/*`. All `/oauth/*` and `/.well-known/*` paths must be reverse-proxied
+to the backend — see [deployment notes](#frontend-proxy-requirements).
+
+### Discovery endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/.well-known/oauth-authorization-server` | No | RFC 8414 metadata: `issuer`, `authorization_endpoint`, `token_endpoint`, `registration_endpoint`, `revocation_endpoint`, `scopes_supported` (`["orbis.read"]`), `grant_types_supported`, `response_types_supported`, `token_endpoint_auth_methods_supported` (`["none", "client_secret_post"]`), `code_challenge_methods_supported` (`["S256"]`). |
+| GET | `/.well-known/oauth-protected-resource` | No | MCP 2025-03 resource metadata on the MCP server, advertising the authorization server URL. |
+
+### Dynamic Client Registration
+
+| Method | Path | Auth | Rate Limit | Description |
+|--------|------|------|------------|-------------|
+| POST | `/oauth/register` | No | 10/IP/day | RFC 7591 Dynamic Client Registration. |
+
+Request body:
+
+```json
+{
+  "client_name": "My AI Agent",
+  "redirect_uris": ["https://example.com/callback"],
+  "token_endpoint_auth_method": "none",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"]
+}
+```
+
+- `redirect_uris` must be non-empty; each URI must use HTTPS or `http://localhost`.
+- `token_endpoint_auth_method`: `"none"` (public client, PKCE only) or `"client_secret_post"` (confidential client).
+- `grant_types` default: `["authorization_code", "refresh_token"]`.
+- `response_types` default: `["code"]`.
+
+Response `201 Created`:
+
+```json
+{
+  "client_id": "uuid",
+  "client_name": "My AI Agent",
+  "redirect_uris": ["https://example.com/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "client_secret": "..."
+}
+```
+
+`client_secret` is only present for confidential clients (`token_endpoint_auth_method = "client_secret_post"`).
+
+### Authorization endpoint
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/oauth/authorize` | JWT (optional) | Returns consent context as JSON. |
+| POST | `/oauth/authorize` | JWT | Submit consent decision. |
+
+**GET** — returns one of:
+- `{"login_required": true, "next": "/oauth/authorize?..."}` if user is not authenticated.
+- Full client context when authenticated: `{client_id, client_name, registered_at, registered_from_ip, redirect_uri, scope}`.
+
+**POST** — body (JSON):
+
+```json
+{
+  "client_id": "uuid",
+  "redirect_uri": "https://example.com/callback",
+  "state": "opaque-state-value",
+  "code_challenge": "base64url-sha256-of-verifier",
+  "code_challenge_method": "S256",
+  "scope": "orbis.read",
+  "access_mode": "full",
+  "share_token_id": null
+}
+```
+
+- `code_challenge_method` must be `"S256"`.
+- `scope` must be `"orbis.read"`.
+- `access_mode`: `"full"` (full orb access) or `"restricted"` (filtered via a share token).
+- `share_token_id`: required when `access_mode = "restricted"` — must be a valid, unrevoked share token owned by the authenticated user.
+
+Response `200`:
+
+```json
+{
+  "code": "random-auth-code",
+  "state": "opaque-state-value",
+  "redirect_uri": "https://example.com/callback"
+}
+```
+
+The frontend constructs the redirect using these values (`?code=...&state=...`). A deny action returns `{error: "access_denied"}` so the frontend can redirect with `?error=access_denied`.
+
+### Token endpoint
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/oauth/token` | Client credentials in body | Code exchange or refresh rotation. |
+
+Form-encoded body for code exchange:
+
+```
+grant_type=authorization_code
+&code=<auth-code>
+&redirect_uri=https://example.com/callback
+&client_id=<uuid>
+&code_verifier=<pkce-verifier>
+```
+
+For confidential clients also include `client_secret=<secret>`.
+
+Refresh rotation:
+
+```
+grant_type=refresh_token
+&refresh_token=refresh_<token>
+&client_id=<uuid>
+```
+
+Response `200`:
+
+```json
+{
+  "access_token": "oauth_<opaque>",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "refresh_<opaque>",
+  "scope": "orbis.read"
+}
+```
+
+- PKCE S256 is required for all clients.
+- Refresh tokens are rotated on every use — old token is revoked, new token issued.
+- Refresh-token reuse (presenting an already-consumed token) triggers **full-chain revocation** (RFC 6749 §6): the entire rotation chain is revoked.
+- Refresh tokens are bound to `client_id`; presenting a token with a mismatched client returns `401`.
+
+### Revocation endpoint
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/oauth/revoke` | No (RFC 7009) | Revoke an access token or refresh token. |
+
+Form-encoded body:
+
+```
+token=<token-value>
+&token_type_hint=access_token
+```
+
+`token_type_hint` is optional. Always returns `200 OK` regardless of whether the token existed.
+
+### User-facing grant management
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/oauth/grants` | JWT | List all active OAuth grants for the current user. Returns `{grants: [...]}`. |
+| DELETE | `/api/oauth/grants/{client_id}` | JWT | Revoke all tokens for a specific client (user self-service). |
+
+### Admin OAuth endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/admin/oauth/clients` | Admin | List the 200 most recent DCR registrations. |
+| POST | `/api/admin/oauth/clients/{client_id}/disable` | Admin | Disable a client — all future token requests with this `client_id` return `401`. |

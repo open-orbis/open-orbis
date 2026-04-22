@@ -146,6 +146,26 @@ API keys for MCP server authentication. Raw key returned once at creation; only 
 
 Linked via `(Person)-[:HAS_MCP_API_KEY]->(MCPApiKey)`.
 
+### ShareToken
+
+Created when a user generates a shareable link for a public orb. Tokens gate access to `public` orbs and carry optional privacy filters.
+
+| Property | Type | Notes |
+|----------|------|-------|
+| `token_id` | string | URL-safe random 32-byte token |
+| `orb_id` | string | Denormalized from Person at creation time |
+| `keywords` | string[] | Exclusion keywords — nodes whose text fields match are hidden |
+| `hidden_node_types` | string[] | Node type labels excluded from the response |
+| `label` | string | User-supplied display name |
+| `created_at` | datetime | |
+| `expires_at` | datetime | Nullable — absent means no expiry |
+| `revoked` | boolean | Soft delete |
+| `revoked_at` | datetime | Nullable |
+| `mcp_last_used_at` | datetime | Nullable. Updated on every successful share-token MCP request. |
+| `mcp_use_count` | integer | Default 0. Incremented atomically on each successful share-mode MCP request (via `increment_mcp_use`). |
+
+Linked via `(Person)-[:HAS_SHARE_TOKEN]->(ShareToken)`.
+
 ## Relationships
 
 | Relationship | From | To | Purpose |
@@ -242,6 +262,84 @@ CV processing jobs (background extraction via Cloud Tasks) are tracked in the `c
 Indexes on `user_id`, `status`, and `expires_at`. Expired `succeeded`/`failed` jobs are cleaned up automatically.
 
 **Flow:** `POST /cv/upload` and `POST /cv/import` create a `cv_jobs` row with `status=queued`, then dispatch a Cloud Task that calls `POST /cv/process-job`. In local dev (no Cloud Tasks configured) the task runs inline via `asyncio.create_task`. On completion the user receives an email with a deep link to resume review.
+
+## PostgreSQL — OAuth tables
+
+Four tables track the full OAuth 2.1 authorization-server lifecycle. They live in the same PostgreSQL database as `cv_jobs`. See `backend/app/auth/oauth_db.py` for the schema and DAL.
+
+`user_id` and `share_token_id` reference Neo4j primary keys as strings — there are no foreign-key constraints, the same pattern used by `cv_jobs`.
+
+### `oauth_clients`
+
+Registered OAuth clients (Dynamic Client Registration — RFC 7591).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `client_id` | TEXT | UUID, primary key |
+| `client_name` | TEXT | Human-readable display name |
+| `client_secret_hash` | TEXT | Nullable — SHA-256 of secret for confidential clients |
+| `redirect_uris` | TEXT | JSON array of allowed redirect URIs |
+| `grant_types` | TEXT | JSON array (e.g. `["authorization_code","refresh_token"]`) |
+| `response_types` | TEXT | JSON array (e.g. `["code"]`) |
+| `token_endpoint_auth_method` | TEXT | `"none"` or `"client_secret_post"` |
+| `registered_at` | TIMESTAMPTZ | Registration time |
+| `registered_from_ip` | TEXT | IP of the registering agent (rate-limit key) |
+| `disabled_at` | TIMESTAMPTZ | Nullable — set by admin to block new token requests |
+
+### `oauth_authorization_codes`
+
+Short-lived authorization codes issued by `POST /oauth/authorize`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `code` | TEXT | Opaque random value, primary key |
+| `client_id` | TEXT | References `oauth_clients.client_id` |
+| `user_id` | TEXT | Neo4j Person `user_id` |
+| `redirect_uri` | TEXT | Must match at token exchange |
+| `scope` | TEXT | e.g. `"orbis.read"` |
+| `code_challenge` | TEXT | Base64url SHA-256 of the PKCE verifier |
+| `code_challenge_method` | TEXT | Always `"S256"` |
+| `access_mode` | TEXT | `"full"` or `"restricted"` |
+| `share_token_id` | TEXT | Nullable — Neo4j ShareToken `token_id` when `access_mode = "restricted"` |
+| `created_at` | TIMESTAMPTZ | |
+| `expires_at` | TIMESTAMPTZ | 5-minute TTL from `created_at` |
+| `consumed_at` | TIMESTAMPTZ | Nullable — set on first use; reuse returns `invalid_grant` |
+
+### `oauth_access_tokens`
+
+Opaque bearer tokens returned by `POST /oauth/token`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `token_hash` | TEXT | SHA-256 of `oauth_<value>`, primary key |
+| `client_id` | TEXT | References `oauth_clients.client_id` |
+| `user_id` | TEXT | Neo4j Person `user_id` |
+| `scope` | TEXT | |
+| `access_mode` | TEXT | `"full"` or `"restricted"` |
+| `share_token_id` | TEXT | Nullable — used to apply share-token filters in the MCP server |
+| `created_at` | TIMESTAMPTZ | |
+| `expires_at` | TIMESTAMPTZ | 1-hour TTL (configurable via `OAUTH_ACCESS_TOKEN_TTL_SECONDS`) |
+| `revoked_at` | TIMESTAMPTZ | Nullable — set on explicit revocation or cascade |
+| `last_used_at` | TIMESTAMPTZ | Nullable — updated fire-and-forget on each authenticated MCP request |
+
+### `oauth_refresh_tokens`
+
+Long-lived refresh tokens with rotation semantics.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `token_hash` | TEXT | SHA-256 of `refresh_<value>`, primary key |
+| `client_id` | TEXT | References `oauth_clients.client_id` |
+| `user_id` | TEXT | Neo4j Person `user_id` |
+| `scope` | TEXT | |
+| `access_mode` | TEXT | `"full"` or `"restricted"` |
+| `share_token_id` | TEXT | Nullable |
+| `created_at` | TIMESTAMPTZ | |
+| `expires_at` | TIMESTAMPTZ | 30-day TTL (configurable via `OAUTH_REFRESH_TOKEN_TTL_SECONDS`) |
+| `revoked_at` | TIMESTAMPTZ | Nullable |
+| `rotated_to` | TEXT | Nullable — `token_hash` of the replacement token (links the rotation chain) |
+
+**Refresh-token reuse detection:** presenting an already-consumed token sets `revoked_at` on every token in the chain (following `rotated_to` links) to mitigate token theft (RFC 6749 §6).
 
 ## SQLite — CV Document Metadata
 

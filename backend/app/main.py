@@ -19,6 +19,13 @@ from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
 from app.ideas.router import router as ideas_router
 from app.notes.router import router as notes_router
+from app.oauth.admin_router import router as oauth_admin_router
+from app.oauth.authorize_router import router as oauth_authorize_router
+from app.oauth.grants_router import router as oauth_grants_router
+from app.oauth.register_router import router as oauth_register_router
+from app.oauth.revoke_router import router as oauth_revoke_router
+from app.oauth.token_router import router as oauth_token_router
+from app.oauth.well_known_router import router as oauth_well_known_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
 from app.search.router import router as search_router
@@ -65,6 +72,7 @@ async def cleanup_expired_accounts() -> int:
     """
     from app.cv_storage.storage import delete_all_for_user as delete_stored_cvs
     from app.drafts.db import delete_all_for_user as delete_user_drafts
+    from app.oauth.db import cascade_delete_user_oauth
     from app.snapshots.db import delete_all_for_user as delete_user_snapshots
 
     driver = await get_driver()
@@ -100,6 +108,18 @@ async def cleanup_expired_accounts() -> int:
                 await delete_user_drafts(user_id)
             with contextlib.suppress(Exception):
                 await delete_user_snapshots(user_id)
+            if settings.database_url:
+                try:
+                    from app.db.postgres import get_pool
+
+                    pg_pool = await get_pool()
+                    await cascade_delete_user_oauth(pg_pool, user_id)
+                except Exception as exc:
+                    logger.warning(
+                        "cleanup_expired_accounts: OAuth cascade delete failed for %s: %s",
+                        user_id,
+                        exc,
+                    )
 
     if expired:
         logger.info("Cleaned up %d expired account(s)", len(expired))
@@ -125,9 +145,11 @@ async def lifespan(app: FastAPI):
 
         from app.cv.jobs_db import cleanup_expired_jobs, ensure_table
         from app.ideas.db import ensure_source_column
+        from app.oauth.db import ensure_oauth_schema
 
         await ensure_table()
         await ensure_source_column()
+        await ensure_oauth_schema(await get_pool())
         expired = await cleanup_expired_jobs()
         if expired:
             logger.info("Cleaned up %d expired CV jobs", expired)
@@ -218,6 +240,16 @@ app.include_router(drafts_router, prefix=_API_PREFIX)
 app.include_router(search_router, prefix=_API_PREFIX)
 app.include_router(admin_router, prefix=_API_PREFIX)
 app.include_router(ideas_router, prefix=_API_PREFIX)
+app.include_router(oauth_register_router, prefix=_API_PREFIX)
+app.include_router(oauth_authorize_router, prefix=_API_PREFIX)
+app.include_router(oauth_token_router, prefix=_API_PREFIX)
+app.include_router(oauth_revoke_router, prefix=_API_PREFIX)
+app.include_router(oauth_well_known_router, prefix=_API_PREFIX)
+app.include_router(oauth_grants_router, prefix=_API_PREFIX)
+app.include_router(oauth_admin_router, prefix=_API_PREFIX)
+app.include_router(oauth_well_known_router)
+app.include_router(oauth_grants_router)
+app.include_router(oauth_admin_router)
 
 # Also mount without prefix for dev (Vite proxy strips /api)
 app.include_router(auth_router)
@@ -230,6 +262,10 @@ app.include_router(drafts_router)
 app.include_router(search_router)
 app.include_router(admin_router)
 app.include_router(ideas_router)
+app.include_router(oauth_register_router)
+app.include_router(oauth_authorize_router)
+app.include_router(oauth_token_router)
+app.include_router(oauth_revoke_router)
 
 
 # ── Health endpoints ──

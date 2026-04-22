@@ -17,6 +17,7 @@ import AdminRoute from './components/AdminRoute';
 import AuthenticatedRoute from './components/AuthenticatedRoute';
 import AdminPage from './pages/AdminPage';
 import ActivatePage from './pages/ActivatePage';
+import ConsentPage from './pages/ConsentPage';
 
 const scrollPositions: Record<string, number> = {};
 
@@ -73,6 +74,7 @@ function AppRoutes() {
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/activate" element={<AuthenticatedRoute><ActivatePage /></AuthenticatedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+      <Route path="/oauth/authorize" element={<ConsentPage />} />
       <Route path="/:orbId" element={<SharedOrbPage />} />
     </Routes>
   );

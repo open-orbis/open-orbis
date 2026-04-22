@@ -55,9 +55,12 @@ class _FakeDriver:
 
 @pytest.fixture
 def reset_context():
-    token = mcp_auth._current_user_id.set(None)
+    """Clear both MCP ContextVars before and after each test."""
+    user_tok = mcp_auth._current_user_id.set(None)
+    share_tok = mcp_auth._current_share_context.set(None)
     yield
-    mcp_auth._current_user_id.reset(token)
+    mcp_auth._current_user_id.reset(user_tok)
+    mcp_auth._current_share_context.reset(share_tok)
 
 
 # ── _check_access ───────────────────────────────────────────────────────
@@ -226,3 +229,150 @@ async def test_middleware_sets_context_on_valid_key(monkeypatch, reset_context):
     r = client.get("/mcp", headers={"X-MCP-Key": "orbk_whatever"})
     assert r.status_code == 200
     assert seen_user["value"] == "resolved-user"
+
+
+async def test_middleware_accepts_orbs_prefix_sets_share_context(
+    monkeypatch, reset_context
+):
+    """orbs_<token> header sets _current_share_context, not _current_user_id."""
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    from mcp_server.auth import ShareContext
+
+    seen: dict = {}
+
+    async def ping(request):
+        ctx = mcp_auth.get_share_context()
+        seen["user_id"] = mcp_auth.get_current_user_id()
+        seen["orb_id"] = ctx.orb_id if ctx else None
+        seen["keywords"] = list(ctx.keywords) if ctx else None
+        seen["token_id"] = ctx.token_id if ctx else None
+        return JSONResponse({"ok": True})
+
+    async def fake_driver_factory():
+        return _FakeDriver()
+
+    async def fake_validate(driver, bare_token):
+        assert bare_token == "share-abc"  # prefix must have been stripped
+        return ShareContext(
+            orb_id="orb-123",
+            keywords=("secret",),
+            hidden_node_types=("skill",),
+            token_id="share-abc",
+        )
+
+    import app.orbs.share_token as share_token_module
+
+    # Patch the module attribute (not mcp_auth.validate_share_token_for_mcp)
+    # because the middleware does a LOCAL import on every call. If that
+    # import is ever hoisted to module level in auth.py, this target must
+    # change to mcp_auth to keep the monkeypatch effective.
+    monkeypatch.setattr(
+        share_token_module, "validate_share_token_for_mcp", fake_validate
+    )
+
+    app = Starlette(routes=[Route("/mcp", ping)])
+    app.add_middleware(mcp_auth.APIKeyMiddleware, driver_factory=fake_driver_factory)
+    client = TestClient(app)
+
+    r = client.get("/mcp", headers={"X-MCP-Key": "orbs_share-abc"})
+    assert r.status_code == 200
+    assert seen["user_id"] is None
+    assert seen["orb_id"] == "orb-123"
+    assert seen["keywords"] == ["secret"]
+    assert seen["token_id"] == "share-abc"
+
+
+async def test_middleware_rejects_orbs_with_unknown_token(monkeypatch, reset_context):
+    from starlette.applications import Starlette
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    async def ping(request):
+        return PlainTextResponse("pong")
+
+    async def fake_driver_factory():
+        return _FakeDriver()
+
+    async def fake_validate(driver, bare_token):
+        return None
+
+    import app.orbs.share_token as share_token_module
+
+    # Patch the module attribute (not mcp_auth.validate_share_token_for_mcp)
+    # because the middleware does a LOCAL import on every call. If that
+    # import is ever hoisted to module level in auth.py, this target must
+    # change to mcp_auth to keep the monkeypatch effective.
+    monkeypatch.setattr(
+        share_token_module, "validate_share_token_for_mcp", fake_validate
+    )
+
+    app = Starlette(routes=[Route("/mcp", ping)])
+    app.add_middleware(mcp_auth.APIKeyMiddleware, driver_factory=fake_driver_factory)
+    client = TestClient(app)
+
+    r = client.get("/mcp", headers={"X-MCP-Key": "orbs_not-a-real-token"})
+    assert r.status_code == 401
+    assert "invalid" in r.json()["error"].lower()
+
+
+async def test_middleware_rejects_unrecognized_prefix(reset_context):
+    from starlette.applications import Starlette
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    async def ping(request):
+        return PlainTextResponse("pong")
+
+    async def fake_driver_factory():
+        return _FakeDriver()
+
+    app = Starlette(routes=[Route("/mcp", ping)])
+    app.add_middleware(mcp_auth.APIKeyMiddleware, driver_factory=fake_driver_factory)
+    client = TestClient(app)
+
+    r = client.get("/mcp", headers={"X-MCP-Key": "foo_whatever"})
+    assert r.status_code == 401
+    assert (
+        "unrecognized" in r.json()["error"].lower()
+        or "prefix" in r.json()["error"].lower()
+    )
+
+
+async def test_middleware_orbk_flow_unchanged_after_branching(
+    monkeypatch, reset_context
+):
+    """Regression-lock: orbk_ still sets user_id and doesn't touch share context."""
+    from starlette.applications import Starlette
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient
+
+    seen: dict = {}
+
+    async def ping(request):
+        seen["user_id"] = mcp_auth.get_current_user_id()
+        seen["share_ctx"] = mcp_auth.get_share_context()
+        return JSONResponse({"ok": True})
+
+    async def fake_driver_factory():
+        return _FakeDriver()
+
+    async def fake_resolve(driver, *, raw_key):
+        return "user-from-orbk"
+
+    monkeypatch.setattr(mcp_auth, "resolve_api_key", fake_resolve)
+
+    app = Starlette(routes=[Route("/mcp", ping)])
+    app.add_middleware(mcp_auth.APIKeyMiddleware, driver_factory=fake_driver_factory)
+    client = TestClient(app)
+
+    r = client.get("/mcp", headers={"X-MCP-Key": "orbk_valid-key"})
+    assert r.status_code == 200
+    assert seen["user_id"] == "user-from-orbk"
+    assert seen["share_ctx"] is None

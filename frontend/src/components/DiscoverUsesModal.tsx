@@ -90,7 +90,6 @@ export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUses
   const [ideaSent, setIdeaSent] = useState(false);
 
   const shareUrl = `${window.location.origin}/${orbId}`;
-  const mcpUri = `orb://${orbId}`;
 
   const copyText = (text: string, type: 'id' | 'link') => {
     navigator.clipboard.writeText(text);
@@ -168,7 +167,7 @@ export default function DiscoverUsesModal({ open, onClose, orbId }: DiscoverUses
               <div>
                 <div className="flex justify-end mb-2">
                   <button
-                    onClick={() => copyText(mcpUri, 'id')}
+                    onClick={() => copyText(orbId, 'id')}
                     className="text-[10px] font-medium text-yellow-400/70 hover:text-yellow-400 transition-colors px-2 py-0.5 rounded-md bg-yellow-500/5 hover:bg-yellow-500/10"
                   >
                     {copiedId ? 'Copied!' : `Copy ID: ${orbId}`}

@@ -424,3 +424,24 @@ export async function listCVJobs(params?: {
 export async function cancelCVJob(jobId: string): Promise<void> {
   await client.post(`/admin/cv-jobs/${jobId}/cancel`);
 }
+
+// ── OAuth Clients ──
+
+export interface OAuthClient {
+  client_id: string;
+  client_name: string;
+  token_endpoint_auth_method: string;
+  registered_at: string;
+  registered_from_ip: string | null;
+  registered_user_agent: string | null;
+  disabled: boolean;
+}
+
+export async function listOAuthClients(): Promise<{ clients: OAuthClient[] }> {
+  const { data } = await client.get('/admin/oauth/clients');
+  return data;
+}
+
+export async function disableOAuthClient(clientId: string): Promise<void> {
+  await client.post(`/admin/oauth/clients/${clientId}/disable`);
+}

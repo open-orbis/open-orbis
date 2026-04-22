@@ -44,6 +44,30 @@ async def _check_access(
     "orb does not exist" from "orb exists but is private" — the MCP
     server must not become an orb enumeration oracle.
     """
+    # Share-token transport mode: the middleware already authenticated
+    # the caller and scoped them to exactly one orb. Return the
+    # context's filters directly — no need to re-validate the token at
+    # this layer (it's already trusted) or re-run the owner check
+    # (share-token callers are never owners by definition).
+    from mcp_server.auth import get_share_context
+
+    share_ctx = get_share_context()
+    if share_ctx is not None:
+        # _resolve_scope in server.py aligns orb_id with share_ctx.orb_id,
+        # but defend in depth: a mismatch here means a tool was called
+        # through a code path that bypassed _resolve_scope.
+        # Defense-in-depth: reject mismatched or degenerate orb_id. The
+        # middleware's validate_share_token_for_mcp should always produce a
+        # non-empty orb_id, but ShareContext is a plain dataclass with no
+        # field-level validation — belt-and-suspenders.
+        if not share_ctx.orb_id or orb_id != share_ctx.orb_id:
+            return {"error": f"Orb '{orb_id}' not accessible"}
+        return {
+            "keywords": list(share_ctx.keywords),
+            "hidden_node_types": list(share_ctx.hidden_node_types),
+        }
+
+    # User-key mode: existing logic unchanged.
     user_id = get_current_user_id()
     if user_id is None:
         return {"error": "authentication required"}

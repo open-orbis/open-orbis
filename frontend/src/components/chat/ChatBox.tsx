@@ -19,6 +19,7 @@ interface ChatBoxProps {
   onMessagesChange: (msgs: ChatMessage[]) => void;
   onAdd?: () => void;
   onShare?: () => void;
+  onConnectedAi?: () => void;
   onDiscover?: () => void;
   highlightAdd?: boolean;
   placeholder?: string;
@@ -92,6 +93,7 @@ export default function ChatBox({
   onMessagesChange,
   onAdd,
   onShare,
+  onConnectedAi,
   onDiscover,
   highlightAdd,
   placeholder = 'Query your orbis...',
@@ -129,8 +131,11 @@ export default function ChatBox({
     [messages],
   );
   const shareButtonClass = visibility === 'restricted'
-    ? 'bg-emerald-600/80 hover:bg-emerald-500 border-emerald-500/35 hover:border-emerald-400/55 shadow-emerald-600/25'
-    : 'bg-orange-600/80 hover:bg-orange-500 border-orange-500/35 hover:border-orange-400/55 shadow-orange-600/25';
+    ? 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 hover:from-emerald-300 hover:via-emerald-400 hover:to-teal-500 shadow-emerald-500/30 hover:shadow-emerald-400/50 focus-visible:ring-emerald-300/70'
+    : 'bg-gradient-to-br from-orange-400 via-orange-500 to-amber-600 hover:from-orange-300 hover:via-orange-400 hover:to-amber-500 shadow-orange-500/30 hover:shadow-orange-400/50 focus-visible:ring-orange-300/70';
+  const shareHaloClass = visibility === 'restricted'
+    ? 'group-hover:bg-emerald-400/20'
+    : 'group-hover:bg-orange-400/20';
 
   const clearResults = useCallback(() => {
     onMessagesChange([]);
@@ -484,17 +489,65 @@ export default function ChatBox({
         </form>
 
         {/* Action buttons */}
-        {(onAdd || onShare) && (
+        {(onAdd || onShare || onConnectedAi) && (
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {onShare && (
               <button
                 data-tour="visibility"
                 onClick={onShare}
-                className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border text-white/90 hover:text-white transition-all shadow-lg ${shareButtonClass}`}
-                title="Share"
+                className={`group relative w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white ring-1 ring-inset ring-white/25 hover:ring-white/40 shadow-lg transition-all hover:scale-[1.06] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${shareButtonClass}`}
+                title={visibility === 'restricted' ? 'Visibility: restricted' : 'Visibility: public'}
+                aria-label="Share visibility"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-0 rounded-full bg-transparent ${shareHaloClass} group-hover:animate-pulse`}
+                />
+                <svg
+                  className="relative w-5 h-5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path strokeWidth="1.8" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+            )}
+            {onConnectedAi && (
+              <button
+                data-tour="connected-ai"
+                onClick={onConnectedAi}
+                className="group relative w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:via-cyan-400 hover:to-blue-500 ring-1 ring-inset ring-white/25 hover:ring-white/40 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-400/50 transition-all hover:scale-[1.06] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                title="Connected AI clients"
+                aria-label="Connected AI clients"
+              >
+                {/* Soft pulse halo — only on hover */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-cyan-400/0 group-hover:bg-cyan-400/20 group-hover:animate-pulse"
+                />
+                <svg
+                  className="relative w-5 h-5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {/* Antenna */}
+                  <circle cx="12" cy="3.5" r="0.9" fill="currentColor" stroke="none" />
+                  <path d="M12 4.5v2" strokeWidth="1.8" />
+                  {/* Head */}
+                  <rect x="5" y="7" width="14" height="11" rx="3" strokeWidth="1.8" />
+                  {/* Side antennas (ears) */}
+                  <path d="M5 12H3.5M19 12h1.5" strokeWidth="1.8" />
+                  {/* Eyes */}
+                  <circle cx="9.3" cy="12" r="1.15" fill="currentColor" stroke="none" />
+                  <circle cx="14.7" cy="12" r="1.15" fill="currentColor" stroke="none" />
+                  {/* Mouth */}
+                  <path d="M10 15.5h4" strokeWidth="1.8" />
                 </svg>
               </button>
             )}
@@ -502,11 +555,23 @@ export default function ChatBox({
               <button
                 data-tour="add-entry"
                 onClick={onAdd}
-                className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-lg shadow-purple-600/30 hover:shadow-purple-500/40 ${highlightAdd ? 'animate-pulse ring-2 ring-purple-400 ring-offset-2 ring-offset-black' : ''}`}
+                className={`group relative w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white bg-gradient-to-br from-fuchsia-400 via-purple-500 to-violet-600 hover:from-fuchsia-300 hover:via-purple-400 hover:to-violet-500 ring-1 ring-inset ring-white/25 hover:ring-white/40 shadow-lg shadow-purple-500/30 hover:shadow-purple-400/50 transition-all hover:scale-[1.06] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${highlightAdd ? 'animate-pulse ring-2 ring-purple-400 ring-offset-2 ring-offset-black' : ''}`}
                 title="Add Entry"
+                aria-label="Add entry"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-transparent group-hover:bg-purple-400/20 group-hover:animate-pulse"
+                />
+                <svg
+                  className="relative w-5 h-5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path strokeWidth="2.2" d="M12 5v14m7-7H5" />
                 </svg>
               </button>
             )}

@@ -729,6 +729,12 @@ SET st.revoked = true, st.revoked_at = datetime()
 RETURN st
 """
 
+INCREMENT_SHARE_TOKEN_MCP_USE = """
+MATCH (st:ShareToken {token_id: $token_id})
+SET st.mcp_last_used_at = datetime(),
+    st.mcp_use_count = coalesce(st.mcp_use_count, 0) + 1
+"""
+
 DELETE_SHARE_TOKEN = """
 MATCH (p:Person {user_id: $user_id})-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_id: $token_id})
 DETACH DELETE st

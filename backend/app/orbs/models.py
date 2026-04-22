@@ -60,6 +60,8 @@ class ShareTokenResponse(BaseModel):
     created_at: datetime
     expires_at: datetime | None
     revoked: bool
+    mcp_last_used_at: datetime | None = None
+    mcp_use_count: int = 0
 
 
 class ShareTokenListResponse(BaseModel):

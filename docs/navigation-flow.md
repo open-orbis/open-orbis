@@ -56,6 +56,8 @@ stateDiagram-v2
     ORB_VIEW --> ADMIN: UserMenu > Admin Dashboard (admin only)
     ADMIN --> ORB_VIEW: Navigate back
 
+    %% ── Connected AI modal (overlays ORB_VIEW; no route change) ──
+
     %% ── Consent gate ──
     CREATE --> CONSENT_GATE: No GDPR consent
     CONSENT_GATE --> CREATE: Consent granted
@@ -101,6 +103,7 @@ stateDiagram-v2
     state "FloatingInput (Add/Edit Node)" as FLOATING_INPUT
     state "SharePanel (modal)" as SHARE_PANEL
     state "QR Share Modal" as QR_MODAL
+    state "MCP Config Popover" as MCP_CONFIG_POPOVER
     state "ProfilePanel (modal)" as PROFILE_PANEL
     state "AccountSettings (modal)" as ACCOUNT_SETTINGS
     state "DraftNotes (slide-out)" as DRAFT_NOTES
@@ -128,6 +131,8 @@ stateDiagram-v2
     SHARE_PANEL --> MAIN: Close
     SHARE_PANEL --> QR_MODAL: Click Show QR (public row or per-token row)
     QR_MODAL --> SHARE_PANEL: Close / backdrop / Esc
+    SHARE_PANEL --> MCP_CONFIG_POPOVER: Click Copy MCP config on share-token row
+    MCP_CONFIG_POPOVER --> SHARE_PANEL: Close / toggle trigger
     MAIN --> CONNECTIONS_DROPDOWN: Click header Connections button
     CONNECTIONS_DROPDOWN --> MAIN: Close / outside click / Esc / Reject
     CONNECTIONS_DROPDOWN --> MAIN: Accept (creates AccessGrant)
@@ -211,13 +216,15 @@ flowchart TD
 | `SHARED_ORB` | `/:orbId` | No | Public read-only orb view |
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
 | `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Checks activation status on mount — if already activated, redirects immediately. Admins bypass. |
-| `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users (with Approve/Approve all), beta config toggle, CV Jobs tab, Feedback tab |
+| `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users (with Approve/Approve all), beta config toggle, CV Jobs tab, Feedback tab, OAuth clients tab |
+| `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Opened from the cyan robot-icon button in the ChatBox action strip. Top section shows the MCP endpoint URL (from `VITE_MCP_URL`) with a Copy button — paste into ChatGPT / Cursor / Claude Code / Cline / Windsurf. Below it, lists active OAuth grants with client name and access mode; each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
 | `FEEDBACK_MODAL` | (modal on ORB_VIEW) | Yes | Send Feedback modal opened from above-ChatBox button. Submits to `/ideas` with `source=feedback`. |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
 | `FLOATING_INPUT` | (modal on ORB_VIEW) | Yes | Add/edit node form |
 | `SHARE_PANEL` | (modal on ORB_VIEW) | Yes | Visibility switch, public/filtered URLs, share tokens, access grants, connection-request review |
 | `QR_MODAL` | (modal above SHARE_PANEL) | Yes | Violet-on-white QR for a given share URL; SVG + PNG downloads |
+| `MCP_CONFIG_POPOVER` | (popover on SHARE_PANEL share-token row) | Yes | Inline popover showing the MCP client config JSON snippet scoped to a share token; violet Copy snippet button writes JSON to clipboard |
 | `CONNECTIONS_DROPDOWN` | (dropdown on ORB_VIEW header, `lg+`) | Yes | Inbox of pending access requests — accept (creates AccessGrant) or reject |
 | `PROFILE_PANEL` | (modal on ORB_VIEW) | Yes | Edit profile + social links |
 | `ACCOUNT_SETTINGS` | (modal on ORB_VIEW) | Yes | Orbis ID, Versions, Account tabs |

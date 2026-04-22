@@ -586,7 +586,12 @@ async def revoke_share_token_endpoint(
     db: AsyncDriver = Depends(get_db),
 ):
     """Revoke a share token."""
-    result = await revoke_share_token(db, current_user["user_id"], token_id)
+    from app.db.postgres import get_pool
+
+    pool = await get_pool()
+    result = await revoke_share_token(
+        db, current_user["user_id"], token_id, pg_pool=pool
+    )
     if result is None:
         raise HTTPException(status_code=404, detail="Token not found")
     return {"status": "revoked"}
