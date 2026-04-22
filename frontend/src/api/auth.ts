@@ -93,3 +93,10 @@ export async function generateMyInvite(): Promise<{ code: string; created_at: st
   );
   return data;
 }
+
+export async function googleIdTokenLogin(
+  idToken: string,
+  source: 'fedcm' | 'onetap',
+): Promise<void> {
+  await client.post('/auth/google-id-token', { id_token: idToken, source });
+}
