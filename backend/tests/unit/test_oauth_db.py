@@ -37,6 +37,7 @@ class TestRegisterClient:
         assert "INSERT INTO oauth_clients" in args[0]
         assert args[1] == cid
         assert args[3] == "TestClient"
+        assert args[4] == ["https://example.com/cb"]  # redirect_uris bound as array
 
 
 class TestGetActiveClient:
@@ -197,7 +198,35 @@ class TestRevokeRefreshChain:
 
         # Should have executed: 1 chain revoke + 1 access-token cascade revoke
         assert conn.execute.await_count == 2
-        first_sql = conn.execute.await_args_list[0].args[0]
-        second_sql = conn.execute.await_args_list[1].args[0]
-        assert "UPDATE oauth_refresh_tokens" in first_sql
-        assert "UPDATE oauth_access_tokens" in second_sql
+        first_call = conn.execute.await_args_list[0]
+        second_call = conn.execute.await_args_list[1]
+        assert "UPDATE oauth_refresh_tokens" in first_call.args[0]
+        # The batch token list should contain BOTH root_h and mid_h
+        assert set(first_call.args[1]) == {"root_h", "mid_h"}
+        # Cascade should pass user_id + client_id
+        assert "UPDATE oauth_access_tokens" in second_call.args[0]
+        assert second_call.args[1] == user_id
+        assert second_call.args[2] == cid
+
+    async def test_cascade_executes_when_leaked_token_has_no_rotation(self):
+        """Capturing user_id/client_id must work even if leaked token has rotated_to=None."""
+        pool, conn = _make_pool_with_conn()
+        user_id = "u-solo"
+        cid = uuid.uuid4()
+        conn.fetchrow = AsyncMock(
+            side_effect=[
+                {"rotated_to": None, "user_id": user_id, "client_id": cid},
+            ]
+        )
+        conn.execute = AsyncMock()
+        txn_ctx = MagicMock()
+        txn_ctx.__aenter__ = AsyncMock(return_value=None)
+        txn_ctx.__aexit__ = AsyncMock(return_value=None)
+        conn.transaction = MagicMock(return_value=txn_ctx)
+
+        await oauth_db.revoke_refresh_chain(pool, "solo_h")
+
+        assert conn.execute.await_count == 2
+        second_call = conn.execute.await_args_list[1]
+        assert second_call.args[1] == user_id
+        assert second_call.args[2] == cid

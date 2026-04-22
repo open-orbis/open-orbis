@@ -263,12 +263,18 @@ async def revoke_refresh_chain(pool: asyncpg.Pool, leaked_hash: str) -> None:
     leaked token was rotated, follow the chain and revoke every child.
     Also revoke the leaked token itself and all sibling access tokens
     for the same user_id + client_id.
+
+    Every token in a rotation chain shares the same (user_id, client_id)
+    by design — rotation never changes the principal. We therefore capture
+    those values from the FIRST valid row so that a mid-chain deletion
+    (row is None before we reach the tail) does not silently drop the
+    access-token cascade.
     """
+    user_id = None
+    client_id = None
     async with pool.acquire() as conn, conn.transaction():
         to_revoke = {leaked_hash}
         cursor = leaked_hash
-        user_id = None
-        client_id = None
         while True:
             row = await conn.fetchrow(
                 "SELECT rotated_to, user_id, client_id FROM oauth_refresh_tokens WHERE token_hash = $1",
@@ -276,10 +282,15 @@ async def revoke_refresh_chain(pool: asyncpg.Pool, leaked_hash: str) -> None:
             )
             if row is None:
                 break
-            nxt = row["rotated_to"]
-            if nxt is None:
+            # Capture principal from the FIRST valid row; every token in
+            # a rotation chain shares the same (user_id, client_id) by
+            # design, so any row is representative. Capturing early means
+            # a mid-chain deletion doesn't silently drop the cascade.
+            if user_id is None:
                 user_id = row["user_id"]
                 client_id = row["client_id"]
+            nxt = row["rotated_to"]
+            if nxt is None:
                 break
             to_revoke.add(nxt)
             cursor = nxt
@@ -287,16 +298,19 @@ async def revoke_refresh_chain(pool: asyncpg.Pool, leaked_hash: str) -> None:
             "UPDATE oauth_refresh_tokens SET revoked_at = now() WHERE token_hash = ANY($1::text[]) AND revoked_at IS NULL",
             list(to_revoke),
         )
-        # Also revoke every live access token from the same client/user
-        await conn.execute(
-            """
-            UPDATE oauth_access_tokens
-               SET revoked_at = now()
-             WHERE user_id = $1 AND client_id = $2 AND revoked_at IS NULL
-            """,
-            user_id,
-            client_id,
-        )
+        # Only cascade access tokens if we actually saw at least one row
+        # in the chain. If the leaked token was never issued (user_id
+        # stays None), there's nothing to cascade.
+        if user_id is not None:
+            await conn.execute(
+                """
+                UPDATE oauth_access_tokens
+                   SET revoked_at = now()
+                 WHERE user_id = $1 AND client_id = $2 AND revoked_at IS NULL
+                """,
+                user_id,
+                client_id,
+            )
 
 
 async def revoke_refresh_token(pool: asyncpg.Pool, token_hash: str) -> None:
