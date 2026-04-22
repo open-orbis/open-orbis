@@ -219,17 +219,23 @@ _GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 async def verify_google_id_token(raw: str) -> dict:
     """Verify a Google-issued ID token and return its claims.
 
+    Checks signature, audience (via settings.google_client_id), expiry,
+    and issuer. The caller is responsible for enforcing business-logic
+    gates such as ``claims['email_verified'] is True`` before trusting
+    the email for account lookup.
+
     Raises HTTPException(401, 'invalid_id_token') on any validation
     failure (signature, audience, expiry, issuer, malformed). Raises
     HTTPException(503, 'verify_unavailable') if Google's JWKS endpoint
     is transiently unreachable — the frontend can retry on the next
     page load rather than being forced back to the sign-in page.
     """
+    req = google_requests.Request()
     try:
         claims = await asyncio.to_thread(
             google_id_token.verify_oauth2_token,
             raw,
-            google_requests.Request(),
+            req,
             settings.google_client_id,
         )
     except google_auth_exceptions.TransportError as exc:
