@@ -31,6 +31,7 @@ async def call_gemini(
     from google.genai.types import GenerateContentConfig
 
     from app.config import settings
+    from app.cv.models import GeminiExtractionOutput
 
     if timeout is None:
         timeout = settings.llm_timeout_seconds
@@ -43,13 +44,24 @@ async def call_gemini(
         location=settings.vertex_region,
     )
 
+    # CV extraction is a structured classification task. We lean on three
+    # Gemini 2.5 Pro knobs to maximise extraction quality + determinism:
+    #   - temperature=0.0: variance hurts the extraction-quality benchmark.
+    #   - response_mime_type + response_schema: force Vertex to emit JSON
+    #     matching the GeminiExtractionOutput contract — eliminates the
+    #     "Gemini wrapped the JSON in ```json fences" parse failures.
+    #   - seed: with temperature=0, pinning seed makes repeat runs on the
+    #     same input bit-identical. Useful for A/B testing prompt edits.
+    # max_output_tokens is tightened from 65k (model ceiling) to 16k —
+    # dense CVs peak around 8-12k tokens; 16k keeps headroom without
+    # letting a pathological loop burn the full ceiling.
     config = GenerateContentConfig(
         system_instruction=system_prompt,
-        max_output_tokens=65536,
-        # CV extraction is a structured classification task — variance hurts
-        # the extraction-quality benchmark. Pin temperature to 0.0 so the
-        # same CV produces the same node set across runs.
+        max_output_tokens=16384,
         temperature=0.0,
+        seed=42,
+        response_mime_type="application/json",
+        response_schema=GeminiExtractionOutput,
     )
 
     logger.info(
