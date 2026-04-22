@@ -546,7 +546,7 @@ export default function SharePanel({
                   )}
 
                   <div className="mt-3">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Hidden Node Types</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Node Types</p>
                     <div className="flex flex-wrap gap-1.5">
                       {ALL_FILTERABLE_TYPES.map((type) => {
                         const hidden = privacyHiddenTypes.has(type);
@@ -631,9 +631,9 @@ export default function SharePanel({
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
-                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                <p className="text-[10px] mt-0.5">
                                   {token.mcp_use_count > 0 ? (
-                                    <>
+                                    <span className="text-emerald-400/80">
                                       Last MCP use:{' '}
                                       {token.mcp_last_used_at
                                         ? new Date(token.mcp_last_used_at).toLocaleString(undefined, {
@@ -641,8 +641,8 @@ export default function SharePanel({
                                             timeStyle: 'short',
                                           })
                                         : '—'}{' '}
-                                      · {token.mcp_use_count} {token.mcp_use_count === 1 ? 'query' : 'queries'}
-                                    </>
+                                      · <span className="font-semibold">{token.mcp_use_count}</span> {token.mcp_use_count === 1 ? 'query' : 'queries'}
+                                    </span>
                                   ) : (
                                     <span className="italic text-gray-600">Never used via MCP</span>
                                   )}
@@ -688,7 +688,7 @@ export default function SharePanel({
                                   )}
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Node Types</p>
                                   {(token.hidden_node_types || []).length > 0 ? (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {(token.hidden_node_types || []).map((t) => (
