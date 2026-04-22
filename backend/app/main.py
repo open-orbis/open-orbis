@@ -23,6 +23,7 @@ from app.oauth.authorize_router import router as oauth_authorize_router
 from app.oauth.register_router import router as oauth_register_router
 from app.oauth.revoke_router import router as oauth_revoke_router
 from app.oauth.token_router import router as oauth_token_router
+from app.oauth.well_known_router import router as oauth_well_known_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
 from app.search.router import router as search_router
@@ -228,6 +229,8 @@ app.include_router(oauth_register_router, prefix=_API_PREFIX)
 app.include_router(oauth_authorize_router, prefix=_API_PREFIX)
 app.include_router(oauth_token_router, prefix=_API_PREFIX)
 app.include_router(oauth_revoke_router, prefix=_API_PREFIX)
+app.include_router(oauth_well_known_router, prefix=_API_PREFIX)
+app.include_router(oauth_well_known_router)
 
 # Also mount without prefix for dev (Vite proxy strips /api)
 app.include_router(auth_router)

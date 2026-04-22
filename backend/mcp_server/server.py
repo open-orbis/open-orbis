@@ -74,9 +74,29 @@ def _resolve_scope(orb_id_arg: str, token_arg: str) -> tuple[str, str]:
 
 def _build_starlette_app():
     """Return the FastMCP Starlette app wrapped with auth + rate limit."""
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
     from mcp_server.rate_limit import RateLimitMiddleware
 
+    async def oauth_protected_resource(request):
+        # MCP resource URL: use settings if in Cloud Run, else a dev default.
+        resource_url = (
+            f"{settings.cloud_run_url}/mcp"
+            if settings.cloud_run_url
+            else "http://localhost:8081/mcp"
+        )
+        return JSONResponse(
+            {
+                "resource": resource_url,
+                "authorization_servers": [settings.frontend_url.rstrip("/")],
+            }
+        )
+
     app = mcp.streamable_http_app()
+    app.routes.append(
+        Route("/.well-known/oauth-protected-resource", oauth_protected_resource)
+    )
     # Order matters: APIKeyMiddleware sets ContextVars that
     # RateLimitMiddleware reads. Starlette runs middleware in reverse
     # registration order (last added runs first), so we add

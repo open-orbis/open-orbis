@@ -88,6 +88,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         self._driver_factory = driver_factory
 
     async def dispatch(self, request: Request, call_next):
+        # Public well-known paths pass through without auth.
+        if request.url.path.startswith("/.well-known/"):
+            return await call_next(request)
+
         raw_key = request.headers.get(_HEADER) or request.headers.get(_HEADER.upper())
         if not raw_key:
             return JSONResponse(
