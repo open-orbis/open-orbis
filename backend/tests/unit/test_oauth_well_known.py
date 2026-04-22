@@ -43,6 +43,4 @@ class TestOauthAuthorizationServerMetadata:
             r1 = client.get("/.well-known/oauth-authorization-server")
             r2 = client.get("/api/.well-known/oauth-authorization-server")
         assert r1.status_code == 200
-        # /api/ mount may or may not serve depending on how well-known paths
-        # are typically treated. Accept either 200 or 404 — the KEY mount is /.
-        assert r2.status_code in (200, 404)
+        assert r2.status_code == 200

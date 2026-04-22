@@ -11,6 +11,15 @@ router = APIRouter()
 
 @router.get("/.well-known/oauth-authorization-server")
 async def oauth_authorization_server_metadata() -> dict:
+    """RFC 8414 authorization server metadata.
+
+    All endpoint URLs use `settings.frontend_url` as the base because
+    OAuth clients land on Orbis's public origin (open-orbis.com in
+    prod). That origin MUST reverse-proxy `/oauth/*` paths to the
+    backend API — both in production (Cloud Run / load balancer) and in
+    dev (Vite proxy). If this stops being true, either point the
+    metadata at the backend directly or fix the proxy.
+    """
     base = settings.frontend_url.rstrip("/")
     return {
         "issuer": base,

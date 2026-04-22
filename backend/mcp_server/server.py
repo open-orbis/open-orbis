@@ -95,7 +95,11 @@ def _build_starlette_app():
 
     app = mcp.streamable_http_app()
     app.routes.append(
-        Route("/.well-known/oauth-protected-resource", oauth_protected_resource)
+        Route(
+            "/.well-known/oauth-protected-resource",
+            oauth_protected_resource,
+            methods=["GET"],
+        )
     )
     # Order matters: APIKeyMiddleware sets ContextVars that
     # RateLimitMiddleware reads. Starlette runs middleware in reverse
