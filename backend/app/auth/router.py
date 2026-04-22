@@ -168,7 +168,9 @@ async def _upsert_google_person(db: AsyncDriver, claims: dict) -> dict:
     build response payloads without repeating the derivation logic.
     """
     user_id = f"google-{claims['sub']}"
-    email = claims["email"]
+    email = claims.get("email") or ""
+    if not email:
+        raise HTTPException(status_code=401, detail="invalid_id_token")
     name = claims.get("name", "")
     picture = claims.get("picture", "")
     person_info = await _get_or_create_person(

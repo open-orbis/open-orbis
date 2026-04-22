@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { getMe, googleLogin, linkedinLogin, logoutBackend, type UserInfo } from '../api/auth';
+import { SILENT_REAUTH_JUST_LOGGED_OUT_KEY } from '../auth/silentReauth';
 
 interface AuthState {
   user: UserInfo | null;
@@ -40,7 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // sentinel from an earlier logout in the same tab — otherwise a
       // subsequent silent re-auth after session expiry would be blocked.
       if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.removeItem('orbis.just_logged_out');
+        sessionStorage.removeItem(SILENT_REAUTH_JUST_LOGGED_OUT_KEY);
       }
       set({ user, loading: false });
     } catch {
@@ -54,7 +55,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { user } = await linkedinLogin(code);
       if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.removeItem('orbis.just_logged_out');
+        sessionStorage.removeItem(SILENT_REAUTH_JUST_LOGGED_OUT_KEY);
       }
       set({ user, loading: false });
     } catch {
@@ -74,7 +75,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // just explicitly tore down. Cleared on next successful login, or
     // when the tab closes.
     if (typeof sessionStorage !== 'undefined') {
-      sessionStorage.setItem('orbis.just_logged_out', '1');
+      sessionStorage.setItem(SILENT_REAUTH_JUST_LOGGED_OUT_KEY, '1');
     }
     set({ user: null, loading: false });
   },

@@ -48,7 +48,7 @@ client.interceptors.response.use(
     // /auth/me is also excluded: a 401 on the initial session probe simply
     // means the user is not logged in, not that a session expired.
     const url = original.url || '';
-    if (url.startsWith('/auth/refresh') || url.startsWith('/auth/logout') || url.startsWith('/auth/me')) {
+    if (url.startsWith('/auth/refresh') || url.startsWith('/auth/logout') || url.startsWith('/auth/me') || url.startsWith('/auth/google-id-token')) {
       return Promise.reject(error);
     }
 
