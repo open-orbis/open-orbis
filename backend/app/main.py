@@ -71,6 +71,7 @@ async def cleanup_expired_accounts() -> int:
     """
     from app.cv_storage.storage import delete_all_for_user as delete_stored_cvs
     from app.drafts.db import delete_all_for_user as delete_user_drafts
+    from app.oauth.db import cascade_delete_user_oauth
     from app.snapshots.db import delete_all_for_user as delete_user_snapshots
 
     driver = await get_driver()
@@ -106,6 +107,18 @@ async def cleanup_expired_accounts() -> int:
                 await delete_user_drafts(user_id)
             with contextlib.suppress(Exception):
                 await delete_user_snapshots(user_id)
+            if settings.database_url:
+                try:
+                    from app.db.postgres import get_pool
+
+                    pg_pool = await get_pool()
+                    await cascade_delete_user_oauth(pg_pool, user_id)
+                except Exception as exc:
+                    logger.warning(
+                        "cleanup_expired_accounts: OAuth cascade delete failed for %s: %s",
+                        user_id,
+                        exc,
+                    )
 
     if expired:
         logger.info("Cleaned up %d expired account(s)", len(expired))

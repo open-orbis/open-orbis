@@ -125,9 +125,18 @@ async def list_share_tokens(db: AsyncDriver, user_id: str) -> list[dict]:
 
 
 async def revoke_share_token(
-    db: AsyncDriver, user_id: str, token_id: str
+    db: AsyncDriver,
+    user_id: str,
+    token_id: str,
+    *,
+    pg_pool=None,
 ) -> dict | None:
-    """Revoke a share token.  Returns the token dict or ``None``."""
+    """Revoke a share token.  Returns the token dict or ``None``.
+
+    If ``pg_pool`` is provided, OAuth access + refresh tokens bound to this
+    share token are cascade-revoked as well, so a user revoking their
+    share token also terminates any AI client connections that used it.
+    """
     async with db.session() as session:
         result = await session.run(
             REVOKE_SHARE_TOKEN, user_id=user_id, token_id=token_id
@@ -135,7 +144,14 @@ async def revoke_share_token(
         record = await result.single()
         if record is None:
             return None
-        return _sanitize(dict(record["st"]))
+        out = _sanitize(dict(record["st"]))
+
+    if pg_pool is not None:
+        from app.oauth.db import cascade_revoke_oauth_by_share_token
+
+        await cascade_revoke_oauth_by_share_token(pg_pool, token_id)
+
+    return out
 
 
 async def delete_share_token(db: AsyncDriver, user_id: str, token_id: str) -> bool:

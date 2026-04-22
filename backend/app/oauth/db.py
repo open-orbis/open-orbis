@@ -327,3 +327,41 @@ async def ensure_oauth_schema(pool: asyncpg.Pool) -> None:
     ddl = schema_path.read_text(encoding="utf-8")
     async with pool.acquire() as conn:
         await conn.execute(ddl)
+
+
+async def cascade_revoke_oauth_by_share_token(pool, share_token_id: str) -> None:
+    """Revoke every OAuth access + refresh token bound to this share token.
+
+    Called when the share token itself is revoked (e.g. user clicks Revoke
+    in the Share panel). The OAuth grant is no longer meaningful without
+    the share context it was bound to.
+    """
+    async with pool.acquire() as conn, conn.transaction():
+        await conn.execute(
+            "UPDATE oauth_access_tokens SET revoked_at = now() "
+            "WHERE share_token_id = $1 AND revoked_at IS NULL",
+            share_token_id,
+        )
+        await conn.execute(
+            "UPDATE oauth_refresh_tokens SET revoked_at = now() "
+            "WHERE share_token_id = $1 AND revoked_at IS NULL",
+            share_token_id,
+        )
+
+
+async def cascade_delete_user_oauth(pool, user_id: str) -> None:
+    """Delete every OAuth artifact belonging to this user.
+
+    Called from the user-deletion cleanup path. Access tokens, refresh
+    tokens, and any remaining authorization codes are all purged.
+    """
+    async with pool.acquire() as conn, conn.transaction():
+        await conn.execute(
+            "DELETE FROM oauth_access_tokens WHERE user_id = $1", user_id
+        )
+        await conn.execute(
+            "DELETE FROM oauth_refresh_tokens WHERE user_id = $1", user_id
+        )
+        await conn.execute(
+            "DELETE FROM oauth_authorization_codes WHERE user_id = $1", user_id
+        )
