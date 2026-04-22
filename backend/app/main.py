@@ -125,9 +125,11 @@ async def lifespan(app: FastAPI):
 
         from app.cv.jobs_db import cleanup_expired_jobs, ensure_table
         from app.ideas.db import ensure_source_column
+        from app.oauth.db import ensure_oauth_schema
 
         await ensure_table()
         await ensure_source_column()
+        await ensure_oauth_schema(await get_pool())
         expired = await cleanup_expired_jobs()
         if expired:
             logger.info("Cleaned up %d expired CV jobs", expired)
