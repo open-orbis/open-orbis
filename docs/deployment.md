@@ -251,6 +251,24 @@ If any of the above goes wrong mid-flight, rolling back is always "put the old k
 | `GOOGLE_CLIENT_ID` | — | Google OAuth (not yet active) |
 | `GOOGLE_CLIENT_SECRET` | — | Google OAuth (not yet active) |
 
+### OAuth 2.1 authorization server
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `OAUTH_ENABLED` | `true` | Kill switch. Set to `false` to return `503` on all `/oauth/*` routes and skip the `Authorization: Bearer oauth_` branch in the MCP server. Useful for staged rollouts or emergency disablement. |
+| `OAUTH_ACCESS_TOKEN_TTL_SECONDS` | `3600` | Lifetime of issued access tokens (seconds). |
+| `OAUTH_REFRESH_TOKEN_TTL_SECONDS` | `2592000` | Lifetime of issued refresh tokens (seconds; default 30 days). |
+| `OAUTH_AUTHORIZATION_CODE_TTL_SECONDS` | `300` | Lifetime of authorization codes (seconds; default 5 minutes). |
+| `OAUTH_REGISTER_RATE_LIMIT` | `"10/day"` | SlowAPI rate-limit string for `POST /oauth/register` per client IP. |
+
+### Frontend proxy requirements
+
+The OAuth authorization server and discovery endpoints are served by the FastAPI backend but must be reachable from the frontend origin (the same domain users interact with). There are two contexts where this matters:
+
+**Development (Vite dev server):** `frontend/vite.config.ts` already proxies `/oauth/*` and `/.well-known/*` to `http://localhost:8000`. Do not remove these proxy rules — without them the browser's same-origin policy will block the consent page and discovery requests.
+
+**Production (Cloud Run + Firebase Hosting):** Configure your Firebase Hosting rewrite rules (or your CDN/reverse-proxy) to forward `/oauth/*` and `/.well-known/*` to the Cloud Run backend service. If these paths are served only from the Cloud Run URL (different origin than the frontend), the RFC 8414 `issuer` in the discovery document must reflect the backend URL, and you will need to update `OAUTH_ISSUER` accordingly. The simplest production setup is a single-origin reverse proxy that forwards all traffic to the backend, with static assets handled separately.
+
 ## MCP Server
 
 The MCP server runs as a separate process:

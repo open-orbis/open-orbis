@@ -716,6 +716,26 @@
   next_state: ADMIN
   fallback_on_failure: null
 
+# ── Connected AI ──
+
+- id: MYORBIS_OPEN_CONNECTED_AI
+  from_state: ORB_VIEW
+  action: Click "Connected AI" in UserMenu dropdown
+  selector_or_control: "avatar dropdown > Connected AI"
+  preconditions: [authenticated]
+  expected_effect: Navigates to /myorbis/connected-ai
+  next_state: CONNECTED_AI_PAGE
+  fallback_on_failure: null
+
+- id: CONNECTED_AI_REVOKE
+  from_state: CONNECTED_AI_PAGE
+  action: Click "Revoke" on an active OAuth grant row
+  selector_or_control: "Revoke button per grant row"
+  preconditions: [authenticated, grant_exists]
+  expected_effect: Calls DELETE /api/oauth/grants/{client_id}, removes the grant and its tokens, refreshes the list
+  next_state: CONNECTED_AI_PAGE (grant removed)
+  fallback_on_failure: Toast "Failed to revoke access"
+
 # ── User Menu CVs ──
 
 - id: USER_MENU_VIEW_CVS

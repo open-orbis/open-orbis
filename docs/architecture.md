@@ -43,7 +43,7 @@ Middleware stack (outermost first):
 
 | Module | Responsibility |
 |--------|---------------|
-| `auth/` | JWT creation/validation, OAuth (Google/LinkedIn), GDPR consent, account deletion, MCP API keys, refresh tokens |
+| `auth/` | JWT creation/validation, OAuth (Google/LinkedIn), GDPR consent, account deletion, MCP API keys, refresh tokens, OAuth 2.1 authorization server (DCR, authorize, token, revoke, grants), OAuth PostgreSQL DAL |
 | `cv/` | PDF text extraction, LLM classification with fallback chain, graph persistence, Cloud Tasks dispatch (`cloud_tasks.py`), background job state (`jobs_db.py`), job router (`jobs_router.py`) |
 | `graph/` | Neo4j driver singleton, all Cypher queries, Fernet encryption, embedding generation |
 | `orbs/` | Graph CRUD (nodes, relationships, profile), share tokens, access grants, connection requests, visibility management |
@@ -188,6 +188,8 @@ Overlays in the frontend share a conscious stacking scale — pick the right tie
 | `/auth/linkedin/callback` | LinkedInCallbackPage | Public |
 | `/create` | CreateOrbPage | Required |
 | `/myorbis` | OrbViewPage | Required |
+| `/myorbis/connected-ai` | ConnectedAiPage | Required |
+| `/oauth/authorize` | OAuthConsentPage | Public (redirects to login if unauthenticated) |
 | `/cv-export` | CvExportPage | Required |
 | `/privacy` | PrivacyPolicyPage | Public |
 | `/activate` | ActivatePage | Required (not activated) |
@@ -200,16 +202,19 @@ Separate process (`python -m mcp_server.server`) exposing 5 tools via streamable
 
 ### Authentication
 
-All MCP requests require an `X-MCP-Key` header. Missing or invalid key returns 401 before reaching any tool.
+All MCP requests require either an `X-MCP-Key` header or an `Authorization: Bearer` header carrying an OAuth access token. Missing or invalid credentials return 401 before reaching any tool.
 
-**Transport auth** accepts two credential types on the same `X-MCP-Key` header, discriminated by prefix:
+**Transport auth** supports three credential modes, resolved in order by `APIKeyMiddleware`:
 
-- `orbk_...` — resolves to a `user_id` via `app.auth.mcp_keys`. Used by the orb owner connecting their own AI agent. Full access to the owner's orb; visibility filtering at the tool layer for public orbs.
-- `orbs_...` — resolves to a `ShareContext(orb_id, keywords, hidden_node_types, token_id)` via `app.orbs.share_token.validate_share_token_for_mcp`. Scoped to one orb; filters auto-applied.
+- `orbk_...` (`X-MCP-Key`) — resolves to a `user_id` via `app.auth.mcp_keys`. Used by the orb owner connecting their own AI agent. Full access to the owner's orb; visibility filtering at the tool layer for public orbs.
+- `orbs_...` (`X-MCP-Key`) — resolves to a `ShareContext(orb_id, keywords, hidden_node_types, token_id)` via `app.orbs.share_token.validate_share_token_for_mcp`. Scoped to one orb; filters auto-applied.
+- `oauth_...` (`Authorization: Bearer`) — resolves via the `oauth_access_tokens` PostgreSQL table. When the grant was issued in `restricted` access mode the associated `share_token_id` is loaded from Neo4j to rebuild the `ShareContext`; filters are applied exactly as for `orbs_...` credentials. Full-mode grants behave like `orbk_...`.
 
-Per-credential rate limits (`mcp_server/rate_limit.py`): 300/min for user keys, 120/min for share tokens. Share-mode requests also trigger a fire-and-forget `increment_mcp_use` Cypher update so the owner sees `mcp_use_count` / `mcp_last_used_at` on each token in the Share panel.
+Per-credential rate limits (`mcp_server/rate_limit.py`): 300/min for user keys, 120/min for share tokens and OAuth tokens. Share-mode requests also trigger a fire-and-forget `increment_mcp_use` Cypher update so the owner sees `mcp_use_count` / `mcp_last_used_at` on each token in the Share panel.
 
-For the full design rationale see `docs/superpowers/specs/2026-04-21-mcp-share-token-auth-design.md`.
+**Storage split:** OAuth grant state (clients, codes, access tokens, refresh tokens) lives entirely in PostgreSQL (`oauth_*` tables — see `docs/database.md`). The share-token filters that the middleware layers on top of restricted OAuth grants are stored in Neo4j (`ShareToken` nodes). The two stores are joined lazily at request time: the OAuth DAL reads `share_token_id` from PostgreSQL, then the MCP middleware fetches the corresponding Neo4j node to reconstruct the filter context.
+
+For the full design rationale see `docs/superpowers/specs/2026-04-21-mcp-share-token-auth-design.md` and `docs/superpowers/specs/2026-04-21-mcp-oauth-authorization-design.md`.
 
 ### Access Control
 
