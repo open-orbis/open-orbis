@@ -66,6 +66,14 @@ describe('trySilentReauth — FedCM path', () => {
 
     vi.restoreAllMocks();
   });
+
+  it('short-circuits when orbis.just_logged_out is set', async () => {
+    sessionStorage.setItem('orbis.just_logged_out', '1');
+    stubFedCM('should.not.be.used');
+    const ok = await trySilentReauth();
+    expect(ok).toBe(false);
+    expect(googleIdTokenLogin).not.toHaveBeenCalled();
+  });
 });
 
 describe('trySilentReauth — One Tap fallback', () => {
