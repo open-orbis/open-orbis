@@ -720,8 +720,8 @@
 
 - id: MYORBIS_OPEN_CONNECTED_AI
   from_state: ORB_VIEW
-  action: Click "Connected AI" in UserMenu dropdown
-  selector_or_control: "avatar dropdown > Connected AI"
+  action: Click "Connected AI clients" in UserMenu dropdown (Account section)
+  selector_or_control: "avatar dropdown > Connected AI clients"
   preconditions: [authenticated]
   expected_effect: Navigates to /myorbis/connected-ai
   next_state: CONNECTED_AI_PAGE

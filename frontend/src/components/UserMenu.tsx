@@ -175,6 +175,15 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
                   <span className="flex-1 text-left">Account settings</span>
                 </button>
                 <button
+                  onClick={() => { setOpen(false); navigate('/myorbis/connected-ai'); }}
+                  className="group w-full h-10 flex items-center gap-3 px-2.5 rounded-lg text-sm text-white/75 hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 transition-colors cursor-pointer"
+                >
+                  <svg className="w-4 h-4 text-white/45 group-hover:text-purple-300 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="flex-1 text-left">Connected AI clients</span>
+                </button>
+                <button
                   onClick={() => setShowCVs((v) => !v)}
                   className="group w-full h-10 flex items-center gap-3 px-2.5 rounded-lg text-sm text-white/75 hover:bg-white/8 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 transition-colors cursor-pointer"
                 >
