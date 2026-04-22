@@ -18,6 +18,7 @@ import AuthenticatedRoute from './components/AuthenticatedRoute';
 import AdminPage from './pages/AdminPage';
 import ActivatePage from './pages/ActivatePage';
 import ConsentPage from './pages/ConsentPage';
+import ConnectedAiClientsPage from './pages/ConnectedAiClientsPage';
 
 const scrollPositions: Record<string, number> = {};
 
@@ -70,6 +71,7 @@ function AppRoutes() {
       <Route path="/auth/linkedin/callback" element={<LinkedInCallbackPage />} />
       <Route path="/create" element={<ProtectedRoute><CreateOrbPage /></ProtectedRoute>} />
       <Route path="/myorbis" element={<ProtectedRoute><OrbViewPage /></ProtectedRoute>} />
+      <Route path="/myorbis/connected-ai" element={<ProtectedRoute><ConnectedAiClientsPage /></ProtectedRoute>} />
       <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
       <Route path="/activate" element={<AuthenticatedRoute><ActivatePage /></AuthenticatedRoute>} />
