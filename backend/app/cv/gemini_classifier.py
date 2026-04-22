@@ -46,6 +46,10 @@ async def call_gemini(
     config = GenerateContentConfig(
         system_instruction=system_prompt,
         max_output_tokens=65536,
+        # CV extraction is a structured classification task — variance hurts
+        # the extraction-quality benchmark. Pin temperature to 0.0 so the
+        # same CV produces the same node set across runs.
+        temperature=0.0,
     )
 
     logger.info(
