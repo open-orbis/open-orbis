@@ -49,9 +49,9 @@ describe('ChatBox action buttons', () => {
         onConnectedAi={() => {}}
       />,
     );
-    const share = screen.getByTitle('Share');
+    const share = screen.getByRole('button', { name: /share visibility/i });
     const robot = screen.getByRole('button', { name: /connected ai clients/i });
-    const add = screen.getByTitle('Add Entry');
+    const add = screen.getByRole('button', { name: /^add entry$/i });
     const order = [share, robot, add].map((el) =>
       Array.from(el.parentElement!.children).indexOf(el),
     );
