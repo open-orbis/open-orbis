@@ -76,6 +76,30 @@ describe('trySilentReauth — FedCM path', () => {
   });
 });
 
+describe('trySilentReauth — kill switch', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+    _resetModuleState();
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    unstubFedCM();
+    vi.unstubAllEnvs();
+  });
+
+  it('short-circuits when VITE_SILENT_REAUTH_ENABLED=false', async () => {
+    vi.stubEnv('VITE_SILENT_REAUTH_ENABLED', 'false');
+    stubFedCM('ignored.token');
+    const ok = await trySilentReauth();
+    expect(ok).toBe(false);
+    expect(googleIdTokenLogin).not.toHaveBeenCalled();
+  });
+});
+
 describe('trySilentReauth — One Tap fallback', () => {
   beforeEach(() => {
     vi.resetAllMocks();

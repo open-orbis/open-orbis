@@ -5,6 +5,9 @@ const JUST_LOGGED_OUT_KEY = 'orbis.just_logged_out';
 let inFlight: Promise<boolean> | null = null;
 
 export async function trySilentReauth(): Promise<boolean> {
+  if (import.meta.env.VITE_SILENT_REAUTH_ENABLED === 'false') {
+    return false;
+  }
   if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(JUST_LOGGED_OUT_KEY)) {
     return false;
   }
