@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { listGrants, revokeGrant, type OAuthGrant } from '../api/oauth';
 import { useToastStore } from '../stores/toastStore';
@@ -16,6 +16,8 @@ export default function ConnectedAiClientsModal({ open, onClose }: Props) {
   const [revoking, setRevoking] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { addToast } = useToastStore();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   async function copyEndpoint() {
     await navigator.clipboard.writeText(MCP_URL);
@@ -34,8 +36,27 @@ export default function ConnectedAiClientsModal({ open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
+    closeRef.current?.focus();
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !dialogRef.current) return;
+      const focusables = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -67,6 +88,7 @@ export default function ConnectedAiClientsModal({ open, onClose }: Props) {
             onClick={onClose}
           />
           <motion.div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="Connected AI clients"
@@ -86,10 +108,11 @@ export default function ConnectedAiClientsModal({ open, onClose }: Props) {
                 </p>
               </div>
               <button
+                ref={closeRef}
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="text-white/30 hover:text-white/70 transition-colors shrink-0 ml-3"
+                className="text-white/30 hover:text-white/70 transition-colors shrink-0 ml-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 rounded"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

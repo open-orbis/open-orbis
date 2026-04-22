@@ -265,9 +265,25 @@ If any of the above goes wrong mid-flight, rolling back is always "put the old k
 
 The OAuth authorization server and discovery endpoints are served by the FastAPI backend but must be reachable from the frontend origin (the same domain users interact with). There are two contexts where this matters:
 
-**Development (Vite dev server):** `frontend/vite.config.ts` already proxies `/oauth/*` and `/.well-known/*` to `http://localhost:8000`. Do not remove these proxy rules — without them the browser's same-origin policy will block the consent page and discovery requests.
+**Development (Vite dev server):** `frontend/vite.config.ts` proxies `/api/*`, `/.well-known/*`, `/oauth/register`, `/oauth/token`, and `/oauth/revoke` to `http://localhost:8000`. **`/oauth/authorize` is intentionally NOT proxied** — it's an HTML consent page served by the SPA (`ConsentPage` React component). Removing any of the proxied routes breaks AI-client discovery and the OAuth token flow.
 
-**Production (Cloud Run + Firebase Hosting):** Configure your Firebase Hosting rewrite rules (or your CDN/reverse-proxy) to forward `/oauth/*` and `/.well-known/*` to the Cloud Run backend service. If these paths are served only from the Cloud Run URL (different origin than the frontend), the RFC 8414 `issuer` in the discovery document must reflect the backend URL, and you will need to update `OAUTH_ISSUER` accordingly. The simplest production setup is a single-origin reverse proxy that forwards all traffic to the backend, with static assets handled separately.
+**Production (reverse-proxy routing):** Your frontend origin (Firebase Hosting / CDN / LB) must apply path-based routing:
+- `/oauth/authorize` → frontend (HTML consent page served by the SPA)
+- `/oauth/register`, `/oauth/token`, `/oauth/revoke` → backend (JSON OAuth endpoints)
+- `/.well-known/oauth-authorization-server` → backend (RFC 8414 discovery)
+- `/api/*` → backend (authenticated app API)
+
+If you can't do path-based routing on the frontend origin, the alternative is to expose the backend under a separate host (`api.<domain>`) and update the discovery metadata to advertise those endpoints directly — but you must still serve `/oauth/authorize` on the origin users log into, otherwise the consent page won't have access to the browser's session cookie.
+
+### Frontend build-time variables
+
+The frontend build bakes the MCP endpoint URL into the bundle. If it's unset, the Connected AI modal and share-token "Copy MCP config" buttons will copy the dev default (`http://localhost:8081/mcp`) — useless for cloud AI clients. Set this at build time (e.g. in your Dockerfile, Cloud Build, or Firebase deploy step):
+
+| Variable | Example | Purpose |
+|----------|---------|---------|
+| `VITE_MCP_URL` | `https://mcp.yourdomain.com/mcp` | MCP server public endpoint that AI clients paste into their connector config. |
+| `VITE_API_URL` | (usually unset — defaults to `/api`) | Backend API origin if not same-origin with the frontend. |
+| `VITE_GOOGLE_CLIENT_ID` | `...apps.googleusercontent.com` | Google OAuth client ID for user sign-in. |
 
 ## MCP Server
 

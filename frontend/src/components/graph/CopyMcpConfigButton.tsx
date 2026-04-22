@@ -137,6 +137,17 @@ export function CopyMcpConfigButton({ tokenId, label, onCopied }: Props) {
                 </button>
               </div>
 
+              {/* Disambiguation vs. OAuth-based Connect (robot button) */}
+              <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] p-3 mb-4 text-[11px] text-cyan-100/75 leading-relaxed">
+                <strong className="text-cyan-200">Share-token mode.</strong>{' '}
+                This snippet uses a long-lived API key ({' '}
+                <code className="text-cyan-200 bg-black/30 px-1 rounded">X-MCP-Key</code>
+                {' '}) scoped to this share token's filters — best for testing or
+                single-use integrations. For ChatGPT / Cursor / Claude Code with
+                per-user OAuth consent and revocable tokens, close this dialog
+                and use the 🤖 button in the search bar instead.
+              </div>
+
               {/* Compatible clients */}
               <p className="text-[10px] uppercase tracking-[0.14em] text-white/30 font-semibold mb-2">
                 Compatible with
