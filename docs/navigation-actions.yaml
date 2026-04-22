@@ -720,20 +720,20 @@
 
 - id: MYORBIS_OPEN_CONNECTED_AI
   from_state: ORB_VIEW
-  action: Click "Connected AI clients" in UserMenu dropdown (Account section)
-  selector_or_control: "avatar dropdown > Connected AI clients"
+  action: Click the cyan robot-icon button in the ChatBox action strip (right of the share button)
+  selector_or_control: "ChatBox action buttons > robot icon (aria-label=Connected AI clients)"
   preconditions: [authenticated]
-  expected_effect: Navigates to /myorbis/connected-ai
-  next_state: CONNECTED_AI_PAGE
+  expected_effect: Opens the Connected AI clients modal (overlays the orb view — no navigation)
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL
   fallback_on_failure: null
 
 - id: CONNECTED_AI_REVOKE
-  from_state: CONNECTED_AI_PAGE
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
   action: Click "Revoke" on an active OAuth grant row
   selector_or_control: "Revoke button per grant row"
   preconditions: [authenticated, grant_exists]
   expected_effect: Calls DELETE /api/oauth/grants/{client_id}, removes the grant and its tokens, refreshes the list
-  next_state: CONNECTED_AI_PAGE (grant removed)
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (grant removed)
   fallback_on_failure: Toast "Failed to revoke access"
 
 # ── User Menu CVs ──

@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import ConnectedAiClientsPage from './ConnectedAiClientsPage';
+import ConnectedAiClientsModal from './ConnectedAiClientsModal';
 
 vi.mock('../api/oauth');
 vi.mock('../stores/toastStore', () => ({
@@ -10,18 +9,17 @@ vi.mock('../stores/toastStore', () => ({
 
 import { listGrants, revokeGrant } from '../api/oauth';
 
-function renderPage() {
-  return render(
-    <MemoryRouter>
-      <ConnectedAiClientsPage />
-    </MemoryRouter>
-  );
-}
-
-describe('ConnectedAiClientsPage', () => {
+describe('ConnectedAiClientsModal', () => {
   beforeEach(() => vi.resetAllMocks());
 
-  it('renders loading state then grant list', async () => {
+  it('renders nothing when closed', () => {
+    (listGrants as any).mockResolvedValue({ grants: [] });
+    render(<ConnectedAiClientsModal open={false} onClose={() => {}} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(listGrants).not.toHaveBeenCalled();
+  });
+
+  it('shows loading state then grant list when opened', async () => {
     (listGrants as any).mockResolvedValue({
       grants: [
         {
@@ -34,7 +32,7 @@ describe('ConnectedAiClientsPage', () => {
         },
       ],
     });
-    renderPage();
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
     expect(screen.getByText(/Loading/)).toBeInTheDocument();
     await waitFor(() => screen.getByText('ChatGPT'));
     expect(screen.getByText(/Full access/)).toBeInTheDocument();
@@ -42,7 +40,7 @@ describe('ConnectedAiClientsPage', () => {
 
   it('renders empty state when no grants', async () => {
     (listGrants as any).mockResolvedValue({ grants: [] });
-    renderPage();
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
     await waitFor(() => screen.getByText(/Nothing connected yet/));
   });
 
@@ -59,7 +57,7 @@ describe('ConnectedAiClientsPage', () => {
         },
       ],
     });
-    renderPage();
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
     await waitFor(() => screen.getByText('Cursor'));
     expect(screen.getByText(/Restricted: Recruiter view/)).toBeInTheDocument();
   });
@@ -78,7 +76,7 @@ describe('ConnectedAiClientsPage', () => {
       ],
     });
     (revokeGrant as any).mockResolvedValue(undefined);
-    renderPage();
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
     await waitFor(() => screen.getByText('ChatGPT'));
     fireEvent.click(screen.getByText(/^Revoke$/));
     await waitFor(() => expect(revokeGrant).toHaveBeenCalledWith('c-1'));
@@ -87,7 +85,17 @@ describe('ConnectedAiClientsPage', () => {
 
   it('renders error state when listGrants fails', async () => {
     (listGrants as any).mockRejectedValue({ response: { data: { detail: 'boom' } } });
-    renderPage();
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
     await waitFor(() => screen.getByText(/boom/));
+  });
+
+  it('fires onClose when backdrop is clicked', async () => {
+    (listGrants as any).mockResolvedValue({ grants: [] });
+    const onClose = vi.fn();
+    const { container } = render(<ConnectedAiClientsModal open onClose={onClose} />);
+    await waitFor(() => screen.getByText(/Nothing connected yet/));
+    const backdrop = container.querySelector('.bg-black\\/60') as HTMLElement;
+    fireEvent.click(backdrop);
+    expect(onClose).toHaveBeenCalled();
   });
 });

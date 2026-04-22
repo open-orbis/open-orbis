@@ -36,7 +36,6 @@ stateDiagram-v2
     state "Privacy (/privacy)" as PRIVACY
     state "Activate (/activate)" as ACTIVATION
     state "Admin Dashboard (/admin)" as ADMIN
-    state "Connected AI (/myorbis/connected-ai)" as CONNECTED_AI_PAGE
 
     %% ── Auth flows ──
     LANDING --> AUTH_CALLBACK: Google Sign In
@@ -57,9 +56,7 @@ stateDiagram-v2
     ORB_VIEW --> ADMIN: UserMenu > Admin Dashboard (admin only)
     ADMIN --> ORB_VIEW: Navigate back
 
-    %% ── Connected AI ──
-    ORB_VIEW --> CONNECTED_AI_PAGE: UserMenu > Connected AI
-    CONNECTED_AI_PAGE --> ORB_VIEW: Navigate back
+    %% ── Connected AI modal (overlays ORB_VIEW; no route change) ──
 
     %% ── Consent gate ──
     CREATE --> CONSENT_GATE: No GDPR consent
@@ -220,7 +217,7 @@ flowchart TD
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
 | `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Checks activation status on mount — if already activated, redirects immediately. Admins bypass. |
 | `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users (with Approve/Approve all), beta config toggle, CV Jobs tab, Feedback tab, OAuth clients tab |
-| `CONNECTED_AI_PAGE` | `/myorbis/connected-ai` | Yes | Lists active OAuth grants for the current user with client name and access mode. Each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
+| `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Lists active OAuth grants for the current user with client name and access mode. Opened from the cyan robot-icon button in the ChatBox action strip. Each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
 | `FEEDBACK_MODAL` | (modal on ORB_VIEW) | Yes | Send Feedback modal opened from above-ChatBox button. Submits to `/ideas` with `source=feedback`. |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |

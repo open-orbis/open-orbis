@@ -19,6 +19,7 @@ interface ChatBoxProps {
   onMessagesChange: (msgs: ChatMessage[]) => void;
   onAdd?: () => void;
   onShare?: () => void;
+  onConnectedAi?: () => void;
   onDiscover?: () => void;
   highlightAdd?: boolean;
   placeholder?: string;
@@ -92,6 +93,7 @@ export default function ChatBox({
   onMessagesChange,
   onAdd,
   onShare,
+  onConnectedAi,
   onDiscover,
   highlightAdd,
   placeholder = 'Query your orbis...',
@@ -484,7 +486,7 @@ export default function ChatBox({
         </form>
 
         {/* Action buttons */}
-        {(onAdd || onShare) && (
+        {(onAdd || onShare || onConnectedAi) && (
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {onShare && (
               <button
@@ -495,6 +497,19 @@ export default function ChatBox({
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+            )}
+            {onConnectedAi && (
+              <button
+                data-tour="connected-ai"
+                onClick={onConnectedAi}
+                className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border bg-cyan-600/80 hover:bg-cyan-500 border-cyan-500/35 hover:border-cyan-400/55 shadow-cyan-600/25 text-white/90 hover:text-white transition-all shadow-lg"
+                title="Connected AI clients"
+                aria-label="Connected AI clients"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 2v3M8 9h8M7 9a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2M9 14h.01M15 14h.01M10 18h4" />
                 </svg>
               </button>
             )}

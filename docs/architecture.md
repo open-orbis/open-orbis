@@ -188,7 +188,6 @@ Overlays in the frontend share a conscious stacking scale — pick the right tie
 | `/auth/linkedin/callback` | LinkedInCallbackPage | Public |
 | `/create` | CreateOrbPage | Required |
 | `/myorbis` | OrbViewPage | Required |
-| `/myorbis/connected-ai` | ConnectedAiPage | Required |
 | `/oauth/authorize` | OAuthConsentPage | Public (redirects to login if unauthenticated) |
 | `/cv-export` | CvExportPage | Required |
 | `/privacy` | PrivacyPolicyPage | Public |

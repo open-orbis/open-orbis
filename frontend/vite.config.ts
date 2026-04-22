@@ -11,10 +11,6 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
-      '/oauth': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
       '/.well-known': {
         target: 'http://localhost:8000',
         changeOrigin: true,
