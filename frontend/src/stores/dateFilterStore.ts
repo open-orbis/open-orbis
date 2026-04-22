@@ -82,12 +82,17 @@ function nodeIsInRange(
  * Logic:
  * 1. If range is null, return empty set (no filtering).
  * 2. Dated nodes outside the range → filtered.
- * 3. Dateless nodes (Skill, Language) are always visible.
+ * 3. Dateless nodes (Skill, Language, etc.) are visible iff at least one
+ *    directly-linked dated neighbor overlaps the range. A dateless node
+ *    with zero dated neighbors — or whose dated neighbors are all out of
+ *    range — is filtered. Link walk is one-hop only (a dateless neighbor
+ *    is never considered "reachable"), which keeps the computation O(N+E)
+ *    and matches the "the skill is active in this timeframe" intuition.
  * 4. Person node is never filtered.
  */
 export function computeDateFilteredNodeIds(
   nodes: Array<Record<string, unknown>>,
-  _links: Array<{ source: string; target: string }>,
+  links: Array<{ source: string; target: string }>,
   rangeStart: string | null,
   rangeEnd: string | null,
   boundsMin?: string | null,
@@ -98,7 +103,11 @@ export function computeDateFilteredNodeIds(
   if (boundsMin && boundsMax && rangeStart <= boundsMin && rangeEnd >= boundsMax) return new Set();
 
   const outOfRangeIds = new Set<string>();
+  const datelessIds: string[] = [];
+  const datedInRangeIds = new Set<string>();
 
+  // First pass — dated nodes. Dateless nodes are deferred to the second pass
+  // once we know which dated nodes are in range.
   for (const node of nodes) {
     const uid = node.uid as string;
     const labels = node._labels as string[] | undefined;
@@ -107,13 +116,42 @@ export function computeDateFilteredNodeIds(
     if (labels?.[0] === 'Person') continue;
 
     const dates = getNodeDates(node);
-    // Dateless nodes are hidden when slider is not at full range
     if (dates.length === 0) {
-      outOfRangeIds.add(uid);
+      datelessIds.push(uid);
       continue;
     }
 
-    if (!nodeIsInRange(node, rangeStart, rangeEnd)) {
+    if (nodeIsInRange(node, rangeStart, rangeEnd)) {
+      datedInRangeIds.add(uid);
+    } else {
+      outOfRangeIds.add(uid);
+    }
+  }
+
+  if (datelessIds.length === 0) return outOfRangeIds;
+
+  // Second pass — for each dateless node, check if any one-hop neighbor is
+  // a dated node that's in range. If yes, keep it visible; otherwise filter.
+  const neighborsByUid = new Map<string, string[]>();
+  for (const { source, target } of links) {
+    let outA = neighborsByUid.get(source);
+    if (!outA) {
+      outA = [];
+      neighborsByUid.set(source, outA);
+    }
+    outA.push(target);
+    let outB = neighborsByUid.get(target);
+    if (!outB) {
+      outB = [];
+      neighborsByUid.set(target, outB);
+    }
+    outB.push(source);
+  }
+
+  for (const uid of datelessIds) {
+    const neighbors = neighborsByUid.get(uid);
+    const hasVisibleDatedNeighbor = neighbors?.some((nb) => datedInRangeIds.has(nb)) ?? false;
+    if (!hasVisibleDatedNeighbor) {
       outOfRangeIds.add(uid);
     }
   }
