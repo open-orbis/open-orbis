@@ -63,7 +63,9 @@ class TestRegisterClient:
         body = resp.json()
         assert body["client_id"] == str(_mock_register_client)
         assert body["client_name"] == "ChatGPT"
-        assert "client_secret" not in body
+        assert body["client_secret"] is None
+        assert body["grant_types"] == ["authorization_code", "refresh_token"]
+        assert body["response_types"] == ["code"]
 
     def test_happy_path_confidential_client_returns_secret(
         self, client, _mock_pool, _mock_register_client
@@ -153,3 +155,56 @@ class TestRegisterClient:
             },
         )
         assert resp.status_code == 503
+
+    def test_rejects_redirect_with_fragment(self, client, _mock_pool):
+        resp = client.post(
+            "/oauth/register",
+            json={
+                "client_name": "x",
+                "redirect_uris": ["https://example.com/cb#session"],
+                "token_endpoint_auth_method": "none",
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_rejects_unsupported_grant_type(self, client, _mock_pool):
+        resp = client.post(
+            "/oauth/register",
+            json={
+                "client_name": "x",
+                "redirect_uris": ["https://e.com/cb"],
+                "token_endpoint_auth_method": "none",
+                "grant_types": ["implicit"],
+            },
+        )
+        assert resp.status_code == 400
+        assert "grant_type" in resp.json()["detail"].lower()
+
+    def test_rejects_unsupported_response_type(self, client, _mock_pool):
+        resp = client.post(
+            "/oauth/register",
+            json={
+                "client_name": "x",
+                "redirect_uris": ["https://e.com/cb"],
+                "token_endpoint_auth_method": "none",
+                "response_types": ["token"],
+            },
+        )
+        assert resp.status_code == 400
+        assert "response_type" in resp.json()["detail"].lower()
+
+    def test_response_echoes_grant_and_response_types(
+        self, client, _mock_pool, _mock_register_client
+    ):
+        resp = client.post(
+            "/oauth/register",
+            json={
+                "client_name": "x",
+                "redirect_uris": ["https://e.com/cb"],
+                "token_endpoint_auth_method": "none",
+            },
+        )
+        assert resp.status_code == 201
+        body = resp.json()
+        assert body["grant_types"] == ["authorization_code", "refresh_token"]
+        assert body["response_types"] == ["code"]

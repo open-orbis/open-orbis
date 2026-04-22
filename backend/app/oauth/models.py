@@ -18,6 +18,9 @@ class RegisterResponse(BaseModel):
     client_name: str
     redirect_uris: list[str]
     token_endpoint_auth_method: str
+    grant_types: list[str]
+    response_types: list[str]
+    client_secret: str | None = None
 
 
 class TokenResponse(BaseModel):

@@ -6,11 +6,12 @@ import logging
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Request
+from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.db.postgres import get_pool
 from app.oauth import db as oauth_db
-from app.oauth.models import RegisterRequest
+from app.oauth.models import RegisterRequest, RegisterResponse
 from app.oauth.tokens import generate_opaque_token, hash_token
 from app.rate_limit import limiter
 
@@ -19,22 +20,32 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/oauth", tags=["oauth"])
 
 _ALLOWED_AUTH_METHODS = {"none", "client_secret_post"}
+_ALLOWED_GRANT_TYPES = {"authorization_code", "refresh_token"}
+_ALLOWED_RESPONSE_TYPES = {"code"}
 
 
 def _validate_redirect_uri(uri: str) -> bool:
-    """HTTPS required except for localhost/127.0.0.1 (dev-friendly)."""
+    """HTTPS required except for localhost/127.0.0.1 (dev-friendly).
+
+    Also rejects URIs with a fragment component per RFC 7591 §2.
+    """
     parsed = urlparse(uri)
-    return parsed.scheme == "https" or (
-        parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
-    )
+    if parsed.fragment:
+        return False
+    if parsed.scheme == "https":
+        return True
+    return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
 
 
 @router.post("/register", status_code=201)
-@limiter.limit(settings.oauth_register_rate_limit)
+@limiter.limit(
+    settings.oauth_register_rate_limit,
+    key_func=lambda request: f"oauth_register:{get_remote_address(request)}",
+)
 async def register_client(
     request: Request,
     body: RegisterRequest,
-) -> dict:
+) -> RegisterResponse:
     if not settings.oauth_enabled:
         raise HTTPException(status_code=503, detail="OAuth disabled")
 
@@ -57,6 +68,25 @@ async def register_client(
                 f"allowed: {sorted(_ALLOWED_AUTH_METHODS)}"
             ),
         )
+
+    for gt in body.grant_types:
+        if gt not in _ALLOWED_GRANT_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"unsupported grant_type: {gt!r}; "
+                    f"allowed: {sorted(_ALLOWED_GRANT_TYPES)}"
+                ),
+            )
+    for rt in body.response_types:
+        if rt not in _ALLOWED_RESPONSE_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"unsupported response_type: {rt!r}; "
+                    f"allowed: {sorted(_ALLOWED_RESPONSE_TYPES)}"
+                ),
+            )
 
     pool = await get_pool()
 
@@ -83,12 +113,12 @@ async def register_client(
         body.token_endpoint_auth_method,
     )
 
-    out = {
-        "client_id": str(client_id),
-        "client_name": body.client_name,
-        "redirect_uris": body.redirect_uris,
-        "token_endpoint_auth_method": body.token_endpoint_auth_method,
-    }
-    if secret is not None:
-        out["client_secret"] = secret
-    return out
+    return RegisterResponse(
+        client_id=str(client_id),
+        client_name=body.client_name,
+        redirect_uris=body.redirect_uris,
+        token_endpoint_auth_method=body.token_endpoint_auth_method,
+        grant_types=body.grant_types,
+        response_types=body.response_types,
+        client_secret=secret,
+    )
