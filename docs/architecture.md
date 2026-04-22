@@ -122,6 +122,13 @@ The heal step exists because older sessions could allow `POST /cv/confirm` to ov
 
 JWT validation on protected endpoints via `HTTPBearer` scheme. Refresh tokens support token rotation — each refresh revokes the old token and issues a new pair. In production, the refresh token cookie uses `SameSite=None; Secure` and is scoped to `path=/`.
 
+**Silent re-auth.** When `/auth/refresh` fails and the user originally
+signed in with Google, the frontend (`src/auth/silentReauth.ts`) calls
+FedCM (Chrome/Firefox) or GIS One Tap (Safari) to obtain a fresh Google
+ID token, POSTs it to `/auth/google-id-token`, and receives a new
+`__session` cookie. LinkedIn users and users signed out of Google
+fall back to the explicit sign-in landing page.
+
 ### Encryption
 
 Fernet symmetric encryption for PII fields (`email`, `phone`, `address`). Key from `ENCRYPTION_KEY` env var; auto-generated in dev mode if missing (data won't survive restarts).

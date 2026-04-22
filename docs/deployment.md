@@ -250,6 +250,7 @@ If any of the above goes wrong mid-flight, rolling back is always "put the old k
 | `CLAUDE_MODEL` | `claude-opus-4-6` | Claude model for CV extraction |
 | `GOOGLE_CLIENT_ID` | — | Google OAuth (not yet active) |
 | `GOOGLE_CLIENT_SECRET` | — | Google OAuth (not yet active) |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | `365` | Refresh token lifetime in days. Default raised to 365 to support the persistent-login / silent re-auth flow. |
 
 ### OAuth 2.1 authorization server
 
@@ -325,3 +326,10 @@ npm run preview  # Preview the built app
 ```
 
 The production build (`tsc -b && vite build`) type-checks and bundles to `frontend/dist/`. Serve with any static file server; configure it to proxy `/api/*` requests to the backend.
+
+### Frontend build-time variables (`VITE_*`)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `VITE_API_URL` | `/api` | Backend base URL (full Cloud Run URL in production if not proxied) |
+| `VITE_SILENT_REAUTH_ENABLED` | `true` | `false` disables the FedCM + One Tap silent re-auth path. Emergency switch; default on. |
