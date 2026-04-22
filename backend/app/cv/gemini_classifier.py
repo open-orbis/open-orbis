@@ -48,9 +48,12 @@ async def call_gemini(
     #   - temperature=0.0: variance hurts the extraction-quality benchmark.
     #   - seed=42: with temperature=0, pinning seed makes repeat runs on
     #     the same input bit-identical. Useful for A/B testing prompts.
-    #   - max_output_tokens=16384: dense CVs peak around 8-12k tokens;
-    #     16k keeps headroom without letting a pathological loop burn
-    #     the full 65k ceiling.
+    #   - max_output_tokens=65536: model ceiling. An earlier alpha.14
+    #     tried 16384 as a "pathological-loop guard" but dense academic
+    #     CVs (e.g. Riccardo Massidda, 16:09 UTC 2026-04-22) produce
+    #     >19k chars of JSON and get silently truncated mid-value,
+    #     leaving unparseable output. Restore the ceiling and let the
+    #     LLM timeout be the real safeguard.
     # NOTE: we intentionally do NOT set response_mime_type or
     # response_schema. Vertex AI's response_schema has a restricted
     # JSON Schema subset that does not support additionalProperties=true
@@ -62,7 +65,7 @@ async def call_gemini(
     # fences via json.JSONDecoder.raw_decode().
     config = GenerateContentConfig(
         system_instruction=system_prompt,
-        max_output_tokens=16384,
+        max_output_tokens=65536,
         temperature=0.0,
         seed=42,
     )
