@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.10"
 resolution-markers = [
     "python_full_version < '3.11' and sys_platform == 'linux'",
@@ -1515,6 +1515,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "fastapi" },
     { name = "fpdf2" },
+    { name = "google-auth" },
     { name = "google-cloud-storage" },
     { name = "google-cloud-tasks" },
     { name = "google-genai" },
@@ -1550,6 +1551,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=43.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
     { name = "fpdf2", specifier = ">=2.8.7" },
+    { name = "google-auth", specifier = ">=2.30.0" },
     { name = "google-cloud-storage", specifier = ">=2.14.0" },
     { name = "google-cloud-tasks", specifier = ">=2.16.0" },
     { name = "google-genai", specifier = ">=1.0.0" },

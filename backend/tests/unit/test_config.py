@@ -1,6 +1,15 @@
 from app.config import settings
 
 
+def test_refresh_token_ttl_default_is_one_year():
+    """Defaults to 365 days so refresh cookies don't force monthly re-sign-in.
+
+    Sliding window already in place in /auth/refresh; this is the absolute
+    cap for genuinely dormant sessions.
+    """
+    assert settings.refresh_token_expire_days == 365
+
+
 class TestOauthSettings:
     def test_oauth_enabled_default_is_true_in_dev(self):
         assert settings.oauth_enabled is True

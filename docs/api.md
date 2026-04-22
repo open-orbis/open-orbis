@@ -31,6 +31,21 @@ Admin endpoints additionally require `is_admin = true` on the Person node (retur
 | POST | `/auth/api-keys` | JWT | Create MCP API key (returns raw key once; server stores SHA-256 hash). Keys use `orbk_` prefix. |
 | GET | `/auth/api-keys` | JWT | List user's API keys (metadata only — `key_id`, `label`, `created_at`, `last_used_at`) |
 | DELETE | `/auth/api-keys/{key_id}` | JWT | Revoke an API key |
+| POST | `/auth/google-id-token` | No | Silent re-auth: accept a Google-issued ID token (FedCM or GIS One Tap) and issue a new `__session` cookie. Rate-limited 5/min per IP. |
+
+### `POST /auth/google-id-token`
+
+Accept a Google-issued ID token (from frontend FedCM or GIS One Tap)
+and issue the same `__session` cookie as `/auth/google`. Used by the
+silent re-auth flow — not for interactive sign-in.
+
+**Body:** `{ id_token: string, source?: "fedcm" | "onetap" }`
+
+**Responses:**
+- `200 { status: "ok", source: "id_token" }` + `Set-Cookie: __session=...`
+- `401 { detail: "invalid_id_token" }` — signature / audience / expiry / issuer / `email_verified=false`
+- `503 { detail: "verify_unavailable" }` — Google JWKS transient failure
+- `429` — rate limit (5/min per IP)
 
 ## Admin (`/admin`)
 

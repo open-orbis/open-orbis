@@ -1,3 +1,15 @@
+# Rate-limit cheatsheet (applied via @limiter.limit on individual routes):
+#
+# Authenticated endpoints (keyed on user_id):
+#   - /cv/upload              3/min per user
+#   - /cv/import              3/min per user
+#   - /notes/enhance         10/min per user
+#
+# Public / IP-keyed endpoints:
+#   - /auth/google-id-token   5/min per IP  (silent re-auth from FedCM / One Tap)
+#   - /export/{orb_id}       30/min per IP
+#   - /orbs/{orb_id}         30/min per IP
+
 from fastapi import Request
 from jose import JWTError, jwt
 from slowapi import Limiter

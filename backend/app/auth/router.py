@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -36,6 +37,7 @@ from app.auth.service import (
     generate_orb_id,
     parse_session_cookie,
     set_auth_cookies,
+    verify_google_id_token,
 )
 from app.config import settings
 from app.dependencies import get_current_user, get_db
@@ -155,6 +157,79 @@ async def _issue_session(
     return access_token
 
 
+async def _upsert_google_person(db: AsyncDriver, claims: dict) -> dict:
+    """Create or update a Person node from Google ID-token claims.
+
+    Accepts the decoded claims dict produced by either ``exchange_google_code``
+    or ``verify_google_id_token``.  Returns a dict with ``user_id``, ``email``,
+    ``name``, ``picture``, and the fields from ``_get_or_create_person``
+    (``activated``, ``gdpr_consent``, ``is_admin``, ``profile_image``) so that
+    both callers — code-flow and id-token-flow — can mint session cookies and
+    build response payloads without repeating the derivation logic.
+    """
+    user_id = f"google-{claims['sub']}"
+    email = claims.get("email") or ""
+    if not email:
+        raise HTTPException(status_code=401, detail="invalid_id_token")
+    name = claims.get("name", "")
+    picture = claims.get("picture", "")
+    person_info = await _get_or_create_person(
+        db,
+        user_id=user_id,
+        email=email,
+        name=name,
+        picture=picture,
+        provider="google",
+    )
+    return {
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "picture": picture,
+        **person_info,
+    }
+
+
+class GoogleIdTokenRequest(BaseModel):
+    id_token: str
+    source: Literal["fedcm", "onetap"] | None = None  # telemetry hint
+
+
+@router.post("/google-id-token")
+@limiter.limit("5/minute")
+async def google_id_token_login(
+    request: Request,
+    response: Response,
+    body: GoogleIdTokenRequest,
+    db: AsyncDriver = Depends(get_db),
+):
+    """Verify a Google ID token and mint an Orbis session cookie.
+
+    Called by the frontend silent-re-auth flow (FedCM or GIS One Tap),
+    which already has a Google-signed JWT in hand and just needs Orbis
+    to trust it in lieu of re-running the authorization-code dance.
+    """
+    claims = await verify_google_id_token(body.id_token)
+    if not claims.get("email_verified"):
+        raise HTTPException(status_code=401, detail="invalid_id_token")
+
+    user = await _upsert_google_person(db, claims)
+
+    logger.info(
+        "auth: id-token login user=%s source=%s",
+        user["user_id"],
+        body.source or "unknown",
+    )
+    await _issue_session(
+        response,
+        db=db,
+        user_id=user["user_id"],
+        email=user["email"],
+        user_agent=request.headers.get("user-agent", ""),
+    )
+    return {"status": "ok", "source": "id_token"}
+
+
 @router.post("/google", response_model=TokenResponse)
 @limiter.limit("5/minute")
 async def google_login(
@@ -176,30 +251,26 @@ async def google_login(
             status_code=401, detail="Google authentication failed"
         ) from None
 
-    user_id = f"google-{userinfo['sub']}"
-    email = userinfo["email"]
-    name = userinfo["name"]
-    picture = userinfo["picture"]
-
-    person_info = await _get_or_create_person(
-        db, user_id=user_id, email=email, name=name, picture=picture, provider="google"
-    )
+    user = await _upsert_google_person(db, userinfo)
 
     access_token = await _issue_session(
         response,
         db=db,
-        user_id=user_id,
-        email=email,
+        user_id=user["user_id"],
+        email=user["email"],
         user_agent=request.headers.get("user-agent", ""),
     )
     return TokenResponse(
         access_token=access_token,
         user=UserInfo(
-            user_id=user_id,
-            email=email,
-            name=name,
-            picture=picture,
-            **person_info,
+            user_id=user["user_id"],
+            email=user["email"],
+            name=user["name"],
+            picture=user["picture"],
+            activated=user["activated"],
+            gdpr_consent=user["gdpr_consent"],
+            is_admin=user["is_admin"],
+            profile_image=user["profile_image"],
         ),
     )
 

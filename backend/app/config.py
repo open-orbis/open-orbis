@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # Refresh token TTL in days. Refresh tokens are persisted in Neo4j
     # (as sha256 hashes) so they can be rotated and revoked.
-    refresh_token_expire_days: int = 30
+    refresh_token_expire_days: int = 365
 
     # Cookie scoping. Empty = host-only cookie (works when frontend and
     # backend share a single origin via reverse proxy). Set to the parent

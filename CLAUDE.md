@@ -30,7 +30,7 @@ backend/
     snapshots/   # Orb version snapshots (save, restore, delete)
     main.py      # FastAPI app factory, middleware (CORS, SlowAPI), router registration, cv_jobs table init on startup
     config.py    # Pydantic Settings (env-based). New settings: cloud_tasks_queue, cloud_tasks_location, cloud_run_url, cloud_run_service_account, cors_extra_origins
-    rate_limit.py # SlowAPI limiter keyed on user_id (authenticated) / IP (public). Explicit caps on LLM endpoints: /cv/upload 3/min, /cv/import 3/min, /notes/enhance 10/min.
+    rate_limit.py # SlowAPI limiter keyed on user_id (authenticated) / IP (public). Explicit caps: /cv/upload 3/min, /cv/import 3/min, /notes/enhance 10/min (per user); /auth/google-id-token 5/min per IP (silent re-auth).
     dependencies.py # get_db, get_current_user (JWT bearer), require_admin
   mcp_server/    # MCP server exposing orb graph to AI agents (6 tools, API key auth via X-MCP-Key)
   tests/
