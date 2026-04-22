@@ -35,12 +35,28 @@ function buildSnippet(tokenId: string, label: string | null): string {
 
 function buildCurlExample(tokenId: string): string {
   const mcpUrl = import.meta.env.VITE_MCP_URL ?? 'http://localhost:8081/mcp';
-  // MCP 2025-03 streamable-http requires both content types on Accept.
-  return `curl -X POST ${mcpUrl} \\
+  // MCP 2025-03 streamable-http requires:
+  //   1. `initialize` first, which returns a Mcp-Session-Id response header
+  //   2. Every subsequent call must echo that session id
+  //   3. `Accept: application/json, text/event-stream` on every request
+  // A single curl can't do tools/list; a real AI client handles this
+  // handshake automatically, but for sanity-checking a token with curl
+  // we have to script the two steps.
+  return `# Step 1: initialize — capture Mcp-Session-Id from response headers
+SESSION=$(curl -sS -D - -o /dev/null -X POST ${mcpUrl} \\
   -H 'X-MCP-Key: orbs_${tokenId}' \\
-  -H 'Content-Type: application/json' \\
   -H 'Accept: application/json, text/event-stream' \\
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`;
+  -H 'Content-Type: application/json' \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"0"}}}' \\
+  | awk 'tolower($1) == "mcp-session-id:" {print $2}' | tr -d '\\r')
+
+# Step 2: call a tool using the captured session
+curl -X POST ${mcpUrl} \\
+  -H 'X-MCP-Key: orbs_${tokenId}' \\
+  -H 'Accept: application/json, text/event-stream' \\
+  -H 'Content-Type: application/json' \\
+  -H "Mcp-Session-Id: $SESSION" \\
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'`;
 }
 
 export function CopyMcpConfigButton({ tokenId, label, onCopied }: Props) {
@@ -205,6 +221,15 @@ export function CopyMcpConfigButton({ tokenId, label, onCopied }: Props) {
                   >
                     {curl}
                   </pre>
+                  <p className="text-[10px] text-white/40 mt-2">
+                    MCP streamable-http uses a session handshake — the first
+                    call (<code className="bg-black/30 px-1 rounded">initialize</code>)
+                    returns an{' '}
+                    <code className="bg-black/30 px-1 rounded">Mcp-Session-Id</code>{' '}
+                    header that every subsequent call must echo back. Real AI
+                    clients handle this automatically; the two-step snippet
+                    above is only for ad-hoc cURL testing.
+                  </p>
                   <button
                     type="button"
                     onClick={() => doCopy(curl)}
