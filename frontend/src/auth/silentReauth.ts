@@ -15,7 +15,8 @@ export async function trySilentReauth(): Promise<boolean> {
       if (!idToken) return false;
       await googleIdTokenLogin(idToken, 'fedcm');
       return true;
-    } catch {
+    } catch (err) {
+      console.warn('silentReauth: id-token exchange failed', err);
       return false;
     } finally {
       inFlight = null;
@@ -29,7 +30,8 @@ async function runFedCM(): Promise<string | null> {
   if (!('IdentityCredential' in window)) return null;
   if (!navigator.credentials) return null;
 
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId) return null;
 
   try {
     const credential = await (navigator.credentials.get as any)({

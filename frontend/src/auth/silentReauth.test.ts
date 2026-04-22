@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../api/auth', () => ({
   googleIdTokenLogin: vi.fn(),
@@ -23,7 +23,13 @@ function unstubFedCM() {
 describe('trySilentReauth — FedCM path', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id');
     sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    unstubFedCM();
+    vi.unstubAllEnvs();
   });
 
   it('returns true when FedCM returns an ID token and backend accepts it', async () => {
@@ -33,7 +39,6 @@ describe('trySilentReauth — FedCM path', () => {
     const ok = await trySilentReauth();
     expect(ok).toBe(true);
     expect(googleIdTokenLogin).toHaveBeenCalledWith('google.id.token', 'fedcm');
-    unstubFedCM();
   });
 
   it('returns false when FedCM resolves with null (user dismissed)', async () => {
@@ -43,6 +48,5 @@ describe('trySilentReauth — FedCM path', () => {
     // so end state is false. Covered in Task 5 once One Tap is wired in.
     expect(ok).toBe(false);
     expect(googleIdTokenLogin).not.toHaveBeenCalled();
-    unstubFedCM();
   });
 });
