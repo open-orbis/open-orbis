@@ -100,14 +100,27 @@ export default function SharePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPublic]);
 
-  // Fetch existing share tokens when share panel is open in restricted mode
+  // Fetch existing share tokens when share panel is open in restricted mode.
+  // Also re-fetches when the window regains focus so MCP-usage counters
+  // stay fresh after the user has triggered activity in another tab
+  // (e.g. paste the snippet into an AI client, run a tool call, come back).
   useEffect(() => {
     if (!isRestricted) return;
-    setTokensLoading(true);
-    listShareTokens()
-      .then((data) => setShareTokens(data.tokens.filter(t => !t.revoked)))
-      .catch(() => {})
-      .finally(() => setTokensLoading(false));
+
+    const loadTokens = (showSpinner: boolean) => {
+      if (showSpinner) setTokensLoading(true);
+      listShareTokens()
+        .then((data) => setShareTokens(data.tokens.filter((t) => !t.revoked)))
+        .catch(() => {})
+        .finally(() => {
+          if (showSpinner) setTokensLoading(false);
+        });
+    };
+
+    loadTokens(true);
+    const onFocus = () => loadTokens(false);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [isRestricted]);
 
   // Load access grants when restricted mode is active
@@ -618,18 +631,22 @@ export default function SharePanel({
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
-                                {token.mcp_use_count > 0 && (
-                                  <p className="text-[10px] text-gray-500 mt-0.5">
-                                    Last MCP use:{' '}
-                                    {token.mcp_last_used_at
-                                      ? new Date(token.mcp_last_used_at).toLocaleString(undefined, {
-                                          dateStyle: 'medium',
-                                          timeStyle: 'short',
-                                        })
-                                      : '—'}{' '}
-                                    · {token.mcp_use_count} {token.mcp_use_count === 1 ? 'query' : 'queries'}
-                                  </p>
-                                )}
+                                <p className="text-[10px] text-gray-500 mt-0.5">
+                                  {token.mcp_use_count > 0 ? (
+                                    <>
+                                      Last MCP use:{' '}
+                                      {token.mcp_last_used_at
+                                        ? new Date(token.mcp_last_used_at).toLocaleString(undefined, {
+                                            dateStyle: 'medium',
+                                            timeStyle: 'short',
+                                          })
+                                        : '—'}{' '}
+                                      · {token.mcp_use_count} {token.mcp_use_count === 1 ? 'query' : 'queries'}
+                                    </>
+                                  ) : (
+                                    <span className="italic text-gray-600">Never used via MCP</span>
+                                  )}
+                                </p>
                                 <p className="text-[10px] text-gray-500 mt-0.5">
                                   {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
                                   {' · '}{formatDate(token.created_at)}

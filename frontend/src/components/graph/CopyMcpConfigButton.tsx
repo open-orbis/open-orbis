@@ -35,9 +35,11 @@ function buildSnippet(tokenId: string, label: string | null): string {
 
 function buildCurlExample(tokenId: string): string {
   const mcpUrl = import.meta.env.VITE_MCP_URL ?? 'http://localhost:8081/mcp';
+  // MCP 2025-03 streamable-http requires both content types on Accept.
   return `curl -X POST ${mcpUrl} \\
   -H 'X-MCP-Key: orbs_${tokenId}' \\
   -H 'Content-Type: application/json' \\
+  -H 'Accept: application/json, text/event-stream' \\
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`;
 }
 
