@@ -31,8 +31,8 @@ async def list_grants(user: dict = Depends(get_current_user)) -> dict:
                    MIN(r.issued_at) AS connected_at,
                    (SELECT MAX(a.last_used_at)
                       FROM oauth_access_tokens a
-                     WHERE a.client_id = r.client_id
-                       AND a.user_id = r.user_id
+                     WHERE a.client_id = c.client_id
+                       AND a.user_id = $1
                        AND (r.share_token_id IS NULL
                             OR a.share_token_id = r.share_token_id)
                    ) AS last_used_at
