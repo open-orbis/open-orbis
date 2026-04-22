@@ -73,15 +73,27 @@ async def _handle_authorization_code(
         raise HTTPException(400, "missing authorization_code params")
     row = await oauth_db.consume_authorization_code(pool, code)
     if row is None:
+        logger.info("code-exchange: unknown or expired code")
         raise HTTPException(400, "invalid or expired code")
     if row["client_id"] != cid:
-        raise HTTPException(400, "code issued to a different client")
-    if row["redirect_uri"] != redirect_uri:
-        raise HTTPException(
-            400, "redirect_uri does not match the one used at /authorize"
+        # NB: identical response for missing/expired/consumed OR client-mismatch;
+        # prevents attackers probing which codes exist via the client_id oracle.
+        logger.warning(
+            "code-exchange: client_id mismatch; code_client=%s presented=%s",
+            row["client_id"],
+            cid,
         )
+        raise HTTPException(400, "invalid or expired code")
+    if row["redirect_uri"] != redirect_uri:
+        logger.warning(
+            "code-exchange: redirect_uri mismatch; code_uri=%s presented=%s",
+            row["redirect_uri"],
+            redirect_uri,
+        )
+        raise HTTPException(400, "invalid or expired code")
     if not verify_pkce_s256(code_verifier, row["code_challenge"]):
-        raise HTTPException(400, "PKCE verification failed")
+        logger.warning("code-exchange: PKCE verification failed")
+        raise HTTPException(400, "invalid or expired code")
     return await _issue_token_pair(
         pool,
         client_id=cid,
@@ -103,6 +115,9 @@ async def _handle_refresh_token(
 
     existing = await oauth_db.get_refresh_token(pool, old_hash)
     if existing is None:
+        raise HTTPException(400, "invalid refresh_token")
+    if existing["client_id"] != cid:
+        # Don't reveal the mismatch — looks the same as a bad token.
         raise HTTPException(400, "invalid refresh_token")
     if existing["revoked_at"] is not None or existing["rotated_to"] is not None:
         logger.warning(

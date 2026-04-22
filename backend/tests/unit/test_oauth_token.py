@@ -175,7 +175,7 @@ class TestAuthorizationCodeGrant:
             },
         )
         assert resp.status_code == 400
-        assert "different client" in resp.json()["detail"]
+        assert resp.json()["detail"] == "invalid or expired code"
 
     def test_redirect_uri_mismatch_returns_400(self, client, _mock_pool, monkeypatch):
         cid = uuid.uuid4()
@@ -208,7 +208,7 @@ class TestAuthorizationCodeGrant:
             },
         )
         assert resp.status_code == 400
-        assert "redirect_uri" in resp.json()["detail"]
+        assert resp.json()["detail"] == "invalid or expired code"
 
     def test_wrong_pkce_verifier_returns_400(self, client, _mock_pool, monkeypatch):
         cid = uuid.uuid4()
@@ -242,7 +242,7 @@ class TestAuthorizationCodeGrant:
             },
         )
         assert resp.status_code == 400
-        assert "PKCE" in resp.json()["detail"]
+        assert resp.json()["detail"] == "invalid or expired code"
 
     def test_missing_code_returns_400(self, client, _mock_pool):
         resp = client.post(
@@ -486,6 +486,48 @@ class TestRefreshTokenGrant:
         )
         assert resp.status_code == 400
         assert "missing refresh_token" in resp.json()["detail"]
+
+    def test_refresh_token_bound_to_wrong_client_rejected(
+        self, client, _mock_pool, monkeypatch
+    ):
+        """RFC 6749 §6: refresh tokens are bound to their issuing client."""
+        token_cid = uuid.uuid4()
+        other_cid = uuid.uuid4()
+
+        async def _get(pool, h):
+            return {
+                "client_id": token_cid,
+                "user_id": "u1",
+                "share_token_id": None,
+                "revoked_at": None,
+                "rotated_to": None,
+            }
+
+        revoke_called = []
+
+        async def _revoke_chain(pool, h):
+            revoke_called.append(h)
+
+        monkeypatch.setattr("app.oauth.token_router.oauth_db.get_refresh_token", _get)
+        monkeypatch.setattr(
+            "app.oauth.token_router.oauth_db.revoke_refresh_chain", _revoke_chain
+        )
+
+        resp = client.post(
+            "/oauth/token",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": "refresh_abc",
+                "client_id": str(other_cid),
+            },
+        )
+        assert resp.status_code == 400
+        # Message must be indistinguishable from "unknown refresh_token"
+        assert resp.json()["detail"] == "invalid refresh_token"
+        # Critically: must NOT trigger chain revocation (that would let an
+        # attacker deny-of-service a legitimate token by probing it from a
+        # different client).
+        assert revoke_called == []
 
 
 class TestCrossCutting:
