@@ -727,6 +727,15 @@
   next_state: ORB_VIEW + CONNECTED_AI_MODAL
   fallback_on_failure: null
 
+- id: CONNECTED_AI_COPY_ENDPOINT
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click "Copy" next to the MCP endpoint URL in the "Connect a new AI" panel
+  selector_or_control: "Copy button in CONNECTED_AI_MODAL > Connect a new AI panel"
+  preconditions: [authenticated]
+  expected_effect: Writes the MCP endpoint URL (e.g. https://mcp.<host>/mcp) to the clipboard so the user can paste it into ChatGPT / Cursor / Claude Code
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (button flashes "Copied!")
+  fallback_on_failure: null
+
 - id: CONNECTED_AI_REVOKE
   from_state: ORB_VIEW + CONNECTED_AI_MODAL
   action: Click "Revoke" on an active OAuth grant row

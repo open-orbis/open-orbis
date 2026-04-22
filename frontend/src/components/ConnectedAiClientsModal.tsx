@@ -8,11 +8,20 @@ interface Props {
   onClose: () => void;
 }
 
+const MCP_URL = import.meta.env.VITE_MCP_URL ?? 'http://localhost:8081/mcp';
+
 export default function ConnectedAiClientsModal({ open, onClose }: Props) {
   const [grants, setGrants] = useState<OAuthGrant[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const { addToast } = useToastStore();
+
+  async function copyEndpoint() {
+    await navigator.clipboard.writeText(MCP_URL);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +96,36 @@ export default function ConnectedAiClientsModal({ open, onClose }: Props) {
                 </svg>
               </button>
             </div>
+
+            <div className="mb-5 rounded-lg border border-cyan-500/20 bg-cyan-500/[0.04] p-3.5">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-cyan-300/70 font-semibold mb-1.5">
+                Connect a new AI
+              </p>
+              <p className="text-white/60 text-xs mb-2.5 leading-relaxed">
+                Paste this URL into your AI client's MCP / Connector settings
+                (ChatGPT, Cursor, Claude Code, Cline, Windsurf). The client will
+                walk you through a one-time consent prompt.
+              </p>
+              <div className="flex items-center gap-2">
+                <code
+                  data-testid="mcp-endpoint-url"
+                  className="flex-1 min-w-0 truncate bg-black/40 border border-white/10 rounded px-2.5 py-1.5 text-cyan-200 text-[11px] font-mono"
+                >
+                  {MCP_URL}
+                </code>
+                <button
+                  type="button"
+                  onClick={copyEndpoint}
+                  className="shrink-0 h-7 px-3 rounded bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-semibold transition-colors flex items-center gap-1"
+                >
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[10px] uppercase tracking-[0.14em] text-white/30 font-semibold mb-2">
+              Already connected
+            </p>
 
             {err && <p className="text-red-400 text-sm py-3">{err}</p>}
             {!err && grants === null && (

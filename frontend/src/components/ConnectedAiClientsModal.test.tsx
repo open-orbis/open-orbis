@@ -10,7 +10,14 @@ vi.mock('../stores/toastStore', () => ({
 import { listGrants, revokeGrant } from '../api/oauth';
 
 describe('ConnectedAiClientsModal', () => {
-  beforeEach(() => vi.resetAllMocks());
+  const mockWriteText = vi.fn();
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    Object.assign(navigator, {
+      clipboard: { writeText: mockWriteText.mockResolvedValue(undefined) },
+    });
+  });
 
   it('renders nothing when closed', () => {
     (listGrants as any).mockResolvedValue({ grants: [] });
@@ -87,6 +94,17 @@ describe('ConnectedAiClientsModal', () => {
     (listGrants as any).mockRejectedValue({ response: { data: { detail: 'boom' } } });
     render(<ConnectedAiClientsModal open onClose={() => {}} />);
     await waitFor(() => screen.getByText(/boom/));
+  });
+
+  it('shows the MCP endpoint URL and copies it to clipboard', async () => {
+    (listGrants as any).mockResolvedValue({ grants: [] });
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    const url = screen.getByTestId('mcp-endpoint-url');
+    expect(url.textContent).toMatch(/\/mcp$/);
+    fireEvent.click(screen.getByRole('button', { name: /^copy$/i }));
+    await waitFor(() => expect(mockWriteText).toHaveBeenCalledOnce());
+    expect(mockWriteText.mock.calls[0][0]).toMatch(/\/mcp$/);
+    await waitFor(() => screen.getByRole('button', { name: /copied/i }));
   });
 
   it('fires onClose when backdrop is clicked', async () => {
