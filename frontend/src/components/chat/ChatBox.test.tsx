@@ -35,7 +35,7 @@ describe('ChatBox action buttons', () => {
       />,
     );
     const btn = screen.getByRole('button', { name: /connected ai clients/i });
-    expect(btn.className).toMatch(/bg-cyan-600/);
+    expect(btn.className).toMatch(/from-cyan/);
     fireEvent.click(btn);
     expect(onConnectedAi).toHaveBeenCalledOnce();
   });

@@ -504,12 +504,35 @@ export default function ChatBox({
               <button
                 data-tour="connected-ai"
                 onClick={onConnectedAi}
-                className="w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border bg-cyan-600/80 hover:bg-cyan-500 border-cyan-500/35 hover:border-cyan-400/55 shadow-cyan-600/25 text-white/90 hover:text-white transition-all shadow-lg"
+                className="group relative w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white bg-gradient-to-br from-cyan-400 via-cyan-500 to-blue-600 hover:from-cyan-300 hover:via-cyan-400 hover:to-blue-500 ring-1 ring-inset ring-white/25 hover:ring-white/40 shadow-lg shadow-cyan-500/30 hover:shadow-cyan-400/50 transition-all hover:scale-[1.06] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                 title="Connected AI clients"
                 aria-label="Connected AI clients"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M12 2v3M8 9h8M7 9a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2M9 14h.01M15 14h.01M10 18h4" />
+                {/* Soft pulse halo — only on hover */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-cyan-400/0 group-hover:bg-cyan-400/20 group-hover:animate-pulse"
+                />
+                <svg
+                  className="relative w-5 h-5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {/* Antenna */}
+                  <circle cx="12" cy="3.5" r="0.9" fill="currentColor" stroke="none" />
+                  <path d="M12 4.5v2" strokeWidth="1.8" />
+                  {/* Head */}
+                  <rect x="5" y="7" width="14" height="11" rx="3" strokeWidth="1.8" />
+                  {/* Side antennas (ears) */}
+                  <path d="M5 12H3.5M19 12h1.5" strokeWidth="1.8" />
+                  {/* Eyes */}
+                  <circle cx="9.3" cy="12" r="1.15" fill="currentColor" stroke="none" />
+                  <circle cx="14.7" cy="12" r="1.15" fill="currentColor" stroke="none" />
+                  {/* Mouth */}
+                  <path d="M10 15.5h4" strokeWidth="1.8" />
                 </svg>
               </button>
             )}
