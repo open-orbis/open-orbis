@@ -161,14 +161,17 @@ async def _upsert_google_person(db: AsyncDriver, claims: dict) -> dict:
     """Create or update a Person node from Google ID-token claims.
 
     Accepts the decoded claims dict produced by either ``exchange_google_code``
-    or ``verify_google_id_token``.  Returns ``{"user_id": ..., "email": ...}``
-    so callers can mint session cookies without repeating the derivation.
+    or ``verify_google_id_token``.  Returns a dict with ``user_id``, ``email``,
+    ``name``, ``picture``, and the fields from ``_get_or_create_person``
+    (``activated``, ``gdpr_consent``, ``is_admin``, ``profile_image``) so that
+    both callers — code-flow and id-token-flow — can mint session cookies and
+    build response payloads without repeating the derivation logic.
     """
     user_id = f"google-{claims['sub']}"
     email = claims["email"]
     name = claims.get("name", "")
     picture = claims.get("picture", "")
-    await _get_or_create_person(
+    person_info = await _get_or_create_person(
         db,
         user_id=user_id,
         email=email,
@@ -176,7 +179,13 @@ async def _upsert_google_person(db: AsyncDriver, claims: dict) -> dict:
         picture=picture,
         provider="google",
     )
-    return {"user_id": user_id, "email": email}
+    return {
+        "user_id": user_id,
+        "email": email,
+        "name": name,
+        "picture": picture,
+        **person_info,
+    }
 
 
 class GoogleIdTokenRequest(BaseModel):
@@ -246,30 +255,26 @@ async def google_login(
             status_code=401, detail="Google authentication failed"
         ) from None
 
-    user_id = f"google-{userinfo['sub']}"
-    email = userinfo["email"]
-    name = userinfo["name"]
-    picture = userinfo["picture"]
-
-    person_info = await _get_or_create_person(
-        db, user_id=user_id, email=email, name=name, picture=picture, provider="google"
-    )
+    user = await _upsert_google_person(db, userinfo)
 
     access_token = await _issue_session(
         response,
         db=db,
-        user_id=user_id,
-        email=email,
+        user_id=user["user_id"],
+        email=user["email"],
         user_agent=request.headers.get("user-agent", ""),
     )
     return TokenResponse(
         access_token=access_token,
         user=UserInfo(
-            user_id=user_id,
-            email=email,
-            name=name,
-            picture=picture,
-            **person_info,
+            user_id=user["user_id"],
+            email=user["email"],
+            name=user["name"],
+            picture=user["picture"],
+            activated=user["activated"],
+            gdpr_consent=user["gdpr_consent"],
+            is_admin=user["is_admin"],
+            profile_image=user["profile_image"],
         ),
     )
 
