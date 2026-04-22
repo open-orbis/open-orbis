@@ -26,6 +26,8 @@ import {
   deleteIdea,
   listCVJobs,
   cancelCVJob,
+  listOAuthClients,
+  disableOAuthClient,
   type AdminStats,
   type AccessCode,
   type PendingUser,
@@ -35,6 +37,7 @@ import {
   type FunnelMetrics,
   type Insights,
   type CVJobAdmin,
+  type OAuthClient,
 } from '../api/admin';
 
 // ── Helpers ──
@@ -189,7 +192,7 @@ export default function AdminPage() {
   const [funnel, setFunnel] = useState<FunnelMetrics | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'feedback' | 'funnel' | 'cv-jobs'>('codes');
+  const [tab, setTab] = useState<'codes' | 'pending' | 'users' | 'ideas' | 'feedback' | 'funnel' | 'cv-jobs' | 'oauth-clients'>('codes');
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [feedbacks, setFeedbacks] = useState<Idea[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -241,6 +244,10 @@ export default function AdminPage() {
   const [cvJobsStatusFilter, setCvJobsStatusFilter] = useState<string | undefined>();
   const [cancelTarget, setCancelTarget] = useState<CVJobAdmin | null>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  // OAuth Clients tab state
+  const [oauthClients, setOauthClients] = useState<OAuthClient[]>([]);
+  const [oauthClientsLoading, setOauthClientsLoading] = useState(false);
 
   const isPendingWaitlistUser = (
     u: Pick<AdminUser, 'signup_code' | 'is_admin' | 'waitlist_joined'>,
@@ -298,6 +305,15 @@ export default function AdminPage() {
     }, 5000);
     return () => clearInterval(interval);
   }, [tab, cvJobs, cvJobsStatusFilter]);
+
+  useEffect(() => {
+    if (tab !== 'oauth-clients') return;
+    setOauthClientsLoading(true);
+    listOAuthClients()
+      .then((res) => setOauthClients(res.clients))
+      .catch(() => {})
+      .finally(() => setOauthClientsLoading(false));
+  }, [tab]);
 
   // ── Toggle invite code requirement (with confirmation) ──
   const handleToggleInviteCode = () => {
@@ -726,6 +742,14 @@ export default function AdminPage() {
             }`}
           >
             CV Jobs
+          </button>
+          <button
+            onClick={() => setTab('oauth-clients')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'oauth-clients' ? 'bg-purple-600 text-white' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            OAuth clients
           </button>
         </div>
 
@@ -1590,6 +1614,88 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </motion.div>
+        )}
+
+        {/* ── OAuth Clients Tab ── */}
+        {tab === 'oauth-clients' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4">
+              <h3 className="text-white/60 text-xs uppercase tracking-wider font-medium mb-4">
+                OAuth client registrations
+              </h3>
+              {oauthClientsLoading ? (
+                <div className="text-white/30 text-sm text-center py-8">Loading…</div>
+              ) : oauthClients.length === 0 ? (
+                <div className="text-white/20 text-sm text-center py-8">No OAuth clients registered yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-white/30 text-xs uppercase tracking-wider border-b border-white/[0.06]">
+                        <th className="px-4 py-2 text-left">Client</th>
+                        <th className="px-4 py-2 text-left">Registered</th>
+                        <th className="px-4 py-2 text-left">IP</th>
+                        <th className="px-4 py-2 text-left">Status</th>
+                        <th className="px-4 py-2 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {oauthClients.map((c) => (
+                        <tr
+                          key={c.client_id}
+                          className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                        >
+                          <td className="px-4 py-2.5">
+                            <div className="text-white/80 font-medium">{c.client_name}</div>
+                            <div className="text-white/30 text-xs font-mono">{c.client_id}</div>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/50 tabular-nums">
+                            {formatDate(c.registered_at)}
+                          </td>
+                          <td className="px-4 py-2.5 text-white/40 font-mono text-xs">
+                            {c.registered_from_ip ?? '—'}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {c.disabled ? (
+                              <span className="text-xs text-red-400/70 bg-red-500/10 px-2 py-0.5 rounded-full">
+                                Disabled
+                              </span>
+                            ) : (
+                              <span className="text-xs text-green-400/70 bg-green-500/10 px-2 py-0.5 rounded-full">
+                                Active
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {!c.disabled && (
+                              <button
+                                onClick={async () => {
+                                  if (!window.confirm('Disable this client?')) return;
+                                  try {
+                                    await disableOAuthClient(c.client_id);
+                                    setOauthClients((prev) =>
+                                      prev.map((x) =>
+                                        x.client_id === c.client_id ? { ...x, disabled: true } : x,
+                                      ),
+                                    );
+                                  } catch {
+                                    // ignore
+                                  }
+                                }}
+                                className="text-xs text-red-400/60 hover:text-red-400 px-2 py-1 rounded transition-colors"
+                              >
+                                Disable
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 

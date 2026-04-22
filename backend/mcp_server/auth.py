@@ -1,18 +1,22 @@
 """API key authentication for the MCP server.
 
-Every request to the streamable-http transport must carry `X-MCP-Key`.
-The middleware branches by prefix:
+Every request to the streamable-http transport must carry a credential.
+The middleware branches by credential type:
 
-- `orbk_...` → resolves to a `user_id` via `app.auth.mcp_keys`. The
-  authenticated user's own orb is unfiltered; any public orb is
+- `X-MCP-Key: orbk_...` → resolves to a `user_id` via `app.auth.mcp_keys`.
+  The authenticated user's own orb is unfiltered; any public orb is
   readable with visibility filtering applied at the tool layer.
-- `orbs_...` → resolves to a `ShareContext(orb_id, keywords,
+- `X-MCP-Key: orbs_...` → resolves to a `ShareContext(orb_id, keywords,
   hidden_node_types, token_id)` via `app.orbs.share_token`. The request
   is scoped to one orb; filters from the token are auto-applied.
+- `Authorization: Bearer oauth_...` → resolves via `app.oauth` Postgres
+  tables. Full-mode grants (no share_token_id) set `_current_user_id`;
+  restricted grants (share_token_id bound) resolve the share token into
+  a `ShareContext` and set `_current_share_context`.
 
-Both paths populate a task-local ContextVar (`_current_user_id` OR
+All paths populate a task-local ContextVar (`_current_user_id` OR
 `_current_share_context`) that tool helpers read on the hot path. No
-prefix match → 401 before the request reaches any tool, so bulk
+valid credential → 401 before the request reaches any tool, so bulk
 anonymous enumeration is impossible.
 """
 
@@ -76,7 +80,17 @@ def get_share_context() -> ShareContext | None:
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    """Reject any request without a valid X-MCP-Key header.
+    """Authenticate every MCP request via one of three credential modes.
+
+    Accepted headers:
+      * `X-MCP-Key: orbk_<user-key>` → resolves to a user_id
+      * `X-MCP-Key: orbs_<share-token>` → resolves to a ShareContext
+      * `Authorization: Bearer oauth_<access-token>` → OAuth 2.1 grant,
+        either user-equivalent or share-token-scoped depending on the
+        grant type at consent time
+
+    Missing or unrecognized credentials return 401. Requests to
+    `/.well-known/*` paths bypass all auth for OAuth discovery.
 
     The driver factory is injected at construction time so this module
     doesn't need to import app.graph.neo4j_client (which would create a
@@ -87,20 +101,71 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._driver_factory = driver_factory
 
+    async def _handle_bearer(self, bearer: str):
+        """Resolve an OAuth Bearer token and return (user_token, share_token_reset).
+
+        Returns a JSONResponse on failure, or (token, None) / (None, token)
+        on success. Extracted to keep `dispatch` within complexity budget.
+        """
+        from app.db.postgres import get_pool
+        from mcp_server.oauth_resolver import resolve_oauth_token
+
+        pool = await get_pool()
+        grant = await resolve_oauth_token(pool, bearer)
+        if grant is None:
+            return JSONResponse(
+                status_code=401,
+                content={"error": "invalid, expired, or revoked access token"},
+            )
+
+        if grant.get("share_token_id"):
+            # Restricted-mode grant — resolve the bound share token into a
+            # ShareContext. Local import keeps auth.py free of app.orbs
+            # deps at import time.
+            from app.orbs.share_token import validate_share_token_for_mcp
+
+            driver: AsyncDriver = await self._driver_factory()
+            ctx = await validate_share_token_for_mcp(driver, grant["share_token_id"])
+            if ctx is None:
+                return JSONResponse(
+                    status_code=401,
+                    content={"error": "share token for this grant is no longer valid"},
+                )
+            return None, _current_share_context.set(ctx)
+        else:
+            # Full-access grant — token acts as user identity.
+            return _current_user_id.set(grant["user_id"]), None
+
     async def dispatch(self, request: Request, call_next):
+        # Public well-known paths pass through without auth.
+        if request.url.path.startswith("/.well-known/"):
+            return await call_next(request)
+
         raw_key = request.headers.get(_HEADER) or request.headers.get(_HEADER.upper())
-        if not raw_key:
+        auth_header = request.headers.get("authorization") or request.headers.get(
+            "Authorization"
+        )
+
+        user_token = None
+        share_token_reset = None
+
+        # Authorization: Bearer oauth_... path (no X-MCP-Key present)
+        if not raw_key and auth_header and auth_header.startswith("Bearer "):
+            bearer = auth_header[len("Bearer ") :]
+            result = await self._handle_bearer(bearer)
+            # _handle_bearer returns a JSONResponse on failure, or a 2-tuple on success.
+            if isinstance(result, JSONResponse):
+                return result
+            user_token, share_token_reset = result
+
+        elif not raw_key:
             return JSONResponse(
                 status_code=401,
                 content={"error": "missing X-MCP-Key header"},
             )
 
-        driver: AsyncDriver = await self._driver_factory()
-
-        user_token = None
-        share_token_reset = None
-
-        if raw_key.startswith("orbk_"):
+        elif raw_key.startswith("orbk_"):
+            driver: AsyncDriver = await self._driver_factory()
             user_id = await resolve_api_key(driver, raw_key=raw_key)
             if user_id is None:
                 return JSONResponse(
@@ -114,6 +179,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             # at import time (resolved at first request).
             from app.orbs.share_token import validate_share_token_for_mcp
 
+            driver: AsyncDriver = await self._driver_factory()
             bare = raw_key[len("orbs_") :]
             ctx = await validate_share_token_for_mcp(driver, bare)
             if ctx is None:

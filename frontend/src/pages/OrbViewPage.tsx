@@ -18,6 +18,7 @@ import FloatingInput from '../components/editor/FloatingInput';
 import ChatBox from '../components/chat/ChatBox';
 import type { ChatMessage } from '../components/chat/ChatBox';
 import DiscoverUsesModal from '../components/DiscoverUsesModal';
+import ConnectedAiClientsModal from '../components/ConnectedAiClientsModal';
 import DraftNotes from '../components/drafts/DraftNotes';
 import ExtractedDataReview from '../components/onboarding/ExtractedDataReview';
 import UnmatchedEntriesReview from '../components/onboarding/UnmatchedEntriesReview';
@@ -118,6 +119,7 @@ export default function OrbViewPage() {
   const location = useLocation();
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showConnectedAi, setShowConnectedAi] = useState(false);
   const [orbSearchValue, setOrbSearchValue] = useState('');
   const [showDiscoverUses, setShowDiscoverUses] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
@@ -961,7 +963,7 @@ export default function OrbViewPage() {
           focusNodeId={focusRequest?.nodeUid || null}
           focusNodeToken={focusRequest?.seq ?? 0}
           onCameraDistanceChange={handleCameraDistanceChange}
-          tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning}
+          tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showConnectedAi && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning}
         />
       </div>
       {!isPendingDeletion && (
@@ -1031,6 +1033,7 @@ export default function OrbViewPage() {
         onMessagesChange={setChatMessages}
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
+        onConnectedAi={() => setShowConnectedAi(true)}
         onDiscover={() => setShowDiscoverUses(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
@@ -1050,6 +1053,7 @@ export default function OrbViewPage() {
 
       {/* ── Animated Panels ── */}
       <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
+      <ConnectedAiClientsModal open={showConnectedAi} onClose={() => setShowConnectedAi(false)} />
       <AnimatePresence>
         {showShare && (
           <SharePanel

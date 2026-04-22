@@ -716,6 +716,35 @@
   next_state: ADMIN
   fallback_on_failure: null
 
+# ── Connected AI ──
+
+- id: MYORBIS_OPEN_CONNECTED_AI
+  from_state: ORB_VIEW
+  action: Click the cyan robot-icon button in the ChatBox action strip (right of the share button)
+  selector_or_control: "ChatBox action buttons > robot icon (aria-label=Connected AI clients)"
+  preconditions: [authenticated]
+  expected_effect: Opens the Connected AI clients modal (overlays the orb view — no navigation)
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL
+  fallback_on_failure: null
+
+- id: CONNECTED_AI_COPY_ENDPOINT
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click "Copy" next to the MCP endpoint URL in the "Connect a new AI" panel
+  selector_or_control: "Copy button in CONNECTED_AI_MODAL > Connect a new AI panel"
+  preconditions: [authenticated]
+  expected_effect: Writes the MCP endpoint URL (e.g. https://mcp.<host>/mcp) to the clipboard so the user can paste it into ChatGPT / Cursor / Claude Code
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (button flashes "Copied!")
+  fallback_on_failure: null
+
+- id: CONNECTED_AI_REVOKE
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click "Revoke" on an active OAuth grant row
+  selector_or_control: "Revoke button per grant row"
+  preconditions: [authenticated, grant_exists]
+  expected_effect: Calls DELETE /api/oauth/grants/{client_id}, removes the grant and its tokens, refreshes the list
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (grant removed)
+  fallback_on_failure: Toast "Failed to revoke access"
+
 # ── User Menu CVs ──
 
 - id: USER_MENU_VIEW_CVS

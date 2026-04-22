@@ -101,6 +101,19 @@ class Settings(BaseSettings):
     invite_only_registration: bool = True
     beta_default_cap: int = 2000
 
+    # OAuth 2.1 authorization server (MCP remote clients: ChatGPT, Claude web, Gemini).
+    # Kill switch: set to False to return 503 from /oauth/* routes and skip the
+    # Bearer branch in the MCP middleware. Useful for emergency rollback.
+    oauth_enabled: bool = True
+
+    # Token lifetimes (seconds).
+    oauth_access_token_ttl_seconds: int = 3600  # 1 hour
+    oauth_refresh_token_ttl_seconds: int = 2592000  # 30 days
+    oauth_authorization_code_ttl_seconds: int = 300  # 5 minutes
+
+    # Rate limit for POST /oauth/register (per IP). Format: slowapi string.
+    oauth_register_rate_limit: str = "10/day"
+
     # Share token default TTL in days. Set to 0 for no expiry.
     share_token_default_ttl_days: int = 90
 

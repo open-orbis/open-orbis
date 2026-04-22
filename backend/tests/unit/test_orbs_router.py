@@ -444,18 +444,22 @@ def test_list_share_tokens(mock_list, client, mock_db):
     assert len(response.json()["tokens"]) == 1
 
 
+@patch("app.db.postgres.get_pool", new_callable=AsyncMock)
 @patch("app.orbs.router.revoke_share_token")
-def test_revoke_share_token_success(mock_revoke, client, mock_db):
+def test_revoke_share_token_success(mock_revoke, mock_get_pool, client, mock_db):
     mock_revoke.return_value = {"token_id": "abc123", "revoked": True}
+    mock_get_pool.return_value = MagicMock()
 
     response = client.delete("/orbs/me/share-tokens/abc123")
     assert response.status_code == 200
     assert response.json()["status"] == "revoked"
 
 
+@patch("app.db.postgres.get_pool", new_callable=AsyncMock)
 @patch("app.orbs.router.revoke_share_token")
-def test_revoke_share_token_not_found(mock_revoke, client, mock_db):
+def test_revoke_share_token_not_found(mock_revoke, mock_get_pool, client, mock_db):
     mock_revoke.return_value = None
+    mock_get_pool.return_value = MagicMock()
 
     response = client.delete("/orbs/me/share-tokens/nonexistent")
     assert response.status_code == 404

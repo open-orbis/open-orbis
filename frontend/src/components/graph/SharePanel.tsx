@@ -100,14 +100,27 @@ export default function SharePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPublic]);
 
-  // Fetch existing share tokens when share panel is open in restricted mode
+  // Fetch existing share tokens when share panel is open in restricted mode.
+  // Also re-fetches when the window regains focus so MCP-usage counters
+  // stay fresh after the user has triggered activity in another tab
+  // (e.g. paste the snippet into an AI client, run a tool call, come back).
   useEffect(() => {
     if (!isRestricted) return;
-    setTokensLoading(true);
-    listShareTokens()
-      .then((data) => setShareTokens(data.tokens.filter(t => !t.revoked)))
-      .catch(() => {})
-      .finally(() => setTokensLoading(false));
+
+    const loadTokens = (showSpinner: boolean) => {
+      if (showSpinner) setTokensLoading(true);
+      listShareTokens()
+        .then((data) => setShareTokens(data.tokens.filter((t) => !t.revoked)))
+        .catch(() => {})
+        .finally(() => {
+          if (showSpinner) setTokensLoading(false);
+        });
+    };
+
+    loadTokens(true);
+    const onFocus = () => loadTokens(false);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [isRestricted]);
 
   // Load access grants when restricted mode is active
@@ -451,22 +464,10 @@ export default function SharePanel({
               </div>
             </div>
           </div>
-          {isPublic && (
-            <div>
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP URI</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this URI to connect AI agents to your orbis.</p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input readOnly value={`orb://${orbId}`} className="flex-1 min-w-0 w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-                <button
-                  type="button"
-                  onClick={() => { navigator.clipboard.writeText(`orb://${orbId}`); addToast('MCP URI copied', 'success'); }}
-                  className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors sm:shrink-0"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Top-level MCP URI block removed: `orb://${orbId}` was a fake URI
+              scheme no real MCP client understands. AI agents connect via a
+              share token (per-token Copy MCP config button below) or, once
+              shipped, via OAuth from their AI client's Connectors settings. */}
         </div>
 
           <div className="space-y-4 mt-4">
@@ -545,7 +546,7 @@ export default function SharePanel({
                   )}
 
                   <div className="mt-3">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Hidden Node Types</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-2">Node Types</p>
                     <div className="flex flex-wrap gap-1.5">
                       {ALL_FILTERABLE_TYPES.map((type) => {
                         const hidden = privacyHiddenTypes.has(type);
@@ -597,7 +598,7 @@ export default function SharePanel({
                 {isRestricted && (
                   <div className="border-t border-gray-700/50 pt-3">
                     <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI.</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token generates an MCP config snippet you can paste into an AI client.</p>
 
                     {/* Create new token */}
                     <div className="flex items-center gap-2 mb-3">
@@ -621,7 +622,7 @@ export default function SharePanel({
                     {/* Token list */}
                     {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
                     {!tokensLoading && shareTokens.length === 0 && (
-                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get an MCP URI.</p>
+                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to generate an MCP config.</p>
                     )}
                     {shareTokens.length > 0 && (
                       <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -630,18 +631,22 @@ export default function SharePanel({
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-sm text-white font-medium truncate">{token.label || 'Unnamed token'}</p>
-                                {token.mcp_use_count > 0 && (
-                                  <p className="text-[10px] text-gray-500 mt-0.5">
-                                    Last MCP use:{' '}
-                                    {token.mcp_last_used_at
-                                      ? new Date(token.mcp_last_used_at).toLocaleString(undefined, {
-                                          dateStyle: 'medium',
-                                          timeStyle: 'short',
-                                        })
-                                      : '—'}{' '}
-                                    · {token.mcp_use_count} {token.mcp_use_count === 1 ? 'query' : 'queries'}
-                                  </p>
-                                )}
+                                <p className="text-[10px] mt-0.5">
+                                  {token.mcp_use_count > 0 ? (
+                                    <span className="text-emerald-400/80">
+                                      Last MCP use:{' '}
+                                      {token.mcp_last_used_at
+                                        ? new Date(token.mcp_last_used_at).toLocaleString(undefined, {
+                                            dateStyle: 'medium',
+                                            timeStyle: 'short',
+                                          })
+                                        : '—'}{' '}
+                                      · <span className="font-semibold">{token.mcp_use_count}</span> {token.mcp_use_count === 1 ? 'query' : 'queries'}
+                                    </span>
+                                  ) : (
+                                    <span className="italic text-gray-600">Never used via MCP</span>
+                                  )}
+                                </p>
                                 <p className="text-[10px] text-gray-500 mt-0.5">
                                   {token.keywords.length} keyword{token.keywords.length !== 1 ? 's' : ''} · {(token.hidden_node_types || []).length} hidden type{(token.hidden_node_types || []).length !== 1 ? 's' : ''}
                                   {' · '}{formatDate(token.created_at)}
@@ -683,7 +688,7 @@ export default function SharePanel({
                                   )}
                                 </div>
                                 <div>
-                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Hidden Node Types</p>
+                                  <p className="text-[10px] text-gray-500 uppercase tracking-wide">Node Types</p>
                                   {(token.hidden_node_types || []).length > 0 ? (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {(token.hidden_node_types || []).map((t) => (
@@ -1033,7 +1038,7 @@ export default function SharePanel({
                 <p className="text-gray-400 text-xs mb-1">
                   Revoke <span className="font-semibold text-white">{revokeTokenTarget.label || 'this token'}</span>?
                 </p>
-                <p className="text-gray-500 text-[11px] mb-4">Anyone using this MCP URI will lose access immediately.</p>
+                <p className="text-gray-500 text-[11px] mb-4">Anyone using this token — via link, QR code, or MCP config — will lose access immediately.</p>
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
