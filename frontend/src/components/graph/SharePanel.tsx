@@ -451,22 +451,10 @@ export default function SharePanel({
               </div>
             </div>
           </div>
-          {isPublic && (
-            <div>
-              <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">MCP URI</label>
-              <p className="text-[11px] text-gray-500 mt-0.5 mb-2">Use this URI to connect AI agents to your orbis.</p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <input readOnly value={`orb://${orbId}`} className="flex-1 min-w-0 w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm font-mono" />
-                <button
-                  type="button"
-                  onClick={() => { navigator.clipboard.writeText(`orb://${orbId}`); addToast('MCP URI copied', 'success'); }}
-                  className="h-10 px-4 rounded-lg bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white text-sm font-medium transition-colors sm:shrink-0"
-                >
-                  Copy
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Top-level MCP URI block removed: `orb://${orbId}` was a fake URI
+              scheme no real MCP client understands. AI agents connect via a
+              share token (per-token Copy MCP config button below) or, once
+              shipped, via OAuth from their AI client's Connectors settings. */}
         </div>
 
           <div className="space-y-4 mt-4">
@@ -597,7 +585,7 @@ export default function SharePanel({
                 {isRestricted && (
                   <div className="border-t border-gray-700/50 pt-3">
                     <label className="text-xs text-gray-500 uppercase tracking-wide font-medium">Share Tokens</label>
-                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token has its own MCP URI.</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5 mb-3">Create named tokens with your current filters. Each token generates an MCP config snippet you can paste into an AI client.</p>
 
                     {/* Create new token */}
                     <div className="flex items-center gap-2 mb-3">
@@ -621,7 +609,7 @@ export default function SharePanel({
                     {/* Token list */}
                     {tokensLoading && <p className="text-[11px] text-gray-500">Loading tokens...</p>}
                     {!tokensLoading && shareTokens.length === 0 && (
-                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to get an MCP URI.</p>
+                      <p className="text-white/20 text-xs italic">No tokens created yet. Create one to generate an MCP config.</p>
                     )}
                     {shareTokens.length > 0 && (
                       <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -1033,7 +1021,7 @@ export default function SharePanel({
                 <p className="text-gray-400 text-xs mb-1">
                   Revoke <span className="font-semibold text-white">{revokeTokenTarget.label || 'this token'}</span>?
                 </p>
-                <p className="text-gray-500 text-[11px] mb-4">Anyone using this MCP URI will lose access immediately.</p>
+                <p className="text-gray-500 text-[11px] mb-4">Anyone using this token — via link, QR code, or MCP config — will lose access immediately.</p>
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
