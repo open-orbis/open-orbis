@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Literal
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,6 +21,8 @@ from app.orbs.share_token import get_share_token_row
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
+
+_ALLOWED_SCOPES = {"orbis.read"}
 
 
 def _parse_client_id(raw: str) -> uuid.UUID:
@@ -46,6 +49,10 @@ async def authorize_get(
         raise HTTPException(400, "only response_type=code is supported")
     if code_challenge_method != "S256":
         raise HTTPException(400, "only code_challenge_method=S256 is supported")
+    if scope not in _ALLOWED_SCOPES:
+        raise HTTPException(
+            400, f"unsupported scope {scope!r}; allowed: {sorted(_ALLOWED_SCOPES)}"
+        )
 
     cid = _parse_client_id(client_id)
     pool = await get_pool()
@@ -92,7 +99,7 @@ class AuthorizePostBody(BaseModel):
     code_challenge: str
     code_challenge_method: str
     scope: str = "orbis.read"
-    access_mode: str  # "full" or "restricted"
+    access_mode: Literal["full", "restricted"]
     share_token_id: str | None = None
 
 
@@ -108,6 +115,10 @@ async def authorize_post(
         raise HTTPException(401, "authentication required")
     if body.code_challenge_method != "S256":
         raise HTTPException(400, "only S256 supported")
+    if body.scope not in _ALLOWED_SCOPES:
+        raise HTTPException(
+            400, f"unsupported scope {body.scope!r}; allowed: {sorted(_ALLOWED_SCOPES)}"
+        )
     if body.access_mode not in ("full", "restricted"):
         raise HTTPException(400, "access_mode must be 'full' or 'restricted'")
     if body.access_mode == "restricted" and not body.share_token_id:

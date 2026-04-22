@@ -106,12 +106,29 @@ class TestAuthorizeGet:
                 "state": "abc",
                 "code_challenge": "C" * 43,
                 "code_challenge_method": "S256",
+                "scope": "orbis.read",
             },
         )
         assert resp.status_code == 200
         body = resp.json()
         assert body["login_required"] is True
-        assert "/oauth/authorize?" in body["next"]
+        assert body["next"].startswith("/oauth/authorize?")
+
+        # Round-trip: ensure the next URL percent-encodes cleanly and the
+        # query parameters match the originals. This locks down the
+        # urlencode-based implementation against a future regression to
+        # string concatenation.
+        from urllib.parse import parse_qs, urlparse
+
+        parsed = urlparse(body["next"])
+        qs = parse_qs(parsed.query)
+        assert qs["response_type"] == ["code"]
+        assert qs["client_id"] == [str(cid)]
+        assert qs["redirect_uri"] == ["https://chat.openai.com/oauth/callback"]
+        assert qs["state"] == ["abc"]
+        assert qs["code_challenge"] == ["C" * 43]
+        assert qs["code_challenge_method"] == ["S256"]
+        assert qs["scope"] == ["orbis.read"]
 
     def test_rejects_mismatched_redirect_uri(
         self, user_client, _mock_pool, _mock_active_client
@@ -168,6 +185,23 @@ class TestAuthorizeGet:
             },
         )
         assert resp.status_code == 403
+
+    def test_rejects_invalid_scope(self, user_client, _mock_pool, _mock_active_client):
+        cid = _mock_active_client["client_id"]
+        resp = user_client.get(
+            "/oauth/authorize",
+            params={
+                "response_type": "code",
+                "client_id": str(cid),
+                "redirect_uri": "https://chat.openai.com/oauth/callback",
+                "state": "abc",
+                "code_challenge": "C" * 43,
+                "code_challenge_method": "S256",
+                "scope": "orbis.admin",
+            },
+        )
+        assert resp.status_code == 400
+        assert "scope" in resp.json()["detail"].lower()
 
     def test_kill_switch_returns_503(self, user_client, monkeypatch):
         monkeypatch.setattr("app.oauth.authorize_router.settings.oauth_enabled", False)
@@ -352,3 +386,20 @@ class TestAuthorizePost:
             },
         )
         assert resp.status_code == 503
+
+    def test_rejects_invalid_scope(self, user_client, _mock_pool, _mock_active_client):
+        cid = _mock_active_client["client_id"]
+        resp = user_client.post(
+            "/oauth/authorize",
+            json={
+                "client_id": str(cid),
+                "redirect_uri": "https://chat.openai.com/oauth/callback",
+                "state": "abc",
+                "code_challenge": "C" * 43,
+                "code_challenge_method": "S256",
+                "access_mode": "full",
+                "scope": "orbis.admin",
+            },
+        )
+        assert resp.status_code == 400
+        assert "scope" in resp.json()["detail"].lower()
