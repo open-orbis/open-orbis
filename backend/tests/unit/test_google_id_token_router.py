@@ -18,6 +18,8 @@ def client():
     return TestClient(app)
 
 
+# iss/aud are present for realism — verify_google_id_token is mocked,
+# so they're never actually validated by these tests.
 HAPPY_CLAIMS = {
     "sub": "google-sub-abc",
     "email": "alice@example.com",
@@ -102,6 +104,7 @@ def test_source_field_accepted(client):
             json={"id_token": "fake.jwt.token", "source": "fedcm"},
         )
     assert resp.status_code == 200
+    assert resp.json()["source"] == "id_token"
 
 
 def test_rate_limit_6th_request_is_throttled(client):

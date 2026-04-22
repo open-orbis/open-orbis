@@ -213,23 +213,17 @@ async def google_id_token_login(
 
     user = await _upsert_google_person(db, claims)
 
-    raw, _token_id, expires_at = await issue_refresh_token(
-        db,
-        user_id=user["user_id"],
-        ttl_days=settings.refresh_token_expire_days,
-        user_agent=request.headers.get("user-agent", ""),
-    )
-    access = create_jwt(user["user_id"], user["email"])
-    set_auth_cookies(
-        response,
-        access_token=access,
-        refresh_raw=raw,
-        refresh_expires_at=expires_at,
-    )
     logger.info(
         "auth: id-token login user=%s source=%s",
         user["user_id"],
         body.source or "unknown",
+    )
+    await _issue_session(
+        response,
+        db=db,
+        user_id=user["user_id"],
+        email=user["email"],
+        user_agent=request.headers.get("user-agent", ""),
     )
     return {"status": "ok", "source": "id_token"}
 
