@@ -31,7 +31,6 @@ async def call_gemini(
     from google.genai.types import GenerateContentConfig
 
     from app.config import settings
-    from app.cv.models import GeminiExtractionOutput
 
     if timeout is None:
         timeout = settings.llm_timeout_seconds
@@ -44,24 +43,28 @@ async def call_gemini(
         location=settings.vertex_region,
     )
 
-    # CV extraction is a structured classification task. We lean on three
-    # Gemini 2.5 Pro knobs to maximise extraction quality + determinism:
+    # CV extraction is a structured classification task. Three knobs,
+    # all safe under Vertex AI's response-config restrictions:
     #   - temperature=0.0: variance hurts the extraction-quality benchmark.
-    #   - response_mime_type + response_schema: force Vertex to emit JSON
-    #     matching the GeminiExtractionOutput contract — eliminates the
-    #     "Gemini wrapped the JSON in ```json fences" parse failures.
-    #   - seed: with temperature=0, pinning seed makes repeat runs on the
-    #     same input bit-identical. Useful for A/B testing prompt edits.
-    # max_output_tokens is tightened from 65k (model ceiling) to 16k —
-    # dense CVs peak around 8-12k tokens; 16k keeps headroom without
-    # letting a pathological loop burn the full ceiling.
+    #   - seed=42: with temperature=0, pinning seed makes repeat runs on
+    #     the same input bit-identical. Useful for A/B testing prompts.
+    #   - max_output_tokens=16384: dense CVs peak around 8-12k tokens;
+    #     16k keeps headroom without letting a pathological loop burn
+    #     the full 65k ceiling.
+    # NOTE: we intentionally do NOT set response_mime_type or
+    # response_schema. Vertex AI's response_schema has a restricted
+    # JSON Schema subset that does not support additionalProperties=true
+    # (needed by our ExtractedNode.properties: dict field). Enabling
+    # response_schema causes Vertex to silently return empty text
+    # despite an HTTP 200 — see v0.1.0-alpha.13 incident. The existing
+    # prompt-based JSON instructions in ollama_classifier.SYSTEM_PROMPT
+    # are sufficient; the downstream parser already handles markdown
+    # fences via json.JSONDecoder.raw_decode().
     config = GenerateContentConfig(
         system_instruction=system_prompt,
         max_output_tokens=16384,
         temperature=0.0,
         seed=42,
-        response_mime_type="application/json",
-        response_schema=GeminiExtractionOutput,
     )
 
     logger.info(

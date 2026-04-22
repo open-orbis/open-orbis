@@ -49,32 +49,6 @@ class ExtractedData(BaseModel):
     prompt_hash: str | None = None
 
 
-class GeminiExtractionOutput(BaseModel):
-    """LLM output contract for CV extraction — used as `response_schema`
-    on the Gemini 2.5 Pro Vertex AI call to enforce structured output.
-
-    Mirrors the top-level JSON shape documented in
-    `ollama_classifier.SYSTEM_PROMPT`. Intentionally distinct from
-    `ExtractedData`: this is what the LLM must produce (profile fields
-    flat at the top level, no provenance metadata), not what Orbis
-    stores internally.
-    """
-
-    cv_owner_name: str | None = None
-    headline: str | None = None
-    location: str | None = None
-    email: str | None = None
-    phone: str | None = None
-    linkedin_url: str | None = None
-    github_url: str | None = None
-    twitter_url: str | None = None
-    website_url: str | None = None
-    scholar_url: str | None = None
-    nodes: list[ExtractedNode] = []
-    relationships: list[ExtractedRelationship] = []
-    unmatched: list[str] = []
-
-
 class ExtractionMetadata(BaseModel):
     """Metadata about how a CV extraction was performed."""
 
