@@ -80,7 +80,17 @@ def get_share_context() -> ShareContext | None:
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
-    """Reject any request without a valid X-MCP-Key header.
+    """Authenticate every MCP request via one of three credential modes.
+
+    Accepted headers:
+      * `X-MCP-Key: orbk_<user-key>` → resolves to a user_id
+      * `X-MCP-Key: orbs_<share-token>` → resolves to a ShareContext
+      * `Authorization: Bearer oauth_<access-token>` → OAuth 2.1 grant,
+        either user-equivalent or share-token-scoped depending on the
+        grant type at consent time
+
+    Missing or unrecognized credentials return 401. Requests to
+    `/.well-known/*` paths bypass all auth for OAuth discovery.
 
     The driver factory is injected at construction time so this module
     doesn't need to import app.graph.neo4j_client (which would create a

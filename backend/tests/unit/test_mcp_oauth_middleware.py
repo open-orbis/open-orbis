@@ -143,3 +143,40 @@ class TestBearerAuth:
         assert r.status_code == 200
         assert seen["user_id"] == "user-orbk"
         assert seen["orb_id"] is None
+
+    def test_present_invalid_orbk_blocks_bearer_fallthrough(self, monkeypatch):
+        """An invalid X-MCP-Key must not fall through to the Bearer branch.
+
+        Regression test: the if/elif ordering in dispatch means a present
+        (even if invalid) X-MCP-Key header short-circuits the Bearer
+        check. A future refactor that reorders or merges branches could
+        silently introduce a credential-bypass where an attacker sends
+        both headers. This test locks in the current behaviour.
+        """
+
+        async def _orbk_resolve(driver, *, raw_key):
+            return None  # X-MCP-Key is structurally valid prefix but resolves to None
+
+        bearer_called = []
+
+        async def _bearer_resolve(pool, raw):
+            bearer_called.append(raw)
+            return {"user_id": "sneaky", "share_token_id": None, "scope": "orbis.read"}
+
+        monkeypatch.setattr(mcp_auth, "resolve_api_key", _orbk_resolve)
+        import mcp_server.oauth_resolver as resolver_module
+
+        monkeypatch.setattr(resolver_module, "resolve_oauth_token", _bearer_resolve)
+
+        client, _ = _build_app_with_mcp_auth(monkeypatch)
+        r = client.get(
+            "/mcp",
+            headers={
+                "X-MCP-Key": "orbk_invalid",
+                "Authorization": "Bearer oauth_valid",
+            },
+        )
+        assert r.status_code == 401
+        assert bearer_called == [], (
+            "Bearer resolver must never be invoked when X-MCP-Key is present"
+        )
