@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { trySilentReauth } from '../auth/silentReauth';
 
 // Cookies are set by the backend on /auth/google|linkedin|refresh, scoped
 // to /api for the access cookie and /auth for the refresh cookie. They
@@ -17,6 +18,7 @@ let refreshInFlight: Promise<void> | null = null;
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
   _retriedAfterRefresh?: boolean;
+  _triedSilentReauth?: boolean;
 }
 
 async function refreshSession(): Promise<void> {
@@ -41,8 +43,21 @@ client.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Already retried once and still 401 — stop here and surface the failure.
+    // Already retried once after refresh and still 401 — try silent re-auth
+    // before giving up entirely.
     if (original._retriedAfterRefresh) {
+      if (!original._triedSilentReauth) {
+        original._triedSilentReauth = true;
+        try {
+          const silentOk = await trySilentReauth();
+          if (silentOk) {
+            return client.request(original);
+          }
+        } catch {
+          // trySilentReauth never throws today, but be defensive — any
+          // unexpected throw must not break the session-expired fallback.
+        }
+      }
       window.dispatchEvent(new CustomEvent('orbis:session-expired'));
       return Promise.reject(error);
     }
@@ -55,6 +70,20 @@ client.interceptors.response.use(
       }
       await refreshInFlight;
     } catch (refreshError) {
+      // Refresh failed — try silent re-auth before declaring session expired.
+      if (!original._triedSilentReauth) {
+        original._triedSilentReauth = true;
+        try {
+          const silentOk = await trySilentReauth();
+          if (silentOk) {
+            original._retriedAfterRefresh = true;
+            return client.request(original);
+          }
+        } catch {
+          // trySilentReauth never throws today, but be defensive — any
+          // unexpected throw must not break the session-expired fallback.
+        }
+      }
       window.dispatchEvent(new CustomEvent('orbis:session-expired'));
       return Promise.reject(refreshError);
     }
