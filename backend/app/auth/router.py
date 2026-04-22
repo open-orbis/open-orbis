@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -36,6 +37,7 @@ from app.auth.service import (
     generate_orb_id,
     parse_session_cookie,
     set_auth_cookies,
+    verify_google_id_token,
 )
 from app.config import settings
 from app.dependencies import get_current_user, get_db
@@ -153,6 +155,74 @@ async def _issue_session(
         refresh_expires_at=refresh_expires_at,
     )
     return access_token
+
+
+async def _upsert_google_person(db: AsyncDriver, claims: dict) -> dict:
+    """Create or update a Person node from Google ID-token claims.
+
+    Accepts the decoded claims dict produced by either ``exchange_google_code``
+    or ``verify_google_id_token``.  Returns ``{"user_id": ..., "email": ...}``
+    so callers can mint session cookies without repeating the derivation.
+    """
+    user_id = f"google-{claims['sub']}"
+    email = claims["email"]
+    name = claims.get("name", "")
+    picture = claims.get("picture", "")
+    await _get_or_create_person(
+        db,
+        user_id=user_id,
+        email=email,
+        name=name,
+        picture=picture,
+        provider="google",
+    )
+    return {"user_id": user_id, "email": email}
+
+
+class GoogleIdTokenRequest(BaseModel):
+    id_token: str
+    source: Literal["fedcm", "onetap"] | None = None  # telemetry hint
+
+
+@router.post("/google-id-token")
+@limiter.limit("5/minute")
+async def google_id_token_login(
+    request: Request,
+    response: Response,
+    body: GoogleIdTokenRequest,
+    db: AsyncDriver = Depends(get_db),
+):
+    """Verify a Google ID token and mint an Orbis session cookie.
+
+    Called by the frontend silent-re-auth flow (FedCM or GIS One Tap),
+    which already has a Google-signed JWT in hand and just needs Orbis
+    to trust it in lieu of re-running the authorization-code dance.
+    """
+    claims = await verify_google_id_token(body.id_token)
+    if not claims.get("email_verified"):
+        raise HTTPException(status_code=401, detail="invalid_id_token")
+
+    user = await _upsert_google_person(db, claims)
+
+    raw, _token_id, expires_at = await issue_refresh_token(
+        db,
+        user_id=user["user_id"],
+        ttl_days=settings.refresh_token_expire_days,
+        user_agent=request.headers.get("user-agent", ""),
+    )
+    access = create_jwt(user["user_id"], user["email"])
+    set_auth_cookies(
+        response,
+        access_token=access,
+        refresh_raw=raw,
+        refresh_expires_at=expires_at,
+    )
+    logger.info(
+        "auth: id-token login user=%s source=%s",
+        user["user_id"],
+        body.source or "unknown",
+    )
+    return {"status": "ok", "source": "id_token"}
 
 
 @router.post("/google", response_model=TokenResponse)
