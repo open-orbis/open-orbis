@@ -125,7 +125,18 @@ export default function ConsentPage() {
         <div className="flex gap-2 justify-end">
           <button
             type="button"
-            onClick={() => window.history.back()}
+            onClick={() => {
+              if (!ctx?.redirect_uri) {
+                // Fallback: no redirect_uri available; go back as before
+                window.history.back();
+                return;
+              }
+              const u = new URL(ctx.redirect_uri);
+              u.searchParams.set('error', 'access_denied');
+              u.searchParams.set('error_description', 'The user denied the authorization request.');
+              u.searchParams.set('state', params.get('state') ?? '');
+              window.location.assign(u.toString());
+            }}
             className="h-8 px-3 rounded border border-gray-700 bg-gray-800 text-white text-xs"
           >
             Deny

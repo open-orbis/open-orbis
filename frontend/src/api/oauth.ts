@@ -44,10 +44,10 @@ export interface OAuthGrant {
 }
 
 export async function listGrants(): Promise<{ grants: OAuthGrant[] }> {
-  const { data } = await client.get('/api/oauth/grants');
+  const { data } = await client.get('/oauth/grants');
   return data;
 }
 
 export async function revokeGrant(clientId: string): Promise<void> {
-  await client.delete(`/api/oauth/grants/${clientId}`);
+  await client.delete(`/oauth/grants/${clientId}`);
 }

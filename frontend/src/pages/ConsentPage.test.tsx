@@ -150,6 +150,34 @@ describe('ConsentPage', () => {
     expect(allowBtn).toBeDisabled();
   });
 
+  it('Deny redirects to redirect_uri with error=access_denied and state', async () => {
+    (getAuthorizeContext as any).mockResolvedValue({
+      login_required: false,
+      client_id: 'c-1',
+      client_name: 'ChatGPT',
+      registered_at: '2026-04-20T00:00:00Z',
+      registered_from_ip: '1.2.3.4',
+      redirect_uri: 'https://chat.openai.com/cb',
+      scope: 'orbis.read',
+    });
+
+    const assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { assign },
+      writable: true,
+    });
+
+    renderPage();
+    await waitFor(() => screen.getByText(/^Deny$/));
+    fireEvent.click(screen.getByText(/^Deny$/));
+
+    expect(assign).toHaveBeenCalledOnce();
+    const redirectUrl = new URL(assign.mock.calls[0][0]);
+    expect(redirectUrl.origin + redirectUrl.pathname).toBe('https://chat.openai.com/cb');
+    expect(redirectUrl.searchParams.get('error')).toBe('access_denied');
+    expect(redirectUrl.searchParams.get('state')).toBe('s');
+  });
+
   it('Full mode submits with access_mode=full and no share_token_id', async () => {
     (getAuthorizeContext as ReturnType<typeof vi.fn>).mockResolvedValue({
       login_required: false,
