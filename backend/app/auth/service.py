@@ -1,10 +1,14 @@
+import asyncio
 import logging
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import httpx
-from fastapi import Response
+from fastapi import HTTPException, Response
+from google.auth import exceptions as google_auth_exceptions
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from jose import jwt
 from neo4j import AsyncDriver
 
@@ -207,3 +211,33 @@ async def generate_orb_id(name: str, db: AsyncDriver) -> str:
 
     # Fallback: fully random
     return f"user-{uuid.uuid4().hex[:8]}"
+
+
+_GOOGLE_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
+
+
+async def verify_google_id_token(raw: str) -> dict:
+    """Verify a Google-issued ID token and return its claims.
+
+    Raises HTTPException(401, 'invalid_id_token') on any validation
+    failure (signature, audience, expiry, issuer, malformed). Raises
+    HTTPException(503, 'verify_unavailable') if Google's JWKS endpoint
+    is transiently unreachable — the frontend can retry on the next
+    page load rather than being forced back to the sign-in page.
+    """
+    try:
+        claims = await asyncio.to_thread(
+            google_id_token.verify_oauth2_token,
+            raw,
+            google_requests.Request(),
+            settings.google_client_id,
+        )
+    except google_auth_exceptions.TransportError as exc:
+        logger.warning("google_id_token: JWKS fetch failed: %s", exc)
+        raise HTTPException(status_code=503, detail="verify_unavailable") from exc
+    except ValueError:
+        raise HTTPException(status_code=401, detail="invalid_id_token") from None
+
+    if claims.get("iss") not in _GOOGLE_ISSUERS:
+        raise HTTPException(status_code=401, detail="invalid_id_token")
+    return claims
