@@ -19,6 +19,7 @@ from app.export.router import router as export_router
 from app.graph.neo4j_client import close_driver, get_driver
 from app.ideas.router import router as ideas_router
 from app.notes.router import router as notes_router
+from app.oauth.authorize_router import router as oauth_authorize_router
 from app.oauth.register_router import router as oauth_register_router
 from app.orbs.router import router as orbs_router
 from app.rate_limit import limiter
@@ -222,6 +223,7 @@ app.include_router(search_router, prefix=_API_PREFIX)
 app.include_router(admin_router, prefix=_API_PREFIX)
 app.include_router(ideas_router, prefix=_API_PREFIX)
 app.include_router(oauth_register_router, prefix=_API_PREFIX)
+app.include_router(oauth_authorize_router, prefix=_API_PREFIX)
 
 # Also mount without prefix for dev (Vite proxy strips /api)
 app.include_router(auth_router)
@@ -235,6 +237,7 @@ app.include_router(search_router)
 app.include_router(admin_router)
 app.include_router(ideas_router)
 app.include_router(oauth_register_router)
+app.include_router(oauth_authorize_router)
 
 
 # ── Health endpoints ──

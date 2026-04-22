@@ -176,6 +176,28 @@ async def validate_share_token_for_mcp(
     )
 
 
+async def get_share_token_row(db: AsyncDriver, token_id: str) -> dict | None:
+    """Return Person.user_id + filter data for a token, or None.
+
+    Used by the OAuth consent flow to verify the current user owns the
+    share token they're trying to bind to an OAuth grant.
+    """
+    async with db.session() as session:
+        result = await session.run(
+            """
+            MATCH (p:Person)-[:HAS_SHARE_TOKEN]->(st:ShareToken {token_id: $tid})
+            WHERE coalesce(st.revoked, false) = false
+              AND (st.expires_at IS NULL OR st.expires_at > datetime())
+            RETURN p.user_id AS user_id,
+                   st.keywords AS keywords,
+                   coalesce(st.hidden_node_types, []) AS hidden_node_types
+            """,
+            tid=token_id,
+        )
+        row = await result.single()
+    return dict(row) if row else None
+
+
 def node_matches_filters(node: dict, keywords: list[str]) -> bool:
     """Check if any string property of a node contains any of the keywords (case-insensitive)."""
     for value in node.values():
