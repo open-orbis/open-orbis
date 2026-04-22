@@ -72,3 +72,46 @@ describe('axios interceptor — silent re-auth integration', () => {
     expect(trySilentReauth).toHaveBeenCalledOnce();
   });
 });
+
+describe('axios interceptor — refresh race', () => {
+  let mock: MockAdapter;
+
+  beforeEach(() => {
+    mock = new MockAdapter(client);
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    mock.restore();
+  });
+
+  it('retries original request when another tab rotated the cookie <500ms ago', async () => {
+    // Phase 1: Prime lastSuccessfulRefreshAt by running a full 401→refresh→retry
+    // cycle through the interceptor. This sets lastSuccessfulRefreshAt = Date.now().
+    axiosPostSpy.mockResolvedValueOnce({ status: 200 });
+    let primeCall = 0;
+    mock.onGet('/prime').reply(() => {
+      primeCall += 1;
+      return primeCall === 1 ? [401, {}] : [200, { primed: true }];
+    });
+    await client.get('/prime');
+
+    // Phase 2: Now within the 500ms race window, trigger a new 401 on /foo.
+    // /auth/refresh fails (token already rotated by "tab A"), but the race
+    // window is still open, so the interceptor retries /foo once — second call succeeds.
+    axiosPostSpy.mockRejectedValueOnce(
+      Object.assign(new Error('token already rotated'), { response: { status: 401 } }),
+    );
+
+    let fooCall = 0;
+    mock.onGet('/foo').reply(() => {
+      fooCall += 1;
+      return fooCall === 1 ? [401, {}] : [200, { ok: true }];
+    });
+
+    const res = await client.get('/foo');
+    expect(res.data).toEqual({ ok: true });
+    // trySilentReauth should NOT have been called — the race window handled it.
+    expect(trySilentReauth).not.toHaveBeenCalled();
+  });
+});

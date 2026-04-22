@@ -16,13 +16,22 @@ const client = axios.create({
 // requests that all 401 in a burst only trigger one /auth/refresh.
 let refreshInFlight: Promise<void> | null = null;
 
+// Cross-tab refresh-race guard: when another tab successfully refreshes
+// within this window, a fresh cookie is already set even though this tab's
+// /auth/refresh call failed. Retry the original request once instead of
+// immediately falling through to silent-reauth / session-expired.
+let lastSuccessfulRefreshAt = 0;
+const REFRESH_RACE_WINDOW_MS = 500;
+
 interface RetryableConfig extends InternalAxiosRequestConfig {
   _retriedAfterRefresh?: boolean;
   _triedSilentReauth?: boolean;
+  _triedAfterRaceWindow?: boolean;
 }
 
 async function refreshSession(): Promise<void> {
   await axios.post(`${API_BASE}/auth/refresh`, undefined, { withCredentials: true });
+  lastSuccessfulRefreshAt = Date.now();
 }
 
 client.interceptors.response.use(
@@ -70,6 +79,17 @@ client.interceptors.response.use(
       }
       await refreshInFlight;
     } catch (refreshError) {
+      // Refresh failed — but another tab may have just rotated the cookie.
+      // If the last successful refresh happened within the race window, retry
+      // the original request once: its cookie is already valid.
+      if (
+        !original._triedAfterRaceWindow &&
+        Date.now() - lastSuccessfulRefreshAt < REFRESH_RACE_WINDOW_MS
+      ) {
+        original._triedAfterRaceWindow = true;
+        return client.request(original);
+      }
+
       // Refresh failed — try silent re-auth before declaring session expired.
       if (!original._triedSilentReauth) {
         original._triedSilentReauth = true;
