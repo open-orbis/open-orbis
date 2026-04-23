@@ -286,6 +286,8 @@ The frontend build bakes the MCP endpoint URL into the bundle. If it's unset, th
 | `VITE_API_URL` | (usually unset — defaults to `/api`) | Backend API origin if not same-origin with the frontend. |
 | `VITE_GOOGLE_CLIENT_ID` | `...apps.googleusercontent.com` | Google OAuth client ID for user sign-in. |
 
+For the open-orbis deploy workflow, `VITE_MCP_URL` is wired from the `MCP_URL` GitHub repository secret (see `.github/workflows/deploy.yml` → `build-frontend` job). To change the URL, update the secret — no code change needed. If the secret is unset the build falls back to the dev default and every AI connector copied from the UI will be broken (#418).
+
 ## MCP Server
 
 The MCP server runs as a separate process:

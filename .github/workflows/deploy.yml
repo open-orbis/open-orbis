@@ -140,6 +140,11 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           VITE_LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
           VITE_API_URL: /api
+          # Public MCP endpoint baked into the bundle. If unset the build
+          # falls back to the dev default http://localhost:8081/mcp, which
+          # breaks every AI connector users paste into ChatGPT / Cursor /
+          # Claude Code / Cline / Windsurf. See #418.
+          VITE_MCP_URL: ${{ secrets.MCP_URL }}
         run: |
           npm ci
           npm run build
