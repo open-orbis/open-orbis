@@ -115,7 +115,7 @@ describe('ChatBox search result row', () => {
           onEditNode={onEditNode}
         />,
       );
-      const input = screen.getByPlaceholderText(/Query your orbis/i);
+      const input = screen.getByPlaceholderText(/Search for a node/i);
       // selectedNodeUid in seededMessages already activates row 0.
       fireEvent.keyDown(input, { key: 'Enter' });
       vi.runAllTimers();
@@ -152,7 +152,7 @@ describe('ChatBox search result row', () => {
         onEditNode={onEditNode}
       />,
     );
-    const input = screen.getByPlaceholderText(/Query your orbis/i);
+    const input = screen.getByPlaceholderText(/Search for a node/i);
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'ArrowUp' });
     // Arrow keys navigate rows; onFocusNode fires for each step.

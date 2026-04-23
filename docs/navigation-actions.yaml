@@ -349,6 +349,20 @@
   next_state: FLOATING_INPUT
   fallback_on_failure: null
 
+- id: ORB_HOVER_NODE
+  from_state: ORB_VIEW
+  action: Mouse over a node in the 3D graph
+  selector_or_control: "3D canvas node mesh"
+  preconditions: []
+  expected_effect: >-
+    Hovered node and its one-hop neighbors stay at full opacity; all other
+    nodes dim to ~0.2 opacity; edges inside the 1-hop neighborhood brighten
+    while edges leaving it dim. Mouse-leave fades back over 200 ms after an
+    80 ms debounce. Composes with existing search / filter state — a
+    search-highlighted node stays bright during an unrelated hover.
+  next_state: ORB_VIEW (transient visual emphasis — not a navigable state)
+  fallback_on_failure: null
+
 - id: ORB_FILTER_NODE_TYPES
   from_state: ORB_VIEW
   action: Toggle node types in NodeTypeFilter

@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import type { OrbData } from '../../api/orbs';
 import { getNodeColor } from './NodeColors';
 import NodeTooltip from './NodeTooltip';
+import { buildAdjacencyMap } from './adjacency';
 
 interface OrbGraph3DProps {
   data: OrbData;
@@ -24,6 +25,10 @@ interface OrbGraph3DProps {
   onCameraDistanceChange?: (distance: number) => void;
   /** When false, node hover tooltips are suppressed (e.g. when a menu/modal is open) */
   tooltipEnabled?: boolean;
+  /** On mouse-over a node, called with {node.uid} ∪ one-hop neighbors to drive
+   *  the existing highlight dimming (same mechanism the Top Hub uses). Called
+   *  with an empty set on mouse-leave. */
+  onHoverHighlight?: (uids: Set<string>) => void;
 }
 
 
@@ -57,6 +62,7 @@ export default function OrbGraph3D({
   focusNodeToken = 0,
   onCameraDistanceChange,
   tooltipEnabled = true,
+  onHoverHighlight,
 }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
@@ -162,6 +168,17 @@ export default function OrbGraph3D({
       links: validLinks,
     };
   }, [data]);
+
+  // Adjacency map for one-hop hover highlight (#414). Recomputes whenever
+  // `graphData.links` changes — which includes manual add/delete of a node,
+  // CV import (bulk add), undo/redo, and any other mutation that routes
+  // through the orb store's `data` state.
+  const adjacencyMap = useMemo(
+    () => buildAdjacencyMap(graphData.links as Array<{ source: string | { id: string }; target: string | { id: string } }>),
+    [graphData.links],
+  );
+  const adjacencyMapRef = useRef(adjacencyMap);
+  adjacencyMapRef.current = adjacencyMap;
 
   // Add ambient light + particle background
   useEffect(() => {
@@ -356,11 +373,54 @@ export default function OrbGraph3D({
     return () => { cancelled = true; };
   }, [focusNodeId, focusNodeToken, graphData.nodes, cameraDistance]);
 
+  // Drag state — while the user is dragging a node, suppress hover changes
+  // so the highlight doesn't flicker as the raycast briefly misses the node.
+  const isDraggingRef = useRef(false);
+  const hoverLeaveTimerRef = useRef<number | null>(null);
+
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node || null);
     hoveredNodeRef.current = node || null;
     const el = document.querySelector('canvas');
     if (el) el.style.cursor = node ? 'pointer' : 'default';
+
+    if (!onHoverHighlight) return;
+    if (isDraggingRef.current) return;
+
+    // Drive the existing highlight-dimming mechanism — same approach the Top
+    // Hub metric uses. Emphasized set = hovered node + one-hop neighbors. On
+    // leave, debounce by 80 ms so a brief raycast miss (e.g. cursor crossing
+    // a thin gap) doesn't wipe the highlight and trigger a full scene rebuild.
+    if (hoverLeaveTimerRef.current !== null) {
+      clearTimeout(hoverLeaveTimerRef.current);
+      hoverLeaveTimerRef.current = null;
+    }
+    if (node) {
+      const uid = (node.id || node.uid) as string;
+      const neighbors = adjacencyMapRef.current.get(uid);
+      const emphasized = new Set<string>([uid]);
+      if (neighbors) for (const n of neighbors) emphasized.add(n);
+      onHoverHighlight(emphasized);
+    } else {
+      hoverLeaveTimerRef.current = window.setTimeout(() => {
+        hoverLeaveTimerRef.current = null;
+        onHoverHighlight(new Set());
+      }, 80);
+    }
+  }, [onHoverHighlight]);
+
+  useEffect(() => {
+    return () => {
+      if (hoverLeaveTimerRef.current !== null) clearTimeout(hoverLeaveTimerRef.current);
+    };
+  }, []);
+
+  const handleNodeDrag = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  const handleNodeDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
   }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -584,15 +644,23 @@ export default function OrbGraph3D({
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
+    // Keep links bright when both endpoints are in the highlighted set —
+    // used for the one-hop hover feature (#414), where the hovered node +
+    // its neighbors are all highlighted and their interconnecting edges
+    // should stand out against the dimmed rest of the graph.
+    const bothEndpointsHighlighted = hasHighlightsRef.current
+      && highlightRef.current.has(sourceId)
+      && highlightRef.current.has(targetId);
+
     const hex = nodeColorMapRef.current.get(sourceId);
     if (hex) {
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
       const b = parseInt(hex.slice(5, 7), 16);
-      const alpha = hasHighlightsRef.current ? 0.08 : 0.45;
+      const alpha = hasHighlightsRef.current && !bothEndpointsHighlighted ? 0.08 : 0.45;
       return `rgba(${r},${g},${b},${alpha})`;
     }
-    return hasHighlightsRef.current ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
+    return hasHighlightsRef.current && !bothEndpointsHighlighted ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
   };
   const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), []);
 
@@ -627,6 +695,8 @@ export default function OrbGraph3D({
         linkCurvature={0.15}
         linkCurveRotation={0.5}
         onNodeHover={handleNodeHover}
+        onNodeDrag={handleNodeDrag}
+        onNodeDragEnd={handleNodeDragEnd}
         onNodeClick={handleNodeClick}
         onBackgroundClick={handleBackgroundClick}
       />
