@@ -10,6 +10,15 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const goToPostLogin = async () => {
+      // Honor a pending return-to URL (e.g. OAuth consent flow where the
+      // user was bounced to /oauth/authorize?... before signing in).
+      // Mirrors LinkedInCallbackPage's behavior.
+      const returnTo = sessionStorage.getItem('orbis_return_to');
+      if (returnTo) {
+        sessionStorage.removeItem('orbis_return_to');
+        navigate(returnTo, { replace: true });
+        return;
+      }
       const hasContent = await hasOrbContent();
       navigate(hasContent ? '/myorbis' : '/create');
     };

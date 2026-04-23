@@ -19,7 +19,16 @@ export default function ConsentPage() {
     getAuthorizeContext(params)
       .then((c) => {
         if (c.login_required) {
-          navigate(`/login?next=${encodeURIComponent(c.next ?? '/myorbis')}`);
+          // No /login route exists — navigating there falls through to the
+          // /:orbId catch-all and shows "Orbis not found". Stash the OAuth
+          // URL so the landing + auth-callback pages can bounce back here
+          // after sign-in, then go to the public landing page which has
+          // the Google / LinkedIn buttons.
+          sessionStorage.setItem(
+            'orbis_return_to',
+            c.next ?? `${location.pathname}${location.search}`,
+          );
+          navigate('/', { replace: true });
           return;
         }
         setCtx(c);
