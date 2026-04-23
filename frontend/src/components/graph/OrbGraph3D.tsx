@@ -436,21 +436,10 @@ export default function OrbGraph3D({
           }
         };
         fadeAnimationRef.current = requestAnimationFrame(step);
-        // Snap link opacities back to their un-hovered value while node opacity
-        // animates — visually indistinguishable over 200 ms and avoids extra
-        // refreshes per frame. See the [hoverTick] effect for why link opacity
-        // is mutated directly instead of via linkColor.
+        // Kick link recolor now so links snap to their un-hovered color while
+        // node opacity animates — visually indistinguishable over 200 ms.
         const fg = fgRef.current;
-        if (fg) {
-          const liveLinks = (fg.graphData?.()?.links ?? []) as Array<{
-            __lineObj?: { material?: THREE.Material & { opacity: number; transparent: boolean } };
-          }>;
-          for (const link of liveLinks) {
-            const mat = link.__lineObj?.material;
-            if (mat) mat.opacity = 0.5;
-          }
-          fg.refresh();
-        }
+        if (fg) fg.refresh();
       }, HOVER_LEAVE_DEBOUNCE_MS);
     }
   }, []);
@@ -482,29 +471,12 @@ export default function OrbGraph3D({
       }
     });
 
-    // Link opacity: THREE.Color ignores alpha in rgba() strings, so `linkColor`
-    // alone cannot dim edges — only re-tint them. Mutate each link's material
-    // directly. react-force-graph-3d exposes the rendered line mesh as
-    // `link.__lineObj` on each item in the live links array.
+    // Link color re-eval happens via the linkColor closure (it reads
+    // hoverEmphasizedUidsRef and returns rgba with adjusted alpha). The
+    // stableLinkColor reference bumps on hoverTick, which causes Kapsule's
+    // change detection to re-digest all links.
     const fg = fgRef.current;
-    if (fg) {
-      const liveLinks = (fg.graphData?.()?.links ?? []) as Array<{
-        source: string | { id: string };
-        target: string | { id: string };
-        __lineObj?: { material?: THREE.Material & { opacity: number; transparent: boolean } };
-      }>;
-      for (const link of liveLinks) {
-        const mat = link.__lineObj?.material;
-        if (!mat) continue;
-        const srcId = typeof link.source === 'object' ? link.source.id : link.source;
-        const tgtId = typeof link.target === 'object' ? link.target.id : link.target;
-        const bothEmphasized = emphasized.has(srcId) && emphasized.has(tgtId);
-        const shouldDim = isHovering && !bothEmphasized;
-        mat.transparent = true;
-        mat.opacity = shouldDim ? HOVER_DIM_LINK_ALPHA : 0.5;
-      }
-      fg.refresh();
-    }
+    if (fg) fg.refresh();
   }, [hoverTick]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -744,9 +716,16 @@ export default function OrbGraph3D({
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
-    // Hover dim is applied via direct material.opacity mutation in the
-    // [hoverTick] useEffect — three.js's THREE.Color parser ignores the alpha
-    // channel in rgba() strings, so we can't dim via color alone.
+    // Hover dim: while a hover is active, any link whose endpoints aren't
+    // both in the emphasized set is dimmed. The library parses the alpha
+    // from rgba strings (tinycolor.getAlpha) and multiplies by linkOpacity
+    // to produce the material opacity.
+    const hoverSet = hoverEmphasizedUidsRef.current;
+    const isHovering = hoverSet.size > 0;
+    if (isHovering) {
+      const bothEmphasized = hoverSet.has(sourceId) && hoverSet.has(targetId);
+      if (!bothEmphasized) return `rgba(255,255,255,${HOVER_DIM_LINK_ALPHA})`;
+    }
 
     const hex = nodeColorMapRef.current.get(sourceId);
     if (hex) {
@@ -763,6 +742,18 @@ export default function OrbGraph3D({
   // caches per-link colors and hover-driven dimming never reaches the links.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), [hoverTick]);
+
+  // While hovering, hide links that aren't inside the 1-hop neighborhood.
+  // react-force-graph caches link materials per-color, which makes opacity-only
+  // dimming unreliable; driving visibility instead is the robust path.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableLinkVisibility = useCallback((link: any) => {
+    const hoverSet = hoverEmphasizedUidsRef.current;
+    if (hoverSet.size === 0) return true;
+    const srcId = typeof link.source === 'object' ? (link.source.id || link.source.uid) : link.source;
+    const tgtId = typeof link.target === 'object' ? (link.target.id || link.target.uid) : link.target;
+    return hoverSet.has(srcId) && hoverSet.has(tgtId);
+  }, [hoverTick]);
 
   return (
     <div
@@ -798,6 +789,7 @@ export default function OrbGraph3D({
         nodeThreeObjectExtend={false}
         nodeLabel={() => ''}
         linkColor={stableLinkColor}
+        linkVisibility={stableLinkVisibility}
         linkWidth={1}
         linkOpacity={0.5}
         linkCurvature={0.15}
