@@ -12,6 +12,7 @@ import hashlib
 import logging
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from neo4j import AsyncGraphDatabase
 
 from app.config import settings
@@ -26,8 +27,51 @@ from mcp_server.tools import (
 
 logger = logging.getLogger(__name__)
 
+
+def _build_transport_security() -> TransportSecuritySettings:
+    """DNS rebinding protection allowlist.
+
+    FastMCP auto-enables host validation for localhost and blocks every
+    other Host header, so in production the public domain must be added
+    here explicitly — otherwise every authenticated MCP call from
+    ChatGPT / Claude / Cursor gets 421 "Invalid Host header".
+
+    Parsed from settings.cloud_run_url (set on the orbis-mcp Cloud Run
+    service, e.g. https://mcp.open-orbis.com). Localhost entries stay in
+    the list so dev still works after flipping the env var.
+    """
+    allowed_hosts: list[str] = [
+        "127.0.0.1:*",
+        "localhost:*",
+        "[::1]:*",
+    ]
+    allowed_origins: list[str] = [
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+        "http://[::1]:*",
+    ]
+    if settings.cloud_run_url:
+        # cloud_run_url is e.g. "https://mcp.open-orbis.com". Extract the
+        # bare host (no scheme, no trailing slash) for allowed_hosts, and
+        # keep the full origin in allowed_origins.
+        from urllib.parse import urlparse
+
+        parsed = urlparse(settings.cloud_run_url.rstrip("/"))
+        if parsed.hostname:
+            allowed_hosts.append(parsed.hostname)
+            allowed_hosts.append(f"{parsed.hostname}:*")
+        allowed_origins.append(f"{parsed.scheme}://{parsed.netloc}")
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
+
+
 mcp = FastMCP(
-    "Orbis", instructions="Query professional knowledge graphs (orbs) from Orbis."
+    "Orbis",
+    instructions="Query professional knowledge graphs (orbs) from Orbis.",
+    transport_security=_build_transport_security(),
 )
 
 _driver = None
