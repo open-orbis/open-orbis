@@ -8,15 +8,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 
 class TestResolveScope:
-    """Translates tool args based on whether share context is set."""
+    """Translates tool args based on whether share context is set.
 
-    def test_passes_through_when_no_share_context(self):
+    `_resolve_scope` is async because the full-access "me" path resolves
+    a caller's user_id to their orb_id via Neo4j. Tests that don't
+    exercise that path still need to await the coroutine.
+    """
+
+    async def test_passes_through_when_no_share_context_and_no_caller(self):
         from mcp_server.server import _resolve_scope
 
-        # Baseline: no context set
-        assert _resolve_scope("orb-123", "tok-xyz") == ("orb-123", "tok-xyz")
+        # No share context, no authenticated user → pass through verbatim.
+        assert await _resolve_scope("orb-123", "tok-xyz") == ("orb-123", "tok-xyz")
 
-    def test_uses_share_context_when_set(self):
+    async def test_uses_share_context_when_set(self):
         from mcp_server.auth import ShareContext, _current_share_context
         from mcp_server.server import _resolve_scope
 
@@ -28,17 +33,15 @@ class TestResolveScope:
         )
         reset = _current_share_context.set(ctx)
         try:
-            # LLM passes empty values — we fill from context
-            assert _resolve_scope("", "") == ("orb-from-share", "tok-scoped")
-            # LLM passes matching orb_id — same outcome
-            assert _resolve_scope("orb-from-share", "anything") == (
+            assert await _resolve_scope("", "") == ("orb-from-share", "tok-scoped")
+            assert await _resolve_scope("orb-from-share", "anything") == (
                 "orb-from-share",
                 "tok-scoped",
             )
         finally:
             _current_share_context.reset(reset)
 
-    def test_logs_warning_on_orb_id_mismatch(self, caplog):
+    async def test_logs_warning_on_orb_id_mismatch(self, caplog):
         import hashlib
 
         from mcp_server.auth import ShareContext, _current_share_context
@@ -53,10 +56,9 @@ class TestResolveScope:
         reset = _current_share_context.set(ctx)
         try:
             with caplog.at_level("WARNING", logger="mcp_server.server"):
-                orb, tok = _resolve_scope("orb-B", "")
+                orb, tok = await _resolve_scope("orb-B", "")
             assert orb == "orb-A"  # share context wins
             assert tok == "tok-A"
-            # The WARNING must reveal the mismatch but NEVER the raw token_id
             expected_hint = hashlib.sha256(b"tok-A").hexdigest()[:12]
             assert any(
                 "mismatched orb_id" in r.message
@@ -66,6 +68,32 @@ class TestResolveScope:
             )
         finally:
             _current_share_context.reset(reset)
+
+    async def test_resolves_caller_user_id_to_orb_id_for_me(self, monkeypatch):
+        """Full-access mode: empty/"me" orb_id → caller's orb_id via Neo4j."""
+        from mcp_server.auth import _current_user_id
+        from mcp_server.server import _resolve_scope
+
+        # Fake driver + session + record chain
+        record = {"orb_id": "orb-resolved-123"}
+        result = MagicMock()
+        result.single = AsyncMock(return_value=record)
+        session = MagicMock()
+        session.run = AsyncMock(return_value=result)
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=None)
+        driver = MagicMock()
+        driver.session = MagicMock(return_value=session)
+
+        with patch("mcp_server.server._get_driver", AsyncMock(return_value=driver)):
+            reset = _current_user_id.set("google-sub-abc")
+            try:
+                for alias in ("", "me", "Self", "own"):
+                    orb, tok = await _resolve_scope(alias, "ignored")
+                    assert orb == "orb-resolved-123"
+                    assert tok == "ignored"
+            finally:
+                _current_user_id.reset(reset)
 
 
 # ── _check_access in tools.py under share context ───────────────────────
