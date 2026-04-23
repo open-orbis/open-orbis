@@ -63,7 +63,10 @@ class TestRegisterClient:
         body = resp.json()
         assert body["client_id"] == str(_mock_register_client)
         assert body["client_name"] == "ChatGPT"
-        assert body["client_secret"] is None
+        # RFC 7591: client_secret MUST NOT be present for public clients.
+        # ChatGPT's DCR response model rejects `"client_secret": null`
+        # (input_type=NoneType → string_type validation error).
+        assert "client_secret" not in body
         assert body["grant_types"] == ["authorization_code", "refresh_token"]
         assert body["response_types"] == ["code"]
 

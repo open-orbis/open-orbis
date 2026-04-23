@@ -37,7 +37,7 @@ def _validate_redirect_uri(uri: str) -> bool:
     return parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}
 
 
-@router.post("/register", status_code=201)
+@router.post("/register", status_code=201, response_model_exclude_none=True)
 @limiter.limit(
     settings.oauth_register_rate_limit,
     key_func=lambda request: f"oauth_register:{get_remote_address(request)}",
