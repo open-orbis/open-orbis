@@ -615,15 +615,23 @@ export default function OrbGraph3D({
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
+    // Keep links bright when both endpoints are in the highlighted set —
+    // used for the one-hop hover feature (#414), where the hovered node +
+    // its neighbors are all highlighted and their interconnecting edges
+    // should stand out against the dimmed rest of the graph.
+    const bothEndpointsHighlighted = hasHighlightsRef.current
+      && highlightRef.current.has(sourceId)
+      && highlightRef.current.has(targetId);
+
     const hex = nodeColorMapRef.current.get(sourceId);
     if (hex) {
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
       const b = parseInt(hex.slice(5, 7), 16);
-      const alpha = hasHighlightsRef.current ? 0.08 : 0.45;
+      const alpha = hasHighlightsRef.current && !bothEndpointsHighlighted ? 0.08 : 0.45;
       return `rgba(${r},${g},${b},${alpha})`;
     }
-    return hasHighlightsRef.current ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
+    return hasHighlightsRef.current && !bothEndpointsHighlighted ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
   };
   const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), []);
 
