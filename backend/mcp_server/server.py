@@ -90,13 +90,17 @@ async def _get_driver():
 def _resolve_scope(orb_id_arg: str, token_arg: str) -> tuple[str, str]:
     """Return the effective (orb_id, token) for this tool invocation.
 
-    - User-key mode: both args pass through unchanged (today's behavior).
     - Share-token mode: the share context set by APIKeyMiddleware is
       authoritative. `orb_id_arg` is ignored from the LLM's perspective;
       we pass the share token's id back through as `token` so the
       existing filter code in `tools.py` treats the request uniformly.
+    - Full-access mode (user API key or full-mode OAuth grant): if the
+      LLM didn't provide an orb_id (or passed "me"/"self"), resolve to
+      the authenticated caller's own orb. Otherwise pass through — the
+      tool layer enforces visibility against public orbs.
+    - Anonymous (shouldn't happen — middleware blocks): pass through.
     """
-    from mcp_server.auth import get_share_context
+    from mcp_server.auth import get_current_user_id, get_share_context
 
     ctx = get_share_context()
     if ctx is not None:
@@ -113,6 +117,16 @@ def _resolve_scope(orb_id_arg: str, token_arg: str) -> tuple[str, str]:
                 token_hint,
             )
         return ctx.orb_id, ctx.token_id
+
+    # Full-access mode: an empty or "me"/"self" orb_id resolves to the
+    # authenticated caller's own orb. A Person's user_id is the orb id
+    # for that person's own Orbis graph (1-1), so get_current_user_id()
+    # is exactly what tools expect as orb_id.
+    if not orb_id_arg or orb_id_arg.lower() in ("me", "self", "own"):
+        caller_id = get_current_user_id()
+        if caller_id is not None:
+            return caller_id, token_arg
+
     return orb_id_arg, token_arg
 
 
@@ -155,16 +169,16 @@ def _build_starlette_app():
 
 
 @mcp.tool()
-async def orbis_get_summary(orb_id: str, token: str = "") -> dict:
-    """Get a summary of a person's professional profile including name, headline, location, and counts of each node type. Leave ``token`` empty when querying an orb you own."""
+async def orbis_get_summary(orb_id: str = "", token: str = "") -> dict:
+    """Get a summary of a person's professional profile (name, headline, location, and counts of each node type). Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Leave ``token`` empty when you already have full access."""
     orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_orb_summary(driver, orb_id, token)
 
 
 @mcp.tool()
-async def orbis_get_full_orb(orb_id: str, token: str = "") -> dict:
-    """Get the complete graph data for a person's orb, filtered according to the share token's privacy settings when a token is supplied."""
+async def orbis_get_full_orb(orb_id: str = "", token: str = "") -> dict:
+    """Get the complete graph data for a person's Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Results are filtered by the share token's privacy settings when a token is supplied."""
     orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_orb_full(driver, orb_id, token)
@@ -172,17 +186,19 @@ async def orbis_get_full_orb(orb_id: str, token: str = "") -> dict:
 
 @mcp.tool()
 async def orbis_get_nodes_by_type(
-    orb_id: str, node_type: str, token: str = ""
+    node_type: str, orb_id: str = "", token: str = ""
 ) -> list[dict]:
-    """Get all nodes of a specific type from an orb. Valid node_types: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
+    """Get all nodes of a specific type from an Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Valid ``node_type`` values: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
     orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_nodes_by_type(driver, orb_id, node_type, token)
 
 
 @mcp.tool()
-async def orbis_get_connections(orb_id: str, node_uid: str, token: str = "") -> dict:
-    """Get all relationships and connected nodes for a specific node identified by its uid."""
+async def orbis_get_connections(
+    node_uid: str, orb_id: str = "", token: str = ""
+) -> dict:
+    """Get all relationships and connected nodes for a specific node identified by its uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_connections(driver, orb_id, node_uid, token)
@@ -190,9 +206,9 @@ async def orbis_get_connections(orb_id: str, node_uid: str, token: str = "") -> 
 
 @mcp.tool()
 async def orbis_get_skills_for_experience(
-    orb_id: str, experience_uid: str, token: str = ""
+    experience_uid: str, orb_id: str = "", token: str = ""
 ) -> list[dict]:
-    """Get all skills that were used in a specific work experience or project, identified by the experience's uid."""
+    """Get all skills that were used in a specific work experience or project, identified by the experience's uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = _resolve_scope(orb_id, token)
     driver = await _get_driver()
     return await get_skills_for_experience(driver, orb_id, experience_uid, token)
