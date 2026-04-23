@@ -733,7 +733,11 @@ export default function OrbGraph3D({
     }
     return hasHighlightsRef.current ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
   };
-  const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), []);
+  // Depend on hoverTick so react-force-graph sees a new function reference on
+  // each hover change and re-evaluates link colors. Without this, the library
+  // caches per-link colors and hover-driven dimming never reaches the links.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), [hoverTick]);
 
   return (
     <div
