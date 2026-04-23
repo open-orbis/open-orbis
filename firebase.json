@@ -11,6 +11,34 @@
         }
       },
       {
+        "source": "/.well-known/oauth-authorization-server",
+        "run": {
+          "serviceId": "orbis-api",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/oauth/register",
+        "run": {
+          "serviceId": "orbis-api",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/oauth/token",
+        "run": {
+          "serviceId": "orbis-api",
+          "region": "europe-west1"
+        }
+      },
+      {
+        "source": "/oauth/revoke",
+        "run": {
+          "serviceId": "orbis-api",
+          "region": "europe-west1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
