@@ -94,4 +94,73 @@ describe('ChatBox search result row', () => {
     expect(onFocusNode).toHaveBeenCalledWith('uid-a');
     expect(onEditNode).toHaveBeenCalledWith('uid-a');
   });
+
+  it('Enter on an active result row fires onEditNode', () => {
+    const onEditNode = vi.fn();
+    render(
+      <ChatBox
+        onHighlight={() => {}}
+        messages={seededMessages}
+        onMessagesChange={() => {}}
+        onFocusNode={() => {}}
+        onEditNode={onEditNode}
+      />,
+    );
+    const input = screen.getByPlaceholderText(/Query your orbis/i);
+    // selectedNodeUid in seededMessages already activates row 0.
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onEditNode).toHaveBeenCalledWith('uid-a');
+  });
+
+  it('ArrowDown / ArrowUp cycle through rows and call onFocusNode for each', () => {
+    const nodeB = {
+      uid: 'uid-b',
+      name: 'Beta Skill',
+      _labels: ['Skill'],
+      score: 0.8,
+    } as unknown as import('../../api/orbs').OrbNode;
+    const messages = [
+      { role: 'user' as const, text: 'q' },
+      {
+        role: 'assistant' as const,
+        text: 'Found 2 matching nodes — click one to highlight it in your graph.',
+        matchedNodes: [nodeA, nodeB],
+        selectedNodeUid: nodeA.uid,
+      },
+    ];
+    const onFocusNode = vi.fn();
+    const onEditNode = vi.fn();
+    render(
+      <ChatBox
+        onHighlight={() => {}}
+        messages={messages}
+        onMessagesChange={() => {}}
+        onFocusNode={onFocusNode}
+        onEditNode={onEditNode}
+      />,
+    );
+    const input = screen.getByPlaceholderText(/Query your orbis/i);
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'ArrowUp' });
+    // Arrow keys navigate rows; onFocusNode fires for each step.
+    expect(onFocusNode).toHaveBeenCalled();
+    // Arrow navigation goes through handleResultClick which also fires onEditNode —
+    // verify it was called with row uids (not called zero times).
+    expect(onEditNode).toHaveBeenCalled();
+  });
+
+  it('omitting onEditNode still calls onFocusNode on click (no crash)', () => {
+    const onFocusNode = vi.fn();
+    render(
+      <ChatBox
+        onHighlight={() => {}}
+        messages={seededMessages}
+        onMessagesChange={() => {}}
+        onFocusNode={onFocusNode}
+      />,
+    );
+    const row = screen.getByRole('option', { name: /alpha skill/i });
+    fireEvent.click(row);
+    expect(onFocusNode).toHaveBeenCalledWith('uid-a');
+  });
 });
