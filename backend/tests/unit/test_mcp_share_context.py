@@ -69,7 +69,7 @@ class TestResolveScope:
         finally:
             _current_share_context.reset(reset)
 
-    async def test_resolves_caller_user_id_to_orb_id_for_me(self, monkeypatch):
+    async def test_resolves_caller_user_id_to_orb_id_for_me(self):
         """Full-access mode: empty/"me" orb_id → caller's orb_id via Neo4j."""
         from mcp_server.auth import _current_user_id
         from mcp_server.server import _resolve_scope
