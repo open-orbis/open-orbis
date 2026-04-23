@@ -325,6 +325,7 @@ export default function SharedOrbPage() {
         height={dimensions.height}
         focusNodeId={focusRequest?.nodeUid || null}
         focusNodeToken={focusRequest?.seq ?? 0}
+        onHoverHighlight={setHighlightedNodeIds}
       />
 
       <OrbisStatsOverlay

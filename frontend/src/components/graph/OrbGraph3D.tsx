@@ -25,14 +25,12 @@ interface OrbGraph3DProps {
   onCameraDistanceChange?: (distance: number) => void;
   /** When false, node hover tooltips are suppressed (e.g. when a menu/modal is open) */
   tooltipEnabled?: boolean;
+  /** On mouse-over a node, called with {node.uid} ∪ one-hop neighbors to drive
+   *  the existing highlight dimming (same mechanism the Top Hub uses). Called
+   *  with an empty set on mouse-leave. */
+  onHoverHighlight?: (uids: Set<string>) => void;
 }
 
-
-// Hover one-hop highlight (issue #414) — see design doc.
-const HOVER_LEAVE_DEBOUNCE_MS = 80;
-const HOVER_FADE_MS = 200;
-const HOVER_DIM_OPACITY = 0.2;
-const HOVER_DIM_LINK_ALPHA = 0.05;
 
 // ── Shared geometry pool (created once, reused for all nodes) ──
 const SHARED_GEO = {
@@ -64,6 +62,7 @@ export default function OrbGraph3D({
   focusNodeToken = 0,
   onCameraDistanceChange,
   tooltipEnabled = true,
+  onHoverHighlight,
 }: OrbGraph3DProps) {
   const fgRef = useRef<any>(undefined);
   const [hoveredNode, setHoveredNode] = useState<Record<string, unknown> | null>(null);
@@ -71,11 +70,6 @@ export default function OrbGraph3D({
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const highlightRingsRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const nodeObjectCacheRef = useRef<Map<string, THREE.Group>>(new Map());
-  const materialHandlesRef = useRef<Map<string, THREE.Material[]>>(new Map());
-  const hoverEmphasizedUidsRef = useRef<Set<string>>(new Set());
-  const [hoverTick, setHoverTick] = useState(0);
-  const hoverLeaveTimerRef = useRef<number | null>(null);
-  const fadeAnimationRef = useRef<number | null>(null);
   const prevHighlightKeyRef = useRef<string>('');
   const isHoveringRef = useRef(false);
   // Direct refs to orbital rings — avoids scene.traverse() every frame
@@ -98,7 +92,6 @@ export default function OrbGraph3D({
   // Clear cache when data changes & zoom to fit
   useEffect(() => {
     nodeObjectCacheRef.current.clear();
-    materialHandlesRef.current.clear();
     orbitRing1Ref.current = null;
     orbitRing2Ref.current = null;
     // Start camera closer to the graph
@@ -177,10 +170,9 @@ export default function OrbGraph3D({
   }, [data]);
 
   // Adjacency map for one-hop hover highlight (#414). Recomputes whenever
-  // `graphData.links` changes — which includes: manual add/delete of a node,
+  // `graphData.links` changes — which includes manual add/delete of a node,
   // CV import (bulk add), undo/redo, and any other mutation that routes
-  // through the orb store's `data` state. `graphData` rebuilds a fresh links
-  // array on every `data` change, so the reference check here is reliable.
+  // through the orb store's `data` state.
   const adjacencyMap = useMemo(
     () => buildAdjacencyMap(graphData.links as Array<{ source: string | { id: string }; target: string | { id: string } }>),
     [graphData.links],
@@ -292,7 +284,6 @@ export default function OrbGraph3D({
     if (newKey !== prevHighlightKeyRef.current) {
       prevHighlightKeyRef.current = newKey;
       nodeObjectCacheRef.current.clear();
-      materialHandlesRef.current.clear();
       highlightRingsRef.current.clear();
       orbitRing1Ref.current = null;
       orbitRing2Ref.current = null;
@@ -308,7 +299,6 @@ export default function OrbGraph3D({
     if (newKey !== prevFilterKeyRef.current) {
       prevFilterKeyRef.current = newKey;
       nodeObjectCacheRef.current.clear();
-      materialHandlesRef.current.clear();
       const fg = fgRef.current;
       if (fg) fg.refresh();
     }
@@ -321,7 +311,6 @@ export default function OrbGraph3D({
     if (newKey !== prevHiddenTypesKeyRef.current) {
       prevHiddenTypesKeyRef.current = newKey;
       nodeObjectCacheRef.current.clear();
-      materialHandlesRef.current.clear();
       const fg = fgRef.current;
       if (fg) fg.refresh();
     }
@@ -390,94 +379,20 @@ export default function OrbGraph3D({
     const el = document.querySelector('canvas');
     if (el) el.style.cursor = node ? 'pointer' : 'default';
 
-    // Any new hover event cancels a pending leave debounce and any running fade.
-    if (hoverLeaveTimerRef.current !== null) {
-      clearTimeout(hoverLeaveTimerRef.current);
-      hoverLeaveTimerRef.current = null;
-    }
-    if (fadeAnimationRef.current !== null) {
-      cancelAnimationFrame(fadeAnimationRef.current);
-      fadeAnimationRef.current = null;
-    }
-
+    // Drive the existing highlight-dimming mechanism — same approach the Top
+    // Hub metric uses (see OrbisStatsOverlay). Emphasized set = hovered node
+    // + one-hop neighbors. On leave, clear.
+    if (!onHoverHighlight) return;
     if (node) {
-      // Immediate emphasize — snap on enter, no delay.
       const uid = (node.id || node.uid) as string;
       const neighbors = adjacencyMapRef.current.get(uid);
       const emphasized = new Set<string>([uid]);
       if (neighbors) for (const n of neighbors) emphasized.add(n);
-      hoverEmphasizedUidsRef.current = emphasized;
-      setHoverTick((t) => t + 1);
+      onHoverHighlight(emphasized);
     } else {
-      // Debounced leave — if no new hover arrives within 80 ms, clear and fade.
-      hoverLeaveTimerRef.current = window.setTimeout(() => {
-        hoverLeaveTimerRef.current = null;
-        const startTime = performance.now();
-        const materialsAtStart: Array<{ mat: THREE.Material; from: number; to: number }> = [];
-        materialHandlesRef.current.forEach((materials) => {
-          for (const mat of materials) {
-            const base = (mat.userData.__baseOpacity as number | undefined) ?? 1;
-            materialsAtStart.push({ mat, from: mat.opacity, to: base });
-          }
-        });
-        hoverEmphasizedUidsRef.current = new Set();
-
-        const step = () => {
-          const elapsed = performance.now() - startTime;
-          const t = Math.min(1, elapsed / HOVER_FADE_MS);
-          for (const { mat, from, to } of materialsAtStart) {
-            mat.opacity = from + (to - from) * t;
-          }
-          if (t < 1) {
-            fadeAnimationRef.current = requestAnimationFrame(step);
-          } else {
-            fadeAnimationRef.current = null;
-            setHoverTick((n) => n + 1); // final state + link recolor
-          }
-        };
-        fadeAnimationRef.current = requestAnimationFrame(step);
-        // Kick link recolor now so links snap to their un-hovered color while
-        // node opacity animates — visually indistinguishable over 200 ms.
-        const fg = fgRef.current;
-        if (fg) fg.refresh();
-      }, HOVER_LEAVE_DEBOUNCE_MS);
+      onHoverHighlight(new Set());
     }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (hoverLeaveTimerRef.current !== null) clearTimeout(hoverLeaveTimerRef.current);
-      if (fadeAnimationRef.current !== null) cancelAnimationFrame(fadeAnimationRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Skip this effect's snap-set while a fade animation is running; the fade
-    // loop is driving opacity directly and will setHoverTick again on completion.
-    if (fadeAnimationRef.current !== null) return;
-
-    const emphasized = hoverEmphasizedUidsRef.current;
-    const filterHighlights = highlightRef.current;
-    const isHovering = emphasized.size > 0;
-
-    materialHandlesRef.current.forEach((materials, uid) => {
-      const isEmphasized = emphasized.has(uid);
-      const isFilterHighlighted = filterHighlights.has(uid);
-      const shouldDim = isHovering && !isEmphasized && !isFilterHighlighted;
-      for (const mat of materials) {
-        const base = (mat.userData.__baseOpacity as number | undefined) ?? 1;
-        mat.opacity = shouldDim ? base * HOVER_DIM_OPACITY : base;
-        mat.transparent = true;
-      }
-    });
-
-    // Link color re-eval happens via the linkColor closure (it reads
-    // hoverEmphasizedUidsRef and returns rgba with adjusted alpha). The
-    // stableLinkColor reference bumps on hoverTick, which causes Kapsule's
-    // change detection to re-digest all links.
-    const fg = fgRef.current;
-    if (fg) fg.refresh();
-  }, [hoverTick]);
+  }, [onHoverHighlight]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     setTooltipPos({ x: e.clientX, y: e.clientY });
@@ -512,9 +427,6 @@ export default function OrbGraph3D({
       return empty;
     }
 
-    // Reset any prior handles for this uid (happens on cache rebuild).
-    const handles: THREE.Material[] = [];
-
     const color = getNodeColor(node._labels || []);
     const radius = isPerson ? 5 : 3;
 
@@ -538,7 +450,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.12 : 0.35) * fo,
       });
-      handles.push(coreMat);
       group.add(new THREE.Mesh(SHARED_GEO.personCore, coreMat));
 
       // Inner solid — matches purple-400 inner dot in the logo
@@ -547,7 +458,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.3 : 1) * fo,
       });
-      handles.push(innerGlowMat);
       group.add(new THREE.Mesh(SHARED_GEO.personInnerGlow, innerGlowMat));
 
       // Innermost bright dot — a third, brighter purple layer at the very
@@ -557,7 +467,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.4 : 1) * fo,
       });
-      handles.push(innerDotMat);
       group.add(new THREE.Mesh(SHARED_GEO.personInnerDot, innerDotMat));
 
       // Orbital ring 1
@@ -566,7 +475,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.05 : 0.5) * fo,
       });
-      handles.push(ring1Mat);
       const ring1 = new THREE.Mesh(SHARED_GEO.personRing1, ring1Mat);
       ring1.rotation.x = Math.PI / 2;
       orbitRing1Ref.current = ring1;
@@ -578,7 +486,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.03 : 0.3) * fo,
       });
-      handles.push(ring2Mat);
       const ring2 = new THREE.Mesh(SHARED_GEO.personRing2, ring2Mat);
       ring2.rotation.x = Math.PI / 3;
       ring2.rotation.z = Math.PI / 6;
@@ -591,7 +498,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.01 : 0.06) * fo,
       });
-      handles.push(midMat);
       group.add(new THREE.Mesh(SHARED_GEO.personMidGlow, midMat));
 
       // White wireframe sphere border for filtered person node
@@ -617,7 +523,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.05 : isHighlighted ? 0.95 : 0.7) * fo,
       });
-      handles.push(coreMat);
       group.add(new THREE.Mesh(SHARED_GEO.nodeCore, coreMat));
 
       // Main sphere — emissive color via MeshBasicMaterial (no light needed)
@@ -626,7 +531,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.2 : 0.85) * fo,
       });
-      handles.push(mainMat);
       group.add(new THREE.Mesh(SHARED_GEO.nodeMain, mainMat));
 
       // Single glow layer
@@ -635,7 +539,6 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.01 : isHighlighted ? 0.15 : 0.05) * fo,
       });
-      handles.push(glowMat);
       group.add(new THREE.Mesh(SHARED_GEO.nodeGlow, glowMat));
 
       // White wireframe sphere border for filtered node
@@ -667,10 +570,6 @@ export default function OrbGraph3D({
 
     }
 
-    for (const mat of handles) {
-      mat.userData.__baseOpacity = mat.opacity;
-    }
-    materialHandlesRef.current.set(nodeId, handles);
     nodeObjectCacheRef.current.set(nodeId, group);
     return group;
   }, []);
@@ -716,17 +615,6 @@ export default function OrbGraph3D({
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
-    // Hover dim: while a hover is active, any link whose endpoints aren't
-    // both in the emphasized set is dimmed. The library parses the alpha
-    // from rgba strings (tinycolor.getAlpha) and multiplies by linkOpacity
-    // to produce the material opacity.
-    const hoverSet = hoverEmphasizedUidsRef.current;
-    const isHovering = hoverSet.size > 0;
-    if (isHovering) {
-      const bothEmphasized = hoverSet.has(sourceId) && hoverSet.has(targetId);
-      if (!bothEmphasized) return `rgba(255,255,255,${HOVER_DIM_LINK_ALPHA})`;
-    }
-
     const hex = nodeColorMapRef.current.get(sourceId);
     if (hex) {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -737,23 +625,7 @@ export default function OrbGraph3D({
     }
     return hasHighlightsRef.current ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.2)';
   };
-  // Depend on hoverTick so react-force-graph sees a new function reference on
-  // each hover change and re-evaluates link colors. Without this, the library
-  // caches per-link colors and hover-driven dimming never reaches the links.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), [hoverTick]);
-
-  // While hovering, hide links that aren't inside the 1-hop neighborhood.
-  // react-force-graph caches link materials per-color, which makes opacity-only
-  // dimming unreliable; driving visibility instead is the robust path.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableLinkVisibility = useCallback((link: any) => {
-    const hoverSet = hoverEmphasizedUidsRef.current;
-    if (hoverSet.size === 0) return true;
-    const srcId = typeof link.source === 'object' ? (link.source.id || link.source.uid) : link.source;
-    const tgtId = typeof link.target === 'object' ? (link.target.id || link.target.uid) : link.target;
-    return hoverSet.has(srcId) && hoverSet.has(tgtId);
-  }, [hoverTick]);
+  const stableLinkColor = useCallback((link: any) => linkColorRef.current(link), []);
 
   return (
     <div
@@ -762,20 +634,12 @@ export default function OrbGraph3D({
       onPointerEnter={() => { isHoveringRef.current = true; }}
       onPointerLeave={() => {
         isHoveringRef.current = false;
+        // Dismiss the tooltip immediately when the pointer leaves the canvas.
+        // react-force-graph only fires onNodeHover(null) on ray-miss INSIDE the
+        // canvas — if the pointer exits the canvas while over a node, the
+        // tooltip would otherwise stay stuck open.
         setHoveredNode(null);
         hoveredNodeRef.current = null;
-        // Clear hover emphasis immediately when the pointer exits the canvas
-        // (no 80 ms debounce — matches the tooltip-dismiss UX).
-        if (hoverLeaveTimerRef.current !== null) {
-          clearTimeout(hoverLeaveTimerRef.current);
-          hoverLeaveTimerRef.current = null;
-        }
-        if (fadeAnimationRef.current !== null) {
-          cancelAnimationFrame(fadeAnimationRef.current);
-          fadeAnimationRef.current = null;
-        }
-        hoverEmphasizedUidsRef.current = new Set();
-        setHoverTick((t) => t + 1);
       }}
     >
       <ForceGraph3D
@@ -789,7 +653,6 @@ export default function OrbGraph3D({
         nodeThreeObjectExtend={false}
         nodeLabel={() => ''}
         linkColor={stableLinkColor}
-        linkVisibility={stableLinkVisibility}
         linkWidth={1}
         linkOpacity={0.5}
         linkCurvature={0.15}

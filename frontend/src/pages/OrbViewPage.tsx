@@ -964,6 +964,7 @@ export default function OrbViewPage() {
           focusNodeToken={focusRequest?.seq ?? 0}
           onCameraDistanceChange={handleCameraDistanceChange}
           tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showConnectedAi && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning}
+          onHoverHighlight={isPendingDeletion ? undefined : setHighlightedNodeIds}
         />
       </div>
       {!isPendingDeletion && (
