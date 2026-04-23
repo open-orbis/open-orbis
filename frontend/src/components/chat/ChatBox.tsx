@@ -13,6 +13,7 @@ interface ChatMessage {
 interface ChatBoxProps {
   onHighlight: (nodeIds: Set<string>) => void;
   onFocusNode?: (nodeUid: string) => void;
+  onEditNode?: (nodeUid: string) => void;
   onClearResults?: () => void;
   highlightedNodeIds?: Set<string>;
   messages: ChatMessage[];
@@ -87,6 +88,7 @@ function getScoreStyle(score: number): { dot: string; text: string } {
 export default function ChatBox({
   onHighlight,
   onFocusNode,
+  onEditNode,
   onClearResults,
   highlightedNodeIds,
   messages,
@@ -218,6 +220,7 @@ export default function ChatBox({
   const handleResultClick = (messageIndex: number, nodeUid: string) => {
     onHighlight(new Set([nodeUid]));
     onFocusNode?.(nodeUid);
+    onEditNode?.(nodeUid);
     setMessages((prev) => prev.map((msg, idx) => {
       if (idx !== messageIndex || !msg.matchedNodes) return msg;
       return { ...msg, selectedNodeUid: nodeUid };
