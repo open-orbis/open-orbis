@@ -32,10 +32,40 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.auth.mcp_keys import resolve_api_key
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 _HEADER = "x-mcp-key"
+
+
+def _resource_metadata_url() -> str:
+    """URL of the /.well-known/oauth-protected-resource endpoint.
+
+    Used in the WWW-Authenticate challenge so MCP clients (ChatGPT, Claude,
+    Cursor, etc.) can discover OAuth config per MCP spec 2025-03 + RFC 6750.
+    """
+    base = settings.cloud_run_url or "http://localhost:8081"
+    return f"{base.rstrip('/')}/.well-known/oauth-protected-resource"
+
+
+def _unauthorized(error: str, *, invalid_token: bool = False) -> JSONResponse:
+    """Build a 401 response with the MCP-required WWW-Authenticate header.
+
+    `invalid_token=True` signals a bad/expired/revoked credential was
+    presented (RFC 6750: `error="invalid_token"`). Default is the "no
+    credential presented" case — still returns WWW-Authenticate so
+    discovery-driven clients can find the OAuth resource metadata.
+    """
+    parts = ['Bearer realm="mcp"']
+    if invalid_token:
+        parts.append('error="invalid_token"')
+    parts.append(f'resource_metadata="{_resource_metadata_url()}"')
+    return JSONResponse(
+        status_code=401,
+        content={"error": error},
+        headers={"WWW-Authenticate": ", ".join(parts)},
+    )
 
 
 @dataclass(frozen=True)
@@ -113,9 +143,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         pool = await get_pool()
         grant = await resolve_oauth_token(pool, bearer)
         if grant is None:
-            return JSONResponse(
-                status_code=401,
-                content={"error": "invalid, expired, or revoked access token"},
+            return _unauthorized(
+                "invalid, expired, or revoked access token", invalid_token=True
             )
 
         if grant.get("share_token_id"):
@@ -127,9 +156,9 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             driver: AsyncDriver = await self._driver_factory()
             ctx = await validate_share_token_for_mcp(driver, grant["share_token_id"])
             if ctx is None:
-                return JSONResponse(
-                    status_code=401,
-                    content={"error": "share token for this grant is no longer valid"},
+                return _unauthorized(
+                    "share token for this grant is no longer valid",
+                    invalid_token=True,
                 )
             return None, _current_share_context.set(ctx)
         else:
@@ -159,19 +188,13 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             user_token, share_token_reset = result
 
         elif not raw_key:
-            return JSONResponse(
-                status_code=401,
-                content={"error": "missing X-MCP-Key header"},
-            )
+            return _unauthorized("authentication required")
 
         elif raw_key.startswith("orbk_"):
             driver: AsyncDriver = await self._driver_factory()
             user_id = await resolve_api_key(driver, raw_key=raw_key)
             if user_id is None:
-                return JSONResponse(
-                    status_code=401,
-                    content={"error": "invalid or revoked API key"},
-                )
+                return _unauthorized("invalid or revoked API key", invalid_token=True)
             user_token = _current_user_id.set(user_id)
 
         elif raw_key.startswith("orbs_"):
@@ -183,9 +206,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             bare = raw_key[len("orbs_") :]
             ctx = await validate_share_token_for_mcp(driver, bare)
             if ctx is None:
-                return JSONResponse(
-                    status_code=401,
-                    content={"error": "invalid, expired, or revoked share token"},
+                return _unauthorized(
+                    "invalid, expired, or revoked share token", invalid_token=True
                 )
             share_token_reset = _current_share_context.set(ctx)
 
@@ -199,10 +221,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             asyncio.create_task(increment_mcp_use(driver, ctx.token_id))
 
         else:
-            return JSONResponse(
-                status_code=401,
-                content={"error": "unrecognized credential prefix"},
-            )
+            return _unauthorized("unrecognized credential prefix", invalid_token=True)
 
         try:
             return await call_next(request)

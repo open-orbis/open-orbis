@@ -173,7 +173,14 @@ async def test_middleware_rejects_missing_header(monkeypatch, reset_context):
 
     r = client.get("/mcp")
     assert r.status_code == 401
-    assert "missing" in r.json()["error"]
+    assert r.json()["error"] == "authentication required"
+    # MCP clients (ChatGPT, Claude, Cursor) discover OAuth via WWW-Authenticate
+    # per RFC 6750 + MCP spec 2025-03; without it they report
+    # "does not implement OAuth" and refuse to start the flow.
+    www_auth = r.headers.get("www-authenticate", "")
+    assert www_auth.startswith("Bearer")
+    assert 'resource_metadata="' in www_auth
+    assert "/.well-known/oauth-protected-resource" in www_auth
 
 
 async def test_middleware_rejects_invalid_key(monkeypatch, reset_context):
