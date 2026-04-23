@@ -658,6 +658,16 @@ export default function OrbGraph3D({
     const isLinkFiltered = filteredRef.current.has(sourceId) || filteredRef.current.has(targetId);
     if (isLinkFiltered) return 'rgba(255,255,255,0.02)';
 
+    // Hover dim: if a hover is active and this link does NOT connect two
+    // emphasized nodes, dim it. A link between a neighbor and a non-neighbor
+    // is not emphasized — only edges inside the 1-hop neighborhood brighten.
+    const hoverSet = hoverEmphasizedUidsRef.current;
+    const isHovering = hoverSet.size > 0;
+    if (isHovering) {
+      const bothEmphasized = hoverSet.has(sourceId) && hoverSet.has(targetId);
+      if (!bothEmphasized) return 'rgba(255,255,255,0.05)';
+    }
+
     const hex = nodeColorMapRef.current.get(sourceId);
     if (hex) {
       const r = parseInt(hex.slice(1, 3), 16);
