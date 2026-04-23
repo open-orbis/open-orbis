@@ -28,10 +28,11 @@ interface OrbGraph3DProps {
 }
 
 
-// Hover one-hop highlight (issue #414) — see design doc. Used in Task 4.
+// Hover one-hop highlight (issue #414) — see design doc.
 const HOVER_LEAVE_DEBOUNCE_MS = 80;
 const HOVER_FADE_MS = 200;
 const HOVER_DIM_OPACITY = 0.2;
+const HOVER_DIM_LINK_ALPHA = 0.05;
 
 // ── Shared geometry pool (created once, reused for all nodes) ──
 const SHARED_GEO = {
@@ -185,7 +186,7 @@ export default function OrbGraph3D({
     [graphData.links],
   );
   const adjacencyMapRef = useRef(adjacencyMap);
-  useEffect(() => { adjacencyMapRef.current = adjacencyMap; }, [adjacencyMap]);
+  adjacencyMapRef.current = adjacencyMap;
 
   // Add ambient light + particle background
   useEffect(() => {
@@ -719,7 +720,7 @@ export default function OrbGraph3D({
     const isHovering = hoverSet.size > 0;
     if (isHovering) {
       const bothEmphasized = hoverSet.has(sourceId) && hoverSet.has(targetId);
-      if (!bothEmphasized) return 'rgba(255,255,255,0.05)';
+      if (!bothEmphasized) return `rgba(255,255,255,${HOVER_DIM_LINK_ALPHA})`;
     }
 
     const hex = nodeColorMapRef.current.get(sourceId);
