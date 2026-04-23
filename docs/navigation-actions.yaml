@@ -327,6 +327,28 @@
   next_state: ORB_VIEW (with highlights)
   fallback_on_failure: "No matches found" message
 
+- id: ORB_CLICK_RESULT
+  from_state: ORB_VIEW
+  action: Click a search result node in the ChatBox result list
+  selector_or_control: "node result in ChatBox results list"
+  preconditions: [search_results_exist]
+  expected_effect: >-
+    Focuses camera on the node in the 3D graph AND opens the NodeForm edit
+    modal pre-populated with the node's current properties. Result list
+    remains visible (dimmed) behind the modal backdrop; scroll position
+    preserved.
+  next_state: FLOATING_INPUT
+  fallback_on_failure: null
+
+- id: ORB_CLICK_RESULT_ENTER
+  from_state: ORB_VIEW
+  action: Press Enter on an active search result row (no text in input)
+  selector_or_control: "ChatBox input field with results visible"
+  preconditions: [search_results_exist, active_result_row]
+  expected_effect: Same as ORB_CLICK_RESULT (focus + open edit modal)
+  next_state: FLOATING_INPUT
+  fallback_on_failure: null
+
 - id: ORB_FILTER_NODE_TYPES
   from_state: ORB_VIEW
   action: Toggle node types in NodeTypeFilter
@@ -603,7 +625,9 @@
   action: Click a search result node
   selector_or_control: "node result in ChatBox results list"
   preconditions: [search_results_exist]
-  expected_effect: Camera centers on the node in 3D graph
+  expected_effect: >-
+    Camera centers on the node in 3D graph. No edit modal — shared orbs
+    are read-only for non-owners.
   next_state: SHARED_ORB (focused)
   fallback_on_failure: null
 
