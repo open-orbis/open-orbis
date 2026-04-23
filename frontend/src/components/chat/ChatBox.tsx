@@ -217,10 +217,10 @@ export default function ChatBox({
     }
   };
 
-  const handleResultClick = (messageIndex: number, nodeUid: string) => {
+  const handleResultClick = (messageIndex: number, nodeUid: string, openEdit: boolean = true) => {
     onHighlight(new Set([nodeUid]));
     onFocusNode?.(nodeUid);
-    onEditNode?.(nodeUid);
+    if (openEdit) onEditNode?.(nodeUid);
     setMessages((prev) => prev.map((msg, idx) => {
       if (idx !== messageIndex || !msg.matchedNodes) return msg;
       return { ...msg, selectedNodeUid: nodeUid };
@@ -244,7 +244,7 @@ export default function ChatBox({
       e.preventDefault();
       const next = activeResultIndex < 0 ? 0 : (activeResultIndex + 1) % resultNodes.length;
       setActiveResultIndex(next);
-      handleResultClick(resultMessageIndex, resultNodes[next].uid);
+      handleResultClick(resultMessageIndex, resultNodes[next].uid, false);
       return;
     }
 
@@ -254,7 +254,7 @@ export default function ChatBox({
         ? resultNodes.length - 1
         : (activeResultIndex - 1 + resultNodes.length) % resultNodes.length;
       setActiveResultIndex(next);
-      handleResultClick(resultMessageIndex, resultNodes[next].uid);
+      handleResultClick(resultMessageIndex, resultNodes[next].uid, false);
       return;
     }
 

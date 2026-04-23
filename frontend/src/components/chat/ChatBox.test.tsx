@@ -112,7 +112,7 @@ describe('ChatBox search result row', () => {
     expect(onEditNode).toHaveBeenCalledWith('uid-a');
   });
 
-  it('ArrowDown / ArrowUp cycle through rows and call onFocusNode for each', () => {
+  it('ArrowDown / ArrowUp focus the next row but do not fire onEditNode', () => {
     const nodeB = {
       uid: 'uid-b',
       name: 'Beta Skill',
@@ -144,9 +144,7 @@ describe('ChatBox search result row', () => {
     fireEvent.keyDown(input, { key: 'ArrowUp' });
     // Arrow keys navigate rows; onFocusNode fires for each step.
     expect(onFocusNode).toHaveBeenCalled();
-    // Arrow navigation goes through handleResultClick which also fires onEditNode —
-    // verify it was called with row uids (not called zero times).
-    expect(onEditNode).toHaveBeenCalled();
+    expect(onEditNode).not.toHaveBeenCalled();
   });
 
   it('omitting onEditNode still calls onFocusNode on click (no crash)', () => {
