@@ -77,39 +77,52 @@ describe('ChatBox search result row', () => {
     },
   ];
 
-  it('clicking a result row fires both onFocusNode and onEditNode with the node uid', () => {
-    const onFocusNode = vi.fn();
-    const onEditNode = vi.fn();
-    render(
-      <ChatBox
-        onHighlight={() => {}}
-        messages={seededMessages}
-        onMessagesChange={() => {}}
-        onFocusNode={onFocusNode}
-        onEditNode={onEditNode}
-      />,
-    );
-    const row = screen.getByRole('option', { name: /alpha skill/i });
-    fireEvent.click(row);
-    expect(onFocusNode).toHaveBeenCalledWith('uid-a');
-    expect(onEditNode).toHaveBeenCalledWith('uid-a');
+  it('clicking a result row focuses the camera synchronously and opens the edit modal after a short delay', () => {
+    vi.useFakeTimers();
+    try {
+      const onFocusNode = vi.fn();
+      const onEditNode = vi.fn();
+      render(
+        <ChatBox
+          onHighlight={() => {}}
+          messages={seededMessages}
+          onMessagesChange={() => {}}
+          onFocusNode={onFocusNode}
+          onEditNode={onEditNode}
+        />,
+      );
+      const row = screen.getByRole('option', { name: /alpha skill/i });
+      fireEvent.click(row);
+      expect(onFocusNode).toHaveBeenCalledWith('uid-a');
+      expect(onEditNode).not.toHaveBeenCalled();
+      vi.runAllTimers();
+      expect(onEditNode).toHaveBeenCalledWith('uid-a');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it('Enter on an active result row fires onEditNode', () => {
-    const onEditNode = vi.fn();
-    render(
-      <ChatBox
-        onHighlight={() => {}}
-        messages={seededMessages}
-        onMessagesChange={() => {}}
-        onFocusNode={() => {}}
-        onEditNode={onEditNode}
-      />,
-    );
-    const input = screen.getByPlaceholderText(/Query your orbis/i);
-    // selectedNodeUid in seededMessages already activates row 0.
-    fireEvent.keyDown(input, { key: 'Enter' });
-    expect(onEditNode).toHaveBeenCalledWith('uid-a');
+  it('Enter on an active result row opens the edit modal after the camera-focus delay', () => {
+    vi.useFakeTimers();
+    try {
+      const onEditNode = vi.fn();
+      render(
+        <ChatBox
+          onHighlight={() => {}}
+          messages={seededMessages}
+          onMessagesChange={() => {}}
+          onFocusNode={() => {}}
+          onEditNode={onEditNode}
+        />,
+      );
+      const input = screen.getByPlaceholderText(/Query your orbis/i);
+      // selectedNodeUid in seededMessages already activates row 0.
+      fireEvent.keyDown(input, { key: 'Enter' });
+      vi.runAllTimers();
+      expect(onEditNode).toHaveBeenCalledWith('uid-a');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('ArrowDown / ArrowUp focus the next row but do not fire onEditNode', () => {

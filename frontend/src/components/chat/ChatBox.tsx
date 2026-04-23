@@ -220,11 +220,12 @@ export default function ChatBox({
   const handleResultClick = (messageIndex: number, nodeUid: string, openEdit: boolean = true) => {
     onHighlight(new Set([nodeUid]));
     onFocusNode?.(nodeUid);
-    if (openEdit) onEditNode?.(nodeUid);
     setMessages((prev) => prev.map((msg, idx) => {
       if (idx !== messageIndex || !msg.matchedNodes) return msg;
       return { ...msg, selectedNodeUid: nodeUid };
     }));
+    // Let the 900ms camera animation start before the modal covers the view.
+    if (openEdit) setTimeout(() => onEditNode?.(nodeUid), 400);
   };
 
   const handleClearResults = () => {
@@ -344,7 +345,7 @@ export default function ChatBox({
                                 onMouseEnter={() => setActiveResultIndex(j)}
                                 role="option"
                                 aria-selected={isSelected}
-                                className="w-full flex items-center gap-2 rounded-lg px-3 py-2 sm:py-2.5 backdrop-blur-sm text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70"
+                                className="w-full flex items-center gap-2 rounded-lg px-3 py-2 sm:py-2.5 backdrop-blur-sm text-left transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70"
                                 style={{
                                   backgroundColor: isSelected
                                     ? 'rgba(139,92,246,0.18)'
