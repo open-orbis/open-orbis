@@ -373,16 +373,28 @@ export default function OrbGraph3D({
     return () => { cancelled = true; };
   }, [focusNodeId, focusNodeToken, graphData.nodes, cameraDistance]);
 
+  // Drag state — while the user is dragging a node, suppress hover changes
+  // so the highlight doesn't flicker as the raycast briefly misses the node.
+  const isDraggingRef = useRef(false);
+  const hoverLeaveTimerRef = useRef<number | null>(null);
+
   const handleNodeHover = useCallback((node: any) => {
     setHoveredNode(node || null);
     hoveredNodeRef.current = node || null;
     const el = document.querySelector('canvas');
     if (el) el.style.cursor = node ? 'pointer' : 'default';
 
-    // Drive the existing highlight-dimming mechanism — same approach the Top
-    // Hub metric uses (see OrbisStatsOverlay). Emphasized set = hovered node
-    // + one-hop neighbors. On leave, clear.
     if (!onHoverHighlight) return;
+    if (isDraggingRef.current) return;
+
+    // Drive the existing highlight-dimming mechanism — same approach the Top
+    // Hub metric uses. Emphasized set = hovered node + one-hop neighbors. On
+    // leave, debounce by 80 ms so a brief raycast miss (e.g. cursor crossing
+    // a thin gap) doesn't wipe the highlight and trigger a full scene rebuild.
+    if (hoverLeaveTimerRef.current !== null) {
+      clearTimeout(hoverLeaveTimerRef.current);
+      hoverLeaveTimerRef.current = null;
+    }
     if (node) {
       const uid = (node.id || node.uid) as string;
       const neighbors = adjacencyMapRef.current.get(uid);
@@ -390,9 +402,26 @@ export default function OrbGraph3D({
       if (neighbors) for (const n of neighbors) emphasized.add(n);
       onHoverHighlight(emphasized);
     } else {
-      onHoverHighlight(new Set());
+      hoverLeaveTimerRef.current = window.setTimeout(() => {
+        hoverLeaveTimerRef.current = null;
+        onHoverHighlight(new Set());
+      }, 80);
     }
   }, [onHoverHighlight]);
+
+  useEffect(() => {
+    return () => {
+      if (hoverLeaveTimerRef.current !== null) clearTimeout(hoverLeaveTimerRef.current);
+    };
+  }, []);
+
+  const handleNodeDrag = useCallback(() => {
+    isDraggingRef.current = true;
+  }, []);
+
+  const handleNodeDragEnd = useCallback(() => {
+    isDraggingRef.current = false;
+  }, []);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     setTooltipPos({ x: e.clientX, y: e.clientY });
@@ -666,6 +695,8 @@ export default function OrbGraph3D({
         linkCurvature={0.15}
         linkCurveRotation={0.5}
         onNodeHover={handleNodeHover}
+        onNodeDrag={handleNodeDrag}
+        onNodeDragEnd={handleNodeDragEnd}
         onNodeClick={handleNodeClick}
         onBackgroundClick={handleBackgroundClick}
       />
