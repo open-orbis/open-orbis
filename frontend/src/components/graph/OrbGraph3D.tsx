@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import type { OrbData } from '../../api/orbs';
 import { getNodeColor } from './NodeColors';
 import NodeTooltip from './NodeTooltip';
+import { buildAdjacencyMap } from './adjacency';
 
 interface OrbGraph3DProps {
   data: OrbData;
@@ -26,6 +27,14 @@ interface OrbGraph3DProps {
   tooltipEnabled?: boolean;
 }
 
+
+// Hover one-hop highlight (issue #414) — see design doc. Used in Task 4.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const HOVER_LEAVE_DEBOUNCE_MS = 80;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const HOVER_FADE_MS = 200;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const HOVER_DIM_OPACITY = 0.2;
 
 // ── Shared geometry pool (created once, reused for all nodes) ──
 const SHARED_GEO = {
@@ -64,6 +73,7 @@ export default function OrbGraph3D({
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const highlightRingsRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const nodeObjectCacheRef = useRef<Map<string, THREE.Group>>(new Map());
+  const materialHandlesRef = useRef<Map<string, THREE.Material[]>>(new Map());
   const prevHighlightKeyRef = useRef<string>('');
   const isHoveringRef = useRef(false);
   // Direct refs to orbital rings — avoids scene.traverse() every frame
@@ -86,6 +96,7 @@ export default function OrbGraph3D({
   // Clear cache when data changes & zoom to fit
   useEffect(() => {
     nodeObjectCacheRef.current.clear();
+    materialHandlesRef.current.clear();
     orbitRing1Ref.current = null;
     orbitRing2Ref.current = null;
     // Start camera closer to the graph
@@ -162,6 +173,18 @@ export default function OrbGraph3D({
       links: validLinks,
     };
   }, [data]);
+
+  // Adjacency map for one-hop hover highlight (#414). Recomputes whenever
+  // `graphData.links` changes — which includes: manual add/delete of a node,
+  // CV import (bulk add), undo/redo, and any other mutation that routes
+  // through the orb store's `data` state. `graphData` rebuilds a fresh links
+  // array on every `data` change, so the reference check here is reliable.
+  const adjacencyMap = useMemo(
+    () => buildAdjacencyMap(graphData.links as Array<{ source: string | { id: string }; target: string | { id: string } }>),
+    [graphData.links],
+  );
+  const adjacencyMapRef = useRef(adjacencyMap);
+  useEffect(() => { adjacencyMapRef.current = adjacencyMap; }, [adjacencyMap]);
 
   // Add ambient light + particle background
   useEffect(() => {
@@ -267,6 +290,7 @@ export default function OrbGraph3D({
     if (newKey !== prevHighlightKeyRef.current) {
       prevHighlightKeyRef.current = newKey;
       nodeObjectCacheRef.current.clear();
+      materialHandlesRef.current.clear();
       highlightRingsRef.current.clear();
       orbitRing1Ref.current = null;
       orbitRing2Ref.current = null;
@@ -282,6 +306,7 @@ export default function OrbGraph3D({
     if (newKey !== prevFilterKeyRef.current) {
       prevFilterKeyRef.current = newKey;
       nodeObjectCacheRef.current.clear();
+      materialHandlesRef.current.clear();
       const fg = fgRef.current;
       if (fg) fg.refresh();
     }
@@ -294,6 +319,7 @@ export default function OrbGraph3D({
     if (newKey !== prevHiddenTypesKeyRef.current) {
       prevHiddenTypesKeyRef.current = newKey;
       nodeObjectCacheRef.current.clear();
+      materialHandlesRef.current.clear();
       const fg = fgRef.current;
       if (fg) fg.refresh();
     }
@@ -396,6 +422,9 @@ export default function OrbGraph3D({
       return empty;
     }
 
+    // Reset any prior handles for this uid (happens on cache rebuild).
+    const handles: THREE.Material[] = [];
+
     const color = getNodeColor(node._labels || []);
     const radius = isPerson ? 5 : 3;
 
@@ -419,6 +448,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.12 : 0.35) * fo,
       });
+      handles.push(coreMat);
       group.add(new THREE.Mesh(SHARED_GEO.personCore, coreMat));
 
       // Inner solid — matches purple-400 inner dot in the logo
@@ -427,6 +457,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.3 : 1) * fo,
       });
+      handles.push(innerGlowMat);
       group.add(new THREE.Mesh(SHARED_GEO.personInnerGlow, innerGlowMat));
 
       // Innermost bright dot — a third, brighter purple layer at the very
@@ -436,6 +467,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.4 : 1) * fo,
       });
+      handles.push(innerDotMat);
       group.add(new THREE.Mesh(SHARED_GEO.personInnerDot, innerDotMat));
 
       // Orbital ring 1
@@ -444,6 +476,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.05 : 0.5) * fo,
       });
+      handles.push(ring1Mat);
       const ring1 = new THREE.Mesh(SHARED_GEO.personRing1, ring1Mat);
       ring1.rotation.x = Math.PI / 2;
       orbitRing1Ref.current = ring1;
@@ -455,6 +488,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.03 : 0.3) * fo,
       });
+      handles.push(ring2Mat);
       const ring2 = new THREE.Mesh(SHARED_GEO.personRing2, ring2Mat);
       ring2.rotation.x = Math.PI / 3;
       ring2.rotation.z = Math.PI / 6;
@@ -467,6 +501,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.01 : 0.06) * fo,
       });
+      handles.push(midMat);
       group.add(new THREE.Mesh(SHARED_GEO.personMidGlow, midMat));
 
       // White wireframe sphere border for filtered person node
@@ -492,6 +527,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.05 : isHighlighted ? 0.95 : 0.7) * fo,
       });
+      handles.push(coreMat);
       group.add(new THREE.Mesh(SHARED_GEO.nodeCore, coreMat));
 
       // Main sphere — emissive color via MeshBasicMaterial (no light needed)
@@ -500,6 +536,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.2 : 0.85) * fo,
       });
+      handles.push(mainMat);
       group.add(new THREE.Mesh(SHARED_GEO.nodeMain, mainMat));
 
       // Single glow layer
@@ -508,6 +545,7 @@ export default function OrbGraph3D({
         transparent: true,
         opacity: (isDimmed ? 0.01 : isHighlighted ? 0.15 : 0.05) * fo,
       });
+      handles.push(glowMat);
       group.add(new THREE.Mesh(SHARED_GEO.nodeGlow, glowMat));
 
       // White wireframe sphere border for filtered node
@@ -539,6 +577,10 @@ export default function OrbGraph3D({
 
     }
 
+    for (const mat of handles) {
+      mat.userData.__baseOpacity = mat.opacity;
+    }
+    materialHandlesRef.current.set(nodeId, handles);
     nodeObjectCacheRef.current.set(nodeId, group);
     return group;
   }, []);
