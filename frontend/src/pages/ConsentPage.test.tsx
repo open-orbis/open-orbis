@@ -16,7 +16,7 @@ function renderPage() {
     <MemoryRouter initialEntries={[INITIAL_URL]}>
       <Routes>
         <Route path="/oauth/authorize" element={<ConsentPage />} />
-        <Route path="/login" element={<div>LOGIN</div>} />
+        <Route path="/" element={<div>LANDING</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -46,14 +46,19 @@ describe('ConsentPage', () => {
     expect(screen.getByText(/Restricted access/)).toBeInTheDocument();
   });
 
-  it('redirects to /login when login_required', async () => {
+  it('redirects to landing when login_required and stashes return URL', async () => {
+    sessionStorage.removeItem('orbis_return_to');
     (getAuthorizeContext as ReturnType<typeof vi.fn>).mockResolvedValue({
       login_required: true,
       next: '/oauth/authorize?client_id=c-1',
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByText('LOGIN')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('LANDING')).toBeInTheDocument());
+    expect(sessionStorage.getItem('orbis_return_to')).toBe(
+      '/oauth/authorize?client_id=c-1',
+    );
+    sessionStorage.removeItem('orbis_return_to');
   });
 
   it('displays the registered IP + client_id in the footer', async () => {
