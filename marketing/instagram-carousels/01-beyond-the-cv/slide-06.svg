@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <radialGradient id="bg6" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#2e1065"/>
+      <stop offset="55%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </radialGradient>
+    <linearGradient id="cta6" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg6)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="0" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa"/>
+  </g>
+
+  <!-- faint constellation -->
+  <g stroke="#a78bfa" stroke-width="1" opacity="0.22" fill="none">
+    <line x1="120" y1="200" x2="260" y2="280"/>
+    <line x1="260" y1="280" x2="180" y2="420"/>
+    <line x1="820" y1="240" x2="960" y2="360"/>
+    <line x1="820" y1="240" x2="900" y2="140"/>
+    <line x1="140" y1="980" x2="280" y2="1060"/>
+    <line x1="840" y1="1020" x2="960" y2="1100"/>
+  </g>
+  <g fill="#ffffff" opacity="0.4">
+    <circle cx="120" cy="200" r="2"/><circle cx="260" cy="280" r="2"/><circle cx="180" cy="420" r="2"/>
+    <circle cx="820" cy="240" r="2"/><circle cx="960" cy="360" r="2"/><circle cx="900" cy="140" r="2"/>
+    <circle cx="140" cy="980" r="2"/><circle cx="280" cy="1060" r="2"/>
+    <circle cx="840" cy="1020" r="2"/><circle cx="960" cy="1100" r="2"/>
+  </g>
+
+  <!-- orb glyph -->
+  <g transform="translate(540,440)">
+    <circle r="120" fill="#7c3aed" opacity="0.4"/>
+    <circle r="58" fill="#ede9fe"/>
+    <g fill="none" stroke-width="2" opacity="0.9">
+      <ellipse rx="170" ry="50" stroke="#a78bfa" transform="rotate(-20)"/>
+      <ellipse rx="150" ry="42" stroke="#fbbf24" transform="rotate(28)"/>
+    </g>
+    <circle cx="140" cy="-30" r="7" fill="#fbbf24"/>
+    <circle cx="-130" cy="40" r="6" fill="#f97316"/>
+  </g>
+
+  <text x="540" y="720" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="96" fill="#ffffff" letter-spacing="-3">Your career,</text>
+  <text x="540" y="820" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="96" fill="#a78bfa" letter-spacing="-3">in orbit.</text>
+
+  <text x="540" y="900" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="26" fill="#ffffff" opacity="0.6">Reimagined for the AI era.</text>
+
+  <!-- CTA button -->
+  <g transform="translate(540,1020)">
+    <rect x="-260" y="-46" width="520" height="92" rx="46" fill="url(#cta6)"/>
+    <text x="0" y="14" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="34" fill="#1a0b3d">Create your Orbis  →</text>
+  </g>
+
+  <text x="540" y="1180" text-anchor="middle" font-family="Inter, sans-serif" font-weight="500" font-size="24" fill="#ffffff" opacity="0.7">openorbis.com</text>
+
+  <text x="540" y="1260" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="18" fill="#ffffff" opacity="0.35" letter-spacing="3">#beyondthecv  ·  #knowledgegraph  ·  #aicareers</text>
+</svg>

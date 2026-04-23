@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0716"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg2)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa"/>
+    <circle cx="0" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <text x="540" y="200" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="24" fill="#14b8a6" letter-spacing="6">MODEL CONTEXT PROTOCOL</text>
+  <text x="540" y="300" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#ffffff" letter-spacing="-2">MCP-native.</text>
+  <text x="540" y="380" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="28" fill="#ffffff" opacity="0.6">Claude, Cursor, Copilot — query your graph directly.</text>
+
+  <!-- three logos as minimalist squares with labels -->
+  <g transform="translate(90,480)">
+    <rect width="280" height="200" rx="20" fill="#1e1333" stroke="#7c3aed" stroke-width="2"/>
+    <text x="140" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="34" fill="#a78bfa">Claude</text>
+    <text x="140" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">Anthropic</text>
+    <circle cx="140" cy="165" r="4" fill="#14b8a6"/>
+    <text x="154" y="170" font-family="Menlo, monospace" font-size="14" fill="#14b8a6">connected</text>
+  </g>
+
+  <g transform="translate(400,480)">
+    <rect width="280" height="200" rx="20" fill="#1e1333" stroke="#f59e0b" stroke-width="2"/>
+    <text x="140" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="34" fill="#fbbf24">Cursor</text>
+    <text x="140" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">IDE</text>
+    <circle cx="140" cy="165" r="4" fill="#14b8a6"/>
+    <text x="154" y="170" font-family="Menlo, monospace" font-size="14" fill="#14b8a6">connected</text>
+  </g>
+
+  <g transform="translate(710,480)">
+    <rect width="280" height="200" rx="20" fill="#1e1333" stroke="#14b8a6" stroke-width="2"/>
+    <text x="140" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="34" fill="#14b8a6">Copilot</text>
+    <text x="140" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">GitHub</text>
+    <circle cx="140" cy="165" r="4" fill="#14b8a6"/>
+    <text x="154" y="170" font-family="Menlo, monospace" font-size="14" fill="#14b8a6">connected</text>
+  </g>
+
+  <!-- arrows flowing into orb -->
+  <g stroke="#a78bfa" stroke-width="2" fill="none" opacity="0.5">
+    <path d="M 230 700 Q 400 820 540 900" stroke-dasharray="6 6"/>
+    <path d="M 540 700 L 540 900" stroke-dasharray="6 6"/>
+    <path d="M 850 700 Q 680 820 540 900" stroke-dasharray="6 6"/>
+  </g>
+
+  <!-- central orb (graph) -->
+  <g transform="translate(540,1020)">
+    <circle r="110" fill="#7c3aed" opacity="0.35"/>
+    <circle r="54" fill="#ede9fe"/>
+    <g fill="none" stroke-width="2" opacity="0.9">
+      <ellipse rx="150" ry="44" stroke="#a78bfa" transform="rotate(-18)"/>
+      <ellipse rx="130" ry="38" stroke="#fbbf24" transform="rotate(26)"/>
+    </g>
+    <text y="180" text-anchor="middle" font-family="Menlo, monospace" font-size="18" fill="#ffffff" opacity="0.6">mcp://your-orbis</text>
+  </g>
+
+  <text x="540" y="1270" text-anchor="middle" font-family="Inter, sans-serif" font-weight="600" font-size="26" fill="#ffffff" opacity="0.8">6 structured tools. 1 endpoint. Your career.</text>
+</svg>
