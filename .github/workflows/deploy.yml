@@ -320,7 +320,7 @@ jobs:
             --timeout=300s \
             --allow-unauthenticated \
             --set-secrets="JWT_SECRET=jwt-secret:latest,ENCRYPTION_KEY=encryption-key:latest,NEO4J_PASSWORD=neo4j-password:latest,DATABASE_URL=database-url:latest" \
-            --set-env-vars="ENV=production,NEO4J_URI=bolt://$NEO4J_INTERNAL_IP:7687,NEO4J_USER=neo4j,GCP_PROJECT_ID=$PROJECT_ID"
+            --set-env-vars="ENV=production,NEO4J_URI=bolt://$NEO4J_INTERNAL_IP:7687,NEO4J_USER=neo4j,GCP_PROJECT_ID=$PROJECT_ID,FRONTEND_URL=https://open-orbis.com,CLOUD_RUN_URL=https://mcp.open-orbis.com"
 
       - name: Ensure MCP traffic routes to new revision
         run: |
