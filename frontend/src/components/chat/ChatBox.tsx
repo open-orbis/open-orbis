@@ -98,7 +98,7 @@ export default function ChatBox({
   onConnectedAi,
   onDiscover,
   highlightAdd,
-  placeholder = 'Query your orbis...',
+  placeholder = 'Search for a node...',
   searchFn = textSearch,
   interactionHint = 'Zoom: mouse wheel · Pan: right-drag · Rotate: left-drag',
   onRecenter,
