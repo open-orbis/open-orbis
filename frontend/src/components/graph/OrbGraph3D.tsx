@@ -33,7 +33,6 @@ interface OrbGraph3DProps {
 const HOVER_LEAVE_DEBOUNCE_MS = 80;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const HOVER_FADE_MS = 200;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const HOVER_DIM_OPACITY = 0.2;
 
 // ── Shared geometry pool (created once, reused for all nodes) ──
@@ -74,6 +73,8 @@ export default function OrbGraph3D({
   const highlightRingsRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const nodeObjectCacheRef = useRef<Map<string, THREE.Group>>(new Map());
   const materialHandlesRef = useRef<Map<string, THREE.Material[]>>(new Map());
+  const hoverEmphasizedUidsRef = useRef<Set<string>>(new Set());
+  const [hoverTick, setHoverTick] = useState(0);
   const prevHighlightKeyRef = useRef<string>('');
   const isHoveringRef = useRef(false);
   // Direct refs to orbital rings — avoids scene.traverse() every frame
@@ -387,7 +388,38 @@ export default function OrbGraph3D({
     hoveredNodeRef.current = node || null;
     const el = document.querySelector('canvas');
     if (el) el.style.cursor = node ? 'pointer' : 'default';
+
+    if (node) {
+      const uid = (node.id || node.uid) as string;
+      const neighbors = adjacencyMapRef.current.get(uid);
+      const emphasized = new Set<string>([uid]);
+      if (neighbors) for (const n of neighbors) emphasized.add(n);
+      hoverEmphasizedUidsRef.current = emphasized;
+    } else {
+      hoverEmphasizedUidsRef.current = new Set();
+    }
+    setHoverTick((t) => t + 1);
   }, []);
+
+  useEffect(() => {
+    const emphasized = hoverEmphasizedUidsRef.current;
+    const filterHighlights = highlightRef.current;
+    const isHovering = emphasized.size > 0;
+
+    materialHandlesRef.current.forEach((materials, uid) => {
+      const isEmphasized = emphasized.has(uid);
+      const isFilterHighlighted = filterHighlights.has(uid);
+      const shouldDim = isHovering && !isEmphasized && !isFilterHighlighted;
+      for (const mat of materials) {
+        const base = (mat.userData.__baseOpacity as number | undefined) ?? 1;
+        mat.opacity = shouldDim ? base * HOVER_DIM_OPACITY : base;
+        mat.transparent = true;
+      }
+    });
+
+    const fg = fgRef.current;
+    if (fg) fg.refresh();
+  }, [hoverTick]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     setTooltipPos({ x: e.clientX, y: e.clientY });
