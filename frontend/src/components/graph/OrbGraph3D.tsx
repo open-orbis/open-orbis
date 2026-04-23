@@ -29,9 +29,7 @@ interface OrbGraph3DProps {
 
 
 // Hover one-hop highlight (issue #414) — see design doc. Used in Task 4.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const HOVER_LEAVE_DEBOUNCE_MS = 80;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const HOVER_FADE_MS = 200;
 const HOVER_DIM_OPACITY = 0.2;
 
@@ -75,6 +73,8 @@ export default function OrbGraph3D({
   const materialHandlesRef = useRef<Map<string, THREE.Material[]>>(new Map());
   const hoverEmphasizedUidsRef = useRef<Set<string>>(new Set());
   const [hoverTick, setHoverTick] = useState(0);
+  const hoverLeaveTimerRef = useRef<number | null>(null);
+  const fadeAnimationRef = useRef<number | null>(null);
   const prevHighlightKeyRef = useRef<string>('');
   const isHoveringRef = useRef(false);
   // Direct refs to orbital rings — avoids scene.traverse() every frame
@@ -389,19 +389,73 @@ export default function OrbGraph3D({
     const el = document.querySelector('canvas');
     if (el) el.style.cursor = node ? 'pointer' : 'default';
 
+    // Any new hover event cancels a pending leave debounce and any running fade.
+    if (hoverLeaveTimerRef.current !== null) {
+      clearTimeout(hoverLeaveTimerRef.current);
+      hoverLeaveTimerRef.current = null;
+    }
+    if (fadeAnimationRef.current !== null) {
+      cancelAnimationFrame(fadeAnimationRef.current);
+      fadeAnimationRef.current = null;
+    }
+
     if (node) {
+      // Immediate emphasize — snap on enter, no delay.
       const uid = (node.id || node.uid) as string;
       const neighbors = adjacencyMapRef.current.get(uid);
       const emphasized = new Set<string>([uid]);
       if (neighbors) for (const n of neighbors) emphasized.add(n);
       hoverEmphasizedUidsRef.current = emphasized;
+      setHoverTick((t) => t + 1);
     } else {
-      hoverEmphasizedUidsRef.current = new Set();
+      // Debounced leave — if no new hover arrives within 80 ms, clear and fade.
+      hoverLeaveTimerRef.current = window.setTimeout(() => {
+        hoverLeaveTimerRef.current = null;
+        const startTime = performance.now();
+        const materialsAtStart: Array<{ mat: THREE.Material; from: number; to: number }> = [];
+        materialHandlesRef.current.forEach((materials) => {
+          for (const mat of materials) {
+            const base = (mat.userData.__baseOpacity as number | undefined) ?? 1;
+            materialsAtStart.push({ mat, from: mat.opacity, to: base });
+          }
+        });
+        hoverEmphasizedUidsRef.current = new Set();
+
+        const step = () => {
+          const elapsed = performance.now() - startTime;
+          const t = Math.min(1, elapsed / HOVER_FADE_MS);
+          for (const { mat, from, to } of materialsAtStart) {
+            mat.opacity = from + (to - from) * t;
+          }
+          if (t < 1) {
+            fadeAnimationRef.current = requestAnimationFrame(step);
+          } else {
+            fadeAnimationRef.current = null;
+            setHoverTick((n) => n + 1); // final state + link recolor
+          }
+        };
+        fadeAnimationRef.current = requestAnimationFrame(step);
+        // Kick link recolor now so links snap to their un-hovered color while
+        // node opacity animates — visually indistinguishable over 200 ms and
+        // avoids extra fg.refresh() calls during the fade.
+        const fg = fgRef.current;
+        if (fg) fg.refresh();
+      }, HOVER_LEAVE_DEBOUNCE_MS);
     }
-    setHoverTick((t) => t + 1);
   }, []);
 
   useEffect(() => {
+    return () => {
+      if (hoverLeaveTimerRef.current !== null) clearTimeout(hoverLeaveTimerRef.current);
+      if (fadeAnimationRef.current !== null) cancelAnimationFrame(fadeAnimationRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Skip this effect's snap-set while a fade animation is running; the fade
+    // loop is driving opacity directly and will setHoverTick again on completion.
+    if (fadeAnimationRef.current !== null) return;
+
     const emphasized = hoverEmphasizedUidsRef.current;
     const filterHighlights = highlightRef.current;
     const isHovering = emphasized.size > 0;
@@ -687,12 +741,20 @@ export default function OrbGraph3D({
       onPointerEnter={() => { isHoveringRef.current = true; }}
       onPointerLeave={() => {
         isHoveringRef.current = false;
-        // Dismiss the tooltip immediately when the pointer leaves the canvas.
-        // react-force-graph only fires onNodeHover(null) on ray-miss INSIDE the
-        // canvas — if the pointer exits the canvas while over a node, the
-        // tooltip would otherwise stay stuck open.
         setHoveredNode(null);
         hoveredNodeRef.current = null;
+        // Clear hover emphasis immediately when the pointer exits the canvas
+        // (no 80 ms debounce — matches the tooltip-dismiss UX).
+        if (hoverLeaveTimerRef.current !== null) {
+          clearTimeout(hoverLeaveTimerRef.current);
+          hoverLeaveTimerRef.current = null;
+        }
+        if (fadeAnimationRef.current !== null) {
+          cancelAnimationFrame(fadeAnimationRef.current);
+          fadeAnimationRef.current = null;
+        }
+        hoverEmphasizedUidsRef.current = new Set();
+        setHoverTick((t) => t + 1);
       }}
     >
       <ForceGraph3D
