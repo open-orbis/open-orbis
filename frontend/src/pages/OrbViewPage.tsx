@@ -1027,6 +1027,10 @@ export default function OrbViewPage() {
       {!isPendingDeletion && <ChatBox
         onHighlight={setHighlightedNodeIds}
         onFocusNode={handleFocusNode}
+        onEditNode={(uid) => {
+          const node = data?.nodes.find((n) => n.uid === uid);
+          if (node) handleNodeClick(node);
+        }}
         onClearResults={handleChatClear}
         highlightedNodeIds={highlightedNodeIds}
         messages={chatMessages}

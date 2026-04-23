@@ -2,7 +2,7 @@
 
 > Navigable user-flow map for agent-based UX evaluation. Covers all pages, modals, interactions, guards, and error states.
 >
-> **Last updated:** 2026-04-17 | **Issue:** #193, #274, #368
+> **Last updated:** 2026-04-23 | **Issue:** #193, #274, #368, #415
 
 ## How to Update This Map
 
@@ -125,7 +125,7 @@ stateDiagram-v2
     }
 
     %% ── Transitions ──
-    MAIN --> FLOATING_INPUT: Click node / Click "+" / Draft "Add to graph"
+    MAIN --> FLOATING_INPUT: Click node / Click "+" / Draft "Add to graph" / Click search result / Enter on active result row
     FLOATING_INPUT --> MAIN: Save / Cancel / Delete
     MAIN --> SHARE_PANEL: Click Share
     SHARE_PANEL --> MAIN: Close
@@ -154,6 +154,15 @@ stateDiagram-v2
     GUIDED_TOUR --> MAIN: Finish / Skip / Close
     ACCOUNT_SETTINGS --> GUIDED_TOUR: Sidebar "Guided tour" button
 ```
+
+### ChatBox Search → Node Edit
+
+- **From `MAIN` (ORB_VIEW) with search results visible:**
+  - `ORB_CLICK_RESULT` (click a result row) or `ORB_CLICK_RESULT_ENTER` (press Enter on an active result row with no text in the input):
+    → focuses camera on the node in the 3D graph AND opens the `FLOATING_INPUT` (NodeForm) modal pre-populated with the node's current properties.
+    → Transitions to `FLOATING_INPUT` state. Result list remains visible (dimmed) behind the modal backdrop; scroll position is preserved.
+    → Escape / backdrop-click / Cancel returns to `MAIN` with the result list still visible.
+  - Note: this flow is **owner-only**. On shared orbs (`SHARED_ORB`), clicking a result only centers the camera — no edit modal is opened (read-only).
 
 ---
 

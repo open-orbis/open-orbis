@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NODE_TYPE_COLORS, NODE_TYPE_LABELS } from '../graph/NodeColors';
 import NodeForm from './NodeForm';
@@ -24,6 +24,15 @@ export default function FloatingInput({ open, editNode, referenceNote, onSubmit,
     setCurrentType(type);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open, onCancel]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -33,7 +42,7 @@ export default function FloatingInput({ open, editNode, referenceNote, onSubmit,
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-40"
+            className="fixed inset-0 bg-black/70 backdrop-blur-[3px] z-[65]"
             onClick={onCancel}
           />
           <motion.div
@@ -41,7 +50,7 @@ export default function FloatingInput({ open, editNode, referenceNote, onSubmit,
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 30 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
+            className="fixed inset-0 z-[75] flex items-center justify-center p-2 sm:p-4"
           >
             <div className="relative w-full max-w-[96vw] sm:max-w-3xl rounded-3xl border border-white/12 bg-neutral-950 shadow-[0_30px_120px_-30px_rgba(0,0,0,0.9)] overflow-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-white/[0.07] via-white/[0.02] to-transparent" />
