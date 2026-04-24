@@ -235,3 +235,44 @@ MCP tools support a two-tiered access model:
 - `orbis_get_nodes_by_type` — nodes filtered by label
 - `orbis_get_connections` — relationships for a specific node
 - `orbis_get_skills_for_experience` — skills linked to a work experience/project via `USED_SKILL`
+
+### ChatGPT Apps integration
+
+The MCP server doubles as a ChatGPT App via the OpenAI Apps SDK. Two backend
+modules drive this:
+
+- **`mcp_server/widgets.py`** — `WIDGET_REGISTRY` (5 entries) + `wrap_tool_response()` (envelopes every tool payload as `{structuredContent, _meta}` with dual-keyed `_meta.ui.*` + `_meta["openai/*"]`) + `build_html_shell()` (returns the iframe HTML that loads the bundle).
+- **`mcp_server/server.py`** — `_register_widget_resources()` registers each `ui://widget/<name>` as a FastMCP resource with mime type `text/html;profile=mcp-app` and `_meta.ui.csp.resourceDomains` listing the public frontend host. The 5 `@mcp.tool()` entries call `wrap_tool_response()` on their results.
+
+Frontend widgets live in **`frontend/chatgpt-apps/`** as a sibling Vite package
+to the main frontend. Each of the 5 widgets is a separate ES-module bundle
+emitted to `frontend/public/chatgpt-widgets/<name>.js`. CSS is inlined via
+`vite-plugin-css-injected-by-js` so each bundle is self-contained — the HTML
+shell only emits a single `<script type="module" src>`.
+
+Data flow:
+
+```
+ChatGPT (Apps SDK iframe)
+    │
+    ├─ tools/call orbis_get_<x>  ─▶ MCP server (Cloud Run)
+    │                              │
+    │   ◀─ {structuredContent, _meta.ui.resourceUri="ui://widget/<x>"}
+    │
+    ├─ resources/read ui://widget/<x>
+    │                              ─▶ MCP build_html_shell(<x>)
+    │   ◀─ HTML shell + <script type="module" src="open-orbis.com/...">
+    │
+    └─ iframe loads bundle ──▶ open-orbis.com/chatgpt-widgets/<x>.js
+                                bundle injects CSS, reads window.openai.toolOutput
+                                via useToolOutput() hook (subscribes to
+                                openai:set_globals), renders into #root
+```
+
+OAuth 2.1 + DCR uses the existing authorization server unchanged. Under share-token
+context the widget `_meta` is intentionally omitted — share-mode tools still
+return `structuredContent` for non-widget clients but ChatGPT falls back to
+text rendering. PII fields (email/phone/address) are filtered from
+`structuredContent` for the summary path so the LLM never sees them.
+
+For full design rationale see `docs/superpowers/specs/2026-04-23-chatgpt-apps-integration-design.md`. For Apps SDK conventions verified against live docs see `docs/chatgpt-apps/apps-sdk-verified.md`.

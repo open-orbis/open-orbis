@@ -284,6 +284,56 @@ grant was issued in `restricted` access mode) via the `oauth_access_tokens`
 PostgreSQL table. Share-token filters are applied automatically — the same
 pipeline as `orbs_...` credentials. See [OAuth 2.1 authorization server](#oauth-21-authorization-server) below.
 
+### MCP widget resources (ChatGPT Apps)
+
+The MCP server exposes 5 widget resources at `ui://widget/*` for the ChatGPT
+Apps SDK. Accessed via standard MCP `resources/list` and `resources/read`:
+
+| URI | Tool that triggers it |
+|---|---|
+| `ui://widget/summary` | `orbis_get_summary` |
+| `ui://widget/nodes` | `orbis_get_nodes_by_type` |
+| `ui://widget/full-orb` | `orbis_get_full_orb` |
+| `ui://widget/connections` | `orbis_get_connections` |
+| `ui://widget/skills-for-experience` | `orbis_get_skills_for_experience` |
+
+Each `resources/read` returns:
+- **MIME type**: `text/html;profile=mcp-app` (Apps SDK requirement; identifies the response as a widget shell rather than plain HTML).
+- **Body**: minimal HTML shell with `<div id="root">` + `<script type="module" src="https://open-orbis.com/chatgpt-widgets/<name>.js">`. The bundle self-injects CSS and reads `window.openai.toolOutput` (subscribing to `openai:set_globals`) to render.
+- **`_meta.ui.csp`**: lists `resourceDomains` so ChatGPT's iframe CSP allows the bundle fetch.
+
+### Tool response envelope (ChatGPT Apps)
+
+All MCP tool responses are wrapped in a `{structuredContent, _meta}` envelope:
+
+```json
+{
+  "structuredContent": { "name": "...", "headline": "..." },
+  "_meta": {
+    "ui": {
+      "resourceUri": "ui://widget/<name>",
+      "visibility": ["model", "app"]
+    },
+    "openai/outputTemplate": "ui://widget/<name>",
+    "openai/widgetAccessible": true
+  }
+}
+```
+
+The `_meta` is dual-keyed: canonical MCP-Apps standard keys under `_meta.ui.*`
+(portable to Claude.ai, mcp-ui clients) and ChatGPT-legacy aliases under
+`_meta["openai/*"]` (still required by ChatGPT). Other clients ignore unknown
+keys and read `structuredContent` as the tool result.
+
+Under share-token context (`X-MCP-Key: orbs_...`), `_meta` is **omitted** —
+share-mode disables widget rendering by design. `structuredContent` is still
+returned so non-widget clients work uniformly.
+
+PII fields (`email`, `phone`, `address`) are **filtered** from
+`structuredContent` for the `summary` widget path before reaching the iframe
+or the model — the iframe runs in third-party context (ChatGPT) so we deny
+PII by omission rather than relying on widget rendering to mask it.
+
 ## OAuth 2.1 authorization server
 
 Full design rationale: `docs/superpowers/specs/2026-04-21-mcp-oauth-authorization-design.md`.

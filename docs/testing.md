@@ -52,6 +52,26 @@ npm test
 
 Uses Vitest with jsdom environment. Tests in `src/**/*.test.{ts,tsx}`.
 
+### ChatGPT Apps Widget Tests
+
+The `frontend/chatgpt-apps/` package has its own test surface:
+
+```bash
+cd frontend/chatgpt-apps
+npm test                # Vitest unit tests for all 5 widgets
+npm run e2e             # Playwright visual regression (chromium light + dark)
+```
+
+**Vitest unit (per widget):** mock `window.openai.toolOutput` with a JSON fixture from `src/__fixtures__/`, render the widget, assert visible content + state branches (not-activated, tool-error, empty).
+
+**Playwright visual:** builds bundles → serves them on port 4173 → serves harness HTML pages on port 4174 (each injects `window.openai` + loads the bundle) → screenshots each widget in light + dark color schemes → compares to baseline PNGs in `e2e/visual.spec.ts-snapshots/`. Baselines live in the repo and must be regenerated (`npx playwright test --update-snapshots`) when widget visual output changes intentionally.
+
+Backend coverage:
+- `backend/tests/unit/test_mcp_widgets.py` — registry + response wrapper + HTML shell + resource registration
+- `backend/tests/integration/test_chatgpt_apps_integration.py` — end-to-end tool call → `_meta` → `resources/read` flow
+
+Manual QA (post-deploy, pre-submission): `docs/chatgpt-apps/qa-checklist.md` — runs in ChatGPT Developer Mode against staging.
+
 ### E2E Cross-Browser Tests (Playwright)
 
 Playwright runs **real browser engines** (not simulated) in headless mode. Every test runs on all 3 engines: Chromium (Chrome/Edge/Brave/Arc), Firefox (Gecko), WebKit (Safari).
