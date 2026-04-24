@@ -335,3 +335,25 @@ The production build (`tsc -b && vite build`) type-checks and bundles to `fronte
 |----------|---------|---------|
 | `VITE_API_URL` | `/api` | Backend base URL (full Cloud Run URL in production if not proxied) |
 | `VITE_SILENT_REAUTH_ENABLED` | `true` | `false` disables the FedCM + One Tap silent re-auth path. Emergency switch; default on. |
+
+## ChatGPT Apps — static widget bundle
+
+La directory `frontend/public/chatgpt-widgets/` contiene bundle JS
+caricati dall'iframe ChatGPT. Il reverse proxy / CDN deve servirli con:
+
+- `Cache-Control: public, max-age=3600, s-maxage=86400` (CDN cache 1 giorno, browser 1h)
+- `Access-Control-Allow-Origin: https://chatgpt.com` (iframe ChatGPT)
+- `Access-Control-Allow-Origin: https://chatgpt-com-*.chat.openai.com` se necessario per dev
+- `Content-Type: application/javascript; charset=utf-8`
+
+I bundle sono emessi da Vite come **ES modules**, non IIFE: ogni entry importa
+da uno shared chunk in `chunks/jsx-runtime-*.js`. Il backend `build_html_shell`
+emette quindi `<script type="module" src="...">`. Il CDN/LB deve preservare il
+path `/chatgpt-widgets/chunks/*` (nessun flattening).
+
+Se stai usando Cloud Run → Cloud CDN, aggiungi queste header nella
+`cache_key_policy` / custom response headers del LB HTTPS. Per Vercel
+usa `vercel.json` header rules.
+
+Nessun tuning lato backend necessario — sono file statici serviti dal
+frontend.
