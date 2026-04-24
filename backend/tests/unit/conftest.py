@@ -3,9 +3,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.dependencies import get_current_user, get_db, require_gdpr_consent
-from app.main import app
-from app.rate_limit import limiter
+from app.config import settings
+
+# MCP widget resources (registered at ``mcp_server.server`` import time)
+# bake ``settings.frontend_url`` into their CSP meta. The default dev
+# value is ``http://localhost:5173``, which would make the Apps-SDK CSP
+# tests in ``test_mcp_widgets.py`` assert against the wrong host. Set a
+# production-like value here, before any test file triggers the import.
+settings.frontend_url = "https://open-orbis.com"
+
+from app.dependencies import (  # noqa: E402, I001
+    get_current_user,
+    get_db,
+    require_gdpr_consent,
+)
+from app.main import app  # noqa: E402, I001
+from app.rate_limit import limiter  # noqa: E402, I001
 
 
 @pytest.fixture(autouse=True)

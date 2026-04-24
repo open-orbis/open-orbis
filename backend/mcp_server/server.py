@@ -24,7 +24,7 @@ from mcp_server.tools import (
     get_orb_summary,
     get_skills_for_experience,
 )
-from mcp_server.widgets import wrap_tool_response
+from mcp_server.widgets import WIDGET_REGISTRY, build_html_shell, wrap_tool_response
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +74,58 @@ mcp = FastMCP(
     instructions="Query professional knowledge graphs (orbs) from Orbis.",
     transport_security=_build_transport_security(),
 )
+
+
+def _register_widget_resources() -> None:
+    """Register each widget as an MCP-App HTML resource.
+
+    ChatGPT reads these via resources/read to get the HTML shell that
+    loads the actual widget bundle from open-orbis.com. Each resource
+    is static per-deploy — no per-request data.
+
+    Two Apps-SDK-specific conventions (see docs/chatgpt-apps/apps-sdk-verified.md):
+    - MIME type is "text/html;profile=mcp-app" so ChatGPT treats the
+      response as a widget shell rather than plain HTML.
+    - ``meta={"ui": {"csp": {...}}}`` lists the external hosts the iframe
+      is allowed to reach. Without ``open-orbis.com`` in ``resourceDomains``,
+      the bundle <script src> is blocked by ChatGPT's iframe CSP.
+    """
+    # CSP applied uniformly to all 5 widgets — they all load a bundle
+    # from the public frontend host. connectDomains stays empty because
+    # widgets never fetch beyond the tool response they already receive.
+    csp_meta = {
+        "ui": {
+            "csp": {
+                "connectDomains": [],
+                "resourceDomains": [settings.frontend_url.rstrip("/")],
+                "frameDomains": [],
+            },
+        },
+    }
+
+    def _make_shell_fn(name: str):
+        # Factory closure: FastMCP validates that the resource function's
+        # signature matches the URI template. Since our URIs have no
+        # template variables, the resource fn must take zero args — so
+        # we capture ``name`` in an outer factory rather than as a
+        # default arg on the inner function.
+        def _widget_shell() -> str:
+            return build_html_shell(name)
+
+        return _widget_shell
+
+    for widget_name, meta in WIDGET_REGISTRY.items():
+        uri = f"ui://widget/{widget_name}"
+        mcp.resource(
+            uri,
+            name=meta.name,
+            title=meta.title,
+            mime_type="text/html;profile=mcp-app",
+            meta=csp_meta,
+        )(_make_shell_fn(widget_name))
+
+
+_register_widget_resources()
 
 _driver = None
 
