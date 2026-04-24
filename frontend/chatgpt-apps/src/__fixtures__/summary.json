@@ -1,0 +1,14 @@
+{
+  "name": "Alice Rossi",
+  "headline": "Senior Software Engineer",
+  "location": "Milano, Italy",
+  "orb_id": "orb-abc-123",
+  "open_to_work": true,
+  "node_counts": {
+    "work_experience": 4,
+    "skill": 23,
+    "project": 7,
+    "education": 2
+  },
+  "total_nodes": 36
+}
