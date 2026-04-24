@@ -1,0 +1,7 @@
+{
+  "node_type": "work_experience",
+  "nodes": [
+    {"uid": "w1", "title": "Senior Engineer", "company": "Acme", "start_date": "2022-01", "end_date": null},
+    {"uid": "w2", "title": "Engineer", "company": "BetaCo", "start_date": "2019-06", "end_date": "2021-12"}
+  ]
+}

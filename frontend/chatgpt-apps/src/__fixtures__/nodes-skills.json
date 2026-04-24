@@ -1,0 +1,9 @@
+{
+  "node_type": "skill",
+  "nodes": [
+    {"uid": "s1", "name": "Python", "category": "Backend"},
+    {"uid": "s2", "name": "PostgreSQL", "category": "Backend"},
+    {"uid": "s3", "name": "React", "category": "Frontend"},
+    {"uid": "s4", "name": "Figma"}
+  ]
+}
