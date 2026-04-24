@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+:root {
+  /* ChatGPT-compatible CSS variables; adjust to match both light and dark. */
+  --orbis-fg: #0b1220;
+  --orbis-fg-muted: #556173;
+  --orbis-bg: #ffffff;
+  --orbis-bg-subtle: #f6f8fa;
+  --orbis-border: #e2e6ec;
+  --orbis-accent: #4f46e5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --orbis-fg: #e8eaf0;
+    --orbis-fg-muted: #9ba2b0;
+    --orbis-bg: #0f1115;
+    --orbis-bg-subtle: #1a1d24;
+    --orbis-border: #2a2f3a;
+    --orbis-accent: #8b85ff;
+  }
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--orbis-bg);
+  color: var(--orbis-fg);
+}
