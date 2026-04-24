@@ -215,7 +215,9 @@ class TestToolWiring:
                     token="tok-llm-guessed",
                 )
 
-            assert result == {"ok": True}
+            # Under share context, wrap_tool_response omits _meta but
+            # still wraps the payload in structuredContent.
+            assert result == {"structuredContent": {"ok": True}}
             assert captured["orb_id"] == "orb-ctx"
             assert captured["token"] == "tok-ctx"
         finally:

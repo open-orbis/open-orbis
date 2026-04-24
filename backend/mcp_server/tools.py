@@ -153,6 +153,7 @@ async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str = "") -> 
         person.pop("user_id", None)
         person.pop("encryption_key_id", None)
         person.pop("embedding", None)
+        person = _strip_widget_pii(person)
 
         keywords = access["keywords"]
         hidden_types = access["hidden_node_types"]

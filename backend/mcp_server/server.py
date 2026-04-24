@@ -24,6 +24,7 @@ from mcp_server.tools import (
     get_orb_summary,
     get_skills_for_experience,
 )
+from mcp_server.widgets import wrap_tool_response
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +179,8 @@ async def orbis_get_summary(orb_id: str = "", token: str = "") -> dict:
     """Get a summary of a person's professional profile (name, headline, location, and counts of each node type). Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Leave ``token`` empty when you already have full access."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    return await get_orb_summary(driver, orb_id, token)
+    payload = await get_orb_summary(driver, orb_id, token)
+    return wrap_tool_response(payload=payload, widget_name="summary")
 
 
 @mcp.tool()
@@ -186,17 +188,19 @@ async def orbis_get_full_orb(orb_id: str = "", token: str = "") -> dict:
     """Get the complete graph data for a person's Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Results are filtered by the share token's privacy settings when a token is supplied."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    return await get_orb_full(driver, orb_id, token)
+    payload = await get_orb_full(driver, orb_id, token)
+    return wrap_tool_response(payload=payload, widget_name="full-orb")
 
 
 @mcp.tool()
 async def orbis_get_nodes_by_type(
     node_type: str, orb_id: str = "", token: str = ""
-) -> list[dict]:
+) -> dict:
     """Get all nodes of a specific type from an Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Valid ``node_type`` values: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    return await get_nodes_by_type(driver, orb_id, node_type, token)
+    payload = await get_nodes_by_type(driver, orb_id, node_type, token)
+    return wrap_tool_response(payload=payload, widget_name="nodes")
 
 
 @mcp.tool()
@@ -206,17 +210,19 @@ async def orbis_get_connections(
     """Get all relationships and connected nodes for a specific node identified by its uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    return await get_connections(driver, orb_id, node_uid, token)
+    payload = await get_connections(driver, orb_id, node_uid, token)
+    return wrap_tool_response(payload=payload, widget_name="connections")
 
 
 @mcp.tool()
 async def orbis_get_skills_for_experience(
     experience_uid: str, orb_id: str = "", token: str = ""
-) -> list[dict]:
+) -> dict:
     """Get all skills that were used in a specific work experience or project, identified by the experience's uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    return await get_skills_for_experience(driver, orb_id, experience_uid, token)
+    payload = await get_skills_for_experience(driver, orb_id, experience_uid, token)
+    return wrap_tool_response(payload=payload, widget_name="skills-for-experience")
 
 
 if __name__ == "__main__":

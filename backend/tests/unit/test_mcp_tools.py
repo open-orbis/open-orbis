@@ -441,3 +441,31 @@ def test_strip_widget_pii_does_not_mutate_input():
     person = {"name": "Eve", "email": "eve@example.com"}
     _strip_widget_pii(person)
     assert "email" in person  # original untouched
+
+
+@pytest.mark.asyncio
+async def test_orbis_get_summary_wraps_response():
+    """The @mcp.tool entry in server.py wraps the raw tool payload."""
+    from mcp_server.server import orbis_get_summary
+
+    fake_payload = {"name": "Alice", "headline": "Eng", "node_counts": {}}
+    with (
+        patch(
+            "mcp_server.server._resolve_scope",
+            new=AsyncMock(return_value=("orb1", "")),
+        ),
+        patch("mcp_server.server._get_driver", new=AsyncMock(return_value=None)),
+        patch(
+            "mcp_server.server.get_orb_summary",
+            new=AsyncMock(return_value=fake_payload),
+        ),
+        patch("mcp_server.widgets.get_share_context", return_value=None),
+    ):
+        # FastMCP @mcp.tool() leaves the underlying function callable
+        # directly (the tool registry tracks it separately), so we call
+        # it the same way the MCP dispatcher would invoke the impl.
+        result = await orbis_get_summary("")
+    assert result["structuredContent"] == fake_payload
+    assert result["_meta"]["openai/outputTemplate"] == "ui://widget/summary"
+    # Canonical key also present (Phase-0 amendment):
+    assert result["_meta"]["ui"]["resourceUri"] == "ui://widget/summary"
