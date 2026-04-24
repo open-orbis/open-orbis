@@ -1,0 +1,22 @@
+{
+  "person": {"uid": "p1", "name": "Alice", "orb_id": "orb-1"},
+  "nodes": [
+    {"uid": "n1", "type": "work_experience", "title": "Eng at Acme", "degree": 5},
+    {"uid": "n2", "type": "work_experience", "title": "Eng at BetaCo", "degree": 3},
+    {"uid": "n3", "type": "skill", "name": "Python", "degree": 4},
+    {"uid": "n4", "type": "skill", "name": "React", "degree": 3},
+    {"uid": "n5", "type": "skill", "name": "SQL", "degree": 2},
+    {"uid": "n6", "type": "project", "title": "Orbis", "degree": 4}
+  ],
+  "edges": [
+    {"source": "p1", "target": "n1"},
+    {"source": "p1", "target": "n2"},
+    {"source": "p1", "target": "n3"},
+    {"source": "p1", "target": "n4"},
+    {"source": "p1", "target": "n5"},
+    {"source": "p1", "target": "n6"},
+    {"source": "n1", "target": "n3"},
+    {"source": "n1", "target": "n4"}
+  ],
+  "total_nodes": 42
+}
