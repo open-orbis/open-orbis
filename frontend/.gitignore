@@ -30,3 +30,6 @@ e2e/.auth/
 test-results/
 playwright-report/
 blob-report/
+
+# ChatGPT Apps widget build output (emitted by frontend/chatgpt-apps/vite.config.ts)
+public/chatgpt-widgets/

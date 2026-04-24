@@ -13,7 +13,8 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "noEmit": true
   },
   "include": ["src", "e2e"]
 }
