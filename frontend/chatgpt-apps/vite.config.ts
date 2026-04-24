@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwind from "@tailwindcss/vite";
+import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import { resolve } from "node:path";
 
 // Each widget is a separate entry. Vite emits one bundle per entry
@@ -15,7 +16,18 @@ const WIDGETS = [
 ];
 
 export default defineConfig({
-  plugins: [react(), tailwind()],
+  // cssInjectedByJsPlugin: each widget bundle is loaded by ChatGPT via
+  // a single <script type="module" src> in build_html_shell — there's
+  // no <link rel="stylesheet">. Inline the extracted CSS into the JS so
+  // each widget is self-contained and CSS variables (theme.css) reach
+  // the iframe.
+  plugins: [
+    react(),
+    tailwind(),
+    // Multi-entry: relativeCSSInjection makes EACH entry inject its CSS,
+    // so nodes.js, full-orb.js, etc. are all self-contained — not just summary.js.
+    cssInjectedByJsPlugin({ relativeCSSInjection: true }),
+  ],
   build: {
     outDir: resolve(__dirname, "../public/chatgpt-widgets"),
     emptyOutDir: true,
