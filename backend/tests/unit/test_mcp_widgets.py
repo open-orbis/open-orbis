@@ -68,7 +68,26 @@ class TestWidgetRegistry:
 
 
 class TestBuildHtmlShell:
-    def test_shell_references_bundle_and_root(self):
+    def test_returns_html_with_bundle_src(self, monkeypatch):
+        monkeypatch.setattr(
+            "mcp_server.widgets.settings",
+            type("S", (), {"frontend_url": "https://open-orbis.com"})(),
+        )
         html = build_html_shell("summary")
         assert '<div id="root"></div>' in html
-        assert "summary.js" in html
+        assert "https://open-orbis.com/chatgpt-widgets/summary.js" in html
+        assert "<noscript>" in html
+
+    def test_strips_trailing_slash_from_frontend_url(self, monkeypatch):
+        monkeypatch.setattr(
+            "mcp_server.widgets.settings",
+            type("S", (), {"frontend_url": "https://open-orbis.com/"})(),
+        )
+        html = build_html_shell("nodes")
+        assert "https://open-orbis.com/chatgpt-widgets/nodes.js" in html
+        # double-slash bug guard
+        assert "chatgpt-widgets//nodes.js" not in html
+
+    def test_unknown_widget_raises(self):
+        with pytest.raises(KeyError):
+            build_html_shell("nonexistent")
