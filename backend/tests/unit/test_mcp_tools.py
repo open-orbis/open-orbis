@@ -402,3 +402,42 @@ class TestGetSkillsForExperience:
             result = await get_skills_for_experience(driver, "alice", "we-1")
 
         assert result == []
+
+
+# ── _strip_widget_pii (widget-path PII filter) ──
+
+
+def test_strip_widget_pii_removes_sensitive_fields():
+    from mcp_server.tools import _strip_widget_pii
+
+    person = {
+        "name": "Alice",
+        "headline": "Engineer",
+        "email": "alice@example.com",
+        "phone": "+123456",
+        "address": "Via Roma 1, 00100 Roma",
+        "location": "Roma, Italy",
+    }
+    result = _strip_widget_pii(person)
+    assert "email" not in result
+    assert "phone" not in result
+    assert "address" not in result
+    # Non-sensitive fields preserved:
+    assert result["name"] == "Alice"
+    assert result["headline"] == "Engineer"
+    assert result["location"] == "Roma, Italy"
+
+
+def test_strip_widget_pii_tolerates_missing_fields():
+    from mcp_server.tools import _strip_widget_pii
+
+    result = _strip_widget_pii({"name": "Bob"})
+    assert result == {"name": "Bob"}
+
+
+def test_strip_widget_pii_does_not_mutate_input():
+    from mcp_server.tools import _strip_widget_pii
+
+    person = {"name": "Eve", "email": "eve@example.com"}
+    _strip_widget_pii(person)
+    assert "email" in person  # original untouched

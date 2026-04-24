@@ -123,6 +123,20 @@ def _apply_filters(
     return filtered
 
 
+# Sensitive person fields never included in widget-path responses.
+# The iframe runs under ChatGPT (third-party), so we deny these to the
+# LLM by omission rather than relying on widget rendering to mask them.
+_WIDGET_PII_BLOCKLIST = frozenset({"email", "phone", "address"})
+
+
+def _strip_widget_pii(person: dict) -> dict:
+    """Return a copy of `person` with sensitive fields removed.
+
+    Immutable — does not mutate the input.
+    """
+    return {k: v for k, v in person.items() if k not in _WIDGET_PII_BLOCKLIST}
+
+
 async def get_orb_summary(driver: AsyncDriver, orb_id: str, token: str = "") -> dict:
     """Get a structured summary of a person's professional profile."""
     access = await _check_access(driver, orb_id, token)
