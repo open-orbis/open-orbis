@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1",
+  "name_for_human": "Orbis",
+  "name_for_model": "orbis",
+  "description_for_human": "Query your Orbis professional knowledge graph from ChatGPT — summary, experiences, skills, and relationships inline.",
+  "description_for_model": "Access the authenticated user's Orbis knowledge graph (read-only). Tools cover: profile summary (name, headline, counts), nodes by type (work_experience, skill, education, certification, language, publication, project, patent, award, outreach, training), the full graph in a hero-node sub-view, connections of a specific node, and skills used in a specific work experience or project. Each tool response carries _meta.openai/outputTemplate referencing a ui://widget/* resource that ChatGPT renders inline.",
+  "auth": {
+    "type": "oauth",
+    "authorization_url": "https://open-orbis.com/oauth/authorize",
+    "token_url": "https://open-orbis.com/oauth/token",
+    "scopes": ["orbis.read"],
+    "dynamic_client_registration_url": "https://open-orbis.com/oauth/register",
+    "pkce_required": true,
+    "pkce_methods_supported": ["S256"]
+  },
+  "api": {
+    "type": "mcp",
+    "url": "https://mcp.open-orbis.com/mcp",
+    "transport": "streamable-http"
+  },
+  "logo_url": "https://open-orbis.com/chatgpt-apps/logo-512.png",
+  "logo_url_large": "https://open-orbis.com/chatgpt-apps/logo-1024.png",
+  "contact_email": "support@open-orbis.com",
+  "company_url": "https://open-orbis.com",
+  "legal_info_url": "https://open-orbis.com/terms",
+  "privacy_policy_url": "https://open-orbis.com/privacy",
+  "_notes": [
+    "schema_version is provisional — adapt to whatever OpenAI's submission dashboard requires at submit time.",
+    "logo_url paths point at static assets that need to be uploaded to frontend/public/chatgpt-apps/ before submission.",
+    "Country availability + localization fields are filled in via the dashboard wizard, not via this manifest."
+  ]
+}
