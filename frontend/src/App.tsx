@@ -11,6 +11,7 @@ import OrbViewPage from './pages/OrbViewPage';
 import SharedOrbPage from './pages/SharedOrbPage';
 import CvExportPage from './pages/CvExportPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
@@ -72,6 +73,7 @@ function AppRoutes() {
       <Route path="/myorbis" element={<ProtectedRoute><OrbViewPage /></ProtectedRoute>} />
       <Route path="/cv-export" element={<ProtectedRoute><CvExportPage /></ProtectedRoute>} />
       <Route path="/privacy" element={<PrivacyPolicyPage />} />
+      <Route path="/terms" element={<TermsOfServicePage />} />
       <Route path="/activate" element={<AuthenticatedRoute><ActivatePage /></AuthenticatedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
       <Route path="/oauth/authorize" element={<ConsentPage />} />
