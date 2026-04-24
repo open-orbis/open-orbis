@@ -1,0 +1,9 @@
+{
+  "experience": {"uid": "w1", "title": "Senior Eng at Acme", "start_date": "2022-01"},
+  "skills": [
+    {"uid": "s1", "name": "Python", "category": "Backend"},
+    {"uid": "s2", "name": "PostgreSQL", "category": "Backend"},
+    {"uid": "s3", "name": "React", "category": "Frontend"},
+    {"uid": "s4", "name": "Docker"}
+  ]
+}
