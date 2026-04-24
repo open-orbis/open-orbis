@@ -10,6 +10,20 @@
 
 **Spec:** `docs/superpowers/specs/2026-04-23-chatgpt-apps-integration-design.md` (commit `4be3dc6`).
 
+**Phase 0 verification:** `docs/chatgpt-apps/apps-sdk-verified.md` (commit `0611adc`) — Apps SDK conventions confirmed live on 2026-04-23 at `developers.openai.com/apps-sdk`. No blocking divergences; 5 amendments applied below.
+
+---
+
+## Plan Amendments (post–Phase 0 verification)
+
+Applied inline in the tasks below; listed here for audit/history:
+
+1. **Task 1.1 (`wrap_tool_response`) — dual `_meta` keys.** Emit both canonical (`_meta.ui.resourceUri`, `_meta.ui.visibility: ["model", "app"]`) AND ChatGPT-legacy (`openai/outputTemplate`, `openai/widgetAccessible`). Legacy-only would work today but isn't portable to Claude.ai / mcp-ui clients.
+2. **Task 1.5 (resource registration) — mandatory CSP.** Every `ui://widget/*` resource must carry `_meta.ui.csp` with `resourceDomains: ["https://open-orbis.com"]` so the widget iframe can load the bundle. MIME type must be `text/html;profile=mcp-app` (not plain `text/html`).
+3. **Task 2.3 (`api.ts`) — subscribe to `openai:set_globals` event.** Host dispatches this event on every tool update; reading `window.openai.toolOutput` once on mount misses subsequent turns. Implementation: `useToolOutput<T>()` hook via `useSyncExternalStore`. Pure helpers (`isNotActivated`, `isToolError`) unchanged. Every widget call site updated accordingly.
+4. **Phase 10 / 12 — submission is OPEN** (since 2025-12-17). Remove waitlist language. Add pre-flight: (a) verify OpenAI project data residency = **global** (EU blocks submission); (b) complete OpenAI identity verification (individual or business) before first submit.
+5. **Documentation URL fix.** All references to `platform.openai.com/docs/apps` → `developers.openai.com/apps-sdk`.
+
 ---
 
 ## File Structure
@@ -158,13 +172,17 @@ from mcp_server.widgets import (
 
 class TestWrapToolResponse:
     def test_wraps_payload_with_structured_content_and_meta(self):
-        """User-mode request: payload wrapped + outputTemplate included."""
+        """User-mode request: payload wrapped + dual-keyed outputTemplate."""
         with patch("mcp_server.widgets.get_share_context", return_value=None):
             result = wrap_tool_response(
                 payload={"name": "Alice"},
                 widget_name="summary",
             )
         assert result["structuredContent"] == {"name": "Alice"}
+        # Canonical MCP-Apps keys (portable to Claude.ai / mcp-ui clients):
+        assert result["_meta"]["ui"]["resourceUri"] == "ui://widget/summary"
+        assert result["_meta"]["ui"]["visibility"] == ["model", "app"]
+        # ChatGPT-legacy aliases (kept for backward compatibility):
         assert result["_meta"]["openai/outputTemplate"] == "ui://widget/summary"
         assert result["_meta"]["openai/widgetAccessible"] is True
 
@@ -278,8 +296,17 @@ def wrap_tool_response(*, payload: dict, widget_name: str) -> dict:
     if get_share_context() is not None:
         return wrapped
 
+    uri = f"ui://widget/{widget_name}"
+    # Dual-keyed for portability: canonical MCP-Apps standard keys under
+    # _meta.ui.* (readable by Claude.ai, mcp-ui clients) and ChatGPT-legacy
+    # aliases under openai/* (still required for ChatGPT compatibility).
+    # See docs/chatgpt-apps/apps-sdk-verified.md for the full rationale.
     wrapped["_meta"] = {
-        "openai/outputTemplate": f"ui://widget/{widget_name}",
+        "ui": {
+            "resourceUri": uri,
+            "visibility": ["model", "app"],
+        },
+        "openai/outputTemplate": uri,
         "openai/widgetAccessible": True,
     }
     return wrapped
@@ -635,6 +662,22 @@ class TestResourceRegistration:
         html = content_list[0].content
         assert "<div id=\"root\"></div>" in html
         assert "chatgpt-widgets/summary.js" in html
+        # Apps SDK requires this specific mime type for widget resources:
+        assert content_list[0].mime_type == "text/html;profile=mcp-app"
+
+    @pytest.mark.asyncio
+    async def test_read_resource_includes_csp_meta(self):
+        """_meta.ui.csp must list open-orbis.com in resourceDomains so
+        ChatGPT's iframe CSP allows loading the bundle."""
+        from mcp_server.server import mcp
+
+        resources = await mcp.list_resources()
+        summary_resource = next(r for r in resources if str(r.uri) == "ui://widget/summary")
+        csp = summary_resource.meta["ui"]["csp"]
+        assert "https://open-orbis.com" in csp["resourceDomains"] or any(
+            "open-orbis.com" in d for d in csp["resourceDomains"]
+        )
+        assert csp["frameDomains"] == []
 ```
 
 - [ ] **Step 2: Run — should fail**
@@ -650,12 +693,32 @@ from mcp_server.widgets import WIDGET_REGISTRY, build_html_shell
 
 
 def _register_widget_resources() -> None:
-    """Register each widget as a text/html MCP resource.
+    """Register each widget as an MCP-App HTML resource.
 
     ChatGPT reads these via resources/read to get the HTML shell that
     loads the actual widget bundle from open-orbis.com. Each resource
     is static per-deploy — no per-request data.
+
+    Two Apps-SDK-specific conventions (see docs/chatgpt-apps/apps-sdk-verified.md):
+    - MIME type is "text/html;profile=mcp-app" so ChatGPT treats the
+      response as a widget shell rather than plain HTML.
+    - `meta={"ui": {"csp": {...}}}` lists the external hosts the iframe
+      is allowed to reach. Without `open-orbis.com` in `resourceDomains`,
+      the bundle <script src> is blocked by ChatGPT's iframe CSP.
     """
+    # CSP applied uniformly to all 5 widgets — they all load a bundle
+    # from the public frontend host. connectDomains stays empty because
+    # widgets never fetch beyond the tool response they already receive.
+    csp_meta = {
+        "ui": {
+            "csp": {
+                "connectDomains": [],
+                "resourceDomains": [settings.frontend_url.rstrip("/")],
+                "frameDomains": [],
+            },
+        },
+    }
+
     for widget_name, meta in WIDGET_REGISTRY.items():
         uri = f"ui://widget/{widget_name}"
 
@@ -666,7 +729,8 @@ def _register_widget_resources() -> None:
             uri,
             name=meta.name,
             title=meta.title,
-            mime_type="text/html",
+            mime_type="text/html;profile=mcp-app",
+            meta=csp_meta,
         )
         def _widget_shell(_name: str = widget_name) -> str:
             return build_html_shell(_name)
@@ -991,23 +1055,58 @@ git commit -m "chore(chatgpt-apps): vite multi-entry build"
 
 - [ ] **Step 1: Create `api.ts`**
 
+Critical: ChatGPT's host dispatches a `openai:set_globals` window event on every update (new tool result, theme flip, display-mode change). Widgets MUST subscribe to this event — reading `window.openai.toolOutput` once on mount misses subsequent turns. We expose a `useToolOutput<T>()` hook backed by `useSyncExternalStore`.
+
 ```typescript
 // Apps SDK runtime API. See docs/chatgpt-apps/apps-sdk-verified.md
 // for the exact shape — update this file if that doc diverges.
 
+import { useSyncExternalStore } from "react";
+
+interface OpenAIGlobals {
+  toolOutput?: unknown;
+  toolInput?: unknown;
+  theme?: "light" | "dark";
+  displayMode?: "inline" | "fullscreen" | "pip";
+  // Other fields exist (widgetState, locale, userAgent, maxHeight, ...) —
+  // add here on demand. Keep the surface small.
+}
+
 declare global {
   interface Window {
-    openai?: {
-      toolOutput?: unknown;
-      // Other Apps SDK calls TBD after verification. Add here as needed.
-    };
+    openai?: OpenAIGlobals;
+  }
+  interface WindowEventMap {
+    "openai:set_globals": CustomEvent<{ globals: OpenAIGlobals }>;
   }
 }
 
-export function getToolOutput<T>(): T | null {
-  const raw = window.openai?.toolOutput;
-  if (raw == null) return null;
-  return raw as T;
+/** React hook: returns the current tool output, re-renders on host updates.
+ *
+ * Subscribes to the `openai:set_globals` event so widgets stay live across
+ * multiple tool calls within the same conversation turn.
+ */
+export function useToolOutput<T>(): T | null {
+  return useSyncExternalStore(
+    subscribeToOpenAIGlobals,
+    () => (window.openai?.toolOutput ?? null) as T | null,
+    // Server snapshot (SSR): always null — widgets never SSR.
+    () => null,
+  );
+}
+
+function subscribeToOpenAIGlobals(onChange: () => void): () => void {
+  window.addEventListener("openai:set_globals", onChange);
+  return () => window.removeEventListener("openai:set_globals", onChange);
+}
+
+/** Hook variant for theme — same subscription pattern. */
+export function useOpenAITheme(): "light" | "dark" {
+  return useSyncExternalStore(
+    subscribeToOpenAIGlobals,
+    () => window.openai?.theme ?? "light",
+    () => "light",
+  );
 }
 
 /** True if the tool response is the "not_activated" sentinel shape. */
@@ -1328,7 +1427,7 @@ Sostituisci il contenuto di `frontend/chatgpt-apps/src/widgets/summary.tsx`:
 import { createRoot } from "react-dom/client";
 import { AppShell, WidgetErrorBoundary } from "../shared/layout";
 import {
-  getToolOutput,
+  useToolOutput,
   isNotActivated,
   isToolError,
 } from "../shared/api";
@@ -1345,7 +1444,7 @@ interface SummaryData {
 }
 
 export function SummaryWidget() {
-  const output = getToolOutput<unknown>();
+  const output = useToolOutput<unknown>();
 
   if (output == null) {
     return (
@@ -1566,7 +1665,7 @@ Sostituisci `frontend/chatgpt-apps/src/widgets/nodes.tsx`:
 ```tsx
 import { createRoot } from "react-dom/client";
 import { AppShell, WidgetErrorBoundary } from "../shared/layout";
-import { getToolOutput, isNotActivated, isToolError } from "../shared/api";
+import { useToolOutput, isNotActivated, isToolError } from "../shared/api";
 import { NotActivatedState, ToolErrorState } from "../shared/auth-error";
 
 interface NodesOutput {
@@ -1697,7 +1796,7 @@ function GenericList({ nodes }: { nodes: Record<string, unknown>[] }) {
 }
 
 export function NodesWidget() {
-  const output = getToolOutput<unknown>();
+  const output = useToolOutput<unknown>();
   if (output == null) {
     return (
       <AppShell>
@@ -1883,7 +1982,7 @@ import {
 } from "d3-force";
 
 import { AppShell, WidgetErrorBoundary } from "../shared/layout";
-import { getToolOutput, isNotActivated, isToolError } from "../shared/api";
+import { useToolOutput, isNotActivated, isToolError } from "../shared/api";
 import { NotActivatedState, ToolErrorState } from "../shared/auth-error";
 
 interface OrbNode {
@@ -1958,7 +2057,7 @@ export function FullOrbWidget() {
   const nodesRef = useRef<SimNode[]>([]);
   const linksRef = useRef<SimLink[]>([]);
 
-  const output = getToolOutput<unknown>();
+  const output = useToolOutput<unknown>();
 
   useEffect(() => {
     if (!output || typeof output !== "object") return;
@@ -2193,7 +2292,7 @@ describe("ConnectionsWidget", () => {
 ```tsx
 import { createRoot } from "react-dom/client";
 import { AppShell, WidgetErrorBoundary } from "../shared/layout";
-import { getToolOutput, isNotActivated, isToolError } from "../shared/api";
+import { useToolOutput, isNotActivated, isToolError } from "../shared/api";
 import { NotActivatedState, ToolErrorState } from "../shared/auth-error";
 
 interface ConnectionsData {
@@ -2208,7 +2307,7 @@ interface ConnectionsData {
 }
 
 export function ConnectionsWidget() {
-  const output = getToolOutput<unknown>();
+  const output = useToolOutput<unknown>();
   if (output == null)
     return (
       <AppShell>
@@ -2374,7 +2473,7 @@ describe("SkillsForExperienceWidget", () => {
 ```tsx
 import { createRoot } from "react-dom/client";
 import { AppShell, WidgetErrorBoundary } from "../shared/layout";
-import { getToolOutput, isNotActivated, isToolError } from "../shared/api";
+import { useToolOutput, isNotActivated, isToolError } from "../shared/api";
 import { NotActivatedState, ToolErrorState } from "../shared/auth-error";
 
 interface Skill {
@@ -2388,7 +2487,7 @@ interface Data {
 }
 
 export function SkillsForExperienceWidget() {
-  const output = getToolOutput<unknown>();
+  const output = useToolOutput<unknown>();
   if (output == null)
     return (
       <AppShell>
@@ -2710,7 +2809,7 @@ git commit -m "feat(web): /terms page for ChatGPT Apps submission"
 ```markdown
 # ChatGPT Apps — Orbis integration
 
-**Status:** Building. Submission pending OpenAI waitlist invite.
+**Status:** Building. Submission channel: OPEN (since 2025-12-17) at `platform.openai.com` → Apps dashboard. Reviewed by OpenAI; no expedited process.
 
 ## Overview
 
@@ -2915,23 +3014,41 @@ git commit -m "docs(chatgpt-apps): submission screenshots"
 
 ### Task 12.2: Submit to OpenAI
 
-**Files:** none (esterno al repo).
+**Files:** none (esterno al repo). Submission is OPEN as of 2025-12-17 — self-serve, no waitlist.
 
-- [ ] **Step 1: Iscriviti alla waitlist Apps SDK**
+- [ ] **Step 1: Pre-flight gates (BLOCKING if failed)**
 
-Su `platform.openai.com/apps` (o URL finale verificato in fase 0), iscriviti come sviluppatore.
+Prima di andare sul dashboard, verifica:
 
-- [ ] **Step 2: Dopo l'invito, submit**
+1. **OpenAI project data residency = global.** Su `platform.openai.com` → Organization → Projects → il project da cui sottometti → Data controls. Se è "EU data residency", NON puoi sottomettere app. Soluzione: crea un nuovo project global-residency (o sposta l'org se tutti i project sono EU).
+2. **Identity verification completata.** Settings → Organization → Verifications. Se sottometti come individuo, completa individual verification; se come company (consigliato se Orbis è un'entità legale), business verification. Non completabile retroattivamente dopo il submit.
+3. **Developer Mode usato per QA.** Deve essere già stato fatto in Task 12.1.
 
-Upload `docs/chatgpt-apps/manifest.json`, logo, screenshot, link privacy + terms. Aggiorna `docs/chatgpt-apps/README.md` con status "Submitted, awaiting review".
+Se uno dei tre fallisce, STOP e risolvi prima di procedere.
+
+- [ ] **Step 2: Submit dal dashboard**
+
+`platform.openai.com` → Apps (sezione dedicata, non `/docs/apps`). Upload:
+- `docs/chatgpt-apps/manifest.json` (o i campi equivalenti compilati dal wizard)
+- Logo (512×512 + 1024×1024)
+- 3-5 screenshot
+- Privacy URL (`https://open-orbis.com/privacy`) + Terms URL (`https://open-orbis.com/terms`)
+- MCP endpoint (`https://mcp.open-orbis.com/mcp`) + tool descriptions
+- Test prompts & expected responses (5-10 suggeriti)
+- Localization info (almeno en + it se vuoi essere distribuito in IT)
+- Country availability settings
+
+Aggiorna `docs/chatgpt-apps/README.md` → status "Submitted, awaiting review" con data.
 
 - [ ] **Step 3: Durante la review**
 
-Monitora email dev. Se OpenAI richiede modifiche, apri branch + fix + re-submit.
+Tempi review: days-to-weeks secondo community OpenAI (nessun SLA ufficiale). Monitora email dev. Se OpenAI richiede modifiche, apri branch + fix + re-submit.
 
 - [ ] **Step 4: After approval**
 
 Aggiorna README a "Live" + data di go-live. Commit.
+
+**Nota versionamento URI:** cambiare qualsiasi `ui://widget/<name>` URI dopo l'approvazione richiede **re-submission** per nuovo round di review. Tratta le URI come API public stable.
 
 ---
 
@@ -2954,7 +3071,7 @@ Aggiorna README a "Live" + data di go-live. Commit.
 | 12 — Manual QA + submit | 2 | 3 |
 | **Totale build** | **22** | **~26** |
 
-Con waitlist + review OpenAI: tempo totale variabile (settimane-mesi dopo il build).
+Con review OpenAI (no waitlist, submission aperte): tempo totale variabile — typical turnaround days-to-weeks dopo il submit.
 
 ---
 
