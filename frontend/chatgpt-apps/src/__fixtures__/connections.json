@@ -1,0 +1,8 @@
+{
+  "focus": {"uid": "w1", "type": "work_experience", "title": "Senior Eng at Acme"},
+  "related": [
+    {"uid": "s1", "type": "skill", "name": "Python", "relationship": "USED_SKILL"},
+    {"uid": "s2", "type": "skill", "name": "PostgreSQL", "relationship": "USED_SKILL"},
+    {"uid": "p1", "type": "project", "title": "Orbis launch", "relationship": "WORKED_ON"}
+  ]
+}
