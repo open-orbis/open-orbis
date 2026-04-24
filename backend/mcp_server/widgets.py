@@ -110,7 +110,7 @@ def build_html_shell(widget_name: str) -> str:
 <body>
   <div id="root"></div>
   <noscript>Enable JavaScript to see Orbis data.</noscript>
-  <script src="{bundle_url}" defer></script>
+  <script type="module" src="{bundle_url}"></script>
 </body>
 </html>
 """
