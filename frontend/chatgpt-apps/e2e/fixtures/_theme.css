@@ -1,0 +1,34 @@
+/* Inlined copy of frontend/chatgpt-apps/src/shared/theme.css.
+ * Needed because the production build extracts this CSS into a hashed file
+ * under assets/ that is not auto-linked from the JS bundle, and the test
+ * harness pages load the widget as a bare module.
+ * Keep in sync with ../../src/shared/theme.css manually — the test suite
+ * exists to visually catch drift if this copy diverges.
+ */
+:root {
+  --orbis-fg: #0b1220;
+  --orbis-fg-muted: #556173;
+  --orbis-bg: #ffffff;
+  --orbis-bg-subtle: #f6f8fa;
+  --orbis-border: #e2e6ec;
+  --orbis-accent: #4f46e5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --orbis-fg: #e8eaf0;
+    --orbis-fg-muted: #9ba2b0;
+    --orbis-bg: #0f1115;
+    --orbis-bg-subtle: #1a1d24;
+    --orbis-border: #2a2f3a;
+    --orbis-accent: #8b85ff;
+  }
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--orbis-bg);
+  color: var(--orbis-fg);
+}

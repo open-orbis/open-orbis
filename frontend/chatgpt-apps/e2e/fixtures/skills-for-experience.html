@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>skills-for-experience harness</title>
+  <link rel="stylesheet" href="/_theme.css" />
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    window.openai = {
+      toolOutput: {
+        experience: { uid: "w1", title: "Senior Eng at Acme", start_date: "2022-01" },
+        skills: [
+          { uid: "s1", name: "Python", category: "Backend" },
+          { uid: "s2", name: "PostgreSQL", category: "Backend" },
+          { uid: "s3", name: "React", category: "Frontend" },
+          { uid: "s4", name: "Docker" }
+        ]
+      }
+    };
+  </script>
+  <script type="module" src="http://localhost:4173/skills-for-experience.js"></script>
+</body>
+</html>

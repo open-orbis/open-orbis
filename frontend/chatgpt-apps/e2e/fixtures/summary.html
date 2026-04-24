@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>summary harness</title>
+  <link rel="stylesheet" href="/_theme.css" />
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    window.openai = {
+      toolOutput: {
+        name: "Alice Rossi",
+        headline: "Senior Software Engineer",
+        location: "Milano, Italy",
+        orb_id: "orb-abc-123",
+        open_to_work: true,
+        node_counts: {
+          work_experience: 4,
+          skill: 23,
+          project: 7,
+          education: 2
+        },
+        total_nodes: 36
+      }
+    };
+  </script>
+  <script type="module" src="http://localhost:4173/summary.js"></script>
+</body>
+</html>
