@@ -74,6 +74,37 @@ class TestWrapToolResponse:
         # they expect
         assert json.loads(result.content[0].text) == [{"uid": "x"}, {"uid": "y"}]
 
+    def test_widget_payload_used_for_structured_content(self):
+        """widget_payload overrides _to_structured(payload) for structuredContent.
+        content[0].text still gets the raw payload (backwards-compat)."""
+        with patch("mcp_server.widgets.get_share_context", return_value=None):
+            result = wrap_tool_response(
+                payload=[{"uid": "n1"}],
+                widget_payload={"node_type": "skill", "nodes": [{"uid": "n1"}]},
+                widget_name="nodes",
+            )
+        assert result.structuredContent == {
+            "node_type": "skill",
+            "nodes": [{"uid": "n1"}],
+        }
+        # Backwards-compat: text content still has the raw list
+        assert json.loads(result.content[0].text) == [{"uid": "n1"}]
+
+    def test_widget_payload_omitted_under_share_context(self):
+        """Even with widget_payload, share-mode drops _meta. structuredContent
+        still uses widget_payload (because it's wire-shape, not widget-trigger)."""
+        with patch("mcp_server.widgets.get_share_context", return_value=object()):
+            result = wrap_tool_response(
+                payload=[{"uid": "n1"}],
+                widget_payload={"node_type": "skill", "nodes": [{"uid": "n1"}]},
+                widget_name="nodes",
+            )
+        assert result.structuredContent == {
+            "node_type": "skill",
+            "nodes": [{"uid": "n1"}],
+        }
+        assert result.meta is None
+
 
 class TestWidgetRegistry:
     def test_registry_has_five_widgets(self):

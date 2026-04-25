@@ -57,16 +57,35 @@ WIDGET_REGISTRY: dict[str, WidgetMeta] = {
 }
 
 
-def wrap_tool_response(*, payload: dict | list, widget_name: str) -> CallToolResult:
+def wrap_tool_response(
+    *,
+    payload: dict | list,
+    widget_name: str,
+    widget_payload: dict | None = None,
+) -> CallToolResult:
     """Wrap a tool response so the wire shape exposes:
 
     - ``content[0].text`` = JSON of the raw payload (backward-compat with
       MCP clients that parse text content — Cursor, Claude Code, Cline, etc).
-    - ``structuredContent`` = the raw payload (MCP-spec structured field;
-      ChatGPT Apps SDK widgets read this via ``window.openai.toolOutput``).
+    - ``structuredContent`` = widget-friendly shape (MCP-spec structured
+      field; ChatGPT Apps SDK widgets read this via
+      ``window.openai.toolOutput``). When ``widget_payload`` is omitted,
+      falls back to ``_to_structured(payload)``.
     - ``_meta`` (top-level) = widget metadata: dual-keyed canonical
       ``ui.resourceUri`` / ``ui.visibility`` plus ChatGPT-legacy
       ``openai/outputTemplate`` / ``openai/widgetAccessible``.
+
+    Args:
+        payload: The raw tool output. Used for ``content[0].text`` (preserves
+            backwards-compat with MCP clients that JSON-parse text content).
+        widget_name: Key into ``WIDGET_REGISTRY``. Must be one of the 5
+            registered widget names.
+        widget_payload: Optional widget-friendly shape used for
+            ``structuredContent`` (the field ``window.openai.toolOutput``
+            reads). When omitted, falls back to ``_to_structured(payload)``.
+            Set this when the tool's natural output shape doesn't match what
+            the widget tsx expects (e.g. a list payload that needs context
+            like ``node_type``).
 
     Under ``ShareContext`` the ``_meta`` is intentionally omitted so
     share-mode tool calls don't trigger widget rendering.
@@ -82,6 +101,9 @@ def wrap_tool_response(*, payload: dict | list, widget_name: str) -> CallToolRes
         raise KeyError(f"Unknown widget: {widget_name!r}")
 
     text_block = TextContent(type="text", text=json.dumps(payload))
+    structured = (
+        widget_payload if widget_payload is not None else _to_structured(payload)
+    )
 
     # Share-mode: intentionally drop _meta — widgets aren't designed
     # for the restricted-view shape and share tokens are outside the
@@ -89,7 +111,7 @@ def wrap_tool_response(*, payload: dict | list, widget_name: str) -> CallToolRes
     if get_share_context() is not None:
         return CallToolResult(
             content=[text_block],
-            structuredContent=_to_structured(payload),
+            structuredContent=structured,
         )
 
     uri = f"ui://widget/{widget_name}"
@@ -104,7 +126,7 @@ def wrap_tool_response(*, payload: dict | list, widget_name: str) -> CallToolRes
     # routes through the alias.
     return CallToolResult(
         content=[text_block],
-        structuredContent=_to_structured(payload),
+        structuredContent=structured,
         **{
             "_meta": {
                 "ui": {

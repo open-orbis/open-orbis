@@ -17,6 +17,7 @@ from mcp.types import CallToolResult
 from neo4j import AsyncGraphDatabase
 
 from app.config import settings
+from app.graph.queries import NODE_TYPE_LABELS
 from mcp_server.auth import APIKeyMiddleware
 from mcp_server.tools import (
     get_connections,
@@ -28,6 +29,133 @@ from mcp_server.tools import (
 from mcp_server.widgets import WIDGET_REGISTRY, build_html_shell, wrap_tool_response
 
 logger = logging.getLogger(__name__)
+
+# Inverse of NODE_TYPE_LABELS for the full-orb widget which displays
+# snake_case type names (e.g. "work_experience") not the Cypher PascalCase.
+_LABEL_TO_TYPE: dict[str, str] = {v: k for k, v in NODE_TYPE_LABELS.items()}
+
+
+def _resolve_node_type(node: dict) -> str:
+    """Map a node's Cypher labels to its snake_case type."""
+    labels = node.get("_labels") or []
+    for label in labels:
+        if label in _LABEL_TO_TYPE:
+            return _LABEL_TO_TYPE[label]
+    return "unknown"
+
+
+def _full_orb_widget_payload(raw: dict) -> dict:
+    """Shape get_orb_full output for the full-orb widget.
+
+    Tool returns ``{person, nodes}`` where each node has ``_type`` (PascalCase
+    Cypher label) and ``_relationship`` (relationship type from person).
+    Widget expects ``{person, nodes, edges, total_nodes}`` with snake_case
+    ``type`` and explicit edges from person.
+    """
+    if not isinstance(raw, dict) or "error" in raw:
+        return raw  # let widget render error / empty state
+    person = raw.get("person") or {}
+    nodes = raw.get("nodes") or []
+    widget_nodes = [
+        {
+            "uid": n.get("uid", ""),
+            "type": _LABEL_TO_TYPE.get(n.get("_type") or "", "unknown"),
+            "title": n.get("title") or n.get("name") or n.get("uid", ""),
+            "name": n.get("name"),
+            # Real degree is not in the orb_full output; widget sorts hero
+            # nodes by degree, so fall back to 1 for all. Future enhancement:
+            # compute real degree from a richer query.
+            "degree": 1,
+        }
+        for n in nodes
+    ]
+    edges = [
+        {"source": person.get("uid", ""), "target": n.get("uid", "")}
+        for n in nodes
+        if n.get("uid")
+    ]
+    return {
+        "person": {
+            "uid": person.get("uid", ""),
+            "name": person.get("name", ""),
+            "orb_id": person.get("orb_id", ""),
+        },
+        "nodes": widget_nodes,
+        "edges": edges,
+        "total_nodes": len(nodes),
+    }
+
+
+def _nodes_widget_payload(raw: list | dict, *, node_type: str) -> dict:
+    """Shape get_nodes_by_type output for the nodes widget.
+
+    Tool returns a bare ``list[dict]`` (or a single-element list with an
+    error envelope). Widget expects ``{node_type, nodes: [...]}``.
+    """
+    # Tool returns [{"error": "..."}] on invalid type / inaccessible orb;
+    # surface that to the widget via the same envelope so ToolErrorState renders.
+    if (
+        isinstance(raw, list)
+        and len(raw) == 1
+        and isinstance(raw[0], dict)
+        and "error" in raw[0]
+    ):
+        return raw[0]
+    return {
+        "node_type": node_type,
+        "nodes": list(raw) if isinstance(raw, list) else [],
+    }
+
+
+def _connections_widget_payload(raw: dict, *, node_uid: str) -> dict:
+    """Shape get_connections output for the connections widget.
+
+    Tool returns ``{node_uid, connections: [{relationship, node}]}``.
+    Widget expects ``{focus, related}`` where each related entry has the node
+    fields flattened with the relationship.
+
+    Focus type/title are NOT in the tool response; we synthesize a minimal
+    focus from the input ``node_uid``. Widget falls back to uid for label.
+    """
+    if not isinstance(raw, dict) or "error" in raw:
+        return raw
+    connections = raw.get("connections") or []
+    related = [
+        {
+            "uid": (c.get("node") or {}).get("uid", ""),
+            "type": _resolve_node_type(c.get("node") or {}),
+            "title": (c.get("node") or {}).get("title"),
+            "name": (c.get("node") or {}).get("name"),
+            "relationship": c.get("relationship", ""),
+        }
+        for c in connections
+    ]
+    return {
+        "focus": {"uid": node_uid, "type": "", "title": "", "name": ""},
+        "related": related,
+    }
+
+
+def _skills_for_experience_widget_payload(
+    raw: list | dict, *, experience_uid: str
+) -> dict:
+    """Shape get_skills_for_experience output for the widget.
+
+    Tool returns a bare ``list[dict]`` of skills. Widget expects
+    ``{experience, skills}``. Experience metadata isn't in the tool
+    response; we synthesize a minimal envelope from the input uid.
+    """
+    if (
+        isinstance(raw, list)
+        and len(raw) == 1
+        and isinstance(raw[0], dict)
+        and "error" in raw[0]
+    ):
+        return raw[0]
+    return {
+        "experience": {"uid": experience_uid, "title": "", "start_date": None},
+        "skills": list(raw) if isinstance(raw, list) else [],
+    }
 
 
 def _build_transport_security() -> TransportSecuritySettings:
@@ -241,8 +369,12 @@ async def orbis_get_full_orb(orb_id: str = "", token: str = "") -> CallToolResul
     """Get the complete graph data for a person's Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Results are filtered by the share token's privacy settings when a token is supplied."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    payload = await get_orb_full(driver, orb_id, token)
-    return wrap_tool_response(payload=payload, widget_name="full-orb")
+    raw = await get_orb_full(driver, orb_id, token)
+    return wrap_tool_response(
+        payload=raw,
+        widget_payload=_full_orb_widget_payload(raw),
+        widget_name="full-orb",
+    )
 
 
 @mcp.tool()
@@ -252,8 +384,12 @@ async def orbis_get_nodes_by_type(
     """Get all nodes of a specific type from an Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Valid ``node_type`` values: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    payload = await get_nodes_by_type(driver, orb_id, node_type, token)
-    return wrap_tool_response(payload=payload, widget_name="nodes")
+    raw = await get_nodes_by_type(driver, orb_id, node_type, token)
+    return wrap_tool_response(
+        payload=raw,
+        widget_payload=_nodes_widget_payload(raw, node_type=node_type),
+        widget_name="nodes",
+    )
 
 
 @mcp.tool()
@@ -263,8 +399,12 @@ async def orbis_get_connections(
     """Get all relationships and connected nodes for a specific node identified by its uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    payload = await get_connections(driver, orb_id, node_uid, token)
-    return wrap_tool_response(payload=payload, widget_name="connections")
+    raw = await get_connections(driver, orb_id, node_uid, token)
+    return wrap_tool_response(
+        payload=raw,
+        widget_payload=_connections_widget_payload(raw, node_uid=node_uid),
+        widget_name="connections",
+    )
 
 
 @mcp.tool()
@@ -274,8 +414,14 @@ async def orbis_get_skills_for_experience(
     """Get all skills that were used in a specific work experience or project, identified by the experience's uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
-    payload = await get_skills_for_experience(driver, orb_id, experience_uid, token)
-    return wrap_tool_response(payload=payload, widget_name="skills-for-experience")
+    raw = await get_skills_for_experience(driver, orb_id, experience_uid, token)
+    return wrap_tool_response(
+        payload=raw,
+        widget_payload=_skills_for_experience_widget_payload(
+            raw, experience_uid=experience_uid
+        ),
+        widget_name="skills-for-experience",
+    )
 
 
 if __name__ == "__main__":
