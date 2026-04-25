@@ -20,8 +20,9 @@ async def test_full_flow_summary_tool_to_resource(monkeypatch):
         type("S", (), {"frontend_url": "https://open-orbis.com"})(),
     )
 
-    # 1. Tool call → returns structuredContent + _meta.outputTemplate
-    from mcp_server.server import orbis_get_summary
+    from mcp.types import CallToolResult
+
+    from mcp_server.server import mcp
 
     fake_tool_data = {
         "name": "Alice",
@@ -43,14 +44,16 @@ async def test_full_flow_summary_tool_to_resource(monkeypatch):
         ),
         patch("mcp_server.widgets.get_share_context", return_value=None),
     ):
-        tool_result = await orbis_get_summary("")
+        tool_result = await mcp.call_tool(
+            "orbis_get_summary", {"orb_id": "", "token": ""}
+        )
 
-    widget_uri = tool_result["_meta"]["openai/outputTemplate"]
+    assert isinstance(tool_result, CallToolResult)
+    widget_uri = tool_result.meta["openai/outputTemplate"]
     assert widget_uri == "ui://widget/summary"
+    assert tool_result.structuredContent == fake_tool_data
 
-    # 2. resources/read on that URI → HTML shell loading the bundle
-    from mcp_server.server import mcp
-
+    # Resource read returns matching HTML shell
     contents = list(await mcp.read_resource(widget_uri))
     html = contents[0].content
     assert '<div id="root"></div>' in html
@@ -60,9 +63,10 @@ async def test_full_flow_summary_tool_to_resource(monkeypatch):
 @pytest.mark.asyncio
 async def test_share_context_omits_meta():
     """Share-token request: tool returns data but NO _meta (widget disabled)."""
-    from mcp_server.server import orbis_get_summary
+    from mcp.types import CallToolResult
 
-    fake_share_ctx = object()
+    from mcp_server.server import mcp
+
     with (
         patch(
             "mcp_server.server._resolve_scope",
@@ -73,9 +77,12 @@ async def test_share_context_omits_meta():
             "mcp_server.server.get_orb_summary",
             new=AsyncMock(return_value={"name": "X"}),
         ),
-        patch("mcp_server.widgets.get_share_context", return_value=fake_share_ctx),
+        patch("mcp_server.widgets.get_share_context", return_value=object()),
     ):
-        result = await orbis_get_summary("orb1", "tok")
+        result = await mcp.call_tool(
+            "orbis_get_summary", {"orb_id": "orb1", "token": "tok"}
+        )
 
-    assert result["structuredContent"] == {"name": "X"}
-    assert "_meta" not in result
+    assert isinstance(result, CallToolResult)
+    assert result.structuredContent == {"name": "X"}
+    assert result.meta is None  # widgets disabled in share-mode

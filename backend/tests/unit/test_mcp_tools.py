@@ -444,9 +444,13 @@ def test_strip_widget_pii_does_not_mutate_input():
 
 
 @pytest.mark.asyncio
-async def test_orbis_get_summary_wraps_response():
-    """The @mcp.tool entry in server.py wraps the raw tool payload."""
-    from mcp_server.server import orbis_get_summary
+async def test_orbis_get_summary_wire_shape_via_call_tool():
+    """Verify the actual MCP wire shape, not just the function return."""
+    import json as _json
+
+    from mcp.types import CallToolResult
+
+    from mcp_server.server import mcp
 
     fake_payload = {"name": "Alice", "headline": "Eng", "node_counts": {}}
     with (
@@ -461,11 +465,15 @@ async def test_orbis_get_summary_wraps_response():
         ),
         patch("mcp_server.widgets.get_share_context", return_value=None),
     ):
-        # FastMCP @mcp.tool() leaves the underlying function callable
-        # directly (the tool registry tracks it separately), so we call
-        # it the same way the MCP dispatcher would invoke the impl.
-        result = await orbis_get_summary("")
-    assert result["structuredContent"] == fake_payload
-    assert result["_meta"]["openai/outputTemplate"] == "ui://widget/summary"
-    # Canonical key also present (Phase-0 amendment):
-    assert result["_meta"]["ui"]["resourceUri"] == "ui://widget/summary"
+        result = await mcp.call_tool("orbis_get_summary", {"orb_id": "", "token": ""})
+
+    # FastMCP returns CallToolResult when the tool function does
+    assert isinstance(result, CallToolResult)
+    # Backwards-compat: existing clients reading content[0].text get the
+    # raw payload
+    assert _json.loads(result.content[0].text) == fake_payload
+    # Modern MCP clients reading structuredContent get the same data
+    assert result.structuredContent == fake_payload
+    # ChatGPT Apps SDK reads _meta.openai/outputTemplate at top level
+    assert result.meta["openai/outputTemplate"] == "ui://widget/summary"
+    assert result.meta["ui"]["resourceUri"] == "ui://widget/summary"

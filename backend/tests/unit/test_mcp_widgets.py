@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -14,31 +15,36 @@ from mcp_server.widgets import (
 
 
 class TestWrapToolResponse:
-    def test_wraps_payload_with_structured_content_and_meta(self):
-        """User-mode request: payload wrapped + dual-keyed outputTemplate."""
+    def test_returns_call_tool_result_with_structured_and_meta(self):
+        """User-mode: CallToolResult with content + structuredContent + _meta."""
         with patch("mcp_server.widgets.get_share_context", return_value=None):
             result = wrap_tool_response(
                 payload={"name": "Alice"},
                 widget_name="summary",
             )
-        assert result["structuredContent"] == {"name": "Alice"}
-        # Canonical MCP-Apps keys (portable to Claude.ai / mcp-ui clients):
-        assert result["_meta"]["ui"]["resourceUri"] == "ui://widget/summary"
-        assert result["_meta"]["ui"]["visibility"] == ["model", "app"]
-        # ChatGPT-legacy aliases (kept for backward compatibility):
-        assert result["_meta"]["openai/outputTemplate"] == "ui://widget/summary"
-        assert result["_meta"]["openai/widgetAccessible"] is True
+        from mcp.types import CallToolResult
+
+        assert isinstance(result, CallToolResult)
+        # content[0].text is the raw payload JSON (backwards-compat)
+        assert result.content[0].text == json.dumps({"name": "Alice"})
+        # structuredContent is the payload itself
+        assert result.structuredContent == {"name": "Alice"}
+        # meta at top level, dual-keyed
+        assert result.meta["ui"]["resourceUri"] == "ui://widget/summary"
+        assert result.meta["ui"]["visibility"] == ["model", "app"]
+        assert result.meta["openai/outputTemplate"] == "ui://widget/summary"
+        assert result.meta["openai/widgetAccessible"] is True
 
     def test_omits_meta_under_share_context(self):
-        """Share-mode request: no _meta (widget rendering disabled)."""
-        fake_ctx = object()
-        with patch("mcp_server.widgets.get_share_context", return_value=fake_ctx):
+        """Share-mode: still wrapped, but no _meta."""
+        with patch("mcp_server.widgets.get_share_context", return_value=object()):
             result = wrap_tool_response(
                 payload={"name": "Alice"},
                 widget_name="summary",
             )
-        assert result["structuredContent"] == {"name": "Alice"}
-        assert "_meta" not in result
+        assert result.structuredContent == {"name": "Alice"}
+        assert result.content[0].text == json.dumps({"name": "Alice"})
+        assert result.meta is None
 
     def test_passes_through_error_payloads(self):
         """Tool error responses: still wrapped, still tagged."""
@@ -47,13 +53,26 @@ class TestWrapToolResponse:
                 payload={"error": "Orb not accessible"},
                 widget_name="summary",
             )
-        assert result["structuredContent"] == {"error": "Orb not accessible"}
-        assert "_meta" in result
+        assert result.structuredContent == {"error": "Orb not accessible"}
+        assert result.meta is not None  # error payloads still get widget hint
 
     def test_unknown_widget_name_raises(self):
         """Guardrail: typo in widget name must fail fast."""
         with pytest.raises(KeyError):
             wrap_tool_response(payload={}, widget_name="nonexistent")
+
+    def test_list_payload_wrapped_under_items(self):
+        """Tool returning list[dict] (e.g. nodes_by_type, skills_for_exp):
+        structuredContent must be a dict per MCP spec, so wrap under 'items'."""
+        with patch("mcp_server.widgets.get_share_context", return_value=None):
+            result = wrap_tool_response(
+                payload=[{"uid": "x"}, {"uid": "y"}],
+                widget_name="nodes",
+            )
+        assert result.structuredContent == {"items": [{"uid": "x"}, {"uid": "y"}]}
+        # content text is still the raw list, so existing clients see what
+        # they expect
+        assert json.loads(result.content[0].text) == [{"uid": "x"}, {"uid": "y"}]
 
 
 class TestWidgetRegistry:

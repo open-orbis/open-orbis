@@ -215,9 +215,14 @@ class TestToolWiring:
                     token="tok-llm-guessed",
                 )
 
-            # Under share context, wrap_tool_response omits _meta but
-            # still wraps the payload in structuredContent.
-            assert result == {"structuredContent": {"ok": True}}
+            # Under share context, wrap_tool_response returns a
+            # CallToolResult with structuredContent set but no _meta
+            # (widget rendering disabled in share-mode).
+            from mcp.types import CallToolResult
+
+            assert isinstance(result, CallToolResult)
+            assert result.structuredContent == {"ok": True}
+            assert result.meta is None
             assert captured["orb_id"] == "orb-ctx"
             assert captured["token"] == "tok-ctx"
         finally:

@@ -13,6 +13,7 @@ import logging
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from mcp.types import CallToolResult
 from neo4j import AsyncGraphDatabase
 
 from app.config import settings
@@ -227,7 +228,7 @@ def _build_starlette_app():
 
 
 @mcp.tool()
-async def orbis_get_summary(orb_id: str = "", token: str = "") -> dict:
+async def orbis_get_summary(orb_id: str = "", token: str = "") -> CallToolResult:
     """Get a summary of a person's professional profile (name, headline, location, and counts of each node type). Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Leave ``token`` empty when you already have full access."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
@@ -236,7 +237,7 @@ async def orbis_get_summary(orb_id: str = "", token: str = "") -> dict:
 
 
 @mcp.tool()
-async def orbis_get_full_orb(orb_id: str = "", token: str = "") -> dict:
+async def orbis_get_full_orb(orb_id: str = "", token: str = "") -> CallToolResult:
     """Get the complete graph data for a person's Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Results are filtered by the share token's privacy settings when a token is supplied."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
@@ -247,7 +248,7 @@ async def orbis_get_full_orb(orb_id: str = "", token: str = "") -> dict:
 @mcp.tool()
 async def orbis_get_nodes_by_type(
     node_type: str, orb_id: str = "", token: str = ""
-) -> dict:
+) -> CallToolResult:
     """Get all nodes of a specific type from an Orbis. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis. Valid ``node_type`` values: education, work_experience, certification, language, publication, project, skill, patent, award, outreach, training."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
@@ -258,7 +259,7 @@ async def orbis_get_nodes_by_type(
 @mcp.tool()
 async def orbis_get_connections(
     node_uid: str, orb_id: str = "", token: str = ""
-) -> dict:
+) -> CallToolResult:
     """Get all relationships and connected nodes for a specific node identified by its uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
@@ -269,7 +270,7 @@ async def orbis_get_connections(
 @mcp.tool()
 async def orbis_get_skills_for_experience(
     experience_uid: str, orb_id: str = "", token: str = ""
-) -> dict:
+) -> CallToolResult:
     """Get all skills that were used in a specific work experience or project, identified by the experience's uid. Leave ``orb_id`` empty (or pass ``"me"``) to query the authenticated caller's own Orbis."""
     orb_id, token = await _resolve_scope(orb_id, token)
     driver = await _get_driver()
