@@ -42,6 +42,15 @@
   next_state: PRIVACY
   fallback_on_failure: null
 
+- id: TERMS_BACK
+  from_state: TERMS
+  action: Click Back button
+  selector_or_control: "Back button (top-left)"
+  preconditions: []
+  expected_effect: Navigates to previous history entry (typically LANDING or wherever user came from)
+  next_state: LANDING
+  fallback_on_failure: null
+
 # ── Auth Callbacks ──
 
 - id: AUTH_CALLBACK_REDIRECT

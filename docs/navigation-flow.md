@@ -34,6 +34,7 @@ stateDiagram-v2
     state "Shared Orb (/:orbId)" as SHARED_ORB
     state "CV Export (/cv-export)" as CV_EXPORT
     state "Privacy (/privacy)" as PRIVACY
+    state "Terms (/terms)" as TERMS
     state "Activate (/activate)" as ACTIVATION
     state "Admin Dashboard (/admin)" as ADMIN
 
@@ -229,6 +230,7 @@ flowchart TD
 | `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Opened from the cyan robot-icon button in the ChatBox action strip. Top section shows the MCP endpoint URL (from `VITE_MCP_URL`) with a Copy button — paste into ChatGPT / Cursor / Claude Code / Cline / Windsurf. Below it, lists active OAuth grants with client name and access mode; each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
 | `FEEDBACK_MODAL` | (modal on ORB_VIEW) | Yes | Send Feedback modal opened from above-ChatBox button. Submits to `/ideas` with `source=feedback`. |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
+| `TERMS` | `/terms` | No | Terms of Service (draft, pending legal review). Linked from ChatGPT Apps submission and OAuth consent. |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
 | `FLOATING_INPUT` | (modal on ORB_VIEW) | Yes | Add/edit node form |
 | `SHARE_PANEL` | (modal on ORB_VIEW) | Yes | Visibility switch, public/filtered URLs, share tokens, access grants, connection-request review |
