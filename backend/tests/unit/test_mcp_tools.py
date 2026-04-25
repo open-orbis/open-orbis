@@ -535,6 +535,7 @@ async def test_orbis_get_full_orb_wire_shape_translates_labels():
                 "_relationship": "HAS_SKILL",
             },
         ],
+        "cross_links": [],
     }
     with (
         patch(
@@ -560,7 +561,48 @@ async def test_orbis_get_full_orb_wire_shape_translates_labels():
 
 
 @pytest.mark.asyncio
+async def test_orbis_get_full_orb_computes_real_degree_from_cross_links():
+    """Cross-link edges contribute to per-node degree."""
+    from mcp_server.server import mcp
+
+    raw = {
+        "person": {"uid": "p1", "name": "Alice", "orb_id": "orb1"},
+        "nodes": [
+            {"uid": "w1", "_type": "WorkExperience", "title": "Eng"},
+            {"uid": "s1", "_type": "Skill", "name": "Python"},
+            {"uid": "s2", "_type": "Skill", "name": "Rust"},
+        ],
+        "cross_links": [
+            {"source": "w1", "target": "s1", "rel": "USED_SKILL"},
+            {"source": "w1", "target": "s2", "rel": "USED_SKILL"},
+        ],
+    }
+    with (
+        patch(
+            "mcp_server.server._resolve_scope",
+            new=AsyncMock(return_value=("orb1", "")),
+        ),
+        patch("mcp_server.server._get_driver", new=AsyncMock(return_value=None)),
+        patch("mcp_server.server.get_orb_full", new=AsyncMock(return_value=raw)),
+        patch("mcp_server.widgets.get_share_context", return_value=None),
+    ):
+        result = await mcp.call_tool("orbis_get_full_orb", {"orb_id": "", "token": ""})
+    sc = result.structuredContent
+    by_uid = {n["uid"]: n for n in sc["nodes"]}
+    # w1: person→w1 + w1→s1 + w1→s2 = 3
+    assert by_uid["w1"]["degree"] == 3
+    # s1: person→s1 + w1→s1 = 2
+    assert by_uid["s1"]["degree"] == 2
+    # s2: person→s2 + w1→s2 = 2
+    assert by_uid["s2"]["degree"] == 2
+    # Edges include both person-rooted and cross-links
+    assert {"source": "p1", "target": "w1"} in sc["edges"]
+    assert {"source": "w1", "target": "s1"} in sc["edges"]
+
+
+@pytest.mark.asyncio
 async def test_orbis_get_connections_wire_shape_renames_to_focus_and_related():
+    """Fallback path: tool didn't return a focus, widget envelope is minimal."""
     from mcp_server.server import mcp
 
     raw = {
@@ -589,6 +631,43 @@ async def test_orbis_get_connections_wire_shape_renames_to_focus_and_related():
     assert sc["related"][0]["name"] == "Python"
     assert sc["related"][0]["type"] == "skill"
     assert sc["related"][0]["relationship"] == "USED_SKILL"
+
+
+@pytest.mark.asyncio
+async def test_orbis_get_connections_uses_focus_from_tool():
+    """Tool now returns focus info; widget transform uses it instead of placeholder."""
+    from mcp_server.server import mcp
+
+    raw = {
+        "node_uid": "w1",
+        "focus": {
+            "uid": "w1",
+            "title": "Senior Engineer at Acme",
+            "_labels": ["WorkExperience"],
+        },
+        "connections": [
+            {
+                "relationship": "USED_SKILL",
+                "node": {"uid": "s1", "name": "Python", "_labels": ["Skill"]},
+            }
+        ],
+    }
+    with (
+        patch(
+            "mcp_server.server._resolve_scope",
+            new=AsyncMock(return_value=("orb1", "")),
+        ),
+        patch("mcp_server.server._get_driver", new=AsyncMock(return_value=None)),
+        patch("mcp_server.server.get_connections", new=AsyncMock(return_value=raw)),
+        patch("mcp_server.widgets.get_share_context", return_value=None),
+    ):
+        result = await mcp.call_tool(
+            "orbis_get_connections", {"node_uid": "w1", "orb_id": "", "token": ""}
+        )
+    sc = result.structuredContent
+    assert sc["focus"]["title"] == "Senior Engineer at Acme"
+    assert sc["focus"]["type"] == "work_experience"
+    assert sc["focus"]["uid"] == "w1"
 
 
 @pytest.mark.asyncio

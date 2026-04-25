@@ -212,7 +212,17 @@ async def get_orb_full(driver: AsyncDriver, orb_id: str, token: str = "") -> dic
 
         nodes = _apply_filters(nodes, access["keywords"], access["hidden_node_types"])
 
-        return {"person": person, "nodes": nodes}
+        return {
+            "person": person,
+            "nodes": nodes,
+            "cross_links": [
+                {"source": cl["source"], "target": cl["target"], "rel": cl["rel"]}
+                for cl in (record.get("cross_links") or [])
+                # Filter out malformed / null cross-links that show up if a
+                # query path matched no skills.
+                if cl and cl.get("source") and cl.get("target")
+            ],
+        }
 
 
 async def get_nodes_by_type(
@@ -274,7 +284,15 @@ async def get_connections(
     async with driver.session() as session:
         result = await session.run(query, orb_id=orb_id, node_uid=node_uid)
         connections = []
+        focus_node: dict | None = None
+        focus_labels: list[str] = []
         async for record in result:
+            # Capture focus node from first record (same n on every row).
+            if focus_node is None and record["n"] is not None:
+                focus_node = decrypt_properties(dict(record["n"]))
+                focus_node.pop("embedding", None)
+                focus_labels = list(record["n"].labels)
+
             conn_labels = set(record["connected_labels"])
             if hidden_types and conn_labels & hidden_types:
                 continue
@@ -289,7 +307,16 @@ async def get_connections(
                     "node": conn_node,
                 }
             )
-        return {"node_uid": node_uid, "connections": connections}
+
+        focus_payload = None
+        if focus_node is not None:
+            focus_payload = {**focus_node, "_labels": focus_labels}
+
+        return {
+            "node_uid": node_uid,
+            "focus": focus_payload,
+            "connections": connections,
+        }
 
 
 async def get_skills_for_experience(

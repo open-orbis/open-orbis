@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from collections import Counter
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -47,32 +48,50 @@ def _resolve_node_type(node: dict) -> str:
 def _full_orb_widget_payload(raw: dict) -> dict:
     """Shape get_orb_full output for the full-orb widget.
 
-    Tool returns ``{person, nodes}`` where each node has ``_type`` (PascalCase
-    Cypher label) and ``_relationship`` (relationship type from person).
-    Widget expects ``{person, nodes, edges, total_nodes}`` with snake_case
-    ``type`` and explicit edges from person.
+    Tool returns ``{person, nodes, cross_links}`` where each node has
+    ``_type`` (PascalCase Cypher label) and ``_relationship`` (relationship
+    type from person). Widget expects ``{person, nodes, edges, total_nodes}``
+    with snake_case ``type``, explicit edges (person→node + cross-links),
+    and per-node ``degree`` computed from real edge counts.
     """
     if not isinstance(raw, dict) or "error" in raw:
         return raw  # let widget render error / empty state
     person = raw.get("person") or {}
     nodes = raw.get("nodes") or []
+    cross_links = raw.get("cross_links") or []
+    person_uid = person.get("uid", "")
+
+    # Build edges: person → each visible node + cross-node USED_SKILL edges.
+    edges: list[dict] = [
+        {"source": person_uid, "target": n.get("uid", "")}
+        for n in nodes
+        if n.get("uid")
+    ]
+    # Cross-links may reference uids that aren't in the visible `nodes` set
+    # (e.g. if filters hid some). Keep them in the edges list anyway —
+    # selectHeroNodes in the widget filters edges to only those whose
+    # endpoints are heroes.
+    for cl in cross_links:
+        src = cl.get("source")
+        tgt = cl.get("target")
+        if src and tgt:
+            edges.append({"source": src, "target": tgt})
+
+    # Degree per node = how many edges touch its uid (counting both endpoints).
+    degree_counter: Counter[str] = Counter()
+    for e in edges:
+        degree_counter[e["source"]] += 1
+        degree_counter[e["target"]] += 1
+
     widget_nodes = [
         {
             "uid": n.get("uid", ""),
             "type": _LABEL_TO_TYPE.get(n.get("_type") or "", "unknown"),
             "title": n.get("title") or n.get("name") or n.get("uid", ""),
             "name": n.get("name"),
-            # Real degree is not in the orb_full output; widget sorts hero
-            # nodes by degree, so fall back to 1 for all. Future enhancement:
-            # compute real degree from a richer query.
-            "degree": 1,
+            "degree": degree_counter.get(n.get("uid", ""), 1),
         }
         for n in nodes
-    ]
-    edges = [
-        {"source": person.get("uid", ""), "target": n.get("uid", "")}
-        for n in nodes
-        if n.get("uid")
     ]
     return {
         "person": {
@@ -110,16 +129,29 @@ def _nodes_widget_payload(raw: list | dict, *, node_type: str) -> dict:
 def _connections_widget_payload(raw: dict, *, node_uid: str) -> dict:
     """Shape get_connections output for the connections widget.
 
-    Tool returns ``{node_uid, connections: [{relationship, node}]}``.
+    Tool returns ``{node_uid, focus, connections: [{relationship, node}]}``.
     Widget expects ``{focus, related}`` where each related entry has the node
     fields flattened with the relationship.
 
-    Focus type/title are NOT in the tool response; we synthesize a minimal
-    focus from the input ``node_uid``. Widget falls back to uid for label.
+    When ``focus`` is present in the tool output, render its real
+    title/type/name. Otherwise fall back to a minimal envelope (e.g. when
+    the node was not found, or for older clients).
     """
     if not isinstance(raw, dict) or "error" in raw:
         return raw
     connections = raw.get("connections") or []
+    focus_raw = raw.get("focus")
+    if focus_raw:
+        focus = {
+            "uid": focus_raw.get("uid", node_uid),
+            "type": _resolve_node_type(focus_raw),
+            "title": focus_raw.get("title"),
+            "name": focus_raw.get("name"),
+        }
+    else:
+        # Fallback: tool didn't return a focus (e.g. node not found) —
+        # synthesize a minimal envelope so the widget still renders.
+        focus = {"uid": node_uid, "type": "", "title": "", "name": ""}
     related = [
         {
             "uid": (c.get("node") or {}).get("uid", ""),
@@ -130,10 +162,7 @@ def _connections_widget_payload(raw: dict, *, node_uid: str) -> dict:
         }
         for c in connections
     ]
-    return {
-        "focus": {"uid": node_uid, "type": "", "title": "", "name": ""},
-        "related": related,
-    }
+    return {"focus": focus, "related": related}
 
 
 def _skills_for_experience_widget_payload(
