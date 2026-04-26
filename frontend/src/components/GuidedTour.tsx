@@ -51,8 +51,8 @@ const STEPS: TourStep[] = [
   },
   {
     target: '[data-tour="export"]',
-    title: 'Export Your CV',
-    content: 'Export your orbis as a formatted PDF CV.',
+    title: 'Export Orbis to PDF',
+    content: 'Export your orbis as a formatted PDF document.',
     placement: 'bottom',
   },
   {
