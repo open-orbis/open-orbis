@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.db.postgres import get_pool
 
 MAX_SNAPSHOTS_PER_USER = 3
@@ -15,7 +17,7 @@ async def insert_snapshot(
     node_count: int,
     edge_count: int,
     data: str,
-    now: str,
+    now: datetime,
 ) -> dict:
     pool = await get_pool()
     await pool.execute(

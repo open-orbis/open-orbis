@@ -184,6 +184,34 @@ async def test_create_snapshot():
         mock_insert.assert_awaited_once()
 
 
+async def test_create_snapshot_passes_datetime_to_db_layer():
+    """Regression for #435: insert_snapshot's `now` argument must be a
+    datetime instance, not an ISO string. asyncpg's TIMESTAMP binding
+    rejects strings, which made every "Save current version" click 500.
+    """
+    from datetime import datetime
+
+    record = _make_orb_record()
+    mock_db, _ = _mock_db_with_record(record)
+
+    with (
+        patch.object(
+            snap_db, "delete_oldest_if_at_limit", new_callable=AsyncMock
+        ) as mock_evict,
+        patch.object(snap_db, "insert_snapshot", new_callable=AsyncMock) as mock_insert,
+    ):
+        mock_evict.return_value = None
+        mock_insert.return_value = {"snapshot_id": "snap-1"}
+        await snap_service.create_snapshot(
+            user_id="user-1", db=mock_db, trigger="manual"
+        )
+        kwargs = mock_insert.await_args.kwargs
+        assert isinstance(kwargs["now"], datetime), (
+            f"insert_snapshot got `now` as {type(kwargs['now']).__name__}; "
+            "asyncpg requires datetime for TIMESTAMP columns"
+        )
+
+
 async def test_create_snapshot_empty_orb():
     person = MockNode({"user_id": "user-1", "name": "Empty User"}, ["Person"])
     record = {
