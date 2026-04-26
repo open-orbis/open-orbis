@@ -56,7 +56,7 @@ export async function mockOrbRoutes(page: Page) {
     route.fulfill(json([])),
   );
   await page.route((url) => url.pathname === '/api/orbs/me/connection-requests', (route) =>
-    route.fulfill(json([])),
+    route.fulfill(json({ requests: [] })),
   );
   await page.route((url) => url.pathname === '/api/orbs/me/public-filters', (route) =>
     route.fulfill(json({})),

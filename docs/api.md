@@ -79,8 +79,8 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | GET | `/orbs/me` | JWT | — | Full orb: person + nodes + links |
 | PUT | `/orbs/me` | JWT | — | Update Person profile fields. `email` is **not** in the accepted schema — it is the OAuth sign-up address and can only be changed by re-authenticating with a different provider account (#394). |
 | PUT | `/orbs/me/orb-id` | JWT | — | Claim/update public orb_id (409 if taken) |
-| POST | `/orbs/me/profile-image` | JWT | — | Upload profile image as base64 (max 2MB) |
-| DELETE | `/orbs/me/profile-image` | JWT | — | Clear profile image |
+| POST | `/orbs/me/profile-image` | JWT | — | Upload profile image (max 2MB upload, max 1000×1000 px enforced client-side; backend resizes to 256×256 JPEG) |
+| DELETE | `/orbs/me/profile-image` | JWT | — | Clear profile image AND OAuth `picture` URL so the avatar falls back to the name initial (#432) |
 | POST | `/orbs/me/nodes` | JWT | — | Create node (any type) linked to Person |
 | PUT | `/orbs/me/nodes/{uid}` | JWT | — | Update node properties |
 | DELETE | `/orbs/me/nodes/{uid}` | JWT | — | Delete node |

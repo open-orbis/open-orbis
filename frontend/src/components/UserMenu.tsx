@@ -76,7 +76,14 @@ export default function UserMenu({ orbId, onOrbIdChanged, person, onProfileSaved
 
   if (!user) return null;
 
-  const avatarSrc = user.profile_image || user.picture || '';
+  // The Person prop (refreshed by fetchOrb) is the source of truth.
+  // Falling back to authStore.user.* would show a stale image after upload
+  // or, worse, the OAuth picture even after the user explicitly removed
+  // their photo (which clears `picture` on the backend).
+  const avatarSrc =
+    (person?.profile_image as string) ||
+    (person?.picture as string) ||
+    '';
   const initial = (user.name || 'O').charAt(0).toUpperCase();
 
   const handleLogout = () => {

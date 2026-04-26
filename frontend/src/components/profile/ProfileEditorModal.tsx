@@ -36,36 +36,99 @@ export default function ProfileEditorModal({ person, onClose, onSaved }: Profile
   const photoRemovedRef = useRef(false);
   const [, forceRender] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Optimistic preview while the upload + fetchOrb refresh are in flight,
+  // so the new image appears immediately on file pick instead of after the
+  // ~300ms network round-trip.
+  const [optimisticPreview, setOptimisticPreview] = useState<string | null>(null);
+  // Inline rejection message shown directly under the photo. Toasts were
+  // missed because the toast container is on the opposite side of the
+  // viewport from the modal's avatar tile.
+  const [imageError, setImageError] = useState<string | null>(null);
 
   useEffect(() => {
+    // A fresh `person` from fetchOrb means the persistent profile_image is
+    // now in the prop — drop the optimistic blob URL.
+    setOptimisticPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     setValues(extractInitialValues(person));
   }, [person]);
 
-  const profileImage = photoRemovedRef.current ? '' : ((person.profile_image as string) || (person.picture as string) || '');
+  useEffect(() => () => {
+    // Free the blob URL on unmount to avoid leaks if the modal closes
+    // before the next person refresh.
+    if (optimisticPreview) URL.revokeObjectURL(optimisticPreview);
+  }, [optimisticPreview]);
+
+  const profileImage = photoRemovedRef.current
+    ? ''
+    : (optimisticPreview || (person.profile_image as string) || (person.picture as string) || '');
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const resetInput = () => { if (fileInputRef.current) fileInputRef.current.value = ''; };
+    setImageError(null);
     if (!file.type.startsWith('image/')) {
-      addToast('Please select an image file', 'error');
+      setImageError('Please select an image file (JPEG, PNG, or WebP).');
+      resetInput();
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
-      addToast('Image too large (max 2MB)', 'error');
+      setImageError('Image is too large — maximum file size is 2 MB.');
+      resetInput();
       return;
     }
+
+    // Reject images larger than 1000×1000 px before any network I/O so the
+    // user gets immediate feedback that matches the in-modal hint.
+    const probeUrl = URL.createObjectURL(file);
+    let width = 0;
+    let height = 0;
+    try {
+      ({ width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        img.onerror = () => reject(new Error('decode failed'));
+        img.src = probeUrl;
+      }));
+    } catch {
+      URL.revokeObjectURL(probeUrl);
+      setImageError('Could not read image — please try a different file.');
+      resetInput();
+      return;
+    }
+    if (width > 1000 || height > 1000) {
+      URL.revokeObjectURL(probeUrl);
+      setImageError(`Image is ${width}×${height} px — maximum is 1000×1000 px.`);
+      resetInput();
+      return;
+    }
+
+    // Reuse the probe blob URL as the optimistic preview so we don't
+    // allocate a second one. The persistent server-side URI takes over
+    // once fetchOrb refreshes the person prop.
+    setOptimisticPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return probeUrl;
+    });
+    photoRemovedRef.current = false;
 
     setUploadingImage(true);
     try {
       await uploadProfileImage(file);
-      photoRemovedRef.current = false;
       addToast('Profile picture updated', 'success');
       onSaved();
     } catch {
       addToast('Failed to upload profile picture', 'error');
+      setOptimisticPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
     } finally {
       setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      resetInput();
     }
   };
 
@@ -93,6 +156,7 @@ export default function ProfileEditorModal({ person, onClose, onSaved }: Profile
       await updateProfile(props);
       addToast('Profile updated', 'success');
       onSaved();
+      onClose();
     } catch {
       addToast('Failed to update profile', 'error');
     } finally {
@@ -196,6 +260,11 @@ export default function ProfileEditorModal({ person, onClose, onSaved }: Profile
                   )
                 )}
               </div>
+              {imageError ? (
+                <p className="mt-2 text-[10px] text-red-300" role="alert">{imageError}</p>
+              ) : (
+                <p className="mt-2 text-[10px] text-white/35">Maximum 1000 × 1000 px.</p>
+              )}
             </div>
           </div>
 

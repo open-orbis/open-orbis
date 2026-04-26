@@ -198,6 +198,61 @@ def test_delete_node_success(client, mock_db):
     assert response.json()["status"] == "deleted"
 
 
+def _tiny_png_bytes() -> bytes:
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), (255, 0, 0)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_upload_profile_image_persists_data_uri(client, mock_db):
+    """POST /orbs/me/profile-image must write a non-empty JPEG data URI
+    to Person.profile_image via UPDATE_PERSON."""
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value={"p": MockNode({"user_id": "test-user"}, ["Person"])})
+    )
+
+    response = client.post(
+        "/orbs/me/profile-image",
+        files={"file": ("avatar.png", _tiny_png_bytes(), "image/png")},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"status": "uploaded"}
+
+    run_mock = mock_db.session.return_value.__aenter__.return_value.run
+    sent_props = run_mock.call_args.kwargs["properties"]
+    assert "profile_image" in sent_props
+    assert sent_props["profile_image"].startswith("data:image/jpeg;base64,")
+    assert len(sent_props["profile_image"]) > len("data:image/jpeg;base64,")
+
+
+def test_get_my_orb_returns_profile_image(client, mock_db):
+    """GET /orbs/me must round-trip a previously-uploaded profile_image
+    data URI back to the client. This is the half of the loop that
+    keeps the modal showing a stale empty avatar (#432)."""
+    data_uri = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD"
+    person_node = MockNode(
+        {"user_id": "test-user", "name": "Test User", "profile_image": data_uri},
+        ["Person"],
+    )
+    record = {
+        "p": person_node,
+        "connections": [],
+        "cross_skill_nodes": [],
+        "cross_links": [],
+    }
+    mock_db.session.return_value.__aenter__.return_value.run.return_value.single = (
+        AsyncMock(return_value=record)
+    )
+
+    response = client.get("/orbs/me")
+    assert response.status_code == 200
+    assert response.json()["person"]["profile_image"] == data_uri
+
+
 @patch("app.orbs.router.get_orb_visibility", new_callable=AsyncMock)
 def test_get_public_orb_success(mock_visibility, client, mock_db):
     mock_visibility.return_value = "public"
