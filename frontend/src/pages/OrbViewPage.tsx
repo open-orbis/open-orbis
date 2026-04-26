@@ -592,7 +592,7 @@ export default function OrbViewPage() {
     e.target.value = '';
   }, [handleImportFile]);
 
-  if (loading || !data) {
+  if (!data) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin" />

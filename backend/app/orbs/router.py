@@ -312,12 +312,19 @@ async def delete_profile_image(
     current_user: dict = Depends(get_current_user),
     db: AsyncDriver = Depends(get_db),
 ):
-    """Remove the profile picture."""
+    """Remove the profile picture.
+
+    Clears both ``profile_image`` (the user's custom upload, if any) AND
+    ``picture`` (the OAuth provider's avatar URL). Without clearing the
+    latter, "Remove photo" would leave the Google/LinkedIn avatar as a
+    fallback on the next render — confusing because the user explicitly
+    asked for no photo. The avatar slot then renders the name initial.
+    """
     async with db.session() as session:
         result = await session.run(
             UPDATE_PERSON,
             user_id=current_user["user_id"],
-            properties={"profile_image": ""},
+            properties={"profile_image": "", "picture": ""},
         )
         record = await result.single()
         if record is None:
