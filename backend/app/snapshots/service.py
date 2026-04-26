@@ -146,7 +146,11 @@ async def create_snapshot(
         }
 
     snapshot_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    # asyncpg's TIMESTAMP WITH TIME ZONE binding requires a datetime
+    # instance — passing an ISO string raises DataError at execute() time
+    # (#435). FastAPI/Pydantic still serializes it back to ISO on the way
+    # out, so wire format is unchanged.
+    now = datetime.now(timezone.utc)
 
     await snap_db.delete_oldest_if_at_limit(user_id)
 
