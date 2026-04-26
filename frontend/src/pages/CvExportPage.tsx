@@ -1,11 +1,15 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getMyOrb } from '../api/orbs';
 import type { OrbData, OrbNode } from '../api/orbs';
 import { useFilterStore, computeFilteredNodeIds } from '../stores/filterStore';
 import { useAuthStore } from '../stores/authStore';
 import {
   sortDesc,
+  sortRolesDesc,
   str,
+  formatExportDate,
+  formatExportDateRange,
   PAGE_USABLE_H,
   PRINT_CONTENT_W,
   collectBlocks,
@@ -19,6 +23,7 @@ import {
 /* ── Component ── */
 
 export default function CvExportPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<OrbData | null>(null);
   const [loading, setLoading] = useState(true);
   const user = useAuthStore((s) => s.user);
@@ -129,9 +134,9 @@ export default function CvExportPage() {
 
   /* ── PDF export (native print → selectable text + clickable links) ── */
   const handleDownloadPdf = useCallback(() => {
-    const personName = (data?.person?.name as string) || 'CV';
+    const personName = (data?.person?.name as string) || 'Orbis';
     const prev = document.title;
-    document.title = `${personName} CV by OpenOrbis`;
+    document.title = `${personName} Orbis by OpenOrbis`;
     window.print();
     document.title = prev;
   }, [data]);
@@ -235,7 +240,7 @@ export default function CvExportPage() {
 
   /* Page title → becomes default PDF filename */
   useEffect(() => {
-    if (data?.person?.name) document.title = `${str(data.person.name)} — CV`;
+    if (data?.person?.name) document.title = `${str(data.person.name)} — Orbis`;
   }, [data]);
 
   /* ── Filtering ── */
@@ -266,13 +271,16 @@ export default function CvExportPage() {
 
   /* ── Prepare data ── */
   const p = data.person;
-  // Sort every dated section most-recent-first. For roles/projects/patents
-  // the "completion" date drives ordering; if missing (e.g. ongoing work),
-  // fall back to start/filing date so they don't sink to the bottom.
-  const experience = sortDesc(visible('WorkExperience'), 'end_date', 'start_date');
-  const education = sortDesc(visible('Education'), 'end_date', 'start_date');
-  const projects = sortDesc(visible('Project'), 'end_date', 'start_date');
+  // Roles (Experience / Education / Project) need the "ongoing" semantic:
+  // an empty or 'present' end_date means "still active" and ranks above
+  // every completed role. sortDesc's fallback-to-start_date treats empty
+  // end as missing data, which sinks active roles to the bottom (#431).
+  const experience = sortRolesDesc(visible('WorkExperience'));
+  const education = sortRolesDesc(visible('Education'));
+  const projects = sortRolesDesc(visible('Project'));
   const publications = sortDesc(visible('Publication'), 'date');
+  // Patents legitimately have a "pending" state (filed but not granted),
+  // so a missing grant_date isn't "ongoing" — fall back to filing_date.
   const patents = sortDesc(visible('Patent'), 'grant_date', 'filing_date');
   const awards = sortDesc(visible('Award'), 'date');
   const outreach = sortDesc(visible('Outreach'), 'date');
@@ -338,7 +346,11 @@ export default function CvExportPage() {
   /* Contact links */
   const accountEmail = str(user?.email).trim();
   const exportEmail = accountEmail || str(p.email).trim();
-  const phoneVal = showPhone && phoneNumber.trim() ? phoneNumber.trim() : str(p.phone);
+  // The Phone checkbox is a visibility toggle. Off → omit the phone row
+  // entirely. On → use the typed override if any, else fall back to the
+  // stored Person.phone. The previous logic only swapped sources, leaving
+  // the stored phone visible whenever the checkbox was off.
+  const phoneVal = showPhone ? (phoneNumber.trim() || str(p.phone)) : '';
   const contacts = [
     exportEmail && { icon: 'fas fa-envelope', text: exportEmail },
     phoneVal && { icon: 'fas fa-phone', href: `tel:${phoneVal}`, text: phoneVal },
@@ -388,7 +400,7 @@ export default function CvExportPage() {
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.title)}</h4>
                   <EntryLink id={n.uid} />
                   <span className="item-date" contentEditable suppressContentEditableWarning>
-                    {str(n.start_date)} — {str(n.end_date)}
+                    {formatExportDateRange(n.start_date, n.end_date)}
                   </span>
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>
@@ -416,7 +428,7 @@ export default function CvExportPage() {
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.degree)}</h4>
                   <EntryLink id={n.uid} />
                   <span className="item-date" contentEditable suppressContentEditableWarning>
-                    {str(n.start_date)} — {str(n.end_date)}
+                    {formatExportDateRange(n.start_date, n.end_date)}
                   </span>
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>
@@ -521,7 +533,7 @@ export default function CvExportPage() {
                 </div>
                 {!!n.issuing_organization && (
                   <p className="item-subtitle" contentEditable suppressContentEditableWarning>
-                    {str(n.issuing_organization)}{n.date ? ` — ${str(n.date)}` : ''}
+                    {str(n.issuing_organization)}{n.date ? ` — ${formatExportDate(n.date)}` : ''}
                   </p>
                 )}
                 {!!n.description && (
@@ -547,7 +559,7 @@ export default function CvExportPage() {
                   <EntryLink id={n.uid} />
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>
-                  {n.role ? `${str(n.role)} — ` : ''}{str(n.venue)}{n.date ? ` — ${str(n.date)}` : ''}
+                  {n.role ? `${str(n.role)} — ` : ''}{str(n.venue)}{n.date ? ` — ${formatExportDate(n.date)}` : ''}
                 </p>
                 {!!n.description && (
                   <div className="rich-text" contentEditable suppressContentEditableWarning>
@@ -570,7 +582,7 @@ export default function CvExportPage() {
                 <div className="item-header">
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.name)}</h4>
                   <EntryLink id={n.uid} />
-                  <span className="item-date" contentEditable suppressContentEditableWarning>{str(n.issue_date)}</span>
+                  <span className="item-date" contentEditable suppressContentEditableWarning>{formatExportDate(n.issue_date)}</span>
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>{str(n.issuing_organization)}</p>
               </div>
@@ -658,6 +670,13 @@ export default function CvExportPage() {
 
       {/* ── Toolbar (hidden when printing) ── */}
       <div className="cv-toolbar no-print">
+        <button
+          onClick={() => navigate('/myorbis')}
+          className="cv-toolbar-btn cv-toolbar-back"
+          title="Back to your Orbis"
+        >
+          <i className="fas fa-arrow-left" /> Back to Orbis
+        </button>
         <span className="cv-toolbar-hint">Click text to edit and format · Drag sections to reorder · Save as PDF &amp; uncheck &quot;Headers and footers&quot;</span>
 
         {/* Phone toggle + input */}
@@ -918,6 +937,12 @@ const CV_CSS = `
     color: var(--md-on-primary);
   }
   .cv-toolbar-download:hover { background: #7c6bbf; }
+  .cv-toolbar-back {
+    background: var(--md-surface-variant);
+    color: var(--md-on-surface);
+    margin-right: 12px;
+  }
+  .cv-toolbar-back:hover { background: var(--md-outline-variant); }
   .cv-toolbar-undo {
     background: var(--md-surface-variant);
     color: var(--md-on-surface);

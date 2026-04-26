@@ -728,7 +728,7 @@ export default function OrbViewPage() {
                         className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border border-white/10 text-white/70 hover:text-amber-300 hover:border-amber-400/30 hover:bg-amber-500/10 transition-all"
                       >
                         <IconDownload />
-                        Export Orbis
+                        Export Orbis to PDF
                       </button>
                       <label
                         className={`w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg border transition-all ${
@@ -795,7 +795,7 @@ export default function OrbViewPage() {
                     className="h-8 leading-none flex items-center gap-1.5 text-xs sm:text-sm font-medium py-1.5 px-2 sm:px-3 rounded-lg text-white/40 hover:text-amber-400 hover:bg-amber-500/10 transition-all cursor-pointer"
                   >
                     <IconDownload />
-                    <span>Export</span>
+                    <span>Export Orbis to PDF</span>
                   </button>
                   <label
                     data-tour="import"
