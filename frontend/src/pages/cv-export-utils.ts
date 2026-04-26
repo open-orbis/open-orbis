@@ -17,8 +17,13 @@ export function parseDateSort(v: unknown): number {
   return 0;
 }
 
-export function sortDesc(nodes: OrbNode[], field: string): OrbNode[] {
-  return [...nodes].sort((a, b) => parseDateSort(b[field]) - parseDateSort(a[field]));
+export function sortDesc(nodes: OrbNode[], field: string, fallbackField?: string): OrbNode[] {
+  // Some node types (Project, Patent) sort by a "completion" date that may
+  // be missing on still-in-progress items. Fall back to the start/filing
+  // date so those don't drop to the bottom.
+  const key = (n: OrbNode) =>
+    parseDateSort(n[field]) || (fallbackField ? parseDateSort(n[fallbackField]) : 0);
+  return [...nodes].sort((a, b) => key(b) - key(a));
 }
 
 export const str = (v: unknown): string => (typeof v === 'string' ? v : '');

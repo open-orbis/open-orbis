@@ -266,14 +266,19 @@ export default function CvExportPage() {
 
   /* ── Prepare data ── */
   const p = data.person;
-  const experience = sortDesc(visible('WorkExperience'), 'start_date');
-  const education = sortDesc(visible('Education'), 'start_date');
-  const projects = visible('Project');
-  const publications = visible('Publication');
-  const patents = visible('Patent');
+  // Sort every dated section most-recent-first. For roles/projects/patents
+  // the "completion" date drives ordering; if missing (e.g. ongoing work),
+  // fall back to start/filing date so they don't sink to the bottom.
+  const experience = sortDesc(visible('WorkExperience'), 'end_date', 'start_date');
+  const education = sortDesc(visible('Education'), 'end_date', 'start_date');
+  const projects = sortDesc(visible('Project'), 'end_date', 'start_date');
+  const publications = sortDesc(visible('Publication'), 'date');
+  const patents = sortDesc(visible('Patent'), 'grant_date', 'filing_date');
   const awards = sortDesc(visible('Award'), 'date');
   const outreach = sortDesc(visible('Outreach'), 'date');
-  const certifications = sortDesc(visible('Certification'), 'date');
+  // Certifications were silently unsorted: the schema field is `issue_date`,
+  // not `date`, so sortDesc treated every value as 0.
+  const certifications = sortDesc(visible('Certification'), 'issue_date');
   const skills = visible('Skill');
   const languages = visible('Language');
 
@@ -565,7 +570,7 @@ export default function CvExportPage() {
                 <div className="item-header">
                   <h4 className="item-title" contentEditable suppressContentEditableWarning>{str(n.name)}</h4>
                   <EntryLink id={n.uid} />
-                  <span className="item-date" contentEditable suppressContentEditableWarning>{str(n.date)}</span>
+                  <span className="item-date" contentEditable suppressContentEditableWarning>{str(n.issue_date)}</span>
                 </div>
                 <p className="item-subtitle" contentEditable suppressContentEditableWarning>{str(n.issuing_organization)}</p>
               </div>
