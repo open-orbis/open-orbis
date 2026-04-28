@@ -5,6 +5,11 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Allow cloudflared / ngrok tunnel hosts when testing the ChatGPT
+    // Apps integration locally via scripts/dev-chatgpt.sh. Vite's default
+    // host blocklist (since v5) refuses unknown origins; the leading dot
+    // means "any subdomain of these public-tunnel domains".
+    allowedHosts: [".trycloudflare.com", ".ngrok-free.app", ".ngrok.app"],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
