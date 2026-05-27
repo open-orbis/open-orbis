@@ -33,7 +33,6 @@ import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport, getJob } from '../api/cv';
 import GuidedTour, { isTourCompleted } from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
-import AiConnectWizard from '../components/ai/AiConnectWizard';
 import {
   isAiConnectSeen,
   markAiConnectSeen,
@@ -126,7 +125,6 @@ export default function OrbViewPage() {
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showConnectedAi, setShowConnectedAi] = useState(false);
-  const [showAiConnect, setShowAiConnect] = useState(false);
   const [orbSearchValue, setOrbSearchValue] = useState('');
   const [showDiscoverUses, setShowDiscoverUses] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
@@ -300,12 +298,14 @@ export default function OrbViewPage() {
     }
   }, [loading, data, allowEmpty, navigate]);
 
+  // Open the robot modal (Connect tab) once to nudge the user to connect their
+  // Orbis to an AI assistant. Marks the one-time flag so it never auto-nags again.
   const openAiConnect = useCallback(() => {
     markAiConnectSeen();
-    setShowAiConnect(true);
+    setShowConnectedAi(true);
   }, []);
 
-  // Users who finished the tour before this feature shipped see the wizard once.
+  // Users who finished the tour before this feature shipped see it once.
   useEffect(() => {
     if (shouldAutoOpenAiConnect(isTourCompleted(), isAiConnectSeen())) {
       openAiConnect();
@@ -982,7 +982,7 @@ export default function OrbViewPage() {
           focusNodeId={focusRequest?.nodeUid || null}
           focusNodeToken={focusRequest?.seq ?? 0}
           onCameraDistanceChange={handleCameraDistanceChange}
-          tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showConnectedAi && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning && !showAiConnect}
+          tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showConnectedAi && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning}
           onHoverHighlight={isPendingDeletion ? undefined : setHighlightedNodeIds}
         />
       </div>
@@ -1058,7 +1058,6 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         onConnectedAi={() => setShowConnectedAi(true)}
-        onConnectAi={() => setShowAiConnect(true)}
         onDiscover={() => setShowDiscoverUses(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
@@ -1079,14 +1078,6 @@ export default function OrbViewPage() {
       {/* ── Animated Panels ── */}
       <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
       <ConnectedAiClientsModal open={showConnectedAi} onClose={() => setShowConnectedAi(false)} />
-      <AiConnectWizard
-        open={showAiConnect}
-        onClose={() => setShowAiConnect(false)}
-        onManageConnections={() => {
-          setShowAiConnect(false);
-          setShowConnectedAi(true);
-        }}
-      />
       <AnimatePresence>
         {showShare && (
           <SharePanel
