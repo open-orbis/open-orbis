@@ -112,7 +112,7 @@ stateDiagram-v2
     state "Import Limit Warning (modal)" as IMPORT_LIMIT
     state "Guided Tour (overlay)" as GUIDED_TOUR
     state "Send Feedback (modal)" as FEEDBACK_MODAL
-    state "AI Connect Wizard (modal)" as AI_CONNECT_WIZARD
+    state "Connect/Connected modal" as CONNECTED_AI_MODAL
 
     %% ── Tabs inside AccountSettings ──
     state ACCOUNT_SETTINGS {
@@ -153,12 +153,10 @@ stateDiagram-v2
     FEEDBACK_MODAL --> MAIN: Submit / Close
     MAIN --> GUIDED_TOUR: Auto-trigger (new user) / Settings sidebar "Guided tour"
     GUIDED_TOUR --> MAIN: Finish / Skip / Close (if orbis_ai_connect_seen=true)
-    GUIDED_TOUR --> AI_CONNECT_WIZARD: onFinish (if orbis_ai_connect_seen not set)
+    GUIDED_TOUR --> CONNECTED_AI_MODAL: onFinish (if orbis_ai_connect_seen not set — auto-open on Connect tab)
     ACCOUNT_SETTINGS --> GUIDED_TOUR: Sidebar "Guided tour" button
-    MAIN --> AI_CONNECT_WIZARD: Auto-trigger on mount (tour completed + orbis_ai_connect_seen not set) / Click green "Connect to AI" button in ChatBox action bar
-    AI_CONNECT_WIZARD --> MAIN: Done / Esc / backdrop click
-    AI_CONNECT_WIZARD --> AI_CONNECT_WIZARD: Step 1 → Step 2 (select platform) / Step 2 → Step 1 (Back) / Step 2 → Step 3 (I've connected)
-    AI_CONNECT_WIZARD --> MAIN: "Manage connections →" footer link (wizard closes; ConnectedAiClientsModal opens over MAIN)
+    MAIN --> CONNECTED_AI_MODAL: Robot button (cyan, aria-label=Connected AI clients) / once-on-mount backfill (tour completed + orbis_ai_connect_seen not set)
+    CONNECTED_AI_MODAL --> MAIN: Esc / backdrop click / ✕
 ```
 
 ### ChatBox Search → Node Edit
@@ -232,7 +230,7 @@ flowchart TD
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
 | `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Checks activation status on mount — if already activated, redirects immediately. Admins bypass. |
 | `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users (with Approve/Approve all), beta config toggle, CV Jobs tab, Feedback tab, OAuth clients tab |
-| `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Opened from the cyan robot-icon button in the ChatBox action strip. Top section shows the MCP endpoint URL (from `VITE_MCP_URL`) with a Copy button — paste into ChatGPT / Cursor / Claude Code / Cline / Windsurf. Below it, lists active OAuth grants with client name and access mode; each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
+| `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Two-tab modal. **Open triggers:** (1) cyan robot-icon button in the ChatBox action strip (aria-label "Connected AI clients"); (2) auto-opens once after the guided tour finishes/closes — and once on mount for users who completed the tour before this shipped — both gated by `orbis_ai_connect_seen` in localStorage; auto-open lands on the Connect tab. Close: Esc, backdrop click, or ✕. **Connect tab** (default): renders `AiConnectPanel` — shows the MCP endpoint URL (from `VITE_MCP_URL`) with a Copy URL button; a platform picker (Claude, ChatGPT, Perplexity, Gemini, Lovable); selecting a platform reveals its auth badge, numbered connection steps, an optional caveat, a docs link, an "Advanced: connect with an API key" toggle (expands `X-MCP-Key` header format), and copy-able starter prompts. **Connected (N) tab**: lists active OAuth grants (N = grant count) with client name and access mode; each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
 | `FEEDBACK_MODAL` | (modal on ORB_VIEW) | Yes | Send Feedback modal opened from above-ChatBox button. Submits to `/ideas` with `source=feedback`. |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
@@ -247,7 +245,6 @@ flowchart TD
 | `IMPORT_REVIEW` | (overlay on ORB_VIEW) | Yes | Review imported document data |
 | `IMPORT_LIMIT` | (modal on ORB_VIEW) | Yes | Document limit confirmation |
 | `GUIDED_TOUR` | (overlay on ORB_VIEW) | Yes | 13-step interactive tour (react-joyride). Steps: graph → node-types → keyword-filter → export → import → connections → notes → search → user-menu → orbis-pulse → add-entry → visibility → chatbox. Auto-triggers for new users, restartable from Settings sidebar |
-| `AI_CONNECT_WIZARD` | (modal on ORB_VIEW) | Yes | 3-step wizard that walks the user through connecting their Orbis to a webchat LLM as an MCP server. **Triggers:** (1) auto-opens once after the guided tour finishes, gated by the `orbis_ai_connect_seen` localStorage flag; also fires once on next visit for users who completed the tour before this feature shipped. (2) On demand via the green "Connect to AI" button (link-icon, aria-label "Connect to AI assistant") in the ChatBox action bar, between the Share button and the cyan "Connected AI clients" robot button. **Step 1 — Choose:** pick a platform (Claude, ChatGPT, Perplexity, Gemini, Lovable). **Step 2 — Connect:** shows the MCP URL with a Copy button, per-platform numbered instructions, an auth-mode badge, an optional caveat note, a docs link, and an "Advanced: connect with an API key" toggle that reveals the `X-MCP-Key` header format. **Step 3 — Try it:** copy-able starter prompts tailored to the chosen platform. Footer "Manage connections →" closes the wizard and opens `CONNECTED_AI_MODAL`; "Done" closes. Esc / backdrop click closes from any step. |
 
 ---
 

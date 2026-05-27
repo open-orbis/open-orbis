@@ -1,5 +1,12 @@
 # AI Connect Wizard Implementation Plan
 
+> **⚠️ Superseded (2026-05-27):** after review, the separate wizard modal + dedicated
+> "Connect to AI" chat button described below were dropped. The content now lives in a
+> **"Connect" tab inside `ConnectedAiClientsModal`** (the robot-button modal), which the
+> guided tour auto-opens once. See the "Revision" section of
+> `docs/specs/2026-05-27-ai-connect-wizard-design.md` for the final design. This plan is
+> kept as the historical implementation record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a 3-step wizard modal that appears once after the guided tour, teaching the user to connect their Orbis to a webchat LLM (Claude, ChatGPT, Perplexity, Gemini, Lovable) as an MCP server, ending with copy-able starter prompts.

@@ -708,8 +708,8 @@
   action: Click "Finish" on last step, "Skip tour", or close overlay
   selector_or_control: "Finish / Skip tour / close buttons in tour tooltip"
   preconditions: []
-  expected_effect: Tour dismissed, completion persisted to localStorage. Does not restart on refresh.
-  next_state: ORB_VIEW
+  expected_effect: Tour dismissed, completion persisted to localStorage. Does not restart on refresh. If orbis_ai_connect_seen is not set, opens ConnectedAiClientsModal on the Connect tab and sets the flag.
+  next_state: ORB_VIEW | ORB_VIEW + CONNECTED_AI_MODAL
   fallback_on_failure: null
 
 # ── Recenter ──
@@ -767,9 +767,9 @@
 
 - id: CONNECTED_AI_COPY_ENDPOINT
   from_state: ORB_VIEW + CONNECTED_AI_MODAL
-  action: Click "Copy" next to the MCP endpoint URL in the "Connect a new AI" panel
-  selector_or_control: "Copy button in CONNECTED_AI_MODAL > Connect a new AI panel"
-  preconditions: [authenticated]
+  action: Click "Copy URL" next to the MCP endpoint URL in the Connect tab
+  selector_or_control: "Copy URL button in CONNECTED_AI_MODAL > Connect tab (AiConnectPanel)"
+  preconditions: [authenticated, modal_tab=connect]
   expected_effect: Writes the MCP endpoint URL (e.g. https://mcp.<host>/mcp) to the clipboard so the user can paste it into ChatGPT / Cursor / Claude Code
   next_state: ORB_VIEW + CONNECTED_AI_MODAL (button flashes "Copied!")
   fallback_on_failure: null
@@ -783,7 +783,7 @@
   next_state: ORB_VIEW + CONNECTED_AI_MODAL (grant removed)
   fallback_on_failure: Toast "Failed to revoke access"
 
-# ── AI Connect Wizard ──
+# ── AI Connect (robot modal) ──
 
 - id: AI_CONNECT_AUTO_POST_TOUR
   from_state: GUIDED_TOUR
@@ -791,100 +791,73 @@
   selector_or_control: null (auto-triggered on tour onFinish callback)
   preconditions: [authenticated, orbis_ai_connect_seen not set in localStorage]
   expected_effect: >-
-    Marks orbis_ai_connect_seen=true in localStorage, opens the AI Connect
-    Wizard modal overlaying ORB_VIEW. Step 1 is shown.
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD
+    Marks orbis_ai_connect_seen=true in localStorage, opens ConnectedAiClientsModal
+    on the Connect tab overlaying ORB_VIEW.
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL
   fallback_on_failure: null
 
 - id: AI_CONNECT_AUTO_ON_MOUNT
   from_state: ORB_VIEW
-  action: Automatic trigger on page mount (backfill for users who completed tour before wizard shipped)
+  action: Automatic trigger on page mount (backfill for users who completed tour before this shipped)
   selector_or_control: null (auto-triggered on mount)
   preconditions: [authenticated, tour_completed (orbis_tour_completed=true), orbis_ai_connect_seen not set in localStorage]
   expected_effect: >-
-    Marks orbis_ai_connect_seen=true in localStorage, opens the AI Connect
-    Wizard modal. Step 1 is shown. Fires at most once across all sessions.
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD
-  fallback_on_failure: null
-
-- id: AI_CONNECT_OPEN_BUTTON
-  from_state: ORB_VIEW
-  action: Click the green "Connect to AI" button in the ChatBox action bar
-  selector_or_control: "ChatBox action buttons > green link-icon button (aria-label='Connect to AI assistant'), positioned between Share button and cyan robot button"
-  preconditions: [authenticated]
-  expected_effect: Opens the AI Connect Wizard modal. Step 1 is shown. Does not set orbis_ai_connect_seen (on-demand trigger).
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD
-  fallback_on_failure: null
-
-- id: AI_CONNECT_SELECT_PLATFORM
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click a platform card in Step 1 (Claude, ChatGPT, Perplexity, Gemini, or Lovable)
-  selector_or_control: "platform card button in Step 1 grid"
-  preconditions: [wizard_step=1]
-  expected_effect: Selects the platform, resets advanced section, advances wizard to Step 2 (Connect)
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD (step 2)
-  fallback_on_failure: null
-
-- id: AI_CONNECT_COPY_MCP_URL
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click "Copy URL" next to the MCP endpoint URL in Step 2
-  selector_or_control: "cyan 'Copy URL' button in Step 2 (next to the data-testid=mcp-endpoint-url code element)"
-  preconditions: [wizard_step=2]
-  expected_effect: Writes VITE_MCP_URL to the clipboard; button label flashes "Copied!" for 1.8 s
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD (copied feedback)
-  fallback_on_failure: null
-
-- id: AI_CONNECT_TOGGLE_ADVANCED
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: "Click 'Advanced: connect with an API key instead' toggle in Step 2"
-  selector_or_control: "disclosure toggle button in Step 2 (▸/▾ prefix)"
-  preconditions: [wizard_step=2]
-  expected_effect: Expands/collapses the advanced panel showing X-MCP-Key header format and a reference to the MCP section of the API docs
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD (advanced section toggled)
-  fallback_on_failure: null
-
-- id: AI_CONNECT_BACK
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click "← Back" button in Step 2
-  selector_or_control: "Back button in Step 2 footer"
-  preconditions: [wizard_step=2]
-  expected_effect: Returns wizard to Step 1 (Choose platform)
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD (step 1)
-  fallback_on_failure: null
-
-- id: AI_CONNECT_ADVANCE
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click "I've connected →" button in Step 2
-  selector_or_control: "cyan 'I've connected →' button in Step 2 footer"
-  preconditions: [wizard_step=2]
-  expected_effect: Advances wizard to Step 3 (Try it) showing platform-tailored starter prompts
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD (step 3)
-  fallback_on_failure: null
-
-- id: AI_CONNECT_COPY_PROMPT
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click "Copy" on a starter prompt in Step 3
-  selector_or_control: "Copy button on a prompt card in Step 3 list (aria-label='Copy prompt N')"
-  preconditions: [wizard_step=3]
-  expected_effect: Writes the prompt text to the clipboard; button label flashes "✓" for 1.8 s
-  next_state: ORB_VIEW + AI_CONNECT_WIZARD (copied feedback)
-  fallback_on_failure: null
-
-- id: AI_CONNECT_MANAGE_CONNECTIONS
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click "Manage connections →" in the Step 3 footer
-  selector_or_control: "cyan 'Manage connections →' link in Step 3 footer"
-  preconditions: [wizard_step=3]
-  expected_effect: Closes the AI Connect Wizard, opens the ConnectedAiClientsModal (no route change)
+    Marks orbis_ai_connect_seen=true in localStorage, opens ConnectedAiClientsModal
+    on the Connect tab. Fires at most once across all sessions.
   next_state: ORB_VIEW + CONNECTED_AI_MODAL
   fallback_on_failure: null
 
+- id: AI_CONNECT_SELECT_PLATFORM
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click a platform card in the Connect tab (Claude, ChatGPT, Perplexity, Gemini, or Lovable)
+  selector_or_control: "platform card button in AiConnectPanel grid"
+  preconditions: [modal_tab=connect]
+  expected_effect: Selects the platform; reveals its auth badge, numbered steps, caveat note, docs link, starter prompts, and advanced API-key toggle
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (platform selected)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_COPY_MCP_URL
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click "Copy URL" next to the MCP endpoint URL in the Connect tab
+  selector_or_control: "cyan 'Copy URL' button in AiConnectPanel (next to the MCP endpoint URL)"
+  preconditions: [modal_tab=connect]
+  expected_effect: Writes VITE_MCP_URL to the clipboard; button label flashes "Copied!" for 1.8 s
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (copied feedback)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_TOGGLE_ADVANCED
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: "Click 'Advanced: connect with an API key instead' toggle in the Connect tab"
+  selector_or_control: "disclosure toggle button in AiConnectPanel (▸/▾ prefix)"
+  preconditions: [modal_tab=connect, platform_selected]
+  expected_effect: Expands/collapses the advanced panel showing X-MCP-Key header format and a reference to the MCP section of the API docs
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (advanced section toggled)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_COPY_PROMPT
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click "Copy" on a starter prompt in the Connect tab
+  selector_or_control: "Copy button on a prompt card in AiConnectPanel"
+  preconditions: [modal_tab=connect, platform_selected]
+  expected_effect: Writes the prompt text to the clipboard; button label flashes "✓" for 1.8 s
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (copied feedback)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_SWITCH_TAB
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Click the "Connected (N)" or "Connect" tab inside the modal
+  selector_or_control: "tab buttons at top of ConnectedAiClientsModal"
+  preconditions: [authenticated]
+  expected_effect: Switches the visible tab between Connect (AiConnectPanel) and Connected (OAuth grants list)
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL (tab switched)
+  fallback_on_failure: null
+
 - id: AI_CONNECT_CLOSE
-  from_state: ORB_VIEW + AI_CONNECT_WIZARD
-  action: Click "Done", press Esc, or click the backdrop
-  selector_or_control: "'Done' button in Step 3 footer / Esc key / modal backdrop"
+  from_state: ORB_VIEW + CONNECTED_AI_MODAL
+  action: Press Esc, click the backdrop, or click the ✕ button
+  selector_or_control: "Esc key / modal backdrop / ✕ close button"
   preconditions: []
-  expected_effect: Dismisses the AI Connect Wizard modal; returns to ORB_VIEW
+  expected_effect: Dismisses ConnectedAiClientsModal; returns to ORB_VIEW
   next_state: ORB_VIEW
   fallback_on_failure: null
 
