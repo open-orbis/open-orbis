@@ -2,7 +2,7 @@
 # Each entry defines a user action with its trigger, preconditions, effect, and next state.
 # Used by autonomous agents for end-to-end UX evaluation.
 #
-# Last updated: 2026-04-17 | Issue: #193, #216, #274, #368
+# Last updated: 2026-05-27 | Issue: #193, #216, #274, #368
 
 # ── Landing Page ──
 
@@ -782,6 +782,111 @@
   expected_effect: Calls DELETE /api/oauth/grants/{client_id}, removes the grant and its tokens, refreshes the list
   next_state: ORB_VIEW + CONNECTED_AI_MODAL (grant removed)
   fallback_on_failure: Toast "Failed to revoke access"
+
+# ── AI Connect Wizard ──
+
+- id: AI_CONNECT_AUTO_POST_TOUR
+  from_state: GUIDED_TOUR
+  action: Tour finishes or is closed/skipped (auto-trigger)
+  selector_or_control: null (auto-triggered on tour onFinish callback)
+  preconditions: [authenticated, orbis_ai_connect_seen not set in localStorage]
+  expected_effect: >-
+    Marks orbis_ai_connect_seen=true in localStorage, opens the AI Connect
+    Wizard modal overlaying ORB_VIEW. Step 1 is shown.
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD
+  fallback_on_failure: null
+
+- id: AI_CONNECT_AUTO_ON_MOUNT
+  from_state: ORB_VIEW
+  action: Automatic trigger on page mount (backfill for users who completed tour before wizard shipped)
+  selector_or_control: null (auto-triggered on mount)
+  preconditions: [authenticated, tour_completed (orbis_tour_completed=true), orbis_ai_connect_seen not set in localStorage]
+  expected_effect: >-
+    Marks orbis_ai_connect_seen=true in localStorage, opens the AI Connect
+    Wizard modal. Step 1 is shown. Fires at most once across all sessions.
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD
+  fallback_on_failure: null
+
+- id: AI_CONNECT_OPEN_BUTTON
+  from_state: ORB_VIEW
+  action: Click the green "Connect to AI" button in the ChatBox action bar
+  selector_or_control: "ChatBox action buttons > green link-icon button (aria-label='Connect to AI assistant'), positioned between Share button and cyan robot button"
+  preconditions: [authenticated]
+  expected_effect: Opens the AI Connect Wizard modal. Step 1 is shown. Does not set orbis_ai_connect_seen (on-demand trigger).
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD
+  fallback_on_failure: null
+
+- id: AI_CONNECT_SELECT_PLATFORM
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click a platform card in Step 1 (Claude, ChatGPT, Perplexity, Gemini, or Lovable)
+  selector_or_control: "platform card button in Step 1 grid"
+  preconditions: [wizard_step=1]
+  expected_effect: Selects the platform, resets advanced section, advances wizard to Step 2 (Connect)
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD (step 2)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_COPY_MCP_URL
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click "Copy URL" next to the MCP endpoint URL in Step 2
+  selector_or_control: "cyan 'Copy URL' button in Step 2 (next to the data-testid=mcp-endpoint-url code element)"
+  preconditions: [wizard_step=2]
+  expected_effect: Writes VITE_MCP_URL to the clipboard; button label flashes "Copied!" for 1.8 s
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD (copied feedback)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_TOGGLE_ADVANCED
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: "Click 'Advanced: connect with an API key instead' toggle in Step 2"
+  selector_or_control: "disclosure toggle button in Step 2 (▸/▾ prefix)"
+  preconditions: [wizard_step=2]
+  expected_effect: Expands/collapses the advanced panel showing X-MCP-Key header format and a reference to the MCP section of the API docs
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD (advanced section toggled)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_BACK
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click "← Back" button in Step 2
+  selector_or_control: "Back button in Step 2 footer"
+  preconditions: [wizard_step=2]
+  expected_effect: Returns wizard to Step 1 (Choose platform)
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD (step 1)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_ADVANCE
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click "I've connected →" button in Step 2
+  selector_or_control: "cyan 'I've connected →' button in Step 2 footer"
+  preconditions: [wizard_step=2]
+  expected_effect: Advances wizard to Step 3 (Try it) showing platform-tailored starter prompts
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD (step 3)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_COPY_PROMPT
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click "Copy" on a starter prompt in Step 3
+  selector_or_control: "Copy button on a prompt card in Step 3 list (aria-label='Copy prompt N')"
+  preconditions: [wizard_step=3]
+  expected_effect: Writes the prompt text to the clipboard; button label flashes "✓" for 1.8 s
+  next_state: ORB_VIEW + AI_CONNECT_WIZARD (copied feedback)
+  fallback_on_failure: null
+
+- id: AI_CONNECT_MANAGE_CONNECTIONS
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click "Manage connections →" in the Step 3 footer
+  selector_or_control: "cyan 'Manage connections →' link in Step 3 footer"
+  preconditions: [wizard_step=3]
+  expected_effect: Closes the AI Connect Wizard, opens the ConnectedAiClientsModal (no route change)
+  next_state: ORB_VIEW + CONNECTED_AI_MODAL
+  fallback_on_failure: null
+
+- id: AI_CONNECT_CLOSE
+  from_state: ORB_VIEW + AI_CONNECT_WIZARD
+  action: Click "Done", press Esc, or click the backdrop
+  selector_or_control: "'Done' button in Step 3 footer / Esc key / modal backdrop"
+  preconditions: []
+  expected_effect: Dismisses the AI Connect Wizard modal; returns to ORB_VIEW
+  next_state: ORB_VIEW
+  fallback_on_failure: null
 
 # ── User Menu CVs ──
 
