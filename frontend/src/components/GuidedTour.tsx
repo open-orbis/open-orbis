@@ -4,7 +4,7 @@ import type { EventData, Placement, TooltipRenderProps } from 'react-joyride';
 
 const TOUR_COMPLETED_KEY = 'orbis_tour_completed';
 
-function isTourCompleted(): boolean {
+export function isTourCompleted(): boolean {
   return localStorage.getItem(TOUR_COMPLETED_KEY) === 'true';
 }
 

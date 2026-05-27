@@ -31,8 +31,14 @@ import GiftInviteButton, { GiftInviteProvider, GiftInviteIconButton } from '../c
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport, getJob } from '../api/cv';
-import GuidedTour from '../components/GuidedTour';
+import GuidedTour, { isTourCompleted } from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
+import AiConnectWizard from '../components/ai/AiConnectWizard';
+import {
+  isAiConnectSeen,
+  markAiConnectSeen,
+  shouldAutoOpenAiConnect,
+} from '../components/ai/aiConnectSeen';
 
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
@@ -120,6 +126,7 @@ export default function OrbViewPage() {
   const [showInput, setShowInput] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showConnectedAi, setShowConnectedAi] = useState(false);
+  const [showAiConnect, setShowAiConnect] = useState(false);
   const [orbSearchValue, setOrbSearchValue] = useState('');
   const [showDiscoverUses, setShowDiscoverUses] = useState(false);
   const [showDrafts, setShowDrafts] = useState(false);
@@ -292,6 +299,18 @@ export default function OrbViewPage() {
       hasRedirectedRef.current = true; // Had content on first load, never redirect
     }
   }, [loading, data, allowEmpty, navigate]);
+
+  const openAiConnect = useCallback(() => {
+    markAiConnectSeen();
+    setShowAiConnect(true);
+  }, []);
+
+  // Users who finished the tour before this feature shipped see the wizard once.
+  useEffect(() => {
+    if (shouldAutoOpenAiConnect(isTourCompleted(), isAiConnectSeen())) {
+      openAiConnect();
+    }
+  }, [openAiConnect]);
 
   useEffect(() => {
     if (!locationState?.startTour || consumedStartTourRef.current) return;
@@ -963,7 +982,7 @@ export default function OrbViewPage() {
           focusNodeId={focusRequest?.nodeUid || null}
           focusNodeToken={focusRequest?.seq ?? 0}
           onCameraDistanceChange={handleCameraDistanceChange}
-          tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showConnectedAi && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning}
+          tooltipEnabled={!showToolsMenu && !showInput && !showShare && !showConnectedAi && !showDiscoverUses && !showDrafts && !extractedImport && !showImportLimitWarning && !showAiConnect}
           onHoverHighlight={isPendingDeletion ? undefined : setHighlightedNodeIds}
         />
       </div>
@@ -1039,6 +1058,7 @@ export default function OrbViewPage() {
         onAdd={() => { setEditNode(null); setDraftReferenceText(null); setShowInput(true); }}
         onShare={() => setShowShare(true)}
         onConnectedAi={() => setShowConnectedAi(true)}
+        onConnectAi={() => setShowAiConnect(true)}
         onDiscover={() => setShowDiscoverUses(true)}
         highlightAdd={data.nodes.length === 0 && !showInput}
         onRecenter={() => handleFocusNode(personNodeId)}
@@ -1059,6 +1079,14 @@ export default function OrbViewPage() {
       {/* ── Animated Panels ── */}
       <DiscoverUsesModal open={showDiscoverUses} onClose={() => setShowDiscoverUses(false)} orbId={orbId} />
       <ConnectedAiClientsModal open={showConnectedAi} onClose={() => setShowConnectedAi(false)} />
+      <AiConnectWizard
+        open={showAiConnect}
+        onClose={() => setShowAiConnect(false)}
+        onManageConnections={() => {
+          setShowAiConnect(false);
+          setShowConnectedAi(true);
+        }}
+      />
       <AnimatePresence>
         {showShare && (
           <SharePanel
@@ -1176,7 +1204,13 @@ export default function OrbViewPage() {
       )}
 
       {/* ── Guided Tour ── */}
-      <GuidedTour run={tourRunning} onFinish={() => setTourRunning(false)} />
+      <GuidedTour
+        run={tourRunning}
+        onFinish={() => {
+          setTourRunning(false);
+          if (!isAiConnectSeen()) openAiConnect();
+        }}
+      />
     </div>
     </GiftInviteProvider>
   );
