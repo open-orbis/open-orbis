@@ -80,7 +80,7 @@ export const PLATFORMS: Platform[] = [
     supportHint: 'Via Gemini CLI',
     authBadge: 'Gemini CLI',
     steps: [
-      'The consumer Gemini app cannot add custom MCP servers yet — use the Gemini CLI.',
+      'Custom MCP servers are not yet supported in the standard Gemini app — use the Gemini CLI instead.',
       'Install the Gemini CLI, then run:  gemini mcp add --transport http orbis <your MCP URL>',
       'Start the CLI and run /mcp to confirm Orbis is connected.',
       'For OAuth or an API-key header, configure the mcpServers block in the CLI settings.json.',
