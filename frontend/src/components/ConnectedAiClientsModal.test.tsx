@@ -26,7 +26,22 @@ describe('ConnectedAiClientsModal', () => {
     expect(listGrants).not.toHaveBeenCalled();
   });
 
-  it('shows loading state then grant list when opened', async () => {
+  it('opens on the Connect tab showing the platform picker and MCP URL', () => {
+    (listGrants as any).mockResolvedValue({ grants: [] });
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: /Claude/i })).toBeInTheDocument();
+    expect(screen.getByTestId('mcp-endpoint-url').textContent).toMatch(/\/mcp$/);
+  });
+
+  it('copies the MCP URL from the Connect tab', async () => {
+    (listGrants as any).mockResolvedValue({ grants: [] });
+    render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /^copy url$/i }));
+    await waitFor(() => expect(mockWriteText).toHaveBeenCalledOnce());
+    expect(mockWriteText.mock.calls[0][0]).toMatch(/\/mcp$/);
+  });
+
+  it('shows connected grants on the Connected tab', async () => {
     (listGrants as any).mockResolvedValue({
       grants: [
         {
@@ -40,14 +55,15 @@ describe('ConnectedAiClientsModal', () => {
       ],
     });
     render(<ConnectedAiClientsModal open onClose={() => {}} />);
-    expect(screen.getByText(/Loading/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^connected/i }));
     await waitFor(() => screen.getByText('ChatGPT'));
     expect(screen.getByText(/Full access/)).toBeInTheDocument();
   });
 
-  it('renders empty state when no grants', async () => {
+  it('renders empty state on the Connected tab when no grants', async () => {
     (listGrants as any).mockResolvedValue({ grants: [] });
     render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /^connected/i }));
     await waitFor(() => screen.getByText(/Nothing connected yet/));
   });
 
@@ -65,6 +81,7 @@ describe('ConnectedAiClientsModal', () => {
       ],
     });
     render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /^connected/i }));
     await waitFor(() => screen.getByText('Cursor'));
     expect(screen.getByText(/Restricted: Recruiter view/)).toBeInTheDocument();
   });
@@ -84,6 +101,7 @@ describe('ConnectedAiClientsModal', () => {
     });
     (revokeGrant as any).mockResolvedValue(undefined);
     render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /^connected/i }));
     await waitFor(() => screen.getByText('ChatGPT'));
     fireEvent.click(screen.getByText(/^Revoke$/));
     await waitFor(() => expect(revokeGrant).toHaveBeenCalledWith('c-1'));
@@ -93,25 +111,14 @@ describe('ConnectedAiClientsModal', () => {
   it('renders error state when listGrants fails', async () => {
     (listGrants as any).mockRejectedValue({ response: { data: { detail: 'boom' } } });
     render(<ConnectedAiClientsModal open onClose={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /^connected/i }));
     await waitFor(() => screen.getByText(/boom/));
-  });
-
-  it('shows the MCP endpoint URL and copies it to clipboard', async () => {
-    (listGrants as any).mockResolvedValue({ grants: [] });
-    render(<ConnectedAiClientsModal open onClose={() => {}} />);
-    const url = screen.getByTestId('mcp-endpoint-url');
-    expect(url.textContent).toMatch(/\/mcp$/);
-    fireEvent.click(screen.getByRole('button', { name: /^copy$/i }));
-    await waitFor(() => expect(mockWriteText).toHaveBeenCalledOnce());
-    expect(mockWriteText.mock.calls[0][0]).toMatch(/\/mcp$/);
-    await waitFor(() => screen.getByRole('button', { name: /copied/i }));
   });
 
   it('fires onClose when backdrop is clicked', async () => {
     (listGrants as any).mockResolvedValue({ grants: [] });
     const onClose = vi.fn();
     const { container } = render(<ConnectedAiClientsModal open onClose={onClose} />);
-    await waitFor(() => screen.getByText(/Nothing connected yet/));
     const backdrop = container.querySelector('.bg-black\\/60') as HTMLElement;
     fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalled();

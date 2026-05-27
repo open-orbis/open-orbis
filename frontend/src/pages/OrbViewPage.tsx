@@ -31,8 +31,13 @@ import GiftInviteButton, { GiftInviteProvider, GiftInviteIconButton } from '../c
 import { useToastStore } from '../stores/toastStore';
 import { useUndoStore } from '../stores/undoStore';
 import { getDocuments, confirmImport, getJob } from '../api/cv';
-import GuidedTour from '../components/GuidedTour';
+import GuidedTour, { isTourCompleted } from '../components/GuidedTour';
 import type { DocumentMetadata } from '../api/cv';
+import {
+  isAiConnectSeen,
+  markAiConnectSeen,
+  shouldAutoOpenAiConnect,
+} from '../components/ai/aiConnectSeen';
 
 
 const ALL_FILTERABLE_TYPES = ['Education', 'WorkExperience', 'Certification', 'Language', 'Publication', 'Project', 'Skill', 'Patent', 'Award', 'Outreach', 'Training'];
@@ -292,6 +297,20 @@ export default function OrbViewPage() {
       hasRedirectedRef.current = true; // Had content on first load, never redirect
     }
   }, [loading, data, allowEmpty, navigate]);
+
+  // Open the robot modal (Connect tab) once to nudge the user to connect their
+  // Orbis to an AI assistant. Marks the one-time flag so it never auto-nags again.
+  const openAiConnect = useCallback(() => {
+    markAiConnectSeen();
+    setShowConnectedAi(true);
+  }, []);
+
+  // Users who finished the tour before this feature shipped see it once.
+  useEffect(() => {
+    if (shouldAutoOpenAiConnect(isTourCompleted(), isAiConnectSeen())) {
+      openAiConnect();
+    }
+  }, [openAiConnect]);
 
   useEffect(() => {
     if (!locationState?.startTour || consumedStartTourRef.current) return;
@@ -1176,7 +1195,13 @@ export default function OrbViewPage() {
       )}
 
       {/* ── Guided Tour ── */}
-      <GuidedTour run={tourRunning} onFinish={() => setTourRunning(false)} />
+      <GuidedTour
+        run={tourRunning}
+        onFinish={() => {
+          setTourRunning(false);
+          if (!isAiConnectSeen()) openAiConnect();
+        }}
+      />
     </div>
     </GiftInviteProvider>
   );

@@ -2,7 +2,7 @@
 
 > Navigable user-flow map for agent-based UX evaluation. Covers all pages, modals, interactions, guards, and error states.
 >
-> **Last updated:** 2026-04-23 | **Issue:** #193, #274, #368, #415
+> **Last updated:** 2026-05-27 | **Issue:** #193, #274, #368, #415
 
 ## How to Update This Map
 
@@ -112,6 +112,7 @@ stateDiagram-v2
     state "Import Limit Warning (modal)" as IMPORT_LIMIT
     state "Guided Tour (overlay)" as GUIDED_TOUR
     state "Send Feedback (modal)" as FEEDBACK_MODAL
+    state "Connect/Connected modal" as CONNECTED_AI_MODAL
 
     %% ── Tabs inside AccountSettings ──
     state ACCOUNT_SETTINGS {
@@ -151,8 +152,11 @@ stateDiagram-v2
     MAIN --> FEEDBACK_MODAL: Click "Send Feedback" button (above ChatBox)
     FEEDBACK_MODAL --> MAIN: Submit / Close
     MAIN --> GUIDED_TOUR: Auto-trigger (new user) / Settings sidebar "Guided tour"
-    GUIDED_TOUR --> MAIN: Finish / Skip / Close
+    GUIDED_TOUR --> MAIN: Finish / Skip / Close (if orbis_ai_connect_seen=true)
+    GUIDED_TOUR --> CONNECTED_AI_MODAL: onFinish (if orbis_ai_connect_seen not set — auto-open on Connect tab)
     ACCOUNT_SETTINGS --> GUIDED_TOUR: Sidebar "Guided tour" button
+    MAIN --> CONNECTED_AI_MODAL: Robot button (cyan, aria-label=Connected AI clients) / once-on-mount backfill (tour completed + orbis_ai_connect_seen not set)
+    CONNECTED_AI_MODAL --> MAIN: Esc / backdrop click / ✕
 ```
 
 ### ChatBox Search → Node Edit
@@ -226,7 +230,7 @@ flowchart TD
 | `CV_EXPORT` | `/cv-export` | Yes | PDF CV generation and preview |
 | `ACTIVATION` | `/activate` | Yes (not activated) | Invite code input page for closed beta. Checks activation status on mount — if already activated, redirects immediately. Admins bypass. |
 | `ADMIN` | `/admin` | Yes + is_admin | Admin dashboard: invite codes, pending users (with Approve/Approve all), beta config toggle, CV Jobs tab, Feedback tab, OAuth clients tab |
-| `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Opened from the cyan robot-icon button in the ChatBox action strip. Top section shows the MCP endpoint URL (from `VITE_MCP_URL`) with a Copy button — paste into ChatGPT / Cursor / Claude Code / Cline / Windsurf. Below it, lists active OAuth grants with client name and access mode; each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
+| `CONNECTED_AI_MODAL` | (modal on ORB_VIEW) | Yes | Two-tab modal. **Open triggers:** (1) cyan robot-icon button in the ChatBox action strip (aria-label "Connected AI clients"); (2) auto-opens once after the guided tour finishes/closes — and once on mount for users who completed the tour before this shipped — both gated by `orbis_ai_connect_seen` in localStorage; auto-open lands on the Connect tab. Close: Esc, backdrop click, or ✕. **Connect tab** (default): renders `AiConnectPanel` — shows the MCP endpoint URL (from `VITE_MCP_URL`) with a Copy URL button; a platform picker (Claude, ChatGPT, Perplexity, Gemini, Lovable); selecting a platform reveals its auth badge, numbered connection steps, an optional caveat, a docs link, an "Advanced: connect with an API key" toggle (expands `X-MCP-Key` header format), and copy-able starter prompts. **Connected (N) tab**: lists active OAuth grants (N = grant count) with client name and access mode; each row has a Revoke button that calls `DELETE /api/oauth/grants/{client_id}`. |
 | `FEEDBACK_MODAL` | (modal on ORB_VIEW) | Yes | Send Feedback modal opened from above-ChatBox button. Submits to `/ideas` with `source=feedback`. |
 | `PRIVACY` | `/privacy` | No | Privacy policy |
 | `CONSENT_GATE` | (overlay) | Yes | GDPR consent checkbox |
