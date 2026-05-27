@@ -21,6 +21,7 @@ interface ChatBoxProps {
   onAdd?: () => void;
   onShare?: () => void;
   onConnectedAi?: () => void;
+  onConnectAi?: () => void;
   onDiscover?: () => void;
   highlightAdd?: boolean;
   placeholder?: string;
@@ -96,6 +97,7 @@ export default function ChatBox({
   onAdd,
   onShare,
   onConnectedAi,
+  onConnectAi,
   onDiscover,
   highlightAdd,
   placeholder = 'Search for a node...',
@@ -493,7 +495,7 @@ export default function ChatBox({
         </form>
 
         {/* Action buttons */}
-        {(onAdd || onShare || onConnectedAi) && (
+        {(onAdd || onShare || onConnectAi || onConnectedAi) && (
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {onShare && (
               <button
@@ -516,6 +518,29 @@ export default function ChatBox({
                   strokeLinejoin="round"
                 >
                   <path strokeWidth="1.8" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
+            )}
+            {onConnectAi && (
+              <button
+                onClick={onConnectAi}
+                className="group relative w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 hover:from-emerald-300 hover:via-emerald-400 hover:to-teal-500 ring-1 ring-inset ring-white/25 hover:ring-white/40 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-400/50 transition-all hover:scale-[1.06] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                title="Connect to AI assistant"
+                aria-label="Connect to AI assistant"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full bg-emerald-400/0 group-hover:bg-emerald-400/20 group-hover:animate-pulse"
+                />
+                <svg
+                  className="relative w-5 h-5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.25)]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path strokeWidth="1.8" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
                 </svg>
               </button>
             )}

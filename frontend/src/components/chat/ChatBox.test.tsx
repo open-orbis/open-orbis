@@ -40,22 +40,39 @@ describe('ChatBox action buttons', () => {
     expect(onConnectedAi).toHaveBeenCalledOnce();
   });
 
-  it('positions the robot button between share and add', () => {
+  it('positions buttons share → connect-AI → robot → add', () => {
     render(
       <ChatBox
         {...baseProps}
         onShare={() => {}}
         onAdd={() => {}}
+        onConnectAi={() => {}}
         onConnectedAi={() => {}}
       />,
     );
     const share = screen.getByRole('button', { name: /share visibility/i });
+    const connect = screen.getByRole('button', { name: /connect to ai assistant/i });
     const robot = screen.getByRole('button', { name: /connected ai clients/i });
     const add = screen.getByRole('button', { name: /^add entry$/i });
-    const order = [share, robot, add].map((el) =>
+    const order = [share, connect, robot, add].map((el) =>
       Array.from(el.parentElement!.children).indexOf(el),
     );
-    expect(order).toEqual([0, 1, 2]);
+    expect(order).toEqual([0, 1, 2, 3]);
+  });
+
+  it('does not render the connect-AI button when onConnectAi is omitted', () => {
+    render(<ChatBox {...baseProps} onShare={() => {}} onAdd={() => {}} />);
+    expect(
+      screen.queryByRole('button', { name: /connect to ai assistant/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders the connect-AI button and fires onConnectAi on click', () => {
+    const onConnectAi = vi.fn();
+    render(<ChatBox {...baseProps} onConnectAi={onConnectAi} />);
+    const btn = screen.getByRole('button', { name: /connect to ai assistant/i });
+    fireEvent.click(btn);
+    expect(onConnectAi).toHaveBeenCalledOnce();
   });
 });
 
