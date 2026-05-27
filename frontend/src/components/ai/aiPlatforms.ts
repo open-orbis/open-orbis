@@ -1,6 +1,6 @@
 // Per-platform MCP connection instructions, verified against each vendor's
 // docs on the date below. When steps drift, update the copy here and bump
-// LAST_VERIFIED — it is shown in the wizard footer so staleness is visible.
+// LAST_VERIFIED — it is shown in the Connect panel footer so staleness is visible.
 export const LAST_VERIFIED = '2026-05-27';
 
 export type PlatformId =

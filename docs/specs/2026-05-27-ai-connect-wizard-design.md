@@ -65,7 +65,12 @@ The wizard appears **exactly once** per user (per browser), then becomes on-dema
 
 Edge: the wizard must not appear *during* the tour or stack on top of it — only after `onFinish`.
 
-## Wizard UX (3 steps)
+## Wizard UX (3 steps) — SUPERSEDED
+
+> **Superseded by the Revision note above.** The 3-step stepper described in this
+> section was *not* shipped. The content was consolidated into a single **"Connect"
+> tab** of `ConnectedAiClientsModal` (platform picker that reveals steps + prompts
+> inline — no stepper). This section is retained as historical design context only.
 
 Reuses the codebase's established modal pattern: `framer-motion` `AnimatePresence` + React
 `createPortal`, backdrop `bg-black/60 backdrop-blur-sm`, Escape-to-close, Tab focus trap,
