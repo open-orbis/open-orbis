@@ -214,9 +214,20 @@ export default function GuidedTour({ run: runOverride, onFinish }: GuidedTourPro
 
   const run = runOverride ?? autoRun;
 
-  const handleCallback = useCallback((data: EventData) => {
-    const { status, action } = data;
-    if (status === 'finished' || status === 'skipped' || action === 'close') {
+  // react-joyride v3 fires the `onEvent` prop (v2 used `callback`). Open the
+  // AI-connect modal whenever the user leaves the tour, however they do it:
+  //   - status 'finished'  → completed the last step
+  //   - status 'skipped'   → clicked "Skip tour"
+  //   - action 'close'     → X button, overlay click, or ESC (v3 routes all
+  //                          three through controls.close → ACTIONS.CLOSE)
+  // CLOSE is only emitted by those dismiss gestures — normal navigation uses
+  // NEXT/PREV — so this never misfires mid-tour.
+  const handleEvent = useCallback((data: EventData) => {
+    if (
+      data.status === 'finished' ||
+      data.status === 'skipped' ||
+      data.action === 'close'
+    ) {
       markTourCompleted();
       setAutoRun(false);
       onFinish?.();
@@ -233,7 +244,7 @@ export default function GuidedTour({ run: runOverride, onFinish }: GuidedTourPro
         run={run}
         continuous
         tooltipComponent={TourTooltip}
-        callback={handleCallback}
+        onEvent={handleEvent}
         {...{
           spotlightPadding: 8,
           locale: {
