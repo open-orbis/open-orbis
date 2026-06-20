@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Authenticated / non-public routes — no SEO value, keep out of the index
+Disallow: /myorbis
+Disallow: /create
+Disallow: /activate
+Disallow: /admin
+Disallow: /cv-export
+Disallow: /auth/
+Disallow: /oauth/
+
+Sitemap: https://open-orbis.com/sitemap.xml
