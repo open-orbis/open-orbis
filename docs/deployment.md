@@ -329,6 +329,12 @@ npm run preview  # Preview the built app
 
 The production build (`tsc -b && vite build`) type-checks and bundles to `frontend/dist/`. Serve with any static file server; configure it to proxy `/api/*` requests to the backend.
 
+### SEO / crawlability
+
+Static SEO metadata lives in `frontend/index.html` (title, meta description, canonical, Open Graph, Twitter cards, JSON-LD Schema.org) and is the same for every route — the app is a client-rendered SPA, so this is what crawlers and social-link unfurlers see before JS executes. `frontend/public/robots.txt` and `frontend/public/sitemap.xml` are copied verbatim into `frontend/dist/` at build and served at the site root (Firebase Hosting serves existing files before applying the catch-all rewrite to `index.html`). When adding a new **public** route, add it to `sitemap.xml`; when adding an authenticated route, add a `Disallow` line to `robots.txt`.
+
+> Per-route / per-orb metadata (e.g. Open Graph for shared `/:orbId` orbs) is **not** handled here — shared-orb links currently fall back to the homepage tags until dynamic rendering lands.
+
 ### Frontend build-time variables (`VITE_*`)
 
 | Variable | Default | Purpose |
