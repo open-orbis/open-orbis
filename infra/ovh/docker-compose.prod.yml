@@ -1,0 +1,115 @@
+# Orbis production stack on a single OVH VPS.
+#
+# Run from the repo checkout on the VPS, providing secrets via an env file
+# that lives OUTSIDE the repo:
+#
+#   docker compose --env-file /opt/orbis/.env \
+#     -f infra/ovh/docker-compose.prod.yml up -d --build
+#
+# The --env-file provides values for ${...} interpolation below (Neo4j/Postgres
+# passwords). The backend and mcp services additionally load the FULL app env
+# from the same file via `env_file:`.
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - mcp
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    image: orbis/backend:local
+    restart: unless-stopped
+    env_file:
+      - /opt/orbis/.env
+    environment:
+      PORT: "8000"
+      CLOUD_RUN_URL: "https://api.open-orbis.com"
+      GOOGLE_APPLICATION_CREDENTIALS: /app/vertex-key.json
+    volumes:
+      - cv_files:/app/data/cv_files
+      - /opt/orbis/vertex-key.json:/app/vertex-key.json:ro
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health/ready').status==200 else 1)\" || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mcp:
+    image: orbis/backend:local
+    restart: unless-stopped
+    command: ["python", "-m", "mcp_server.server"]
+    env_file:
+      - /opt/orbis/.env
+    environment:
+      PORT: "8081"
+      # MCP validates the incoming Host header against CLOUD_RUN_URL's host,
+      # so it must advertise the mcp subdomain (not api).
+      CLOUD_RUN_URL: "https://mcp.open-orbis.com"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD}"
+      NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+      NEO4J_server_memory_heap_initial__size: "3G"
+      NEO4J_server_memory_heap_max__size: "3G"
+      NEO4J_server_memory_pagecache_size: "3G"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$$NEO4J_PASSWORD\" 'RETURN 1' >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 45s
+
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orbis
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: orbis
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ../postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orbis -d orbis"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+volumes:
+  neo4j_data:
+  pg_data:
+  cv_files:
+  caddy_data:
+  caddy_config:

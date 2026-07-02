@@ -1,0 +1,16 @@
+# Orbis reverse proxy + automatic HTTPS (Let's Encrypt).
+# Requires api.open-orbis.com and mcp.open-orbis.com to resolve to this VPS
+# and ports 80/443 reachable (UFW allows them).
+#
+# Optional: uncomment and set an email for ACME expiry notices.
+# {
+#     email admin@open-orbis.com
+# }
+
+api.open-orbis.com {
+	reverse_proxy backend:8000
+}
+
+mcp.open-orbis.com {
+	reverse_proxy mcp:8081
+}
