@@ -23,13 +23,14 @@ trap 'rm -rf "$WORK"' EXIT
 
 echo "--- 1/5 Offline dump on the source VM ($SOURCE_VM) ---"
 gcloud compute ssh "$SOURCE_VM" --zone="$ZONE" --tunnel-through-iap --project="$PROJECT" --command='
-  set -e
-  sudo rm -rf /tmp/neo4jdump && sudo mkdir -p /tmp/neo4jdump
+  sudo rm -rf /tmp/neo4jdump && sudo mkdir -p /tmp/neo4jdump && sudo chmod 777 /tmp/neo4jdump
   sudo docker stop neo4j
-  sudo docker run --rm -v neo4j_data:/data -v /tmp/neo4jdump:/dump neo4j:5-community \
+  sudo docker run --rm --user root -v neo4j_data:/data -v /tmp/neo4jdump:/dump neo4j:5-community \
     neo4j-admin database dump neo4j --to-path=/dump
-  sudo docker start neo4j
+  DUMP_RC=$?
+  sudo docker start neo4j          # always restart prod, even if the dump failed
   sudo chmod -R a+r /tmp/neo4jdump
+  if [ $DUMP_RC -ne 0 ]; then echo "DUMP FAILED rc=$DUMP_RC"; exit $DUMP_RC; fi
   ls -l /tmp/neo4jdump
 '
 
