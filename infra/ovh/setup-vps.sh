@@ -45,17 +45,12 @@ chown "$APP_USER:$APP_USER" "$AUTH_KEYS"
 chmod 600 "$AUTH_KEYS"
 
 echo "--- 4/6 install Docker CE + compose plugin ---"
+# Use Docker's official convenience installer: it detects the distro/codename
+# and falls back gracefully on brand-new Ubuntu releases (e.g. 26.04) where the
+# apt repo may not yet have matching packages.
 if ! command -v docker &>/dev/null; then
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-    | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  chmod a+r /etc/apt/keyrings/docker.gpg
-  echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-    > /etc/apt/sources.list.d/docker.list
-  apt-get update -y
-  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  sh /tmp/get-docker.sh
 fi
 usermod -aG docker "$APP_USER"
 systemctl enable --now docker
