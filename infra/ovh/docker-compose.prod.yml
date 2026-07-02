@@ -77,14 +77,16 @@ services:
     restart: unless-stopped
     environment:
       NEO4J_AUTH: "neo4j/${NEO4J_PASSWORD}"
-      NEO4J_PASSWORD: "${NEO4J_PASSWORD}"
+      # Non-NEO4J_-prefixed so the neo4j entrypoint doesn't parse it as a config
+      # setting; used only by the healthcheck below.
+      HC_PASSWORD: "${NEO4J_PASSWORD}"
       NEO4J_server_memory_heap_initial__size: "3G"
       NEO4J_server_memory_heap_max__size: "3G"
       NEO4J_server_memory_pagecache_size: "3G"
     volumes:
       - neo4j_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$$NEO4J_PASSWORD\" 'RETURN 1' >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"$$HC_PASSWORD\" 'RETURN 1' >/dev/null 2>&1 || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 12
