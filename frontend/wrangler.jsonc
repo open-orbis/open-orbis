@@ -1,14 +1,14 @@
 {
-  // Cloudflare Workers + Static Assets config for the Orbis frontend.
-  // Build (`npm run build`) emits ./dist; wrangler uploads the worker + assets.
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "open-orbis",
-  "compatibility_date": "2026-07-01",
-  "main": "worker/index.js",
+  "compatibility_date": "2026-07-03",
+  "observability": {
+    "enabled": true
+  },
   "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS",
-    // Serve index.html for unmatched client-side routes (SPA), e.g. /myorbis,
-    // /oauth/authorize. Backend paths are proxied by the worker before this.
     "not_found_handling": "single-page-application"
-  }
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
 }

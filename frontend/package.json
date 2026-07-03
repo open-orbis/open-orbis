@@ -7,12 +7,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
+    "preview": "npm run build && wrangler dev",
     "e2e": "playwright test",
     "e2e:ui": "playwright test --ui",
     "e2e:chromium": "playwright test --project=chromium",
     "e2e:firefox": "playwright test --project=firefox",
-    "e2e:webkit": "playwright test --project=webkit"
+    "e2e:webkit": "playwright test --project=webkit",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@react-oauth/google": "0.13.4",
@@ -33,6 +34,7 @@
     "zustand": "5.0.12"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.43.0",
     "@eslint/js": "9.39.4",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "4.2.2",
@@ -53,6 +55,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.57.1",
     "vite": "8.0.0",
-    "vitest": "4.1.2"
+    "vitest": "4.1.2",
+    "wrangler": "^4.107.0"
   }
 }

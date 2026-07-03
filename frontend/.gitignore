@@ -30,3 +30,10 @@ e2e/.auth/
 test-results/
 playwright-report/
 blob-report/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
