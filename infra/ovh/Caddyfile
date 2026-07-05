@@ -1,6 +1,15 @@
-# Orbis reverse proxy + automatic HTTPS (Let's Encrypt).
-# Requires api.open-orbis.com and mcp.open-orbis.com to resolve to this VPS
-# and ports 80/443 reachable (UFW allows them).
+# Orbis reverse proxy behind Cloudflare.
+#
+# api/mcp sit behind the Cloudflare proxy (orange cloud) and terminate TLS
+# with a Cloudflare Origin CA certificate (trusted by Cloudflare only, not
+# by public clients — do NOT flip these hosts to DNS-only while this config
+# is active). The cert/key live on the VPS at /opt/orbis/certs and are
+# mounted into the container at /etc/caddy/certs (see docker-compose.prod.yml).
+#
+# tasks.open-orbis.com is deliberately DNS-only (grey cloud): it is the
+# Cloud Tasks callback host for POST /api/cv/process-job, which can run for
+# up to ~20 minutes — the Cloudflare proxy would kill it at ~100s. It keeps
+# automatic Let's Encrypt TLS, so port 80/443 must stay reachable (UFW).
 #
 # Optional: uncomment and set an email for ACME expiry notices.
 # {
@@ -8,9 +17,15 @@
 # }
 
 api.open-orbis.com {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin-key.pem
 	reverse_proxy backend:8000
 }
 
 mcp.open-orbis.com {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin-key.pem
 	reverse_proxy mcp:8081
+}
+
+tasks.open-orbis.com {
+	reverse_proxy backend:8000
 }

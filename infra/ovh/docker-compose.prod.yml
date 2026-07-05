@@ -20,6 +20,10 @@ services:
       - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Cloudflare Origin CA cert for api/mcp (generated from the Cloudflare
+      # dashboard/API, valid 15 years). tasks.open-orbis.com uses automatic
+      # Let's Encrypt instead and does not need these files.
+      - /opt/orbis/certs:/etc/caddy/certs:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
@@ -36,7 +40,10 @@ services:
       - /opt/orbis/.env
     environment:
       PORT: "8000"
-      CLOUD_RUN_URL: "https://api.open-orbis.com"
+      # Used only by app/cv/cloud_tasks.py as the Cloud Tasks dispatch URL +
+      # OIDC audience. Points at the DNS-only tasks host so the long-running
+      # /api/cv/process-job callback bypasses the Cloudflare proxy (~100s cap).
+      CLOUD_RUN_URL: "https://tasks.open-orbis.com"
       GOOGLE_APPLICATION_CREDENTIALS: /app/vertex-key.json
     volumes:
       - cv_files:/app/data/cv_files

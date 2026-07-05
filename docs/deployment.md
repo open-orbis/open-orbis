@@ -50,88 +50,74 @@ This creates:
 - Indexes on node `uid` fields
 - Vector indexes (1536 dimensions, cosine) for semantic search
 
-## CI/CD — Automated Deploy
+## Production — OVH VPS + Cloudflare
 
-Deployments are automated via GitHub Actions and triggered **only when a GitHub Release is published** (not on every merge to `main`).
+Production runs on a single OVH VPS (backend, MCP server, Neo4j, Postgres behind
+Caddy) with Cloudflare in front (DNS zone, Workers frontend, edge proxy/WAF).
+Design and cutover record: see the 2026-07-05 cutover spec (local,
+`docs/superpowers/specs/`).
 
-### How it works
+### Architecture
 
-The workflow (`.github/workflows/deploy.yml`) runs two parallel jobs:
-
-1. **Backend**: builds a Docker image with Cloud Build, deploys it to Cloud Run, then runs a health check against `/health/ready` (verifies the app responds and Neo4j is reachable)
-2. **Frontend**: runs `npm ci && npm run build`, deploys to Firebase Hosting, then verifies the site returns HTTP 200
-
-The release tag (e.g. `v1.0.0`) is used as the Docker image tag, so you can always trace a running revision back to a specific release.
-
-### Creating a release (triggers deploy)
-
-From the terminal:
-
-```bash
-gh release create v1.0.0 --title "v1.0.0" --notes "Release notes here"
-```
-
-Or from GitHub UI: **Releases** → **Draft a new release** → choose a tag, write notes, click **Publish release**.
-
-### Monitoring the deploy
-
-```bash
-# Watch the workflow run live
-gh run watch
-
-# List recent deploy runs
-gh run list --workflow=deploy.yml
-
-# View logs of a specific run
-gh run view <run-id> --log
-```
-
-The workflow shows green/red in GitHub Actions. If the health check fails, the workflow fails — you'll see it immediately.
-
-### Verifying after deploy
-
-Automated (runs in the workflow):
-- Backend: `GET /health/ready` — returns `{"status": "ok", "neo4j": "connected"}`
-- Frontend: `GET https://open-orbis.web.app` — returns HTTP 200
-
-Manual verification:
-```bash
-# Backend health
-curl https://<cloud-run-url>/health/ready
-
-# Latest Cloud Run revision
-gcloud run revisions list --service=orbis-api --region=europe-west1 --limit=3
-
-# Frontend
-curl -s -o /dev/null -w "%{http_code}" https://open-orbis.web.app
-```
-
-Functional smoke test: log in, open an orb, upload a CV.
-
-### Cloud Run instance policy
-
-Backend (`orbis-api`) deploys with `--min-instances=1` (see `.github/workflows/deploy.yml`). This keeps one warm instance live at all times, trading a small baseline cost for first-request latency — a cold start on this stack can add several seconds because the container has to initialise the Neo4j async driver and validate connectivity before it can answer. The MCP server (`orbis-mcp`) runs `--min-instances=0` since it's called infrequently by agent clients and cold-start cost is tolerable.
-
-Rationale for `orbis-api` at `1` was landed in #363 — if you see it flipped back to `0`, expect user-visible latency regressions.
-
-### GCP service accounts
-
-| Service Account | Purpose | Created by |
+| Host | Serves | Cloudflare proxy |
 |---|---|---|
-| `orbis-api` | Runtime — used by Cloud Run when the app is running | `infra/gcp/setup.sh` |
-| `github-deploy` | CI/CD — used by GitHub Actions to build and deploy | `infra/gcp/setup-ci-sa.sh` |
+| `open-orbis.com` | Cloudflare Worker `open-orbis`: static frontend assets + same-origin proxy of `/api/**`, `/oauth/token\|register\|revoke`, `/.well-known/oauth-authorization-server` → `api.open-orbis.com` (`frontend/worker/index.js`) | orange (Worker custom domain) |
+| `api.open-orbis.com` | Caddy → `backend:8000` (FastAPI) | orange — TLS via Cloudflare Origin CA cert on the VPS |
+| `mcp.open-orbis.com` | Caddy → `mcp:8081` (MCP server) | orange — same Origin CA cert |
+| `tasks.open-orbis.com` | Caddy → `backend:8000`, **Cloud Tasks callback only** | **DNS-only (grey)** — the `POST /api/cv/process-job` callback can run ~20 min; the Cloudflare proxy would kill it at ~100 s. Let's Encrypt TLS. |
 
-The `github-deploy` SA key is stored as the GitHub Secret `GCP_SA_KEY`.
+Remaining GCP dependencies (deliberate): **Vertex AI** (CV extraction LLM,
+service-account key mounted at `/opt/orbis/vertex-key.json`) and **Cloud Tasks**
+(CV job queue). Replacing Cloud Tasks is documented in
+`docs/cloud-tasks-replacement.md`. Everything else on GCP (Cloud Run, Cloud SQL,
+GCS, Firebase Hosting) is decommissioned.
 
-### Manual deploy (fallback)
+### Deploying the backend/MCP stack (OVH)
 
-The manual deploy scripts remain available if you need to bypass CI:
+The VPS (`orbis@51.75.121.189`) has a repo checkout at `/opt/orbis/orb_project`;
+secrets live outside the repo in `/opt/orbis/.env`.
 
 ```bash
-./infra/gcp/deploy-backend.sh          # Deploy backend
-./infra/gcp/deploy-backend.sh v1.0.0   # Deploy with specific tag
-./infra/gcp/deploy-frontend.sh         # Deploy frontend
+ssh orbis@51.75.121.189
+cd /opt/orbis/orb_project
+git pull
+docker compose --env-file /opt/orbis/.env \
+  -f infra/ovh/docker-compose.prod.yml up -d --build
 ```
+
+Verify: `curl https://api.open-orbis.com/health` and
+`curl -s -o /dev/null -w "%{http_code}" https://mcp.open-orbis.com/mcp` (401 is
+the healthy unauthenticated answer).
+
+### Deploying the frontend (Cloudflare Workers)
+
+```bash
+cd frontend
+npm ci && npm run build     # VITE_* vars must be set in the environment
+npx wrangler deploy         # uploads worker + dist/ static assets
+```
+
+The Worker config is `frontend/wrangler.jsonc` (Workers Static Assets, SPA
+fallback). The custom domain `open-orbis.com` is attached to the Worker in the
+Cloudflare dashboard (Workers → open-orbis → Domains & Routes).
+
+### TLS certificates on the VPS
+
+`api`/`mcp` use a Cloudflare **Origin CA** certificate (15-year validity,
+`*.open-orbis.com` + apex) stored at `/opt/orbis/certs/origin.pem` +
+`origin-key.pem` and mounted read-only into the caddy container. Cloudflare SSL
+mode must be **Full (strict)**. These certs are trusted only by Cloudflare — do
+not flip `api`/`mcp` to DNS-only while this Caddyfile is active. `tasks` uses
+automatic Let's Encrypt (ports 80/443 open in UFW).
+
+### CI/CD status
+
+The GitHub Actions release workflow (`.github/workflows/deploy.yml`) still
+targets the old GCP stack (Cloud Build → Cloud Run, Firebase Hosting) and is
+**stale after the cutover** — do not publish releases expecting it to deploy
+production until it is rewritten for OVH (ssh + compose) and Cloudflare
+(`wrangler deploy`). Until then, deploy manually with the commands above.
+The legacy GCP scripts live in `infra/gcp/` for reference.
 
 ## Environment Variables
 
@@ -268,7 +254,7 @@ The OAuth authorization server and discovery endpoints are served by the FastAPI
 
 **Development (Vite dev server):** `frontend/vite.config.ts` proxies `/api/*`, `/.well-known/*`, `/oauth/register`, `/oauth/token`, and `/oauth/revoke` to `http://localhost:8000`. **`/oauth/authorize` is intentionally NOT proxied** — it's an HTML consent page served by the SPA (`ConsentPage` React component). Removing any of the proxied routes breaks AI-client discovery and the OAuth token flow.
 
-**Production (reverse-proxy routing):** Your frontend origin (Firebase Hosting / CDN / LB) must apply path-based routing:
+**Production (reverse-proxy routing):** the Cloudflare Worker (`frontend/worker/index.js`) applies the path-based routing on the frontend origin:
 - `/oauth/authorize` → frontend (HTML consent page served by the SPA)
 - `/oauth/register`, `/oauth/token`, `/oauth/revoke` → backend (JSON OAuth endpoints)
 - `/.well-known/oauth-authorization-server` → backend (RFC 8414 discovery)
@@ -278,7 +264,7 @@ If you can't do path-based routing on the frontend origin, the alternative is to
 
 ### Frontend build-time variables
 
-The frontend build bakes the MCP endpoint URL into the bundle. If it's unset, the Connected AI modal and share-token "Copy MCP config" buttons will copy the dev default (`http://localhost:8081/mcp`) — useless for cloud AI clients. Set this at build time (e.g. in your Dockerfile, Cloud Build, or Firebase deploy step):
+The frontend build bakes the MCP endpoint URL into the bundle. If it's unset, the Connected AI modal and share-token "Copy MCP config" buttons will copy the dev default (`http://localhost:8081/mcp`) — useless for cloud AI clients. Set this at build time (before `npm run build` / `wrangler deploy`):
 
 | Variable | Example | Purpose |
 |----------|---------|---------|
@@ -331,7 +317,7 @@ The production build (`tsc -b && vite build`) type-checks and bundles to `fronte
 
 ### SEO / crawlability
 
-Static SEO metadata lives in `frontend/index.html` (title, meta description, canonical, Open Graph, Twitter cards, JSON-LD Schema.org) and is the same for every route — the app is a client-rendered SPA, so this is what crawlers and social-link unfurlers see before JS executes. `frontend/public/robots.txt` and `frontend/public/sitemap.xml` are copied verbatim into `frontend/dist/` at build and served at the site root (Firebase Hosting serves existing files before applying the catch-all rewrite to `index.html`). When adding a new **public** route, add it to `sitemap.xml`; when adding an authenticated route, add a `Disallow` line to `robots.txt`.
+Static SEO metadata lives in `frontend/index.html` (title, meta description, canonical, Open Graph, Twitter cards, JSON-LD Schema.org) and is the same for every route — the app is a client-rendered SPA, so this is what crawlers and social-link unfurlers see before JS executes. `frontend/public/robots.txt` and `frontend/public/sitemap.xml` are copied verbatim into `frontend/dist/` at build and served at the site root (Workers Static Assets serves existing files before invoking the worker / SPA fallback). When adding a new **public** route, add it to `sitemap.xml`; when adding an authenticated route, add a `Disallow` line to `robots.txt`.
 
 > Per-route / per-orb metadata (e.g. Open Graph for shared `/:orbId` orbs) is **not** handled here — shared-orb links currently fall back to the homepage tags until dynamic rendering lands.
 
@@ -339,5 +325,5 @@ Static SEO metadata lives in `frontend/index.html` (title, meta description, can
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `VITE_API_URL` | `/api` | Backend base URL (full Cloud Run URL in production if not proxied) |
+| `VITE_API_URL` | `/api` | Backend base URL (usually unset in production — the Worker proxies `/api` same-origin) |
 | `VITE_SILENT_REAUTH_ENABLED` | `true` | `false` disables the FedCM + One Tap silent re-auth path. Emergency switch; default on. |
