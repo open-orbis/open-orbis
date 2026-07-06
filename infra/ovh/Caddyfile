@@ -27,5 +27,12 @@ mcp.open-orbis.com {
 }
 
 tasks.open-orbis.com {
+	# Force ACME (Let's Encrypt) for this host: the manually-loaded Origin CA
+	# wildcard would otherwise match *.open-orbis.com and Caddy would skip
+	# automation — but tasks is DNS-only and needs a publicly trusted cert
+	# (Google Cloud Tasks validates TLS on the callback).
+	tls {
+		issuer acme
+	}
 	reverse_proxy backend:8000
 }

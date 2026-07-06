@@ -4,6 +4,13 @@
   "name": "open-orbis",
   "compatibility_date": "2026-07-01",
   "main": "worker/index.js",
+  // Production hostnames (Cloudflare zone open-orbis.com). Custom domains
+  // create/own their DNS records; www is 301-redirected to the apex in the
+  // worker itself.
+  "routes": [
+    { "pattern": "open-orbis.com", "custom_domain": true },
+    { "pattern": "www.open-orbis.com", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

@@ -27,6 +27,12 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // Canonical host: 301 www -> apex (both are custom domains of this worker).
+    if (url.hostname === "www.open-orbis.com") {
+      url.hostname = "open-orbis.com";
+      return Response.redirect(url.toString(), 301);
+    }
+
     if (shouldProxy(url.pathname)) {
       const headers = new Headers(request.headers);
       headers.delete("host"); // let fetch set the backend Host
