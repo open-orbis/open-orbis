@@ -1,8 +1,9 @@
 # Sostituire Cloud Tasks con un worker locale sul VPS
 
-> Guida per eliminare l'ultima dipendenza infrastrutturale da GCP (insieme resta
-> solo Vertex AI, che è una semplice chiamata API). Scritta durante il cutover
-> OVH+Cloudflare del 2026-07-05; da eseguire come lavoro a sé.
+> **✅ IMPLEMENTATO il 2026-07-07** — vedi `app/cv/worker.py`,
+> `jobs_db.claim_next_queued_job` / `requeue_orphaned_running_jobs` e il
+> lifespan in `app/main.py`. Questo documento resta come motivazione storica
+> della scelta. Scritto durante il cutover OVH+Cloudflare del 2026-07-05.
 
 ## Perché Cloud Tasks esiste (e perché non serve più)
 

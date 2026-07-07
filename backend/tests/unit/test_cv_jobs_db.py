@@ -219,18 +219,6 @@ async def test_update_job_result_failed():
     assert None in args
 
 
-# ── set_cloud_task_name ──
-
-
-async def test_set_cloud_task_name():
-    pool = _mock_pool()
-    with patch("app.cv.jobs_db.get_pool", AsyncMock(return_value=pool)):
-        await jobs_db.set_cloud_task_name("job-1", "projects/p/tasks/t")
-    args = pool.execute.call_args[0]
-    assert "projects/p/tasks/t" in args
-    assert "job-1" in args
-
-
 # ── list_jobs_admin ──
 
 

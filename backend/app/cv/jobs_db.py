@@ -218,14 +218,43 @@ async def update_job_result(
     )
 
 
-async def set_cloud_task_name(job_id: str, task_name: str) -> None:
-    """Record the Cloud Tasks task name against the job."""
+async def claim_next_queued_job() -> str | None:
+    """Atomically claim the oldest queued job for processing.
+
+    Sets status='running' and started_at, and returns the job_id — or None
+    when the queue is empty. FOR UPDATE SKIP LOCKED makes the claim safe
+    even with multiple worker processes.
+    """
     pool = await get_pool()
-    await pool.execute(
-        "UPDATE cv_jobs SET cloud_task_name = $1 WHERE job_id = $2",
-        task_name,
-        job_id,
+    return await pool.fetchval(
+        """
+        UPDATE cv_jobs
+        SET status = 'running', started_at = NOW()
+        WHERE job_id = (
+            SELECT job_id FROM cv_jobs
+            WHERE status = 'queued'
+            ORDER BY created_at
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING job_id
+        """
     )
+
+
+async def requeue_orphaned_running_jobs() -> int:
+    """Reset jobs stuck in 'running' back to 'queued' (crash/deploy recovery).
+
+    Call at startup BEFORE the worker loop starts: with a single backend
+    process, anything 'running' at boot was orphaned by the previous process.
+    Returns the number of requeued jobs.
+    """
+    pool = await get_pool()
+    result = await pool.execute(
+        "UPDATE cv_jobs SET status = 'queued', started_at = NULL "
+        "WHERE status = 'running'"
+    )
+    return int(result.split()[-1])
 
 
 async def list_jobs_admin(

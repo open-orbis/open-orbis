@@ -5,16 +5,6 @@
 # by public clients — do NOT flip these hosts to DNS-only while this config
 # is active). The cert/key live on the VPS at /opt/orbis/certs and are
 # mounted into the container at /etc/caddy/certs (see docker-compose.prod.yml).
-#
-# tasks.open-orbis.com is deliberately DNS-only (grey cloud): it is the
-# Cloud Tasks callback host for POST /api/cv/process-job, which can run for
-# up to ~20 minutes — the Cloudflare proxy would kill it at ~100s. It keeps
-# automatic Let's Encrypt TLS, so port 80/443 must stay reachable (UFW).
-#
-# Optional: uncomment and set an email for ACME expiry notices.
-# {
-#     email admin@open-orbis.com
-# }
 
 api.open-orbis.com {
 	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin-key.pem
@@ -24,15 +14,4 @@ api.open-orbis.com {
 mcp.open-orbis.com {
 	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin-key.pem
 	reverse_proxy mcp:8081
-}
-
-tasks.open-orbis.com {
-	# Force ACME (Let's Encrypt) for this host: the manually-loaded Origin CA
-	# wildcard would otherwise match *.open-orbis.com and Caddy would skip
-	# automation — but tasks is DNS-only and needs a publicly trusted cert
-	# (Google Cloud Tasks validates TLS on the callback).
-	tls {
-		issuer acme
-	}
-	reverse_proxy backend:8000
 }

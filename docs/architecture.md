@@ -21,7 +21,7 @@ Orbis is a personal knowledge graph platform that transforms CVs into interactiv
                                     └─ Claude CLI  │ subprocess
                                                    │
                                     ┌──────────────┘
-                                    │  Cloud Tasks │ background CV processing
+                                    │  CV Worker   │ in-process job loop (Postgres)
                                     │  PostgreSQL  │ cv_jobs, drafts, ideas, snapshots
                                     │  MCP Server  │ streamable-http
                                     └──────────────┘
@@ -32,8 +32,8 @@ Orbis is a personal knowledge graph platform that transforms CVs into interactiv
 ### App Factory (`app/main.py`)
 
 The FastAPI app uses a lifespan context manager:
-- **Startup:** connects to Neo4j, runs a probe query to validate connectivity; initialises `cv_jobs` PostgreSQL table via `jobs_db.ensure_table()`
-- **Shutdown:** closes the Neo4j driver
+- **Startup:** connects to Neo4j, runs a probe query to validate connectivity; initialises `cv_jobs` PostgreSQL table via `jobs_db.ensure_table()`; requeues orphaned running jobs and starts the CV worker loop (`app/cv/worker.py`)
+- **Shutdown:** cancels the CV worker task, closes the Neo4j driver
 
 Middleware stack (outermost first):
 1. `SlowAPIMiddleware` — rate limiting on public endpoints
@@ -44,7 +44,7 @@ Middleware stack (outermost first):
 | Module | Responsibility |
 |--------|---------------|
 | `auth/` | JWT creation/validation, OAuth (Google/LinkedIn), GDPR consent, account deletion, MCP API keys, refresh tokens, OAuth 2.1 authorization server (DCR, authorize, token, revoke, grants), OAuth PostgreSQL DAL |
-| `cv/` | PDF text extraction, LLM classification with fallback chain, graph persistence, Cloud Tasks dispatch (`cloud_tasks.py`), background job state (`jobs_db.py`), job router (`jobs_router.py`) |
+| `cv/` | PDF text extraction, LLM classification with fallback chain, graph persistence, in-process job worker (`worker.py`), background job state (`jobs_db.py`), job status router (`jobs_router.py`) |
 | `graph/` | Neo4j driver singleton, all Cypher queries, Fernet encryption, embedding generation |
 | `orbs/` | Graph CRUD (nodes, relationships, profile), share tokens, access grants, connection requests, visibility management |
 | `notes/` | Free-text note enhancement via LLM (classify to node type + properties) |
@@ -62,7 +62,9 @@ Middleware stack (outermost first):
 
 ### CV Processing Pipeline
 
-Async pipeline with background processing via Cloud Tasks:
+Async pipeline processed by the in-process worker loop (`app/cv/worker.py`,
+started from the app lifespan; claims jobs from Postgres with FOR UPDATE SKIP
+LOCKED and requeues orphaned 'running' jobs at boot):
 
 ```
 POST /cv/upload or /cv/import
@@ -70,10 +72,9 @@ POST /cv/upload or /cv/import
     ▼
 1. Store document (GCS or local encrypted file)
 2. Create cv_jobs row (status=queued) in PostgreSQL
-3. Dispatch Cloud Task → POST /cv/process-job
-4. Return {job_id, status: "queued"} immediately
+3. Return {job_id, status: "queued"} immediately
     │
-    ▼ (Cloud Task / asyncio.create_task in local dev)
+    ▼ (worker loop claims the job within POLL_SECONDS)
 Stage 1: Load PDF from storage
     │
     ▼

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
 from pathlib import Path
@@ -9,7 +8,6 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from neo4j import AsyncDriver
 
-from app.config import settings
 from app.cv import counter, jobs_db
 from app.cv.models import ConfirmRequest
 from app.cv.ollama_classifier import SYSTEM_PROMPT as EXTRACTION_PROMPT
@@ -96,51 +94,11 @@ async def upload_cv(
         filename=file.filename or "cv-upload.pdf",
     )
 
-    # Dispatch the job
-    if settings.cloud_tasks_queue:
-        # Production: dispatch via Cloud Tasks
-        from app.cv.cloud_tasks import dispatch_cv_job
-
-        task_name = dispatch_cv_job(job_id=job_id)
-        await jobs_db.set_cloud_task_name(job_id, task_name)
-        logger.info("Dispatched Cloud Task for user %s, job %s", user_id, job_id)
-    else:
-        # Local dev: run the pipeline inline without blocking the response
-        asyncio.create_task(_process_job_inline(job_id, db))
-        logger.info("Started inline processing for user %s, job %s", user_id, job_id)
+    # The job stays 'queued': the in-process worker loop (app.cv.worker,
+    # started from the app lifespan) claims and runs it within seconds.
+    logger.info("Queued CV job %s for user %s", job_id, user_id)
 
     return {"job_id": job_id, "status": "queued"}
-
-
-async def _process_job_inline(job_id: str, db: AsyncDriver) -> None:
-    """Run the CV processing pipeline in-process (local dev fallback).
-
-    This calls the same ``process_job`` endpoint logic from
-    ``jobs_router``, temporarily patching ``verify_oidc_token`` to
-    allow the local call without a real OIDC token.
-    """
-    from unittest.mock import patch
-
-    from app.cv.jobs_router import process_job
-
-    class _FakeRequest:
-        """Minimal request-like object for the process_job endpoint."""
-
-        def __init__(self, job_id: str):
-            self._job_id = job_id
-            self.headers = {}
-
-        async def json(self):
-            return {"job_id": self._job_id}
-
-    try:
-        with patch(
-            "app.cv.jobs_router.verify_oidc_token",
-            return_value="local-dev@inline",
-        ):
-            await process_job(request=_FakeRequest(job_id), db=db)
-    except Exception:
-        logger.error("Inline job %s failed", job_id, exc_info=True)
 
 
 @router.get("/documents/{document_id}/download")
@@ -237,18 +195,8 @@ async def import_document(
         filename=file.filename or "document",
     )
 
-    # Dispatch Cloud Task
-    from app.config import settings
-    from app.cv.cloud_tasks import dispatch_cv_job
-
-    if settings.cloud_tasks_queue:
-        task_name = dispatch_cv_job(job_id=job_id)
-        await jobs_db.set_cloud_task_name(job_id, task_name)
-    else:
-        logger.warning("No Cloud Tasks queue — running import inline")
-        import asyncio
-
-        asyncio.create_task(_process_job_inline(job_id, db))
+    # The job stays 'queued': the in-process worker loop picks it up.
+    logger.info("Queued CV import job %s for user %s", job_id, user_id)
 
     return {"job_id": job_id, "status": "queued"}
 

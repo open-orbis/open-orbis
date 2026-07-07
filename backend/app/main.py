@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import json
 import logging
@@ -153,8 +154,22 @@ async def lifespan(app: FastAPI):
         expired = await cleanup_expired_jobs()
         if expired:
             logger.info("Cleaned up %d expired CV jobs", expired)
+
+        # In-process CV worker: requeue jobs orphaned by the previous
+        # process, then start the polling loop (replaces Cloud Tasks).
+        from app.cv.jobs_db import requeue_orphaned_running_jobs
+        from app.cv.worker import cv_worker_loop
+
+        requeued = await requeue_orphaned_running_jobs()
+        if requeued:
+            logger.info("Requeued %d orphaned running CV jobs", requeued)
+        worker_task = asyncio.create_task(cv_worker_loop())
+    else:
+        worker_task = None
     yield
     # Shutdown
+    if worker_task is not None:
+        worker_task.cancel()
     if settings.database_url:
         from app.db.postgres import close_pool
 

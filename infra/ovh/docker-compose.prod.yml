@@ -40,10 +40,7 @@ services:
       - /opt/orbis/.env
     environment:
       PORT: "8000"
-      # Used only by app/cv/cloud_tasks.py as the Cloud Tasks dispatch URL +
-      # OIDC audience. Points at the DNS-only tasks host so the long-running
-      # /api/cv/process-job callback bypasses the Cloudflare proxy (~100s cap).
-      CLOUD_RUN_URL: "https://tasks.open-orbis.com"
+      # Vertex AI (CV extraction LLM) — the only remaining GCP dependency.
       GOOGLE_APPLICATION_CREDENTIALS: /app/vertex-key.json
     volumes:
       - cv_files:/app/data/cv_files

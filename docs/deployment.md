@@ -64,13 +64,12 @@ Design and cutover record: see the 2026-07-05 cutover spec (local,
 | `open-orbis.com` | Cloudflare Worker `open-orbis`: static frontend assets + same-origin proxy of `/api/**`, `/oauth/token\|register\|revoke`, `/.well-known/oauth-authorization-server` → `api.open-orbis.com` (`frontend/worker/index.js`) | orange (Worker custom domain) |
 | `api.open-orbis.com` | Caddy → `backend:8000` (FastAPI) | orange — TLS via Cloudflare Origin CA cert on the VPS |
 | `mcp.open-orbis.com` | Caddy → `mcp:8081` (MCP server) | orange — same Origin CA cert |
-| `tasks.open-orbis.com` | Caddy → `backend:8000`, **Cloud Tasks callback only** | **DNS-only (grey)** — the `POST /api/cv/process-job` callback can run ~20 min; the Cloudflare proxy would kill it at ~100 s. Let's Encrypt TLS. |
 
-Remaining GCP dependencies (deliberate): **Vertex AI** (CV extraction LLM,
-service-account key mounted at `/opt/orbis/vertex-key.json`) and **Cloud Tasks**
-(CV job queue). Replacing Cloud Tasks is documented in
-`docs/cloud-tasks-replacement.md`. Everything else on GCP (Cloud Run, Cloud SQL,
-GCS, Firebase Hosting) is decommissioned.
+The only remaining GCP dependency (deliberate) is **Vertex AI** (CV extraction
+LLM, service-account key mounted at `/opt/orbis/vertex-key.json`). CV jobs are
+processed by an in-process worker (`app/cv/worker.py`, started from the app
+lifespan) that polls Postgres — no external queue. Everything else on GCP
+(Cloud Run, Cloud SQL, GCS, Firebase Hosting, Cloud Tasks) is decommissioned.
 
 ### Deploying the backend/MCP stack (OVH)
 

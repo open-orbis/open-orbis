@@ -19,7 +19,7 @@ backend/
     auth/        # JWT auth, Google/LinkedIn OAuth, GDPR consent, account lifecycle, invite code activation, MCP API keys, refresh tokens
     admin/       # Closed-beta admin: invite codes CRUD, beta config toggle, pending users (approve/approve-all with email), funnel metrics, insights, user management, CV jobs tab (list + cancel)
     email/       # Transactional email via Resend (activation notifications, invite codes, CV ready/failed/cancelled)
-    cv/          # CV PDF parsing (PyMuPDF), LLM classification (Vertex AI/Ollama/Claude CLI), rule-based fallback, Cloud Tasks dispatch (cloud_tasks.py), PostgreSQL job state (jobs_db.py), job router (jobs_router.py)
+    cv/          # CV PDF parsing (PyMuPDF), LLM classification (Vertex AI/Ollama/Claude CLI), rule-based fallback, in-process job worker (worker.py, polls Postgres with SKIP LOCKED), PostgreSQL job state (jobs_db.py), job status router (jobs_router.py)
     graph/       # Neo4j async driver, Cypher queries, Fernet encryption (MultiFernet + historic keys), node-property allowlist, LLM usage tracking, embeddings (placeholder)
     orbs/        # Orb (knowledge graph) CRUD, share tokens, access grants, connection requests, visibility management
     notes/       # LLM-enhanced note-to-node conversion
@@ -29,7 +29,7 @@ backend/
     ideas/       # Feature idea / feedback submission (source: "idea" or "feedback")
     snapshots/   # Orb version snapshots (save, restore, delete)
     main.py      # FastAPI app factory, middleware (CORS, SlowAPI), router registration, cv_jobs table init on startup
-    config.py    # Pydantic Settings (env-based). New settings: cloud_tasks_queue, cloud_tasks_location, cloud_run_url, cloud_run_service_account, cors_extra_origins
+    config.py    # Pydantic Settings (env-based). Notable settings: cloud_run_url (public MCP base URL, historical name), cors_extra_origins
     rate_limit.py # SlowAPI limiter keyed on user_id (authenticated) / IP (public). Explicit caps: /cv/upload 3/min, /cv/import 3/min, /notes/enhance 10/min (per user); /auth/google-id-token 5/min per IP (silent re-auth).
     dependencies.py # get_db, get_current_user (JWT bearer), require_admin
   mcp_server/    # MCP server exposing orb graph to AI agents (6 tools, API key auth via X-MCP-Key)

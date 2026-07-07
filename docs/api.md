@@ -118,7 +118,6 @@ All endpoints require `is_admin = true` on the authenticated Person.
 | GET | `/cv/processing-count` | No | Count of PDFs currently being processed. |
 | GET | `/cv/progress` | JWT | Background job progress for current user's CV processing (reads from `cv_jobs` PostgreSQL table). |
 | GET | `/cv/job/{job_id}` | JWT | Get status and result for a specific CV processing job (owner-only). Returns `result` field when `status = "succeeded"`. |
-| POST | `/cv/process-job` | Cloud Tasks OIDC | Internal endpoint called by Cloud Tasks to execute the CV extraction pipeline for a queued job. Not callable by end users. |
 
 ### CV Upload/Import Response (async)
 

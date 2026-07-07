@@ -548,7 +548,6 @@ async def cancel_cv_job_endpoint(
 ):
     """Cancel a queued or running CV job."""
     from app.cv import jobs_db
-    from app.cv.cloud_tasks import cancel_cv_job
     from app.email.service import send_cv_cancelled_email
     from app.graph.encryption import decrypt_properties
 
@@ -562,10 +561,9 @@ async def cancel_cv_job_endpoint(
             detail=f"Cannot cancel job in '{job['status']}' status",
         )
 
-    # Cancel Cloud Task if one exists
-    if job.get("cloud_task_name"):
-        cancel_cv_job(job["cloud_task_name"])
-
+    # Setting status='cancelled' is enough: queued jobs are skipped by the
+    # worker's claim query, and running jobs abort at the next cooperative
+    # checkpoint in app.cv.worker.run_cv_job.
     await jobs_db.update_job_status(
         job_id,
         "cancelled",
