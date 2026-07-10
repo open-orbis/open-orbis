@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-60" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-36" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-12" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="12" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="36" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa"/>
+    <circle cx="84" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <text x="90" y="300" font-family="Inter, sans-serif" font-weight="900" font-size="280" fill="#6366f1" opacity="0.35">05</text>
+
+  <text x="90" y="520" font-family="Inter, sans-serif" font-weight="400" font-size="22" fill="#fbbf24" letter-spacing="5">REASON FIVE</text>
+
+  <text x="90" y="640" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#ffffff" letter-spacing="-2">You own it.</text>
+  <text x="90" y="740" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#6366f1" letter-spacing="-2">Forever.</text>
+
+  <text x="90" y="830" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">Export to PDF, JSON or JSON-LD.</text>
+  <text x="90" y="875" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">Open-source. Self-hostable. No lock-in.</text>
+
+  <!-- format tiles -->
+  <g transform="translate(90,960)" font-family="Menlo, monospace">
+    <g>
+      <rect width="280" height="200" rx="16" fill="#1e1333" stroke="#a78bfa" stroke-width="2"/>
+      <text x="140" y="80" text-anchor="middle" font-size="56" font-weight="800" fill="#a78bfa">PDF</text>
+      <text x="140" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">Print-ready</text>
+      <text x="140" y="170" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">Classic format</text>
+    </g>
+    <g transform="translate(310,0)">
+      <rect width="280" height="200" rx="16" fill="#1e1333" stroke="#fbbf24" stroke-width="2"/>
+      <text x="140" y="80" text-anchor="middle" font-size="52" font-weight="800" fill="#fbbf24">JSON</text>
+      <text x="140" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">Machine-readable</text>
+      <text x="140" y="170" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">Portable</text>
+    </g>
+    <g transform="translate(620,0)">
+      <rect width="280" height="200" rx="16" fill="#1e1333" stroke="#14b8a6" stroke-width="2"/>
+      <text x="140" y="80" text-anchor="middle" font-size="46" font-weight="800" fill="#14b8a6">JSON-LD</text>
+      <text x="140" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">Schema.org</text>
+      <text x="140" y="170" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.55">SEO-native</text>
+    </g>
+  </g>
+
+  <text x="540" y="1290" text-anchor="middle" font-family="Inter, sans-serif" font-weight="500" font-size="22" fill="#ffffff" opacity="0.45">Your data. Your rules. Your format.</text>
+</svg>

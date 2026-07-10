@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg4)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="0" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="20" r="5" fill="#a78bfa"/>
+    <circle cx="40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <!-- PDF becomes graph (split scene) -->
+  <g transform="translate(140,340)">
+    <!-- PDF -->
+    <rect width="240" height="320" rx="10" fill="#1a1a2e" stroke="#2d2140" stroke-width="2"/>
+    <rect x="24" y="30" width="180" height="8" rx="2" fill="#ffffff" opacity="0.3"/>
+    <rect x="24" y="50" width="140" height="6" rx="2" fill="#ffffff" opacity="0.2"/>
+    <rect x="24" y="90" width="192" height="4" rx="2" fill="#ffffff" opacity="0.15"/>
+    <rect x="24" y="102" width="160" height="4" rx="2" fill="#ffffff" opacity="0.15"/>
+    <rect x="24" y="114" width="180" height="4" rx="2" fill="#ffffff" opacity="0.15"/>
+    <rect x="24" y="150" width="80" height="6" rx="2" fill="#ffffff" opacity="0.2"/>
+    <rect x="24" y="170" width="192" height="4" rx="2" fill="#ffffff" opacity="0.12"/>
+    <rect x="24" y="182" width="170" height="4" rx="2" fill="#ffffff" opacity="0.12"/>
+    <rect x="24" y="220" width="80" height="6" rx="2" fill="#ffffff" opacity="0.2"/>
+    <rect x="24" y="240" width="180" height="4" rx="2" fill="#ffffff" opacity="0.1"/>
+    <rect x="24" y="252" width="150" height="4" rx="2" fill="#ffffff" opacity="0.1"/>
+    <text x="120" y="380" text-anchor="middle" font-family="Inter, sans-serif" font-size="20" font-weight="500" fill="#ffffff" opacity="0.5">cv.pdf</text>
+  </g>
+
+  <!-- arrow -->
+  <g transform="translate(450,500)">
+    <path d="M 0 0 L 60 0 M 40 -12 L 60 0 L 40 12" fill="none" stroke="#fbbf24" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- graph -->
+  <g transform="translate(700,360)">
+    <g stroke="#a78bfa" stroke-width="2" opacity="0.6">
+      <line x1="120" y1="140" x2="40" y2="60"/>
+      <line x1="120" y1="140" x2="220" y2="60"/>
+      <line x1="120" y1="140" x2="50" y2="240"/>
+      <line x1="120" y1="140" x2="210" y2="240"/>
+      <line x1="40" y1="60" x2="220" y2="60"/>
+      <line x1="50" y1="240" x2="210" y2="240"/>
+    </g>
+    <circle cx="120" cy="140" r="24" fill="#8b5cf6"/>
+    <circle cx="40" cy="60" r="18" fill="#fbbf24"/>
+    <circle cx="220" cy="60" r="18" fill="#f59e0b"/>
+    <circle cx="50" cy="240" r="16" fill="#ec4899"/>
+    <circle cx="210" cy="240" r="16" fill="#14b8a6"/>
+    <circle cx="260" cy="150" r="12" fill="#a78bfa"/>
+    <circle cx="-20" cy="150" r="12" fill="#a78bfa"/>
+    <text x="120" y="380" text-anchor="middle" font-family="Inter, sans-serif" font-size="20" font-weight="500" fill="#ffffff" opacity="0.8">your orbis</text>
+  </g>
+
+  <!-- headline -->
+  <text x="540" y="960" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="90" fill="#ffffff" letter-spacing="-2">One upload.</text>
+  <text x="540" y="1060" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="90" fill="#fbbf24" letter-spacing="-2">One graph.</text>
+  <text x="540" y="1160" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="90" fill="#a78bfa" letter-spacing="-2">Zero templates.</text>
+
+  <text x="540" y="1250" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="28" fill="#ffffff" opacity="0.6">Drop your PDF. AI builds the graph.</text>
+</svg>

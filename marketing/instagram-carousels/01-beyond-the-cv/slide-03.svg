@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <radialGradient id="bg3" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1a0b3d"/>
+      <stop offset="70%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </radialGradient>
+    <radialGradient id="orb3" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ede9fe"/>
+      <stop offset="40%" stop-color="#8b5cf6" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#4c1d95" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg3)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="0" r="5" fill="#a78bfa"/>
+    <circle cx="20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <!-- orb + nodes (more detailed graph) -->
+  <g transform="translate(540,570)">
+    <circle r="320" fill="url(#orb3)" opacity="0.8"/>
+
+    <g fill="none" stroke-width="2.5" opacity="0.9">
+      <ellipse rx="260" ry="85" stroke="#a78bfa" transform="rotate(-20)"/>
+      <ellipse rx="240" ry="75" stroke="#8b5cf6" transform="rotate(30)"/>
+      <ellipse rx="280" ry="95" stroke="#6366f1" transform="rotate(65)" opacity="0.6"/>
+    </g>
+
+    <!-- connection lines to nodes -->
+    <g stroke="#fbbf24" stroke-width="1.5" opacity="0.55">
+      <line x1="0" y1="0" x2="230" y2="-60"/>
+      <line x1="0" y1="0" x2="-200" y2="100"/>
+      <line x1="0" y1="0" x2="80" y2="220"/>
+      <line x1="0" y1="0" x2="-160" y2="-140"/>
+      <line x1="230" y1="-60" x2="-160" y2="-140"/>
+      <line x1="-200" y1="100" x2="80" y2="220"/>
+    </g>
+
+    <!-- core -->
+    <circle r="60" fill="#ede9fe"/>
+    <circle r="38" fill="#a78bfa"/>
+
+    <!-- satellite nodes with labels -->
+    <g font-family="Inter, sans-serif" font-size="16" font-weight="500">
+      <circle cx="230" cy="-60" r="14" fill="#fbbf24"/>
+      <text x="260" y="-55" fill="#fbbf24">Skills</text>
+
+      <circle cx="-200" cy="100" r="14" fill="#f97316"/>
+      <text x="-290" y="105" fill="#f97316" text-anchor="end">Projects</text>
+
+      <circle cx="80" cy="220" r="12" fill="#14b8a6"/>
+      <text x="110" y="225" fill="#14b8a6">Education</text>
+
+      <circle cx="-160" cy="-140" r="13" fill="#ec4899"/>
+      <text x="-190" y="-145" fill="#ec4899" text-anchor="end">Experience</text>
+    </g>
+  </g>
+
+  <!-- headline -->
+  <text x="540" y="1060" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="28" fill="#a78bfa" letter-spacing="6">MEET YOUR</text>
+  <text x="540" y="1180" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="140" fill="#ffffff" letter-spacing="-4">Orbis.</text>
+  <text x="540" y="1260" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="26" fill="#ffffff" opacity="0.6">A living, interactive knowledge graph of you.</text>
+</svg>

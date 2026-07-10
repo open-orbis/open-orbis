@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg5" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+    <linearGradient id="card5a" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1333"/>
+      <stop offset="100%" stop-color="#0f0820"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg5)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-40" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="0" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="20" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="40" r="5" fill="#a78bfa"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <text x="540" y="220" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="78" fill="#ffffff" letter-spacing="-2">Three words.</text>
+  <text x="540" y="300" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="28" fill="#ffffff" opacity="0.55">What your Orbis does, at its core.</text>
+
+  <!-- 3 cards -->
+  <g transform="translate(90,400)">
+    <rect width="280" height="340" rx="24" fill="url(#card5a)" stroke="#7c3aed" stroke-width="2" opacity="0.9"/>
+    <g transform="translate(140,110)">
+      <circle r="44" fill="none" stroke="#a78bfa" stroke-width="3"/>
+      <path d="M -22 0 L -6 16 L 24 -16" fill="none" stroke="#fbbf24" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="140" y="230" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#ffffff">Queryable.</text>
+    <text x="140" y="275" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.6">Ask anything.</text>
+    <text x="140" y="300" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.6">By humans or AI.</text>
+  </g>
+
+  <g transform="translate(400,400)">
+    <rect width="280" height="340" rx="24" fill="url(#card5a)" stroke="#f59e0b" stroke-width="2" opacity="0.9"/>
+    <g transform="translate(140,110)" fill="none" stroke="#fbbf24" stroke-width="3">
+      <circle r="14"/>
+      <circle cx="-38" cy="-22" r="10"/>
+      <circle cx="38" cy="-22" r="10"/>
+      <circle cx="0" cy="40" r="10"/>
+      <line x1="0" y1="0" x2="-38" y2="-22"/>
+      <line x1="0" y1="0" x2="38" y2="-22"/>
+      <line x1="0" y1="0" x2="0" y2="40"/>
+    </g>
+    <text x="140" y="230" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#ffffff">Shareable.</text>
+    <text x="140" y="275" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.6">One URL.</text>
+    <text x="140" y="300" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.6">Everywhere you go.</text>
+  </g>
+
+  <g transform="translate(710,400)">
+    <rect width="280" height="340" rx="24" fill="url(#card5a)" stroke="#14b8a6" stroke-width="2" opacity="0.9"/>
+    <g transform="translate(140,110)" fill="none" stroke="#14b8a6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="-36" y="-40" width="72" height="80" rx="6"/>
+      <line x1="-20" y1="-20" x2="20" y2="-20"/>
+      <line x1="-20" y1="0" x2="20" y2="0"/>
+      <line x1="-20" y1="20" x2="10" y2="20"/>
+    </g>
+    <text x="140" y="230" text-anchor="middle" font-family="Inter, sans-serif" font-weight="700" font-size="32" fill="#ffffff">Portable.</text>
+    <text x="140" y="275" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.6">PDF · JSON · JSON-LD.</text>
+    <text x="140" y="300" text-anchor="middle" font-family="Inter, sans-serif" font-size="18" fill="#ffffff" opacity="0.6">You own it.</text>
+  </g>
+
+  <text x="540" y="840" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="88" fill="#ffffff" letter-spacing="-2">Build once.</text>
+  <text x="540" y="940" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="88" fill="#a78bfa" letter-spacing="-2">Export anywhere.</text>
+
+  <text x="540" y="1050" text-anchor="middle" font-family="Inter, sans-serif" font-weight="400" font-size="26" fill="#ffffff" opacity="0.6">Changes sync instantly across every share and format.</text>
+
+  <!-- faint ring accent at bottom -->
+  <g transform="translate(540,1240)" fill="none" stroke="#a78bfa" opacity="0.3">
+    <ellipse rx="460" ry="40" stroke-width="1.5"/>
+    <ellipse rx="420" ry="30" stroke-width="1" transform="rotate(18)"/>
+  </g>
+</svg>

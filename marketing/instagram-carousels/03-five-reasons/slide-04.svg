@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0418"/>
+      <stop offset="100%" stop-color="#000"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+
+  <g transform="translate(540,80)">
+    <circle cx="-60" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-36" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="-12" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="12" r="5" fill="#a78bfa"/>
+    <circle cx="36" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="60" r="5" fill="#a78bfa" opacity="0.3"/>
+    <circle cx="84" r="5" fill="#a78bfa" opacity="0.3"/>
+  </g>
+
+  <text x="90" y="300" font-family="Inter, sans-serif" font-weight="900" font-size="280" fill="#14b8a6" opacity="0.3">03</text>
+
+  <text x="90" y="520" font-family="Inter, sans-serif" font-weight="400" font-size="22" fill="#fbbf24" letter-spacing="5">REASON THREE</text>
+
+  <text x="90" y="640" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#ffffff" letter-spacing="-2">Connections</text>
+  <text x="90" y="740" font-family="Inter, sans-serif" font-weight="800" font-size="92" fill="#14b8a6" letter-spacing="-2">become visible.</text>
+
+  <text x="90" y="830" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">Every skill links to every project</text>
+  <text x="90" y="875" font-family="Inter, sans-serif" font-weight="400" font-size="30" fill="#ffffff" opacity="0.7">it proves. Your story, mapped.</text>
+
+  <!-- mini graph visualization -->
+  <g transform="translate(540,1100)">
+    <g stroke="#a78bfa" stroke-width="2" opacity="0.7" fill="none">
+      <line x1="0" y1="0" x2="-160" y2="-100"/>
+      <line x1="0" y1="0" x2="160" y2="-100"/>
+      <line x1="0" y1="0" x2="-140" y2="100"/>
+      <line x1="0" y1="0" x2="140" y2="100"/>
+      <line x1="-160" y1="-100" x2="160" y2="-100"/>
+      <line x1="-140" y1="100" x2="140" y2="100"/>
+      <line x1="-160" y1="-100" x2="-140" y2="100"/>
+      <line x1="160" y1="-100" x2="140" y2="100"/>
+    </g>
+    <circle r="28" fill="#ede9fe"/>
+    <circle r="16" fill="#7c3aed"/>
+
+    <g font-family="Inter, sans-serif" font-size="14" font-weight="600">
+      <circle cx="-160" cy="-100" r="22" fill="#fbbf24"/>
+      <text x="-160" y="-94" text-anchor="middle" fill="#1a0b3d">Rust</text>
+
+      <circle cx="160" cy="-100" r="22" fill="#f97316"/>
+      <text x="160" y="-94" text-anchor="middle" fill="#1a0b3d">Kafka</text>
+
+      <circle cx="-140" cy="100" r="22" fill="#ec4899"/>
+      <text x="-140" y="106" text-anchor="middle" fill="#ffffff">2024</text>
+
+      <circle cx="140" cy="100" r="22" fill="#14b8a6"/>
+      <text x="140" y="106" text-anchor="middle" fill="#ffffff">MIT</text>
+    </g>
+  </g>
+</svg>
